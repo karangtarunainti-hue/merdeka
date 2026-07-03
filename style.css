@@ -814,5 +814,7 @@
     table.general-table th:nth-child(1), table.general-table td:nth-child(1) { width:auto; min-width:100px; }
     .stat-grid{grid-template-columns:1fr 1fr;}
     .reminder-grid{grid-template-columns:1fr;}
+    /* Font input minimal 16px di HP supaya Safari iOS tidak auto-zoom saat fokus ke form */
+    input,select,textarea{font-size:16px;}
   }
   @media(min-width:1200px){.stat-grid{grid-template-columns:repeat(auto-fit,minmax(200px,1fr));}}

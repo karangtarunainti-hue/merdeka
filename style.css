@@ -836,6 +836,10 @@
     table.hadiah-table th:nth-child(1), table.hadiah-table td:nth-child(1),
     table.general-table th:nth-child(1), table.general-table td:nth-child(1) { width:auto; min-width:100px; }
     .stat-grid{grid-template-columns:repeat(auto-fit,minmax(140px,1fr));}
+    /* Kalau jumlah card ganjil (mis. Total Pemasukan, Pengeluaran, Saldo Akhir),
+       card terakhir yang jadi "nyempil sendirian" dibuat memenuhi lebar penuh
+       alih-alih cuma ngisi setengah layar dengan ruang kosong di sampingnya. */
+    .stat-grid .stat-card:last-child:nth-child(odd){grid-column:1/-1;}
     .reminder-grid{grid-template-columns:1fr;}
     /* Font input minimal 16px di HP supaya Safari iOS tidak auto-zoom saat fokus ke form */
     input,select,textarea{font-size:16px;}

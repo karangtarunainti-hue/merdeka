@@ -654,6 +654,7 @@ function goSection(key){
   renderTopbarSaldo();
   renderContent();
   document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebar-backdrop').classList.remove('show');
   window.scrollTo({top:0, behavior:'instant'});
 }
 
@@ -2878,7 +2879,14 @@ document.getElementById('nav').addEventListener('click', (e)=>{
 });
 document.getElementById('menu-toggle').addEventListener('click', ()=>{
   document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('sidebar-backdrop').classList.toggle('show');
 });
+document.getElementById('sidebar-close').addEventListener('click', closeSidebar);
+document.getElementById('sidebar-backdrop').addEventListener('click', closeSidebar);
+function closeSidebar(){
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebar-backdrop').classList.remove('show');
+}
 
 (async function initApp(){
   toast('⏳ Memuat data dari Supabase...');

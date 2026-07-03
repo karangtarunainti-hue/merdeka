@@ -1217,10 +1217,12 @@ function renderAnggota(){
     </div>
     <div class="panel-body">
       ${filterHtml}
+      <div style="overflow-x:auto; -webkit-overflow-scrolling:touch;">
       <table class="anggota-table">
         <thead><tr><th>Nama</th><th>Kategori</th><th class="num">Nominal</th><th>Status</th><th></th></tr></thead>
         <tbody>${rows || `<tr class="empty-row"><td colspan="5">${isFiltering?'Tidak ditemukan.':'Belum ada anggota.'}</td></tr>`}</tbody>
       </table>
+      </div>
     </div>
   </div>`;
 }

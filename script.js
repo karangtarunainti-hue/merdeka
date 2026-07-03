@@ -136,28 +136,18 @@ function setCurrencyValue(inputEl, value) {
    ============================================================ */
 const AUTH_STORAGE_KEY = 'kt_auth_user';
 
-// Hash password dengan SHA-256 (Web Crypto API) — password TIDAK PERNAH disimpan/dikirim plaintext
-async function hashPassword(pw) {
-  const enc = new TextEncoder().encode(String(pw));
-  const buf = await crypto.subtle.digest('SHA-256', enc);
-  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
-// Default users (passwordHash = sha256 dari 'admin123' / 'user123')
-const DEFAULT_USERS = [
-  { id: 'admin1', name: 'Admin Utama', username: 'admin', passwordHash: '240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9', role: 'admin' },
-  { id: 'user1', name: 'User 1', username: 'user', passwordHash: 'e606e38b0d8c19b24cf0ee3808183162ea7cd63ff7912dbb22b5e803286b4446', role: 'user' },
-  { id: 'user2', name: 'User 2', username: 'user2', passwordHash: 'e606e38b0d8c19b24cf0ee3808183162ea7cd63ff7912dbb22b5e803286b4446', role: 'user' },
+// Fallback LOKAL kalau RPC gagal dihubungi (mis. belum jalankan supabase-rls-setup.sql).
+// Tidak ada field password di sini sama sekali — login SELALU diverifikasi di server
+// lewat rpc_login, browser tidak pernah menerima/menyimpan hash password.
+const DEFAULT_USERS_FALLBACK = [
+  { id: 'admin1', name: 'Admin Utama', username: 'admin', role: 'admin' },
+  { id: 'user1', name: 'User 1', username: 'user', role: 'user' },
+  { id: 'user2', name: 'User 2', username: 'user2', role: 'user' },
 ];
 
 function getUsers() {
   if (db.users && db.users.length > 0) return db.users;
-  return DEFAULT_USERS;
-}
-
-function saveUsers(users) {
-  db.users = users;
-  saveDB();
+  return DEFAULT_USERS_FALLBACK;
 }
 
 function getCurrentUser() {
@@ -194,31 +184,17 @@ function canManageSettings() {
   return isAdmin();
 }
 
+// Login diverifikasi 100% di server lewat RPC rpc_login. Password mentah dikirim
+// lewat HTTPS (sama seperti panggilan Supabase lain), di-hash & dibandingkan di
+// Postgres — hash TIDAK PERNAH dikembalikan ke browser, dan kt_users tidak bisa
+// dibaca langsung oleh anon key (lihat supabase-rls-setup.sql Bagian 2).
 async function login(username, password) {
-  const users = getUsers();
-  const user = users.find(u => u.username === username);
-  if (!user) return null;
-
-  const inputHash = await hashPassword(password);
-  let match = false;
-
-  if (user.passwordHash) {
-    match = user.passwordHash === inputHash;
-  } else if (user.password) {
-    // Kompatibilitas mundur: user lama yang masih plaintext (data lama di Supabase).
-    // Kalau cocok, langsung migrasi ke hash & hapus plaintext-nya.
-    match = user.password === password;
-    if (match) {
-      user.passwordHash = inputHash;
-      delete user.password;
-      saveUsers(users);
-    }
-  }
-
-  if (!match) return null;
-  const { password: _p, passwordHash: _h, ...userWithoutPassword } = user;
-  setCurrentUser(userWithoutPassword);
-  return userWithoutPassword;
+  const { data, error } = await sb.rpc('rpc_login', { p_username: username, p_password: password });
+  if (error) { console.error('Login error:', error); return null; }
+  if (!data || data.length === 0) return null;
+  const user = data[0];
+  setCurrentUser(user);
+  return user;
 }
 
 // Quick-login dari daftar akun di modal login — TIDAK memerlukan/menampilkan password
@@ -227,8 +203,7 @@ function quickLoginById(userId) {
   const users = getUsers();
   const user = users.find(u => u.id === userId);
   if (!user) { toast('❌ Login gagal'); return; }
-  const { password: _p, passwordHash: _h, ...userWithoutPassword } = user;
-  setCurrentUser(userWithoutPassword);
+  setCurrentUser(user);
   closeModal();
   renderSidebar();
   renderTopbarSaldo();
@@ -272,7 +247,7 @@ function defaultDB(){
     hadiahJalanSantai: [],
     daftarBelanjaJalanSantai: [],
     jadwal: [],
-    users: [...DEFAULT_USERS],
+    users: [...DEFAULT_USERS_FALLBACK],
     telegram: {
       botToken: '',
       chatId: '',
@@ -303,17 +278,17 @@ const ARRAY_TABLE_MAP = {
   hadiahJalanSantai: 'kt_hadiah_jalan_santai',
   daftarBelanjaJalanSantai: 'kt_daftar_belanja_jalan_santai',
   jadwal: 'kt_jadwal',
-  users: 'kt_users',
 };
 
 async function loadDB(){
   const result = defaultDB();
   try{
     const entries = Object.entries(ARRAY_TABLE_MAP);
-    const [arrayResults, settingsRes, telegramRes] = await Promise.all([
+    const [arrayResults, settingsRes, telegramRes, usersRes] = await Promise.all([
       Promise.all(entries.map(([, table]) => sb.from(table).select('*'))),
       sb.from('kt_settings').select('*'),
       sb.from('kt_telegram_settings').select('*').eq('id', 'main').maybeSingle(),
+      sb.rpc('rpc_list_users'),
     ]);
 
     entries.forEach(([key, table], idx) => {
@@ -321,6 +296,9 @@ async function loadDB(){
       if(res.error){ console.error(`Gagal memuat ${table}:`, res.error); return; }
       result[key] = res.data || [];
     });
+
+    if(usersRes.error){ console.error('Gagal memuat users:', usersRes.error); }
+    result.users = (!usersRes.error && usersRes.data && usersRes.data.length) ? usersRes.data : [...DEFAULT_USERS_FALLBACK];
 
     if(!settingsRes.error){
       (settingsRes.data || []).forEach(s => { result.settings[s.event_id] = { tarif: s.tarif }; });
@@ -334,7 +312,6 @@ async function loadDB(){
       };
     }
 
-    if(result.users.length === 0) result.users = [...DEFAULT_USERS];
     result.activeEventId = localStorage.getItem('kt_active_event') || (result.events[0] ? result.events[0].id : null);
   }catch(e){
     console.error('Gagal memuat data dari Supabase', e);
@@ -851,29 +828,20 @@ function openUserModal(id) {
         return;
       }
       
-      if (editing) {
-        const user = usersList.find(u => u.id === id);
-        if (user) {
-          user.name = name;
-          if (password && password !== '******') {
-            user.passwordHash = await hashPassword(password);
-            delete user.password;
-          }
-          user.role = role;
-        }
-        saveUsers(usersList);
-        toast('✅ User diupdate');
-      } else {
-        usersList.push({
-          id: uid(),
-          name,
-          username,
-          passwordHash: await hashPassword(password || 'user123'),
-          role
-        });
-        saveUsers(usersList);
-        toast('✅ User ditambahkan');
-      }
+      const targetId = editing ? id : uid();
+      const passwordToSend = editing ? (password && password !== '******' ? password : null) : (password || 'user123');
+      const { error } = await sb.rpc('rpc_upsert_user', {
+        p_id: targetId,
+        p_name: name,
+        p_username: username,
+        p_password: passwordToSend,
+        p_role: role,
+      });
+      if (error) { console.error('Gagal menyimpan user:', error); toast('⚠️ Gagal menyimpan user ke Supabase'); return; }
+
+      const { data: refreshed } = await sb.rpc('rpc_list_users');
+      if (refreshed) db.users = refreshed;
+      toast(editing ? '✅ User diupdate' : '✅ User ditambahkan');
       closeModal();
       if (currentSection === 'users') renderContent();
       renderSidebar();
@@ -881,14 +849,19 @@ function openUserModal(id) {
   ]);
 }
 
-function hapusUser(id) {
+async function hapusUser(id) {
   if (!isAdmin()) { toast('⛔ Hanya Admin'); return; }
   const users = getUsers();
   if (users.length <= 1) { toast('⚠️ Minimal 1 user'); return; }
   const user = users.find(u => u.id === id);
   if (!confirm(`Hapus user "${user?.name}"?`)) return;
-  const newUsers = users.filter(u => u.id !== id);
-  saveUsers(newUsers);
+
+  const { error } = await sb.rpc('rpc_delete_user', { p_id: id });
+  if (error) { console.error('Gagal menghapus user:', error); toast('⚠️ Gagal menghapus user'); return; }
+
+  const { data: refreshed } = await sb.rpc('rpc_list_users');
+  if (refreshed) db.users = refreshed;
+
   // If current user is deleted, logout
   const current = getCurrentUser();
   if (current && current.id === id) {

@@ -429,6 +429,7 @@ const KATEGORI_PESERTA = [
   {v:'ibu', l:'Ibu'},
   {v:'bapak-ibu', l:'Bapak-Ibu'},
   {v:'bapak-bapak', l:'Bapak-Bapak'},
+  {v:'umum', l:'Umum'},
 ];
 const JUARA_LIST = [
   {v:'1', l:'Juara 1'},

@@ -3,8 +3,8 @@
    Ganti dengan Project URL dan anon public key dari
    Supabase Dashboard > Project Settings > API
    ============================================================ */
-const SUPABASE_URL = 'https://GANTI-DENGAN-PROJECT-ID.supabase.co';
-const SUPABASE_ANON_KEY = 'GANTI-DENGAN-ANON-PUBLIC-KEY';
+const SUPABASE_URL = 'https://tykahltxzlpctfqdylno.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR5a2FobHR4emxwY3RmcWR5bG5vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIxMTgxNzQsImV4cCI6MjA5NzY5NDE3NH0.QVu9Y6lPr42MITzPM5SvNczbQ8_X0usPH78e4Nj2Epc';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 /* ============================================================

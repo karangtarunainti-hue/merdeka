@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Buku Keuangan — Karang Taruna</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="eyebrow">Karang Taruna</div>
+      <h1>Buku Keuangan</h1>
+    </div>
+    
+    <!-- USER INFO -->
+    <div class="user-info" id="user-info">
+      <div class="name" id="user-name-display">
+        <span id="user-icon">👤</span>
+        <span id="user-name-text">Guest</span>
+        <span class="role-badge guest" id="user-role-badge">View Only</span>
+      </div>
+      <button class="btn-login" id="btn-login" onclick="openLoginModal()">Login</button>
+      <button class="btn-logout" id="btn-logout" onclick="logout()" style="display:none;">Logout</button>
+    </div>
+    
+    <div class="event-block">
+      <label>Event Aktif</label>
+      <select class="event-select" id="event-select"></select>
+      <button class="btn-ghost-light" id="btn-new-event" type="button">+ Event Baru</button>
+    </div>
+    <nav class="nav" id="nav"></nav>
+    <div class="nav-foot">Data tersimpan lokal di peramban ini (localStorage).</div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div class="left">
+        <button class="menu-toggle" id="menu-toggle" type="button" aria-label="Menu">☰</button>
+        <div>
+          <h2 id="page-title">Buku Utama</h2>
+          <div class="sub" id="page-sub"></div>
+        </div>
+        <span class="readonly-badge" id="readonly-badge" style="display:none;">🔒 View Only</span>
+      </div>
+      <div class="saldo-chip" id="saldo-chip">
+        <span class="lbl">Saldo</span>
+        <span class="val mono" id="saldo-val">Rp 0</span>
+      </div>
+    </div>
+    <div id="content"></div>
+  </main>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="modal-title">Judul</h3>
+      <button class="close-x" id="modal-close" type="button">✕</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-foot" id="modal-foot"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,2526 @@
+/* ============================================================
+   CURRENCY INPUT HELPER
+   ============================================================ */
+// Format angka dengan titik ribuan
+function formatCurrency(value) {
+  if (value === undefined || value === null || value === '') return '';
+  const num = typeof value === 'string' ? parseFloat(value.replace(/\./g, '').replace(/,/g, '')) : value;
+  if (isNaN(num) || num === 0) return '';
+  return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+
+// Parse angka dari format titik ribuan
+function parseCurrency(value) {
+  if (typeof value === 'string') {
+    // Hapus semua titik (ribuan) dan koma (desimal), lalu konversi ke float
+    return parseFloat(value.replace(/\./g, '').replace(/,/g, '.'));
+  }
+  return value;
+}
+
+// Setup input dengan format ribuan
+function setupCurrencyInput(inputEl) {
+  if (!inputEl) return;
+  
+  // Pastikan input memiliki class currency-input
+  inputEl.classList.add('currency-input');
+  
+  // Set initial value if present
+  const rawValue = inputEl.value.trim();
+  if (rawValue) {
+    const parsed = parseCurrency(rawValue);
+    if (!isNaN(parsed) && parsed > 0) {
+      inputEl.value = formatCurrency(parsed);
+    }
+  }
+  
+  // Event listener untuk formatting saat mengetik
+  inputEl.addEventListener('input', function(e) {
+    // Simpan posisi kursor
+    const cursorPos = this.selectionStart;
+    const oldLength = this.value.length;
+    
+    // Hapus semua titik dari nilai saat ini
+    let raw = this.value.replace(/\./g, '');
+    // Hanya angka yang diperbolehkan
+    raw = raw.replace(/[^0-9]/g, '');
+    
+    if (raw === '') {
+      this.value = '';
+      return;
+    }
+    
+    // Format dengan titik
+    const formatted = formatCurrency(parseInt(raw, 10));
+    this.value = formatted;
+    
+    // Setel ulang posisi kursor
+    const newLength = this.value.length;
+    this.setSelectionRange(cursorPos + (newLength - oldLength), cursorPos + (newLength - oldLength));
+  });
+  
+  // Saat blur, pastikan format benar
+  inputEl.addEventListener('blur', function() {
+    if (this.value === '') return;
+    const raw = parseCurrency(this.value);
+    if (!isNaN(raw) && raw > 0) {
+      this.value = formatCurrency(raw);
+    }
+  });
+
+  // Untuk nilai yang diset secara programatis
+  const originalSetValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+  const setValue = function(value) {
+    if (value !== undefined && value !== null && value !== '') {
+      const num = typeof value === 'string' ? parseCurrency(value) : value;
+      if (!isNaN(num) && num > 0) {
+        originalSetValue.set.call(this, formatCurrency(num));
+        return;
+      }
+    }
+    originalSetValue.set.call(this, value);
+  };
+  // Override value setter
+  Object.defineProperty(inputEl, 'value', {
+    get: function() { return originalSetValue.get.call(this); },
+    set: setValue,
+    configurable: true
+  });
+}
+
+// Setup semua input dengan class currency-input di modal
+function setupAllCurrencyInputs() {
+  document.querySelectorAll('#modal-body .currency-input').forEach(el => {
+    setupCurrencyInput(el);
+  });
+  document.querySelectorAll('#modal-body input[data-currency="true"]').forEach(el => {
+    setupCurrencyInput(el);
+  });
+}
+
+// Helper untuk mendapatkan nilai numerik dari input format ribuan
+function getCurrencyValue(inputEl) {
+  if (!inputEl) return 0;
+  const raw = inputEl.value.trim();
+  if (!raw) return 0;
+  const parsed = parseCurrency(raw);
+  return isNaN(parsed) ? 0 : parsed;
+}
+
+// Helper untuk mengisi nilai input dengan format ribuan
+function setCurrencyValue(inputEl, value) {
+  if (!inputEl) return;
+  if (value === undefined || value === null) {
+    inputEl.value = '';
+    return;
+  }
+  const num = typeof value === 'string' ? parseCurrency(value) : value;
+  if (isNaN(num) || num <= 0) {
+    inputEl.value = '';
+    return;
+  }
+  inputEl.value = formatCurrency(num);
+}
+
+/* ============================================================
+   AUTH SYSTEM
+   ============================================================ */
+const AUTH_STORAGE_KEY = 'kt_auth_user';
+
+// Default users
+const DEFAULT_USERS = [
+  { id: 'admin1', name: 'Admin Utama', username: 'admin', password: 'admin123', role: 'admin' },
+  { id: 'user1', name: 'User 1', username: 'user', password: 'user123', role: 'user' },
+  { id: 'user2', name: 'User 2', username: 'user2', password: 'user123', role: 'user' },
+];
+
+function getUsers() {
+  try {
+    const raw = localStorage.getItem('kt_users');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed.length > 0) return parsed;
+    }
+  } catch(e) {}
+  return DEFAULT_USERS;
+}
+
+function saveUsers(users) {
+  localStorage.setItem('kt_users', JSON.stringify(users));
+}
+
+function getCurrentUser() {
+  try {
+    const raw = localStorage.getItem(AUTH_STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch(e) {}
+  return null;
+}
+
+function setCurrentUser(user) {
+  if (user) {
+    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user));
+  } else {
+    localStorage.removeItem(AUTH_STORAGE_KEY);
+  }
+}
+
+function isAdmin() {
+  const user = getCurrentUser();
+  return user && user.role === 'admin';
+}
+
+function isUser() {
+  const user = getCurrentUser();
+  return user && (user.role === 'user' || user.role === 'admin');
+}
+
+function canEdit() {
+  return isUser();
+}
+
+function canManageSettings() {
+  return isAdmin();
+}
+
+function login(username, password) {
+  const users = getUsers();
+  const user = users.find(u => u.username === username && u.password === password);
+  if (user) {
+    const { password: _, ...userWithoutPassword } = user;
+    setCurrentUser(userWithoutPassword);
+    return userWithoutPassword;
+  }
+  return null;
+}
+
+function logout() {
+  setCurrentUser(null);
+  renderSidebar();
+  renderTopbarSaldo();
+  renderContent();
+  toast('Anda telah logout');
+}
+
+/* ============================================================
+   DATA LAYER
+   ============================================================ */
+const STORAGE_KEY = 'kt_keuangan_v1';
+
+function uid(){ return (crypto.randomUUID ? crypto.randomUUID() : 'id-'+Date.now()+'-'+Math.random().toString(16).slice(2)); }
+function todayISO(){ return new Date().toISOString().slice(0,10); }
+function fmtRp(n){ return new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',minimumFractionDigits:0}).format(Number(n)||0); }
+function fmtDate(iso){ if(!iso) return '-'; const d=new Date(iso+'T00:00:00'); return d.toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'}); }
+function esc(s){ return String(s??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function defaultDB(){
+  return {
+    events: [],
+    activeEventId: null,
+    settings: {},
+    anggota: [],
+    donatur: [],
+    transaksiLain: [],
+    operasional: [],
+    lomba: [],
+    lombaKebutuhan: [],
+    hadiahKategori: [],
+    lombaHadiah: [],
+    daftarBelanjaHadiah: [],
+    daftarBelanjaPerlengkapan: [],
+    hadiahJalanSantai: [],
+    daftarBelanjaJalanSantai: [],
+    jadwal: [],
+    telegram: {
+      botToken: '',
+      chatId: '',
+      enabled: false
+    }
+  };
+}
+
+function loadDB(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw) return defaultDB();
+    const parsed = JSON.parse(raw);
+    if(parsed.hadiahKategori && parsed.hadiahKategori.length > 0 && parsed.hadiahKategori[0].nama_hadiah !== undefined){
+      parsed.hadiahKategori = parsed.hadiahKategori.map(h => ({
+        id: h.id,
+        event_id: h.event_id,
+        kategori_peserta: h.kategori_peserta,
+        juara_ke: h.juara_ke,
+        items: [{
+          nama: h.nama_hadiah,
+          harga_satuan: Number(h.harga_satuan||0),
+          qty_dibeli: Number(h.qty_dibeli||0),
+          qty_terpakai: Number(h.qty_terpakai||0)
+        }]
+      }));
+    }
+    if(parsed.daftarBelanja && !parsed.daftarBelanjaHadiah){
+      parsed.daftarBelanjaHadiah = parsed.daftarBelanja.map(b => ({
+        id: b.id,
+        event_id: b.event_id,
+        hadiah_kategori_id: b.hadiah_kategori_id,
+        item_index: b.item_index || 0,
+        status: b.status,
+        tanggal_beli: b.tanggal_beli
+      }));
+      delete parsed.daftarBelanja;
+    }
+    if(!parsed.daftarBelanjaPerlengkapan) parsed.daftarBelanjaPerlengkapan = [];
+    if(!parsed.hadiahJalanSantai) parsed.hadiahJalanSantai = [];
+    if(!parsed.daftarBelanjaJalanSantai) parsed.daftarBelanjaJalanSantai = [];
+    if(!parsed.jadwal) parsed.jadwal = [];
+    if(!parsed.telegram) parsed.telegram = { botToken: '', chatId: '', enabled: false };
+    return Object.assign(defaultDB(), parsed);
+  }catch(e){ console.error('Gagal memuat data', e); return defaultDB(); }
+}
+function saveDB(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(db)); }
+
+let db = loadDB();
+
+const KATEGORI_ANGGOTA = [
+  {v:'sekolah', l:'Sekolah'},
+  {v:'bekerja', l:'Bekerja'},
+  {v:'perantauan', l:'Perantauan'},
+  {v:'khusus', l:'Khusus'},
+];
+const KATEGORI_PESERTA = [
+  {v:'anak', l:'Anak'},
+  {v:'ibu', l:'Ibu'},
+  {v:'bapak-ibu', l:'Bapak-Ibu'},
+  {v:'bapak-bapak', l:'Bapak-Bapak'},
+];
+const JUARA_LIST = [
+  {v:'1', l:'Juara 1'},
+  {v:'2', l:'Juara 2'},
+  {v:'3', l:'Juara 3'},
+  {v:'partisipasi', l:'Partisipasi'},
+];
+const KATEGORI_JALAN_SANTAI = [
+  {v:'umum', l:'Hadiah Umum'},
+  {v:'khusus', l:'Hadiah Khusus'},
+  {v:'doorprize', l:'Doorprize'},
+];
+const KATEGORI_JADWAL = [
+  {v:'belanja', l:'🛒 Belanja'},
+  {v:'rapat', l:'📋 Rapat'},
+  {v:'acara', l:'🎉 Acara'},
+  {v:'tenggat', l:'⏰ Tenggat'},
+  {v:'lainnya', l:'📌 Lainnya'},
+];
+
+function activeEvent(){ return db.events.find(e=>e.id===db.activeEventId) || null; }
+function eid(){ return db.activeEventId; }
+function getSettings(){
+  if(!eid()) return {tarif:{sekolah:0,bekerja:0,perantauan:0,khusus:0}};
+  if(!db.settings[eid()]) db.settings[eid()] = {tarif:{sekolah:0,bekerja:0,perantauan:0,khusus:0}};
+  return db.settings[eid()];
+}
+
+/* ============================================================
+   TELEGRAM NOTIFICATION
+   ============================================================ */
+const TELEGRAM_STORAGE_KEY = 'kt_telegram_settings';
+
+function getTelegramSettings(){
+  try{
+    const raw = localStorage.getItem(TELEGRAM_STORAGE_KEY);
+    if(raw){
+      const parsed = JSON.parse(raw);
+      return { ...db.telegram, ...parsed };
+    }
+  }catch(e){}
+  return db.telegram;
+}
+
+function saveTelegramSettings(settings){
+  db.telegram = settings;
+  localStorage.setItem(TELEGRAM_STORAGE_KEY, JSON.stringify(settings));
+  saveDB();
+}
+
+async function sendTelegramNotification(message, isTest = false){
+  const settings = getTelegramSettings();
+  if(!settings.enabled || !settings.botToken || !settings.chatId){
+    if(isTest) toast('⚠️ Telegram belum dikonfigurasi. Atur di Pengaturan.');
+    return false;
+  }
+  try{
+    const url = `https://api.telegram.org/bot${settings.botToken}/sendMessage`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: settings.chatId,
+        text: message,
+        parse_mode: 'HTML'
+      })
+    });
+    const result = await response.json();
+    if(result.ok){
+      if(isTest) toast('✅ Notifikasi Telegram berhasil dikirim!');
+      return true;
+    }else{
+      console.error('Telegram error:', result);
+      if(isTest) toast('❌ Gagal kirim notifikasi. Cek token & chat ID.');
+      return false;
+    }
+  }catch(e){
+    console.error('Telegram send error:', e);
+    if(isTest) toast('❌ Gagal kirim notifikasi. Periksa koneksi internet.');
+    return false;
+  }
+}
+
+function formatNotificationMessage(action, data, eventName){
+  const timestamp = new Date().toLocaleString('id-ID');
+  const user = getCurrentUser();
+  const userName = user ? user.name : 'Guest (View Only)';
+  const userRole = user ? user.role : 'guest';
+  let msg = `<b>📋 Karang Taruna - Buku Keuangan</b>\n\n`;
+  msg += `<b>Event:</b> ${eventName}\n`;
+  msg += `<b>Waktu:</b> ${timestamp}\n`;
+  msg += `<b>👤 User:</b> ${userName} (${userRole})\n\n`;
+  msg += `<b>📌 Aksi:</b> ${action}\n`;
+  if(data) msg += `<b>📝 Detail:</b>\n${data}\n`;
+  
+  if(activeEvent()){
+    const {saldo, pemasukan, pengeluaran} = hitungBukuUtama();
+    msg += `\n<b>💰 Saldo Akhir:</b> ${fmtRp(saldo)}`;
+    msg += `\n<b>📈 Pemasukan:</b> ${fmtRp(pemasukan)}`;
+    msg += `\n<b>📉 Pengeluaran:</b> ${fmtRp(pengeluaran)}`;
+  }
+  return msg;
+}
+
+async function notifyTelegram(action, data = ''){
+  const settings = getTelegramSettings();
+  if(!settings.enabled) return;
+  // Only notify if user is logged in (not guest)
+  if(!getCurrentUser()) return;
+  const eventName = activeEvent()?.nama || 'Tidak ada event aktif';
+  const message = formatNotificationMessage(action, data, eventName);
+  await sendTelegramNotification(message);
+}
+
+/* ============================================================
+   NAV / ROUTING
+   ============================================================ */
+const SECTIONS = [
+  {key:'dashboard', label:'Buku Utama', sub:'Rekap & Reminder', icon:'grid', adminOnly: false},
+  {key:'anggota', label:'Iuran Anggota', sub:'Kelola iuran anggota', icon:'users', adminOnly: false},
+  {key:'database-anggota', label:'Database Anggota', sub:'Cek & filter semua anggota', icon:'database', adminOnly: false},
+  {key:'donatur', label:'Donatur', sub:'Sumbangan tunai dari donatur', icon:'heart', adminOnly: false},
+  {key:'transaksi', label:'Transaksi Lain', sub:'Pemasukan di luar iuran & donasi', icon:'swap', adminOnly: false},
+  {key:'operasional', label:'Operasional Kegiatan', sub:'Biaya operasional umum event', icon:'briefcase', adminOnly: false},
+  {key:'lomba', label:'Lomba & Kebutuhan', sub:'Kebutuhan barang per lomba', icon:'flag', adminOnly: false},
+  {key:'hadiah', label:'Stok Hadiah Lomba', sub:'Belanja hadiah per kategori peserta', icon:'gift', adminOnly: false},
+  {key:'belanja-hadiah', label:'Belanja Hadiah', sub:'Daftar belanja hadiah lomba', icon:'shopping', adminOnly: false},
+  {key:'belanja-perlengkapan', label:'Belanja Perlengkapan', sub:'Daftar belanja perlengkapan lomba', icon:'package', adminOnly: false},
+  {key:'hadiah-jalan', label:'Hadiah Jalan Santai', sub:'Kelola hadiah jalan santai', icon:'walk', adminOnly: false},
+  {key:'belanja-jalan', label:'Belanja Jalan Santai', sub:'Daftar belanja hadiah jalan santai', icon:'shopping-bag', adminOnly: false},
+  {key:'jadwal', label:'Jadwal & Reminder', sub:'Kelola jadwal dan pengingat', icon:'calendar', adminOnly: false},
+  {key:'pengaturan', label:'Pengaturan', sub:'Tarif iuran & event', icon:'gear', adminOnly: true},
+  {key:'users', label:'Manajemen User', sub:'Kelola akun pengguna', icon:'users', adminOnly: true},
+];
+const ICONS = {
+  grid:'<path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z" stroke-width="1.6" stroke="currentColor" fill="none" stroke-linejoin="round"/>',
+  users:'<circle cx="8.5" cy="8" r="3" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M2.5 20c0-3.5 2.7-6 6-6s6 2.5 6 6" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round"/><circle cx="17" cy="8.5" r="2.4" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M15.5 13c2.6.3 4.5 2.3 4.9 5.3" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round"/>',
+  database:'<rect x="3" y="4" width="18" height="6" rx="1" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M3 10v6c0 1.7 4 3 9 3s9-1.3 9-3v-6" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M3 16v6c0 1.7 4 3 9 3s9-1.3 9-3v-6" stroke="currentColor" stroke-width="1.6" fill="none"/><circle cx="7" cy="7" r="1.2" fill="currentColor"/><circle cx="12" cy="7" r="1.2" fill="currentColor"/><circle cx="17" cy="7" r="1.2" fill="currentColor"/>',
+  heart:'<path d="M12 20s-7.5-4.6-9.4-9.3C1.4 7.6 3 4.7 6.1 4.3c2-.3 3.6.8 5.9 3 2.3-2.2 3.9-3.3 5.9-3 3.1.4 4.7 3.3 3.5 6.4C19.5 15.4 12 20 12 20z" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linejoin="round"/>',
+  swap:'<path d="M4 8h14M14 4l4 4-4 4" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 16H6M10 20l-4-4 4-4" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>',
+  briefcase:'<rect x="3" y="7" width="18" height="12" rx="2" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M8 7V5.5A1.5 1.5 0 0 1 9.5 4h5A1.5 1.5 0 0 1 16 5.5V7" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M3 12h18" stroke="currentColor" stroke-width="1.6"/>',
+  flag:'<path d="M5 3v18" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M5 4c3-1.4 4.7.4 7.5-.9C15 2 17 2.3 19 3.3v9c-2-1-4-1.3-6.5 0-2.8 1.3-4.5-.5-7.5.9V4z" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linejoin="round"/>',
+  gift:'<rect x="3" y="9" width="18" height="4" stroke="currentColor" stroke-width="1.6" fill="none"/><rect x="5" y="13" width="14" height="8" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M12 9v12M12 9c-1.8 0-4-1-4-3.2S9.6 3 11 3.8C12 4.5 12 7 12 9zM12 9c1.8 0 4-1 4-3.2S14.4 3 13 3.8C12 4.5 12 7 12 9z" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linejoin="round"/>',
+  gear:'<path d="M12 2.5v2M12 19.5v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2.5 12h2M19.5 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.6" fill="none"/>',
+  shopping:'<path d="M6 6h12l2 12H4L6 6z" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linejoin="round"/><circle cx="9" cy="20" r="1.5" fill="currentColor"/><circle cx="15" cy="20" r="1.5" fill="currentColor"/><path d="M9 12h6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
+  package:'<rect x="3" y="5" width="18" height="14" rx="1" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M8 5v14M16 5v14M3 10h18" stroke="currentColor" stroke-width="1.6"/>',
+  walk:'<path d="M13 4a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0z" fill="currentColor"/><path d="M8 21l3-7-2-4 3-3 3 4 1 6" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 11l-3 3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M9 21v-4l3-3" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round"/><path d="M12 14l2 3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
+  'shopping-bag':'<rect x="5" y="8" width="14" height="13" rx="2" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M8 6c0-2.2 1.8-4 4-4s4 1.8 4 4v2" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round"/><circle cx="9" cy="14" r="1" fill="currentColor"/><circle cx="15" cy="14" r="1" fill="currentColor"/>',
+  calendar:'<rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M3 10h18" stroke="currentColor" stroke-width="1.6"/><path d="M8 2v4M16 2v4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="12" cy="14" r="1.2" fill="currentColor"/><circle cx="16" cy="14" r="1.2" fill="currentColor"/><circle cx="8" cy="14" r="1.2" fill="currentColor"/>'
+};
+function icon(name){ return `<svg viewBox="0 0 24 24">${ICONS[name]||''}</svg>`; }
+
+let currentSection = 'dashboard';
+
+function renderSidebar(){
+  const sel = document.getElementById('event-select');
+  sel.innerHTML = db.events.length
+    ? db.events.map(e=>`<option value="${e.id}" ${e.id===db.activeEventId?'selected':''}>${esc(e.nama)}</option>`).join('')
+    : `<option value="">— Belum ada event —</option>`;
+
+  const user = getCurrentUser();
+  const isLoggedIn = !!user;
+  const isAdminUser = user && user.role === 'admin';
+  
+  // Update user info
+  const nameDisplay = document.getElementById('user-name-text');
+  const roleBadge = document.getElementById('user-role-badge');
+  const userIcon = document.getElementById('user-icon');
+  const btnLogin = document.getElementById('btn-login');
+  const btnLogout = document.getElementById('btn-logout');
+  
+  if (isLoggedIn) {
+    nameDisplay.textContent = user.name;
+    const roleLabel = user.role === 'admin' ? 'Admin' : 'User';
+    roleBadge.textContent = roleLabel;
+    roleBadge.className = `role-badge ${user.role}`;
+    userIcon.textContent = user.role === 'admin' ? '⚡' : '👤';
+    btnLogin.style.display = 'none';
+    btnLogout.style.display = 'inline-block';
+  } else {
+    nameDisplay.textContent = 'Guest';
+    roleBadge.textContent = 'View Only';
+    roleBadge.className = 'role-badge guest';
+    userIcon.textContent = '👤';
+    btnLogin.style.display = 'inline-block';
+    btnLogout.style.display = 'none';
+  }
+
+  const nav = document.getElementById('nav');
+  const visibleSections = SECTIONS.filter(s => !s.adminOnly || isAdminUser);
+  nav.innerHTML = visibleSections.map(s=>`
+    <div class="nav-item ${s.key===currentSection?'active':''} ${!isLoggedIn && !s.adminOnly ? '' : ''}" data-nav="${s.key}">
+      ${icon(s.icon)} <span>${s.label}</span>
+      ${s.adminOnly && !isAdminUser ? `<span class="lock-icon">🔒</span>` : ''}
+    </div>`).join('');
+
+  // Disable event creation for non-logged-in
+  document.getElementById('btn-new-event').disabled = !isLoggedIn;
+}
+
+function goSection(key){
+  const user = getCurrentUser();
+  const section = SECTIONS.find(s=>s.key===key);
+  if (section && section.adminOnly && !(user && user.role === 'admin')) {
+    toast('⛔ Hanya Admin yang bisa mengakses halaman ini');
+    return;
+  }
+  currentSection = key;
+  const meta = SECTIONS.find(s=>s.key===key);
+  document.getElementById('page-title').textContent = meta ? meta.label : 'Dashboard';
+  document.getElementById('page-sub').textContent = meta ? (meta.desc || meta.sub) : '';
+  renderSidebar();
+  renderTopbarSaldo();
+  renderContent();
+  document.getElementById('sidebar').classList.remove('open');
+  window.scrollTo({top:0, behavior:'instant'});
+}
+
+function renderTopbarSaldo(){
+  const chip = document.getElementById('saldo-chip');
+  if(!activeEvent()){ chip.style.visibility='hidden'; return; }
+  chip.style.visibility='visible';
+  const {saldo} = hitungBukuUtama();
+  chip.classList.toggle('negatif', saldo < 0);
+  document.getElementById('saldo-val').textContent = fmtRp(saldo);
+  
+  // Show readonly badge for guests
+  const badge = document.getElementById('readonly-badge');
+  if (!getCurrentUser()) {
+    badge.style.display = 'inline-block';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+function renderContent(){
+  const el = document.getElementById('content');
+  const isLoggedIn = !!getCurrentUser();
+  const isAdminUser = getCurrentUser()?.role === 'admin';
+  
+  if(!activeEvent()){
+    el.innerHTML = `<div class="empty-state"><h3>Belum ada event aktif</h3><p>${isLoggedIn ? 'Buat event tahunan dulu.' : 'Login untuk membuat atau mengelola event.'}</p>
+      ${isLoggedIn ? `<button class="btn" onclick="openEventModal()">+ Buat Event Pertama</button>` : `<button class="btn" onclick="openLoginModal()">🔑 Login untuk Mengelola</button>`}
+    </div>`;
+    return;
+  }
+  
+  // Check if current section is admin-only
+  const section = SECTIONS.find(s=>s.key===currentSection);
+  if (section && section.adminOnly && !isAdminUser) {
+    el.innerHTML = `<div class="empty-state"><h3>⛔ Akses Ditolak</h3><p>Halaman ini hanya untuk Admin.</p><button class="btn" onclick="goSection('dashboard')">Kembali ke Dashboard</button></div>`;
+    return;
+  }
+  
+  switch(currentSection){
+    case 'dashboard': el.innerHTML = renderDashboard(); break;
+    case 'anggota': el.innerHTML = renderAnggota(); break;
+    case 'database-anggota': el.innerHTML = renderDatabaseAnggota(); break;
+    case 'donatur': el.innerHTML = renderDonatur(); break;
+    case 'transaksi': el.innerHTML = renderTransaksi(); break;
+    case 'operasional': el.innerHTML = renderOperasional(); break;
+    case 'lomba': el.innerHTML = renderLomba(); break;
+    case 'hadiah': el.innerHTML = renderHadiah(); break;
+    case 'belanja-hadiah': el.innerHTML = renderBelanjaHadiah(); break;
+    case 'belanja-perlengkapan': el.innerHTML = renderBelanjaPerlengkapan(); break;
+    case 'hadiah-jalan': el.innerHTML = renderHadiahJalanSantai(); break;
+    case 'belanja-jalan': el.innerHTML = renderBelanjaJalanSantai(); break;
+    case 'jadwal': el.innerHTML = renderJadwal(); break;
+    case 'pengaturan': el.innerHTML = renderPengaturan(); break;
+    case 'users': el.innerHTML = renderUsers(); break;
+    default: el.innerHTML = renderDashboard();
+  }
+  
+  // Setup currency inputs after content rendered
+  setTimeout(setupAllCurrencyInputs, 50);
+}
+
+/* ============================================================
+   LOGIN MODAL
+   ============================================================ */
+function openLoginModal() {
+  const users = getUsers();
+  setModal('🔑 Login', `
+    <p style="color:var(--ink-soft); margin-bottom:16px;">Pilih akun untuk login atau login dengan username & password.</p>
+    <div class="login-options">
+      ${users.map(u => `
+        <div class="login-user" onclick="quickLogin('${u.username}','${u.password}')">
+          <div class="info">
+            <div class="avatar ${u.role}">${u.role === 'admin' ? '⚡' : '👤'}</div>
+            <div class="detail">
+              <div class="name">${esc(u.name)}</div>
+              <div class="role">${u.role === 'admin' ? 'Admin • Akses penuh' : 'User • Bisa edit'}</div>
+            </div>
+          </div>
+          <button class="btn-select">Login</button>
+        </div>
+      `).join('')}
+    </div>
+    <hr style="border:1px solid var(--garis); margin:16px 0;">
+    <div class="field-row">
+      <div class="field"><label>Username</label><input id="login-username" placeholder="admin atau user"></div>
+      <div class="field"><label>Password</label><input id="login-password" type="password" placeholder="******"></div>
+    </div>
+    <div style="display:flex; gap:8px; margin-top:8px;">
+      <button class="btn" onclick="manualLogin()">Login</button>
+      <button class="btn secondary" onclick="closeModal()">Batal</button>
+    </div>
+    <div class="hint" style="margin-top:12px;">🔑 Default: admin/admin123 • user/user123</div>
+  `, []);
+}
+
+function quickLogin(username, password) {
+  const user = login(username, password);
+  if (user) {
+    closeModal();
+    renderSidebar();
+    renderTopbarSaldo();
+    renderContent();
+    toast(`✅ Login sebagai ${user.name} (${user.role})`);
+    notifyTelegram(`🔑 User login: ${user.name}`, `Role: ${user.role}`);
+  } else {
+    toast('❌ Login gagal');
+  }
+}
+
+function manualLogin() {
+  const username = document.getElementById('login-username')?.value?.trim();
+  const password = document.getElementById('login-password')?.value?.trim();
+  if (!username || !password) {
+    toast('⚠️ Isi username dan password');
+    return;
+  }
+  quickLogin(username, password);
+}
+
+/* ============================================================
+   USER MANAGEMENT (Admin Only)
+   ============================================================ */
+function renderUsers() {
+  if (!isAdmin()) {
+    return `<div class="empty-state"><h3>⛔ Akses Ditolak</h3><p>Halaman ini hanya untuk Admin.</p></div>`;
+  }
+  
+  const users = getUsers();
+  const rows = users.map((u, idx) => `
+    <tr>
+      <td>${esc(u.name)}</td>
+      <td><span class="badge ${u.role === 'admin' ? 'lunas' : 'dibeli'}">${u.role}</span></td>
+      <td>${esc(u.username)}</td>
+      <td>******</td>
+      <td style="text-align:right; white-space:nowrap;">
+        <button class="btn secondary small" onclick="openUserModal('${u.id}')">✎ Edit</button>
+        <button class="icon-btn" onclick="hapusUser('${u.id}')" ${users.length <= 1 ? 'disabled' : ''}>🗑</button>
+      </td>
+    </tr>
+  `).join('');
+
+  return `
+  <div class="panel">
+    <div class="panel-head">
+      <div><h3>👥 Manajemen User</h3>
+        <div class="desc">Kelola akun pengguna yang dapat mengakses sistem</div>
+      </div>
+      <button class="btn" onclick="openUserModal()">+ Tambah User</button>
+    </div>
+    <div class="panel-body flush">
+      <table class="general-table">
+        <thead><tr><th>Nama</th><th>Role</th><th>Username</th><th>Password</th><th></th></tr></thead>
+        <tbody>${rows || `<tr class="empty-row"><td colspan="5">Belum ada user.</td></tr>`}</tbody>
+      </table>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="panel-head"><h3>ℹ️ Tentang Role</h3></div>
+    <div class="panel-body">
+      <p><strong>👤 Guest (Tidak Login)</strong> — Hanya bisa melihat data (read-only). Tidak bisa menambah, mengedit, atau menghapus data.</p>
+      <p><strong>👤 User</strong> — Bisa melihat dan mengedit semua data (anggota, donatur, transaksi, lomba, hadiah, dll). Tidak bisa mengakses Pengaturan.</p>
+      <p><strong>⚡ Admin</strong> — Akses penuh termasuk Pengaturan dan Manajemen User.</p>
+    </div>
+  </div>`;
+}
+
+function openUserModal(id) {
+  if (!isAdmin()) { toast('⛔ Hanya Admin'); return; }
+  const users = getUsers();
+  const editing = id ? users.find(u => u.id === id) : null;
+  
+  setModal(editing ? '✏️ Edit User' : '➕ Tambah User', `
+    <div class="field"><label>Nama Lengkap</label><input id="f-name" value="${editing ? esc(editing.name) : ''}" placeholder="Nama user"></div>
+    <div class="field"><label>Username</label><input id="f-username" value="${editing ? esc(editing.username) : ''}" placeholder="username" ${editing ? 'disabled' : ''}></div>
+    <div class="field"><label>Password</label><input id="f-password" type="text" value="${editing ? '******' : ''}" placeholder="${editing ? 'Kosongkan untuk tidak diubah' : 'Password baru'}"></div>
+    <div class="field"><label>Role</label>
+      <select id="f-role">
+        <option value="user" ${editing && editing.role === 'user' ? 'selected' : ''}>User (Bisa edit semua data)</option>
+        <option value="admin" ${editing && editing.role === 'admin' ? 'selected' : ''}>Admin (Akses penuh)</option>
+      </select>
+    </div>
+  `, [
+    {label:'Batal', cls:'secondary', onclick:closeModal},
+    {label: editing ? 'Simpan' : 'Tambah', cls:'', onclick:() => {
+      const name = document.getElementById('f-name').value.trim();
+      const username = document.getElementById('f-username').value.trim();
+      const password = document.getElementById('f-password').value.trim();
+      const role = document.getElementById('f-role').value;
+      
+      if (!name || !username) { toast('Nama dan username wajib'); return; }
+      if (!editing && !password) { toast('Password wajib untuk user baru'); return; }
+      if (editing && password && password.length < 4) { toast('Password minimal 4 karakter'); return; }
+      
+      const usersList = getUsers();
+      if (!editing && usersList.find(u => u.username === username)) {
+        toast('Username sudah digunakan');
+        return;
+      }
+      
+      if (editing) {
+        const user = usersList.find(u => u.id === id);
+        if (user) {
+          user.name = name;
+          if (password && password !== '******') user.password = password;
+          user.role = role;
+        }
+        saveUsers(usersList);
+        toast('✅ User diupdate');
+      } else {
+        usersList.push({
+          id: uid(),
+          name,
+          username,
+          password: password || 'user123',
+          role
+        });
+        saveUsers(usersList);
+        toast('✅ User ditambahkan');
+      }
+      closeModal();
+      if (currentSection === 'users') renderContent();
+      renderSidebar();
+    }}
+  ]);
+}
+
+function hapusUser(id) {
+  if (!isAdmin()) { toast('⛔ Hanya Admin'); return; }
+  const users = getUsers();
+  if (users.length <= 1) { toast('⚠️ Minimal 1 user'); return; }
+  const user = users.find(u => u.id === id);
+  if (!confirm(`Hapus user "${user?.name}"?`)) return;
+  const newUsers = users.filter(u => u.id !== id);
+  saveUsers(newUsers);
+  // If current user is deleted, logout
+  const current = getCurrentUser();
+  if (current && current.id === id) {
+    logout();
+  }
+  toast('🗑️ User dihapus');
+  if (currentSection === 'users') renderContent();
+  renderSidebar();
+}
+
+/* ============================================================
+   DASHBOARD
+   ============================================================ */
+function renderDashboard(){
+  const b = hitungBukuUtama();
+  const rows = [
+    ['Iuran Anggota (lunas)', b.iuran, 'anggota'],
+    ['Donatur', b.donasi, 'donatur'],
+    ['Transaksi Lain', b.transaksiLain, 'transaksi'],
+  ];
+  const rowsOut = [
+    ['Operasional Kegiatan', b.opsional, 'operasional'],
+    ['Belanja Kebutuhan Lomba', b.kebutuhanLomba, 'lomba'],
+    ['Belanja Hadiah Lomba', b.hadiahLomba, 'hadiah'],
+    ['Belanja Hadiah Jalan Santai', b.hadiahJalan, 'hadiah-jalan'],
+  ];
+
+  const reminderCards = generateReminders();
+  const isLoggedIn = !!getCurrentUser();
+
+  return `
+  ${reminderCards}
+  <div class="stat-grid">
+    <div class="stat-card pemasukan"><div class="lbl">Total Pemasukan</div><div class="val">${fmtRp(b.pemasukan)}</div></div>
+    <div class="stat-card pengeluaran"><div class="lbl">Total Pengeluaran</div><div class="val">${fmtRp(b.pengeluaran)}</div></div>
+    <div class="stat-card saldo"><div class="lbl">Saldo Akhir</div><div class="val">${fmtRp(b.saldo)}</div></div>
+  </div>
+  <div class="panel">
+    <div class="panel-head"><h3>Rincian Pemasukan</h3></div>
+    <div class="panel-body flush">
+      <table class="general-table">
+        <thead><tr><th>Buku Anak</th><th class="num">Jumlah</th><th></th></tr></thead>
+        <tbody>
+          ${rows.map(([l,v,k])=>`<tr><td>${l}</td><td class="num">${fmtRp(v)}</td><td style="width:110px; text-align:right;"><button class="btn secondary small" onclick="goSection('${k}')">Lihat →</button></td></tr>`).join('')}
+        </tbody>
+        <tfoot><tr><td>Total Pemasukan</td><td class="num">${fmtRp(b.pemasukan)}</td><td></td></tr></tfoot>
+      </table>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="panel-head"><h3>Rincian Pengeluaran</h3></div>
+    <div class="panel-body flush">
+      <table class="general-table">
+        <thead><tr><th>Buku Anak</th><th class="num">Jumlah</th><th></th></tr></thead>
+        <tbody>
+          ${rowsOut.map(([l,v,k])=>`<tr><td>${l}</td><td class="num">${fmtRp(v)}</td><td style="width:110px; text-align:right;"><button class="btn secondary small" onclick="goSection('${k}')">Lihat →</button></td></tr>`).join('')}
+        </tbody>
+        <tfoot><tr><td>Total Pengeluaran</td><td class="num">${fmtRp(b.pengeluaran)}</td><td></td></tr></tfoot>
+      </table>
+    </div>
+  </div>`;
+}
+
+function generateReminders(){
+  const reminders = [];
+  const today = new Date();
+  const isLoggedIn = !!getCurrentUser();
+
+  const jadwalList = gJadwal().filter(j => j.status !== 'selesai');
+  const upcomingJadwal = jadwalList.filter(j => {
+    const jDate = new Date(j.tanggal + 'T00:00:00');
+    const diffDays = Math.ceil((jDate - today) / (1000 * 60 * 60 * 24));
+    return diffDays >= 0 && diffDays <= 7;
+  }).sort((a,b) => new Date(a.tanggal) - new Date(b.tanggal));
+
+  if (upcomingJadwal.length > 0) {
+    const todayJadwal = upcomingJadwal.filter(j => {
+      const jDate = new Date(j.tanggal + 'T00:00:00');
+      return jDate.toDateString() === today.toDateString();
+    });
+    const soonJadwal = upcomingJadwal.filter(j => {
+      const jDate = new Date(j.tanggal + 'T00:00:00');
+      return jDate.toDateString() !== today.toDateString();
+    });
+
+    let items = [];
+    if (todayJadwal.length > 0) {
+      items.push({label: '📌 Hari ini:', value: todayJadwal.map(j => `${j.judul} (${labelKategoriJadwal(j.kategori)})`).join(', ')});
+    }
+    if (soonJadwal.length > 0) {
+      const soonText = soonJadwal.map(j => {
+        const jDate = new Date(j.tanggal + 'T00:00:00');
+        const diffDays = Math.ceil((jDate - today) / (1000 * 60 * 60 * 24));
+        const dayLabel = diffDays === 1 ? 'Besok' : `${diffDays} hari lagi`;
+        return `${j.judul} (${dayLabel})`;
+      }).join(', ');
+      items.push({label: '📅 Mendatang:', value: soonText});
+    }
+
+    reminders.push({
+      type: 'info',
+      icon: '📅',
+      title: 'Jadwal Mendatang',
+      count: upcomingJadwal.length,
+      items: items,
+      action: {label: 'Lihat Semua →', link: 'jadwal'}
+    });
+  }
+
+  const hadiahItems = [];
+  gHadiahKategori().forEach(h => {
+    h.items.forEach((item, idx) => {
+      if (Number(item.qty_dibeli||0) <= 0) return;
+      const belanja = db.daftarBelanjaHadiah.find(b => b.hadiah_kategori_id === h.id && b.item_index === idx && b.event_id === eid());
+      if (!belanja || belanja.status !== 'dibeli') {
+        hadiahItems.push({nama: item.nama, qty: item.qty_dibeli, kategori: labelPeserta(h.kategori_peserta)});
+      }
+    });
+  });
+
+  const perlengkapanItems = [];
+  gLomba().forEach(l => {
+    gKebutuhan(l.id).forEach(k => {
+      const belanja = db.daftarBelanjaPerlengkapan.find(b => b.kebutuhan_id === k.id && b.event_id === eid());
+      if (!belanja || belanja.status !== 'dibeli') {
+        perlengkapanItems.push({nama: k.nama_item, qty: k.qty, lomba: l.nama});
+      }
+    });
+  });
+
+  const jalanItems = gHadiahJalanSantai().filter(h => {
+    const belanja = db.daftarBelanjaJalanSantai.find(b => b.hadiah_jalan_id === h.id && b.event_id === eid());
+    return !belanja || belanja.status !== 'dibeli';
+  });
+
+  const totalBelum = hadiahItems.length + perlengkapanItems.length + jalanItems.length;
+
+  if (totalBelum > 0) {
+    let items = [];
+    if (hadiahItems.length > 0) {
+      const labels = hadiahItems.slice(0, 3).map(i => `${i.nama} (${i.kategori})`).join(', ');
+      items.push({label: '🎁 Hadiah Lomba:', value: hadiahItems.length > 3 ? `${labels} +${hadiahItems.length-3} lagi` : labels});
+    }
+    if (perlengkapanItems.length > 0) {
+      const labels = perlengkapanItems.slice(0, 3).map(i => `${i.nama} (${i.lomba})`).join(', ');
+      items.push({label: '📦 Perlengkapan:', value: perlengkapanItems.length > 3 ? `${labels} +${perlengkapanItems.length-3} lagi` : labels});
+    }
+    if (jalanItems.length > 0) {
+      const labels = jalanItems.slice(0, 3).map(i => i.nama_hadiah).join(', ');
+      items.push({label: '🏃 Jalan Santai:', value: jalanItems.length > 3 ? `${labels} +${jalanItems.length-3} lagi` : labels});
+    }
+    const type = totalBelum > 5 ? 'danger' : 'warning';
+    reminders.push({
+      type: type,
+      icon: '🛒',
+      title: 'Belanja Belum Dibeli',
+      count: totalBelum,
+      items: items,
+      action: {label: `Lihat ${totalBelum} Item →`, link: 'belanja-hadiah'}
+    });
+  }
+
+  const stokMenipis = [];
+  gHadiahKategori().forEach(h => {
+    h.items.forEach(item => {
+      const sisa = Number(item.qty_dibeli||0) - Number(item.qty_terpakai||0);
+      if (sisa > 0 && sisa <= 3) {
+        stokMenipis.push({nama: item.nama, sisa: sisa, kategori: labelPeserta(h.kategori_peserta)});
+      }
+    });
+  });
+
+  if (stokMenipis.length > 0) {
+    const labels = stokMenipis.slice(0, 3).map(i => `${i.nama} (sisa ${i.sisa})`).join(', ');
+    reminders.push({
+      type: 'warning',
+      icon: '⚠️',
+      title: 'Stok Hadiah Menipis',
+      count: stokMenipis.length,
+      items: [{label: 'Item:', value: stokMenipis.length > 3 ? `${labels} +${stokMenipis.length-3} lagi` : labels}],
+      action: {label: 'Cek Stok →', link: 'hadiah'}
+    });
+  }
+
+  const belumBayar = gAnggota().filter(a => a.status === 'belum_lunas');
+  if (belumBayar.length > 0) {
+    const labels = belumBayar.slice(0, 3).map(a => a.nama).join(', ');
+    const totalTunggakan = belumBayar.reduce((s,a) => s + Number(a.nominal_wajib||0), 0);
+    reminders.push({
+      type: 'danger',
+      icon: '💰',
+      title: 'Anggota Belum Bayar',
+      count: belumBayar.length,
+      items: [
+        {label: 'Anggota:', value: belumBayar.length > 3 ? `${labels} +${belumBayar.length-3} lagi` : labels},
+        {label: 'Total Tunggakan:', value: fmtRp(totalTunggakan), valueClass: 'danger'}
+      ],
+      action: {label: `Tagih ${belumBayar.length} Anggota →`, link: 'database-anggota'}
+    });
+  }
+
+  const {saldo} = hitungBukuUtama();
+  if (saldo < 0) {
+    reminders.push({
+      type: 'danger',
+      icon: '🚨',
+      title: '⚠️ Saldo Negatif!',
+      count: fmtRp(saldo),
+      items: [{label: 'Saldo saat ini:', value: fmtRp(saldo), valueClass: 'danger'}],
+      action: {label: 'Cek Keuangan →', link: 'dashboard'}
+    });
+  }
+
+  if (reminders.length === 0) {
+    return `
+    <div class="reminder-grid">
+      <div class="reminder-card success">
+        <div class="card-header">
+          <div class="icon">✅</div>
+          <div class="title">Semua Aman!</div>
+          <div class="count">0</div>
+        </div>
+        <div class="card-body">
+          <div class="reminder-empty">Tidak ada pengingat saat ini. Semua data dalam kondisi baik.</div>
+        </div>
+        <div class="card-footer">
+          ${isLoggedIn ? `<button class="btn secondary small" onclick="openJadwalModal()">+ Tambah Jadwal</button>` : `<span class="badge readonly">🔒 Login untuk tambah jadwal</span>`}
+        </div>
+      </div>
+    </div>`;
+  }
+
+  return `
+  <div class="reminder-grid">
+    ${reminders.map(r => `
+      <div class="reminder-card ${r.type}">
+        <div class="card-header">
+          <div class="icon">${r.icon}</div>
+          <div class="title">${r.title}</div>
+          <div class="count">${r.count}</div>
+        </div>
+        <div class="card-body">
+          ${r.items.map(item => `
+            <div class="item">
+              <span class="label">${item.label}</span>
+              <span class="value ${item.valueClass || ''}">${item.value}</span>
+            </div>
+          `).join('')}
+        </div>
+        ${r.action ? `
+        <div class="card-footer">
+          <button class="btn ${r.type === 'danger' ? 'danger' : r.type === 'warning' ? 'orange' : r.type === 'success' ? 'success' : 'secondary'} small" onclick="goSection('${r.action.link}')">${r.action.label}</button>
+        </div>` : ''}
+      </div>
+    `).join('')}
+  </div>`;
+}
+
+function labelKategoriJadwal(v){ return (KATEGORI_JADWAL.find(k=>k.v===v)||{}).l || v; }
+
+/* ============================================================
+   ANGGOTA (dengan auth check)
+   ============================================================ */
+function renderAnggota(){
+  const list = gAnggota();
+  const s = getSettings();
+  const totalTerkumpul = list.filter(a=>a.status==='lunas').reduce((sum,a)=>sum+Number(a.nominal_wajib||0),0);
+  const totalPotensi = list.reduce((sum,a)=>sum+Number(a.nominal_wajib||0),0);
+  const lunasCount = list.filter(a=>a.status==='lunas').length;
+  const isLoggedIn = !!getCurrentUser();
+
+  const rows = list.map(a=>`
+    <tr>
+      <td>${esc(a.nama)}</td>
+      <td><span class="kategori-pill ${a.kategori==='khusus'?'khusus':''}">${labelKategori(a.kategori)}</span></td>
+      <td class="num">${fmtRp(a.nominal_wajib)}</td>
+      <td>${a.status==='lunas'?`<span class="badge lunas">Lunas</span> <span style="font-size:11px;color:var(--ink-soft)">${fmtDate(a.tanggal_bayar)}</span>`:`<span class="badge belum">Belum Lunas</span>`}</td>
+      <td style="text-align:right; white-space:nowrap;">
+        <button class="btn secondary small" onclick="toggleLunas('${a.id}')" ${!isLoggedIn ? 'disabled' : ''}>${a.status==='lunas'?'Batalkan':'Tandai Lunas'}</button>
+        <button class="icon-btn" onclick="openAnggotaModal('${a.id}')" ${!isLoggedIn ? 'disabled' : ''} title="Edit">✎</button>
+        <button class="icon-btn" onclick="hapusAnggota('${a.id}')" ${!isLoggedIn ? 'disabled' : ''} title="Hapus">🗑</button>
+      </td>
+    </tr>`).join('');
+
+  return `
+  <div class="stat-grid">
+    <div class="stat-card"><div class="lbl">Total Anggota</div><div class="val">${list.length}</div></div>
+    <div class="stat-card pemasukan"><div class="lbl">Terkumpul (Lunas)</div><div class="val">${fmtRp(totalTerkumpul)}</div></div>
+    <div class="stat-card"><div class="lbl">Sudah Lunas</div><div class="val">${lunasCount} / ${list.length}</div></div>
+    <div class="stat-card"><div class="lbl">Potensi Total</div><div class="val">${fmtRp(totalPotensi)}</div></div>
+  </div>
+  <div class="panel">
+    <div class="panel-head">
+      <div><h3>Daftar Anggota</h3>
+        <div class="desc">Tarif: Sekolah ${fmtRp(s.tarif.sekolah)} · Bekerja ${fmtRp(s.tarif.bekerja)} · Perantauan ${fmtRp(s.tarif.perantauan)} · Khusus ${fmtRp(s.tarif.khusus)}</div>
+      </div>
+      ${isLoggedIn ? `<button class="btn" onclick="openAnggotaModal()">+ Tambah Anggota</button>` : `<span class="badge readonly">🔒 Login untuk mengelola</span>`}
+    </div>
+    <div class="panel-body flush">
+      <table class="anggota-table">
+        <thead><tr><th>Nama</th><th>Kategori</th><th class="num">Nominal</th><th>Status</th><th></th></tr></thead>
+        <tbody>${rows || `<tr class="empty-row"><td colspan="5">Belum ada anggota.</td></tr>`}</tbody>
+      </table>
+    </div>
+  </div>`;
+}
+function labelKategori(v){ return (KATEGORI_ANGGOTA.find(k=>k.v===v)||{}).l || v; }
+
+function openAnggotaModal(id){
+  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  const editing = id ? db.anggota.find(a=>a.id===id) : null;
+  const s = getSettings();
+  setModal(editing?'Edit Anggota':'Tambah Anggota', `
+    <div class="field"><label>Nama Anggota</label><input id="f-nama" value="${editing?esc(editing.nama):''}" placeholder="Nama lengkap"></div>
+    <div class="field"><label>Kategori</label>
+      <select id="f-kategori" onchange="updateNominalPreview()">
+        ${KATEGORI_ANGGOTA.map(k=>`<option value="${k.v}" ${editing&&editing.kategori===k.v?'selected':''}>${k.l}</option>`).join('')}
+      </select>
+    </div>
+    <div class="field"><label>Nominal Wajib (otomatis)</label>
+      <input id="f-nominal" class="currency-input" value="${editing?fmtRp(editing.nominal_wajib):''}" disabled style="background:var(--cream);">
+    </div>
+  `, [
+    {label:'Batal', cls:'secondary', onclick:closeModal},
+    {label: editing?'Simpan':'Tambah', cls:'', onclick:()=>{
+      const nama = document.getElementById('f-nama').value.trim();
+      const kategori = document.getElementById('f-kategori').value;
+      if(!nama){ toast('Nama anggota wajib diisi'); return; }
+      const nominal = getSettings().tarif[kategori] || 0;
+      let actionMsg = '';
+      if(editing){
+        actionMsg = `✏️ Edit anggota: ${editing.nama} → ${nama}`;
+        editing.nama = nama; editing.kategori = kategori; editing.nominal_wajib = nominal;
+      } else {
+        actionMsg = `➕ Tambah anggota: ${nama} (${labelKategori(kategori)})`;
+        db.anggota.push({id:uid(), event_id:eid(), nama, kategori, nominal_wajib:nominal, status:'belum_lunas', tanggal_bayar:null});
+      }
+      saveDB(); closeModal(); renderContent(); renderTopbarSaldo(); toast('Data anggota disimpan');
+      notifyTelegram(actionMsg, `Nama: ${nama}\nKategori: ${labelKategori(kategori)}\nNominal: ${fmtRp(nominal)}`);
+    }}
+  ]);
+  setTimeout(updateNominalPreview, 0);
+}
+function updateNominalPreview(){
+  const kEl = document.getElementById('f-kategori');
+  if(!kEl) return;
+  const s = getSettings();
+  const nominalInput = document.getElementById('f-nominal');
+  if (nominalInput) {
+    setCurrencyValue(nominalInput, s.tarif[kEl.value] || 0);
+  }
+}
+function toggleLunas(id){
+  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  const a = db.anggota.find(x=>x.id===id); if(!a) return;
+  const statusBaru = a.status==='lunas' ? 'belum_lunas' : 'lunas';
+  a.status = statusBaru;
+  a.tanggal_bayar = a.status==='lunas' ? todayISO() : null;
+  saveDB(); renderContent(); renderTopbarSaldo();
+  if(statusBaru === 'lunas'){
+    notifyTelegram(`✅ Anggota LUNAS: ${a.nama}`, `Nama: ${a.nama}\nKategori: ${labelKategori(a.kategori)}\nNominal: ${fmtRp(a.nominal_wajib)}\nTanggal Bayar: ${fmtDate(a.tanggal_bayar)}`);
+  }else{
+    notifyTelegram(`↩️ Anggota dibatalkan lunas: ${a.nama}`, `Nama: ${a.nama}\nKategori: ${labelKategori(a.kategori)}`);
+  }
+}
+function hapusAnggota(id){
+  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  if(!confirm('Hapus anggota ini?')) return;
+  const a = db.anggota.find(x=>x.id===id);
+  db.anggota = db.anggota.filter(a=>a.id!==id); 
+  saveDB(); renderContent(); renderTopbarSaldo();
+  if(a) notifyTelegram(`🗑️ Hapus anggota: ${a.nama}`, `Nama: ${a.nama}\nKategori: ${labelKategori(a.kategori)}`);
+}
+
+/* ============================================================
+   DATABASE ANGGOTA (dengan auth check untuk tombol aksi)
+   ============================================================ */
+let filterKategori = 'semua';
+let filterStatus = 'semua';
+let searchQuery = '';
+let sortBy = 'nama';
+let sortOrder = 'asc';
+
+function renderDatabaseAnggota(){
+  const list = gAnggota();
+  let filtered = [...list];
+  if (filterKategori !== 'semua') filtered = filtered.filter(a => a.kategori === filterKategori);
+  if (filterStatus !== 'semua') filtered = filtered.filter(a => a.status === filterStatus);
+  if (searchQuery.trim()) { const q = searchQuery.toLowerCase().trim(); filtered = filtered.filter(a => a.nama.toLowerCase().includes(q)); }
+  
+  filtered.sort((a,b) => {
+    let valA, valB;
+    switch(sortBy){
+      case 'nama': valA = a.nama; valB = b.nama; break;
+      case 'kategori': valA = a.kategori; valB = b.kategori; break;
+      case 'nominal': valA = Number(a.nominal_wajib||0); valB = Number(b.nominal_wajib||0); break;
+      case 'status': valA = a.status; valB = b.status; break;
+      case 'tanggal': valA = a.tanggal_bayar || ''; valB = b.tanggal_bayar || ''; break;
+      default: valA = a.nama; valB = b.nama;
+    }
+    if (typeof valA === 'string') return sortOrder === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+    return sortOrder === 'asc' ? valA - valB : valB - valA;
+  });
+
+  const total = filtered.length, totalBelum = filtered.filter(a=>a.status==='belum_lunas').length, totalLunas = filtered.filter(a=>a.status==='lunas').length;
+  const totalNominal = filtered.reduce((s,a)=>s+Number(a.nominal_wajib||0),0);
+  const totalTerkumpul = filtered.filter(a=>a.status==='lunas').reduce((s,a)=>s+Number(a.nominal_wajib||0),0);
+  const isLoggedIn = !!getCurrentUser();
+
+  const statKategori = {};
+  KATEGORI_ANGGOTA.forEach(k => {
+    const items = filtered.filter(a=>a.kategori===k.v);
+    statKategori[k.v] = {label: k.l, total: items.length, lunas: items.filter(a=>a.status==='lunas').length, nominal: items.reduce((s,a)=>s+Number(a.nominal_wajib||0),0), terkumpul: items.filter(a=>a.status==='lunas').reduce((s,a)=>s+Number(a.nominal_wajib||0),0)};
+  });
+
+  const rows = filtered.map(a=>`<tr class="${a.status==='belum_lunas'?'belum-bayar':''}">
+    <td>${esc(a.nama)}</td>
+    <td><span class="kategori-pill ${a.kategori==='khusus'?'khusus':''}">${labelKategori(a.kategori)}</span></td>
+    <td class="num">${fmtRp(a.nominal_wajib)}</td>
+    <td>${a.status==='lunas'?`<span class="badge lunas">Lunas</span>`:`<span class="badge belum">Belum Bayar</span>`}</td>
+    <td style="font-size:12px;color:var(--ink-soft);">${a.status==='lunas'?fmtDate(a.tanggal_bayar):'-'}</td>
+    <td style="text-align:right;white-space:nowrap;">
+      <button class="btn secondary small" onclick="toggleLunas('${a.id}')" ${!isLoggedIn ? 'disabled' : ''}>${a.status==='lunas'?'Batalkan':'Bayar'}</button>
+      <button class="icon-btn" onclick="openAnggotaModal('${a.id}')" ${!isLoggedIn ? 'disabled' : ''}>✎</button>
+      <button class="icon-btn" onclick="hapusAnggota('${a.id}')" ${!isLoggedIn ? 'disabled' : ''}>🗑</button>
+    </td>
+  </tr>`).join('');
+
+  const statCards = `<div class="stat-grid"><div class="stat-card info"><div class="lbl">Total Anggota</div><div class="val">${total}</div></div>
+    <div class="stat-card pemasukan"><div class="lbl">Lunas</div><div class="val">${totalLunas}</div></div>
+    <div class="stat-card warning"><div class="lbl">Belum Bayar</div><div class="val">${totalBelum}</div></div>
+    <div class="stat-card"><div class="lbl">Total Iuran</div><div class="val">${fmtRp(totalNominal)}</div></div>
+    <div class="stat-card pemasukan"><div class="lbl">Terkumpul</div><div class="val">${fmtRp(totalTerkumpul)}</div></div>
+    <div class="stat-card warning"><div class="lbl">Tunggakan</div><div class="val">${fmtRp(totalNominal - totalTerkumpul)}</div></div></div>`;
+
+  const statKategoriHtml = Object.values(statKategori).map(k => `
+    <div style="display:flex;align-items:center;gap:14px;padding:8px 12px;background:var(--cream);border-radius:8px;border:1px solid var(--garis);">
+      <span style="font-weight:600;min-width:80px;">${k.label}</span>
+      <span style="font-size:13px;">${k.total} anggota</span>
+      <span style="font-size:13px;color:var(--hijau);">${k.lunas} lunas</span>
+      <span style="font-size:13px;color:var(--merah);">${k.total - k.lunas} belum</span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;margin-left:auto;">${fmtRp(k.terkumpul)} / ${fmtRp(k.nominal)}</span>
+    </div>`).join('');
+
+  const filterHtml = `<div class="filter-row">
+    <div class="field" style="margin-bottom:0;min-width:150px;"><label style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;">Kategori</label>
+      <select id="filter-kategori" onchange="applyFilter()"><option value="semua" ${filterKategori==='semua'?'selected':''}>Semua</option>${KATEGORI_ANGGOTA.map(k=>`<option value="${k.v}" ${filterKategori===k.v?'selected':''}>${k.l}</option>`).join('')}</select></div>
+    <div class="field" style="margin-bottom:0;min-width:150px;"><label style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;">Status</label>
+      <select id="filter-status" onchange="applyFilter()"><option value="semua" ${filterStatus==='semua'?'selected':''}>Semua</option><option value="lunas" ${filterStatus==='lunas'?'selected':''}>Lunas</option><option value="belum_lunas" ${filterStatus==='belum_lunas'?'selected':''}>Belum Bayar</option></select></div>
+    <div class="search-box" style="flex:1;min-width:200px;"><input type="text" id="search-input" placeholder="🔍 Cari nama..." value="${esc(searchQuery)}" oninput="applySearch()">${searchQuery?`<button class="btn secondary small" onclick="clearSearch()">✕</button>`:''}</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;"><button class="btn small" onclick="exportAnggotaCSV()">⬇ Ekspor CSV</button><button class="btn secondary small" onclick="resetFilter()">↺ Reset</button></div>
+  </div>`;
+
+  const sortIndicator = (field) => { if (sortBy !== field) return '↕'; return sortOrder === 'asc' ? '↑' : '↓'; };
+
+  return `${statCards}<div class="panel"><div class="panel-head"><div><h3>📋 Database Anggota</h3><div class="desc">${totalBelum} anggota belum bayar · total tunggakan ${fmtRp(totalNominal - totalTerkumpul)}</div></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="btn success small" onclick="tandaiSemuaLunas()" ${!isLoggedIn ? 'disabled' : ''}>✓ Tandai Semua Lunas</button>
+      ${isLoggedIn ? `<button class="btn" onclick="openAnggotaModal()">+ Tambah</button>` : `<span class="badge readonly">🔒 Login</span>`}
+    </div></div>
+    <div class="panel-body">${filterHtml}${statKategoriHtml?`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;margin-bottom:16px;">${statKategoriHtml}</div>`:''}
+    <div style="overflow-x:auto;"><table class="database-table"><thead><tr><th class="sortable" onclick="sortTable('nama')">Nama ${sortIndicator('nama')}</th>
+      <th class="sortable" onclick="sortTable('kategori')">Kategori ${sortIndicator('kategori')}</th>
+      <th class="num sortable" onclick="sortTable('nominal')">Nominal ${sortIndicator('nominal')}</th>
+      <th class="sortable" onclick="sortTable('status')">Status ${sortIndicator('status')}</th>
+      <th class="sortable" onclick="sortTable('tanggal')">Tgl Bayar ${sortIndicator('tanggal')}</th><th></th></tr></thead>
+      <tbody>${rows||`<tr class="empty-row"><td colspan="6">${searchQuery?'Tidak ditemukan':'Belum ada anggota'}</td></tr>`}</tbody>
+      ${filtered.length>0?`<tfoot><tr><td colspan="2">Total ${filtered.length} anggota</td><td class="num">${fmtRp(totalNominal)}</td><td colspan="3"></td></tr></tfoot>`:''}</table></div></div></div>`;
+}
+
+function applyFilter(){ filterKategori=document.getElementById('filter-kategori').value; filterStatus=document.getElementById('filter-status').value; renderContent(); }
+function applySearch(){ searchQuery=document.getElementById('search-input').value; renderContent(); }
+function clearSearch(){ searchQuery=''; document.getElementById('search-input').value=''; renderContent(); }
+function resetFilter(){ filterKategori='semua'; filterStatus='semua'; searchQuery=''; sortBy='nama'; sortOrder='asc'; renderContent(); }
+function sortTable(field){ if(sortBy===field){ sortOrder=sortOrder==='asc'?'desc':'asc'; }else{ sortBy=field; sortOrder='asc'; } renderContent(); }
+function tandaiSemuaLunas(){ 
+  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  const list=gAnggota().filter(a=>a.status==='belum_lunas'); 
+  if(list.length===0){ toast('Semua anggota sudah lunas'); return; } 
+  if(!confirm(`Tandai ${list.length} anggota menjadi LUNAS?`)) return; 
+  list.forEach(a=>{a.status='lunas'; a.tanggal_bayar=todayISO();}); 
+  saveDB(); renderContent(); renderTopbarSaldo(); 
+  toast(`✓ ${list.length} anggota ditandai lunas`);
+  const detail = list.map(a => `${a.nama} (${labelKategori(a.kategori)}) - ${fmtRp(a.nominal_wajib)}`).join('\n');
+  notifyTelegram(`✅ ${list.length} anggota ditandai LUNAS`, detail);
+}
+function exportAnggotaCSV(){ const list=gAnggota(); if(list.length===0){ toast('Tidak ada data'); return; } let csv='No,Nama,Kategori,Nominal,Status,Tanggal Bayar\n'; list.forEach((a,i)=>{const status=a.status==='lunas'?'Lunas':'Belum Bayar'; const tgl=a.tanggal_bayar?fmtDate(a.tanggal_bayar):'-'; csv+=`${i+1},"${a.nama}",${labelKategori(a.kategori)},${a.nominal_wajib},${status},${tgl}\n`;}); const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}); const link=document.createElement('a'); link.href=URL.createObjectURL(blob); link.download=`database-anggota-${todayISO()}.csv`; link.click(); toast('CSV berhasil diekspor'); }
+
+/* ============================================================
+   DONATUR, TRANSAKSI, OPERASIONAL (dengan auth check)
+   ============================================================ */
+function renderDonatur(){
+  const list = gDonatur().slice().sort((a,b)=>(b.tanggal||'').localeCompare(a.tanggal||''));
+  const total = list.reduce((s,d)=>s+Number(d.jumlah||0),0);
+  const isLoggedIn = !!getCurrentUser();
+  const rows = list.map(d=>`<tr><td>${fmtDate(d.tanggal)}</td><td>${esc(d.nama_donatur)}</td><td>${esc(d.keterangan||'-')}</td><td class="num">${fmtRp(d.jumlah)}</td><td style="text-align:right;">
+    <button class="icon-btn" onclick="openDonaturModal('${d.id}')" ${!isLoggedIn ? 'disabled' : ''}>✎</button>
+    <button class="icon-btn" onclick="hapusDonatur('${d.id}')" ${!isLoggedIn ? 'disabled' : ''}>🗑</button>
+  </td></tr>`).join('');
+  return `<div class="stat-grid"><div class="stat-card pemasukan"><div class="lbl">Total Donasi</div><div class="val">${fmtRp(total)}</div></div></div>
+  <div class="panel"><div class="panel-head"><h3>Daftar Donatur</h3>${isLoggedIn ? `<button class="btn" onclick="openDonaturModal()">+ Tambah</button>` : `<span class="badge readonly">🔒 Login untuk mengelola</span>`}</div>
+  <div class="panel-body flush"><table class="general-table"><thead><tr><th>Tanggal</th><th>Nama</th><th>Keterangan</th><th class="num">Jumlah</th><th></th></tr></thead>
+  <tbody>${rows||`<tr class="empty-row"><td colspan="5">Belum ada donasi.</td></tr>`}</tbody></table></div></div>`;
+}
+function openDonaturModal(id){
+  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  const editing = id ? db.donatur.find(d=>d.id===id) : null;
+  setModal(editing?'Edit Donasi':'Tambah Donasi', `
+    <div class="field"><label>Nama Donatur</label><input id="f-nama" value="${editing?esc(editing.nama_donatur):''}"></div>
+    <div class="field-row"><div class="field"><label>Jumlah (Rp)</label><input id="f-jumlah" class="currency-input" type="text" value="${editing?formatCurrency(editing.jumlah):''}"></div>
+    <div class="field"><label>Tanggal</label><input id="f-tanggal" type="date" value="${editing?editing.tanggal:todayISO()}"></div></div>
+    <div class="field"><label>Keterangan</label><input id="f-ket" value="${editing?esc(editing.keterangan||''):''}"></div>
+  `, [
+    {label:'Batal', cls:'secondary', onclick:closeModal},
+    {label:editing?'Simpan':'Tambah', cls:'', onclick:()=>{
+      const nama = document.getElementById('f-nama').value.trim();
+      const jumlah = getCurrencyValue(document.getElementById('f-jumlah'));
+      const tanggal = document.getElementById('f-tanggal').value||todayISO();
+      const ket = document.getElementById('f-ket').value.trim();
+      if(!nama||jumlah<=0){ toast('Nama & jumlah wajib'); return; }
+      let actionMsg = '';
+      if(editing){ 
+        actionMsg = `✏️ Edit donasi: ${editing.nama_donatur} → ${nama}`;
+        Object.assign(editing,{nama_donatur:nama,jumlah,tanggal,keterangan:ket}); 
+      }
+      else{ 
+        actionMsg = `➕ Donasi baru dari ${nama}`;
+        db.donatur.push({id:uid(),event_id:eid(),nama_donatur:nama,jumlah,tanggal,keterangan:ket}); 
+      }
+      saveDB(); closeModal(); renderContent(); renderTopbarSaldo(); toast('Disimpan');
+      notifyTelegram(actionMsg, `Nama: ${nama}\nJumlah: ${fmtRp(jumlah)}\nTanggal: ${fmtDate(tanggal)}\nKeterangan: ${ket || '-'}`);
+    }}
+  ]);
+  setTimeout(setupAllCurrencyInputs, 50);
+}
+function hapusDonatur(id){ 
+  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  if(!confirm('Hapus?')) return; 
+  const d = db.donatur.find(x=>x.id===id);
+  db.donatur=db.donatur.filter(d=>d.id!==id); 
+  saveDB(); renderContent(); renderTopbarSaldo();
+  if(d) notifyTelegram(`🗑️ Hapus donasi dari ${d.nama_donatur}`, `Jumlah: ${fmtRp(d.jumlah)}`);
+}
+
+function renderTransaksi(){
+  const list = gTransaksiLain().slice().sort((a,b)=>(b.tanggal||'').localeCompare(a.tanggal||''));
+  const total = list.reduce((s,t)=>s+Number(t.jumlah||0),0);
+  const isLoggedIn = !!getCurrentUser();
+  const rows = list.map(t=>`<tr><td>${fmtDate(t.tanggal)}</td><td>${esc(t.jenis)}</td><td>${esc(t.keterangan||'-')}</td><td class="num">${fmtRp(t.jumlah)}</td><td style="text-align:right;">
+    <button class="icon-btn" onclick="openTransaksiModal('${t.id}')" ${!isLoggedIn ? 'disabled' : ''}>✎</button>
+    <button class="icon-btn" onclick="hapusTransaksi('${t.id}')" ${!isLoggedIn ? 'disabled' : ''}>🗑</button>
+  </td></tr>`).join('');
+  return `<div class="stat-grid"><div class="stat-card pemasukan"><div class="lbl">Total Transaksi Lain</div><div class="val">${fmtRp(total)}</div></div></div>
+  <div class="panel"><div class="panel-head"><h3>Transaksi Lain</h3>${isLoggedIn ? `<button class="btn" onclick="openTransaksiModal()">+ Tambah</button>` : `<span class="badge readonly">🔒 Login</span>`}</div>
+  <div class="panel-body flush"><table class="general-table"><thead><tr><th>Tanggal</th><th>Jenis</th><th>Keterangan</th><th class="num">Jumlah</th><th></th></tr></thead>
+  <tbody>${rows||`<tr class="empty-row"><td colspan="5">Belum ada transaksi.</td></tr>`}</tbody></table></div></div>`;
+}
+function openTransaksiModal(id){
+  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  const editing = id ? db.transaksiLain.find(t=>t.id===id) : null;
+  setModal(editing?'Edit Transaksi':'Tambah Transaksi', `
+    <div class="field"><label>Jenis</label><input id="f-jenis" value="${editing?esc(editing.jenis):''}"></div>
+    <div class="field-row"><div class="field"><label>Jumlah (Rp)</label><input id="f-jumlah" class="currency-input" type="text" value="${editing?formatCurrency(editing.jumlah):''}"></div>
+    <div class="field"><label>Tanggal</label><input id="f-tanggal" type="date" value="${editing?editing.tanggal:todayISO()}"></div></div>
+    <div class="field"><label>Keterangan</label><input id="f-ket" value="${editing?esc(editing.keterangan||''):''}"></div>
+  `, [
+    {label:'Batal', cls:'secondary', onclick:closeModal},
+    {label:editing?'Simpan':'Tambah', cls:'', onclick:()=>{
+      const jenis = document.getElementById('f-jenis').value.trim();
+      const jumlah = getCurrencyValue(document.getElementById('f-jumlah'));
+      const tanggal = document.getElementById('f-tanggal').value||todayISO();
+      const ket = document.getElementById('f-ket').value.trim();
+      if(!jenis||jumlah<=0){ toast('Jenis & jumlah wajib'); return; }
+      let actionMsg = '';
+      if(editing){ actionMsg = `✏️ Edit transaksi: ${editing.jenis} → ${jenis}`; Object.assign(editing,{jenis,jumlah,tanggal,keterangan:ket}); }
+      else{ actionMsg = `➕ Transaksi baru: ${jenis}`; db.transaksiLain.push({id:uid(),event_id:eid(),jenis,jumlah,tanggal,keterangan:ket}); }
+      saveDB(); closeModal(); renderContent(); renderTopbarSaldo(); toast('Disimpan');
+      notifyTelegram(actionMsg, `Jenis: ${jenis}\nJumlah: ${fmtRp(jumlah)}\nTanggal: ${fmtDate(tanggal)}\nKeterangan: ${ket || '-'}`);
+    }}
+  ]);
+  setTimeout(setupAllCurrencyInputs, 50);
+}
+function hapusTransaksi(id){ 
+  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  if(!confirm('Hapus?')) return; 
+  const t = db.transaksiLain.find(x=>x.id===id);
+  db.transaksiLain=db.transaksiLain.filter(t=>t.id!==id); 
+  saveDB(); renderContent(); renderTopbarSaldo();
+  if(t) notifyTelegram(`🗑️ Hapus transaksi: ${t.jenis}`, `Jumlah: ${fmtRp(t.jumlah)}`);
+}
+
+function renderOperasional(){
+  const list = gOperasional().slice().sort((a,b)=>(b.tanggal||'').localeCompare(a.tanggal||''));
+  const total = list.reduce((s,o)=>s+Number(o.jumlah||0),0);
+  const isLoggedIn = !!getCurrentUser();
+  const rows = list.map(o=>`<tr><td>${fmtDate(o.tanggal)}</td><td>${esc(o.keterangan)}</td><td>${esc(o.catatan_bukti||'-')}</td><td class="num">${fmtRp(o.jumlah)}</td><td style="text-align:right;">
+    <button class="icon-btn" onclick="openOperasionalModal('${o.id}')" ${!isLoggedIn ? 'disabled' : ''}>✎</button>
+    <button class="icon-btn" onclick="hapusOperasional('${o.id}')" ${!isLoggedIn ? 'disabled' : ''}>🗑</button>
+  </td></tr>`).join('');
+  return `<div class="stat-grid"><div class="stat-card pengeluaran"><div class="lbl">Total Operasional</div><div class="val">${fmtRp(total)}</div></div></div>
+  <div class="panel"><div class="panel-head"><h3>Biaya Operasional</h3>${isLoggedIn ? `<button class="btn" onclick="openOperasionalModal()">+ Tambah</button>` : `<span class="badge readonly">🔒 Login</span>`}</div>
+  <div class="panel-body flush"><table class="general-table"><thead><tr><th>Tanggal</th><th>Keterangan</th><th>Catatan</th><th class="num">Jumlah</th><th></th></tr></thead>
+  <tbody>${rows||`<tr class="empty-row"><td colspan="5">Belum ada biaya.</td></tr>`}</tbody></table></div></div>`;
+}
+function openOperasionalModal(id){
+  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  const editing = id ? db.operasional.find(o=>o.id===id) : null;
+  setModal(editing?'Edit Biaya':'Tambah Biaya', `
+    <div class="field"><label>Keterangan</label><input id="f-ket" value="${editing?esc(editing.keterangan):''}"></div>
+    <div class="field-row"><div class="field"><label>Jumlah (Rp)</label><input id="f-jumlah" class="currency-input" type="text" value="${editing?formatCurrency(editing.jumlah):''}"></div>
+    <div class="field"><label>Tanggal</label><input id="f-tanggal" type="date" value="${editing?editing.tanggal:todayISO()}"></div></div>
+    <div class="field"><label>Catatan Bukti</label><input id="f-bukti" value="${editing?esc(editing.catatan_bukti||''):''}"></div>
+  `, [
+    {label:'Batal', cls:'secondary', onclick:closeModal},
+    {label:editing?'Simpan':'Tambah', cls:'', onclick:()=>{
+      const ket = document.getElementById('f-ket').value.trim();
+      const jumlah = getCurrencyValue(document.getElementById('f-jumlah'));
+      const tanggal = document.getElementById('f-tanggal').value||todayISO();
+      const bukti = document.getElementById('f-bukti').value.trim();
+      if(!ket||jumlah<=0){ toast('Keterangan & jumlah wajib'); return; }
+      let actionMsg = '';
+      if(editing){ actionMsg = `✏️ Edit biaya operasional: ${editing.keterangan} → ${ket}`; Object.assign(editing,{keterangan:ket,jumlah,tanggal,catatan_bukti:bukti}); }
+      else{ actionMsg = `➕ Biaya operasional baru: ${ket}`; db.operasional.push({id:uid(),event_id:eid(),keterangan:ket,jumlah,tanggal,catatan_bukti:bukti}); }
+      saveDB(); closeModal(); renderContent(); renderTopbarSaldo(); toast('Disimpan');
+      notifyTelegram(actionMsg, `Keterangan: ${ket}\nJumlah: ${fmtRp(jumlah)}\nTanggal: ${fmtDate(tanggal)}\nCatatan: ${bukti || '-'}`);
+    }}
+  ]);
+  setTimeout(setupAllCurrencyInputs, 50);
+}
+function hapusOperasional(id){ 
+  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  if(!confirm('Hapus?')) return; 
+  const o = db.operasional.find(x=>x.id===id);
+  db.operasional=db.operasional.filter(o=>o.id!==id); 
+  saveDB(); renderContent(); renderTopbarSaldo();
+  if(o) notifyTelegram(`🗑️ Hapus biaya operasional: ${o.keterangan}`, `Jumlah: ${fmtRp(o.jumlah)}`);
+}
+
+/* ============================================================
+   LOMBA & KEBUTUHAN (dengan auth check)
+   ============================================================ */
+let openLombaIds = new Set();
+
+function renderLomba(){
+  const list = gLomba();
+  const totalKebutuhan = db.lombaKebutuhan.filter(k=>list.some(l=>l.id===k.lomba_id))
+    .reduce((s,k)=>s + (Number(k.harga_realisasi ?? k.harga_estimasi ?? 0)*Number(k.qty||0)), 0);
+  const isLoggedIn = !!getCurrentUser();
+
+  const cards = list.map(l=>{
+    const items = gKebutuhan(l.id);
+    const subtotal = items.reduce((s,k)=>s+(Number(k.harga_realisasi ?? k.harga_estimasi ?? 0)*Number(k.qty||0)),0);
+    const isOpen = openLombaIds.has(l.id);
+    return `
+    <div class="lomba-card ${isOpen?'open':''}">
+      <div class="lomba-card-head" onclick="toggleLombaCard('${l.id}')" style="cursor:pointer;">
+        <div><span class="name">${esc(l.nama)}</span><span class="kategori-pill" style="margin-left:8px;">${labelPeserta(l.kategori_peserta)}</span></div>
+        <div style="display:flex;align-items:center;gap:14px;">
+          <span class="mono" style="font-size:13px;">${fmtRp(subtotal)}</span>
+          <button class="icon-btn" onclick="event.stopPropagation(); openLombaModal('${l.id}')" ${!isLoggedIn ? 'disabled' : ''}>✎</button>
+          <button class="icon-btn" onclick="event.stopPropagation(); hapusLomba('${l.id}')" ${!isLoggedIn ? 'disabled' : ''}>🗑</button>
+          <svg class="chevron" width="16" height="16" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+      </div>
+      <div class="lomba-card-body">
+        <div class="subgroup-title">Kebutuhan Barang</div>
+        <div style="overflow-x:auto;">
+        <table class="lomba-table"><thead><tr><th>Item</th><th class="num">Harga Estimasi</th><th class="num">Harga Realisasi</th><th class="num">Qty</th><th class="num">Subtotal</th><th></th></tr></thead>
+        <tbody>${items.map(k=>{
+          const harga = Number(k.harga_realisasi ?? k.harga_estimasi ?? 0);
+          const belanja = db.daftarBelanjaPerlengkapan.find(b=>b.kebutuhan_id===k.id && b.event_id===eid());
+          const sudahDibeli = belanja && belanja.status === 'dibeli';
+          return `<tr class="${sudahDibeli?'dibeli':''}"><td>${esc(k.nama_item)} ${sudahDibeli?'✓':''}</td><td class="num">${fmtRp(k.harga_estimasi)}</td><td class="num">${k.harga_realisasi!=null?fmtRp(k.harga_realisasi):'<span style="color:var(--abu)">—</span>'}</td><td class="num">${k.qty}</td><td class="num">${fmtRp(harga*k.qty)}</td><td style="text-align:right;white-space:nowrap;">
+            <button class="btn secondary small" onclick="toggleBelanjaPerlengkapan('${k.id}')" ${!isLoggedIn ? 'disabled' : ''}>${sudahDibeli?'✓ Dibeli':'Belum'}</button>
+            <button class="icon-btn" onclick="openKebutuhanModal('${l.id}','${k.id}')" ${!isLoggedIn ? 'disabled' : ''}>✎</button>
+            <button class="icon-btn" onclick="hapusKebutuhan('${k.id}')" ${!isLoggedIn ? 'disabled' : ''}>🗑</button>
+          </td></tr>`;
+        }).join('')||`<tr class="empty-row"><td colspan="6">Belum ada kebutuhan.</td></tr>`}</tbody>
+        ${items.length?`<tfoot><tr><td colspan="4">Subtotal</td><td class="num">${fmtRp(subtotal)}</td><td></td></tr></tfoot>`:''}</table></div>
+        <div style="margin-top:10px;">${isLoggedIn ? `<button class="btn secondary small" onclick="openKebutuhanModal('${l.id}')">+ Tambah Item</button>` : `<span class="badge readonly">🔒 Login untuk tambah item</span>`}</div>
+        <div class="subgroup-title">Hadiah Lomba (ambil dari stok bersama)</div>
+        ${renderHadiahLombaBlock(l)}
+      </div>
+    </div>`;
+  }).join('');
+
+  return `<div class="stat-grid"><div class="stat-card pengeluaran"><div class="lbl">Total Kebutuhan</div><div class="val">${fmtRp(totalKebutuhan)}</div></div></div>
+  <div class="panel"><div class="panel-head"><div><h3>Daftar Lomba</h3><div class="desc">Klik kartu untuk buka rincian</div></div>${isLoggedIn ? `<button class="btn" onclick="openLombaModal()">+ Tambah Lomba</button>` : `<span class="badge readonly">🔒 Login</span>`}</div>
+  <div class="panel-body">${cards||`<div class="empty-row" style="padding:30px;text-align:center;">Belum ada lomba.</div>`}</div></div>`;
+}
+function labelPeserta(v){ return (KATEGORI_PESERTA.find(k=>k.v===v)||{}).l || v; }
+function toggleLombaCard(id){ openLombaIds.has(id)?openLombaIds.delete(id):openLombaIds.add(id); renderContent(); }
+
+function renderHadiahLombaBlock(lomba){
+  const assigned = gLombaHadiah(lomba.id);
+  const isLoggedIn = !!getCurrentUser();
+  const rows = JUARA_LIST.map(j=>{
+    const current = assigned.find(a=>a.juara_ke===j.v);
+    const currentHadiah = current ? db.hadiahKategori.find(h=>h.id===current.hadiah_kategori_id) : null;
+    const opsi = gHadiahKategori().filter(h=> h.kategori_peserta===lomba.kategori_peserta && h.juara_ke===j.v &&
+      h.items.some(item => (Number(item.qty_terpakai||0) < Number(item.qty_dibeli||0)) || (currentHadiah && h.id===currentHadiah.id)));
+    return `<div class="juara-row"><div class="juara-tag">${j.l}</div>
+      <select class="juara-select" onchange="setLombaHadiah('${lomba.id}','${j.v}',this.value)" ${!isLoggedIn ? 'disabled' : ''}>
+        <option value="">— Pilih paket —</option>
+        ${opsi.map(h=>{const label=h.items.map(item=>`${item.nama} (${item.qty_dibeli-item.qty_terpakai} pcs)`).join(', '); return `<option value="${h.id}" ${currentHadiah&&h.id===currentHadiah.id?'selected':''}>${label}</option>`;}).join('')}
+      </select>
+    </div>`;
+  }).join('');
+  const noStok = gHadiahKategori().filter(h=>h.kategori_peserta===lomba.kategori_peserta).length === 0;
+  return `${rows}${noStok?`<div class="hint" style="margin-top:8px;">Belum ada stok hadiah untuk kategori ini. <a style="color:var(--merah);font-weight:600;cursor:pointer;" onclick="goSection('hadiah')">Tambah di sini</a></div>`:''}`;
+}
+
+function setLombaHadiah(lombaId, juaraKe, hadiahKategoriId){
+  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  const existing = db.lombaHadiah.find(lh=>lh.lomba_id===lombaId && lh.juara_ke===juaraKe);
+  let actionMsg = '';
+  if(existing){ 
+    const oldH=db.hadiahKategori.find(h=>h.id===existing.hadiah_kategori_id); 
+    if(oldH) oldH.items.forEach(item=>item.qty_terpakai=Math.max(0,Number(item.qty_terpakai||0)-1)); 
+  }
+  if(!hadiahKategoriId){ 
+    if(existing) {
+      actionMsg = `🗑️ Hapus hadiah dari lomba ${existing.lomba_id} untuk juara ${juaraKe}`;
+      db.lombaHadiah=db.lombaHadiah.filter(lh=>lh!==existing); 
+    }
+  }
+  else{ 
+    const newH=db.hadiahKategori.find(h=>h.id===hadiahKategoriId); 
+    if(!newH){saveDB();renderContent();return;} 
+    const semuaTersedia=newH.items.every(item=>Number(item.qty_terpakai||0)<Number(item.qty_dibeli||0)); 
+    if(!semuaTersedia){toast('Stok habis');saveDB();renderContent();return;} 
+    newH.items.forEach(item=>item.qty_terpakai=Number(item.qty_terpakai||0)+1); 
+    if(existing){
+      actionMsg = `✏️ Update hadiah lomba ${lombaId} juara ${juaraKe}`;
+      existing.hadiah_kategori_id=hadiahKategoriId;
+    }else{
+      actionMsg = `➕ Assign hadiah ke lomba ${lombaId} juara ${juaraKe}`;
+      db.lombaHadiah.push({id:uid(),lomba_id:lombaId,juara_ke:juaraKe,hadiah_kategori_id:hadiahKategoriId});
+    }
+  }
+  saveDB(); renderContent(); renderTopbarSaldo();
+  notifyTelegram(actionMsg, `Lomba: ${lombaId}\nJuara: ${juaraKe}\nPaket hadiah: ${hadiahKategoriId || 'dihapus'}`);
+}
+
+function openLombaModal(id){
+  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  const editing = id ? db.lomba.find(l=>l.id===id) : null;
+  setModal(editing?'Edit Lomba':'Tambah Lomba', `<div class="field"><label>Nama Lomba</label><input id="f-nama" value="${editing?esc(editing.nama):''}"></div><div class="field"><label>Kategori Peserta</label><select id="f-kategori">${KATEGORI_PESERTA.map(k=>`<option value="${k.v}" ${editing&&editing.kategori_peserta===k.v?'selected':''}>${k.l}</option>`).join('')}</select></div>`, [
+    {label:'Batal', cls:'secondary', onclick:closeModal},
+    {label:editing?'Simpan':'Tambah', cls:'', onclick:()=>{
+      const nama=document.getElementById('f-nama').value.trim(); const kategori_peserta=document.getElementById('f-kategori').value; 
+      if(!nama){toast('Nama wajib');return;}
+      let actionMsg = editing ? `✏️ Edit lomba: ${editing.nama} → ${nama}` : `➕ Lomba baru: ${nama}`;
+      if(editing){ 
+        if(editing.kategori_peserta!==kategori_peserta){ 
+          gLombaHadiah(editing.id).forEach(lh=>{const h=db.hadiahKategori.find(x=>x.id===lh.hadiah_kategori_id); if(h) h.items.forEach(item=>item.qty_terpakai=Math.max(0,Number(item.qty_terpakai||0)-1));}); 
+          db.lombaHadiah=db.lombaHadiah.filter(lh=>lh.lomba_id!==editing.id);} 
+        editing.nama=nama; editing.kategori_peserta=kategori_peserta; 
+      }
+      else{ db.lomba.push({id:uid(),event_id:eid(),nama,kategori_peserta}); }
+      saveDB(); closeModal(); renderContent(); renderTopbarSaldo(); toast('Disimpan');
+      notifyTelegram(actionMsg, `Kategori: ${labelPeserta(kategori_peserta)}`);
+    }}
+  ]);
+}
+function hapusLomba(id){ 
+  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  if(!confirm('Hapus lomba ini?')) return; 
+  const l = db.lomba.find(x=>x.id===id);
+  gLombaHadiah(id).forEach(lh=>{const h=db.hadiahKategori.find(x=>x.id===lh.hadiah_kategori_id); if(h) h.items.forEach(item=>item.qty_terpakai=Math.max(0,Number(item.qty_terpakai||0)-1));}); 
+  db.lombaHadiah=db.lombaHadiah.filter(lh=>lh.lomba_id!==id); 
+  db.lombaKebutuhan=db.lombaKebutuhan.filter(k=>k.lomba_id!==id); 
+  db.lomba=db.lomba.filter(l=>l.id!==id); 
+  saveDB(); renderContent(); renderTopbarSaldo();
+  if(l) notifyTelegram(`🗑️ Hapus lomba: ${l.nama}`, `Kategori: ${labelPeserta(l.kategori_peserta)}`);
+}
+function openKebutuhanModal(lombaId, kebutuhanId){ 
+  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  const editing=kebutuhanId?db.lombaKebutuhan.find(k=>k.id===kebutuhanId):null; 
+  const l = db.lomba.find(x=>x.id===lombaId);
+  setModal(editing?'Edit Kebutuhan':'Tambah Kebutuhan', `
+    <div class="field"><label>Nama Item</label><input id="f-nama" value="${editing?esc(editing.nama_item):''}"></div>
+    <div class="field-row"><div class="field"><label>Harga Estimasi</label><input id="f-est" class="currency-input" type="text" value="${editing?formatCurrency(editing.harga_estimasi):''}"></div>
+    <div class="field"><label>Harga Realisasi</label><input id="f-real" class="currency-input" type="text" value="${editing&&editing.harga_realisasi!=null?formatCurrency(editing.harga_realisasi):''}"></div></div>
+    <div class="field"><label>Qty</label><input id="f-qty" type="number" min="1" value="${editing?editing.qty:1}"></div>
+  `, [
+    {label:'Batal', cls:'secondary', onclick:closeModal},
+    {label:editing?'Simpan':'Tambah', cls:'', onclick:()=>{
+      const nama_item=document.getElementById('f-nama').value.trim(); 
+      const harga_estimasi=getCurrencyValue(document.getElementById('f-est')); 
+      const realVal=document.getElementById('f-real').value; 
+      const harga_realisasi=realVal===''?null:getCurrencyValue(document.getElementById('f-real')); 
+      const qty=Number(document.getElementById('f-qty').value||1); 
+      if(!nama_item||qty<=0){toast('Nama & qty wajib');return;}
+      let actionMsg = editing ? `✏️ Edit item kebutuhan: ${editing.nama_item} → ${nama_item}` : `➕ Item kebutuhan baru: ${nama_item}`;
+      if(editing){Object.assign(editing,{nama_item,harga_estimasi,harga_realisasi,qty});}
+      else{db.lombaKebutuhan.push({id:uid(),lomba_id:lombaId,nama_item,harga_estimasi,harga_realisasi,qty});}
+      saveDB(); closeModal(); openLombaIds.add(lombaId); renderContent(); renderTopbarSaldo(); toast('Disimpan');
+      const lomba = db.lomba.find(x=>x.id===lombaId);
+      notifyTelegram(actionMsg, `Lomba: ${lomba?.nama || lombaId}\nItem: ${nama_item}\nQty: ${qty}\nEstimasi: ${fmtRp(harga_estimasi)}${harga_realisasi ? `\nRealisasi: ${fmtRp(harga_realisasi)}` : ''}`);
+    }}
+  ]);
+  setTimeout(setupAllCurrencyInputs, 50);
+}
+function hapusKebutuhan(id){ 
+  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  if(!confirm('Hapus item?')) return; 
+  const k=db.lombaKebutuhan.find(x=>x.id===id); 
+  db.lombaKebutuhan=db.lombaKebutuhan.filter(x=>x.id!==id); 
+  saveDB(); if(k) openLombaIds.add(k.lomba_id); renderContent(); renderTopbarSaldo();
+  if(k) notifyTelegram(`🗑️ Hapus item kebutuhan: ${k.nama_item}`, `Lomba: ${db.lomba.find(x=>x.id===k.lomba_id)?.nama || k.lomba_id}`);
+}
+
+/* ============================================================
+   STOK HADIAH LOMBA (dengan auth check)
+   ============================================================ */
+function renderHadiah(){
+  const list = gHadiahKategori();
+  let total = 0;
+  list.forEach(h => h.items.forEach(item => total += Number(item.harga_satuan||0) * Number(item.qty_dibeli||0)));
+  const isLoggedIn = !!getCurrentUser();
+  
+  const groups = KATEGORI_PESERTA.map(kp => {
+    const items = list.filter(h => h.kategori_peserta === kp.v);
+    if(!items.length) return '';
+    const groupHtml = items.map(h => {
+      const totalItem = h.items.reduce((s, item) => s + (Number(item.harga_satuan||0) * Number(item.qty_dibeli||0)), 0);
+      const sisaTotal = h.items.reduce((s, item) => s + (Number(item.qty_dibeli||0) - Number(item.qty_terpakai||0)), 0);
+      return `<div class="hadiah-group"><div class="hadiah-group-header" onclick="toggleHadiahGroup('${h.id}')"><div><span class="title">🏆 ${labelJuara(h.juara_ke)}</span><span style="font-size:12px;color:var(--ink-soft);margin-left:8px;">${h.items.length} item · sisa ${sisaTotal}</span></div><span class="total">${fmtRp(totalItem)}</span></div>
+        <div class="hadiah-group-body" id="hadiah-group-${h.id}">${h.items.map((item, idx) => { const sisa=Number(item.qty_dibeli||0)-Number(item.qty_terpakai||0); return `<div class="hadiah-item-row"><span class="item-name">${esc(item.nama)}</span><span class="item-qty">Dibeli: ${item.qty_dibeli} | Terpakai: ${item.qty_terpakai||0} | Sisa: ${sisa}</span><span class="item-price">${fmtRp(item.harga_satuan)} × ${item.qty_dibeli}</span>
+            <button class="icon-btn" onclick="editHadiahItem('${h.id}',${idx})" ${!isLoggedIn ? 'disabled' : ''}>✎</button>
+            <button class="icon-btn" onclick="hapusHadiahItem('${h.id}',${idx})" ${!isLoggedIn ? 'disabled' : ''}>🗑</button>
+          </div>`;}).join('')}
+          ${isLoggedIn ? `<div class="add-item-row"><input type="text" id="add-item-name-${h.id}" placeholder="Nama hadiah" style="flex:2;"><input type="text" id="add-item-price-${h.id}" class="currency-input" placeholder="Harga" style="flex:1;"><input type="number" id="add-item-qty-${h.id}" placeholder="Qty" value="1" style="flex:0.8;"><button class="btn secondary small" onclick="tambahItemHadiah('${h.id}')">+ Tambah</button></div>` : `<div class="hint" style="padding:8px 0;">🔒 Login untuk menambah item</div>`}
+        </div></div>`;
+    }).join('');
+    return `<div class="subgroup-title">${kp.l}</div>${groupHtml}`;
+  }).join('');
+
+  return `<div class="stat-grid"><div class="stat-card pengeluaran"><div class="lbl">Total Belanja Hadiah</div><div class="val">${fmtRp(total)}</div></div></div>
+  <div class="panel"><div class="panel-head"><div><h3>Stok Hadiah</h3><div class="desc">Setiap paket bisa berisi multiple item</div></div>${isLoggedIn ? `<button class="btn" onclick="openHadiahModal()">+ Tambah Paket</button>` : `<span class="badge readonly">🔒 Login</span>`}</div>
+  <div class="panel-body">${groups.trim()||`<div style="padding:30px;text-align:center;color:var(--abu);">Belum ada stok hadiah.</div>`}</div></div>`;
+}
+
+let openHadiahGroups = new Set();
+function toggleHadiahGroup(id){ const el=document.getElementById(`hadiah-group-${id}`); if(!el) return; if(openHadiahGroups.has(id)){ openHadiahGroups.delete(id); el.style.display='none'; }else{ openHadiahGroups.add(id); el.style.display='block'; } }
+function labelJuara(v){ return (JUARA_LIST.find(j=>j.v===v)||{}).l || v; }
+
+function openHadiahModal(id){
+  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  const editing = id ? db.hadiahKategori.find(h=>h.id===id) : null;
+  const itemsHtml = editing ? editing.items.map((item, idx) => `<div class="field-row" style="border-bottom:1px solid var(--garis);padding-bottom:10px;margin-bottom:10px;"><div class="field"><input type="text" id="edit-item-name-${idx}" value="${esc(item.nama)}" placeholder="Nama"></div><div class="field"><input type="text" id="edit-item-price-${idx}" class="currency-input" value="${formatCurrency(item.harga_satuan)}" placeholder="Harga"></div><div class="field"><input type="number" id="edit-item-qty-${idx}" value="${item.qty_dibeli}" placeholder="Qty"></div><button class="btn danger-text small" onclick="removeItemRow(${idx})">✕</button></div>`).join('') : '';
+  setModal(editing?'Edit Paket':'Tambah Paket', `<div class="field-row"><div class="field"><label>Kategori</label><select id="f-kp">${KATEGORI_PESERTA.map(k=>`<option value="${k.v}" ${editing&&editing.kategori_peserta===k.v?'selected':''}>${k.l}</option>`).join('')}</select></div><div class="field"><label>Juara</label><select id="f-juara">${JUARA_LIST.map(j=>`<option value="${j.v}" ${editing&&editing.juara_ke===j.v?'selected':''}>${j.l}</option>`).join('')}</select></div></div><div class="field"><label>Item Hadiah</label><div id="items-container">${itemsHtml}</div><button class="btn secondary small" onclick="addItemRow()" type="button">+ Tambah Item</button></div>`, [
+    {label:'Batal', cls:'secondary', onclick:closeModal},
+    {label:editing?'Simpan':'Tambah', cls:'', onclick:()=>{
+      const kategori_peserta=document.getElementById('f-kp').value; const juara_ke=document.getElementById('f-juara').value; const items=[]; const container=document.getElementById('items-container'); const rows=container.querySelectorAll('.field-row'); rows.forEach((row,idx)=>{const nameInput=row.querySelector(`input[id^="edit-item-name-"]`); const priceInput=row.querySelector(`input[id^="edit-item-price-"]`); const qtyInput=row.querySelector(`input[id^="edit-item-qty-"]`); if(nameInput&&priceInput&&qtyInput){const nama=nameInput.value.trim(); const harga_satuan=getCurrencyValue(priceInput); const qty_dibeli=Number(qtyInput.value||0); if(nama&&qty_dibeli>0) items.push({nama,harga_satuan,qty_dibeli,qty_terpakai:0});}}); if(items.length===0){toast('Minimal 1 item');return;}
+      let actionMsg = editing ? `✏️ Edit paket hadiah ${labelPeserta(kategori_peserta)} - ${labelJuara(juara_ke)}` : `➕ Paket hadiah baru ${labelPeserta(kategori_peserta)} - ${labelJuara(juara_ke)}`;
+      if(editing){ const existingItems=editing.items||[]; items.forEach((newItem,idx)=>{if(idx<existingItems.length) newItem.qty_terpakai=existingItems[idx].qty_terpakai||0;}); Object.assign(editing,{kategori_peserta,juara_ke,items});}
+      else{ db.hadiahKategori.push({id:uid(),event_id:eid(),kategori_peserta,juara_ke,items}); }
+      saveDB(); closeModal(); renderContent(); renderTopbarSaldo(); toast('Disimpan');
+      const detail = items.map(i => `${i.nama} (${i.qty_dibeli} × ${fmtRp(i.harga_satuan)})`).join('\n');
+      notifyTelegram(actionMsg, detail);
+    }}
+  ]);
+  if(editing) openHadiahGroups.add(id);
+  setTimeout(setupAllCurrencyInputs, 50);
+}
+function addItemRow(){ const container=document.getElementById('items-container'); if(!container) return; const idx=Math.floor(Math.random()*10000); const row=document.createElement('div'); row.className='field-row'; row.style.cssText='border-bottom:1px solid var(--garis);padding-bottom:10px;margin-bottom:10px;'; row.innerHTML=`<div class="field"><input type="text" id="edit-item-name-${idx}" placeholder="Nama hadiah"></div><div class="field"><input type="text" id="edit-item-price-${idx}" class="currency-input" placeholder="Harga"></div><div class="field"><input type="number" id="edit-item-qty-${idx}" placeholder="Qty" value="1"></div><button class="btn danger-text small" onclick="removeItemRow(this.closest('.field-row'))">✕</button>`; container.appendChild(row); setTimeout(setupAllCurrencyInputs, 0); }
+function removeItemRow(element){ if(typeof element==='number'){const rows=document.querySelectorAll('#items-container .field-row'); if(rows.length>1) rows[element].remove(); else toast('Minimal 1 item'); return;} const rows=document.querySelectorAll('#items-container .field-row'); if(rows.length>1) element.remove(); else toast('Minimal 1 item'); }
+function editHadiahItem(hadiahId,itemIdx){ 
+  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  const h=db.hadiahKategori.find(x=>x.id===hadiahId); if(!h||!h.items[itemIdx]) return; const item=h.items[itemIdx]; const newNama=prompt('Nama:',item.nama); if(newNama===null) return; const newHarga=prompt('Harga:',item.harga_satuan); if(newHarga===null) return; const newQty=prompt('Qty:',item.qty_dibeli); if(newQty===null) return; if(!newNama.trim()||Number(newQty)<=0){toast('Nama & qty wajib');return;} if(Number(newQty)<(item.qty_terpakai||0)){toast('Qty tidak boleh kurang dari terpakai');return;} item.nama=newNama.trim(); item.harga_satuan=Number(newHarga)||0; item.qty_dibeli=Number(newQty)||0; saveDB(); renderContent(); toast('Diupdate'); 
+  notifyTelegram(`✏️ Edit item hadiah: ${item.nama}`, `Paket: ${labelPeserta(h.kategori_peserta)} - ${labelJuara(h.juara_ke)}\nHarga: ${fmtRp(item.harga_satuan)}\nQty: ${item.qty_dibeli}`);
+}
+function hapusHadiahItem(hadiahId,itemIdx){ 
+  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  const h=db.hadiahKategori.find(x=>x.id===hadiahId); if(!h||!h.items[itemIdx]) return; if(h.items[itemIdx].qty_terpakai>0){toast('Sudah terpakai');return;} const itemName = h.items[itemIdx].nama; if(!confirm(`Hapus "${itemName}"?`)) return; h.items.splice(itemIdx,1); if(h.items.length===0) db.hadiahKategori=db.hadiahKategori.filter(x=>x.id!==hadiahId); saveDB(); renderContent(); toast('Dihapus'); 
+  notifyTelegram(`🗑️ Hapus item hadiah: ${itemName}`, `Paket: ${labelPeserta(h.kategori_peserta)} - ${labelJuara(h.juara_ke)}`);
+}
+function tambahItemHadiah(hadiahId){ 
+  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  const h=db.hadiahKategori.find(x=>x.id===hadiahId); if(!h) return; const nama=document.getElementById(`add-item-name-${hadiahId}`).value.trim(); const harga=getCurrencyValue(document.getElementById(`add-item-price-${hadiahId}`)); const qty=Number(document.getElementById(`add-item-qty-${hadiahId}`).value||0); if(!nama||qty<=0){toast('Nama & qty wajib');return;} h.items.push({nama,harga_satuan:harga,qty_dibeli:qty,qty_terpakai:0}); document.getElementById(`add-item-name-${hadiahId}`).value=''; document.getElementById(`add-item-price-${hadiahId}`).value=''; document.getElementById(`add-item-qty-${hadiahId}`).value='1'; saveDB(); renderContent(); toast('Item ditambahkan'); 
+  notifyTelegram(`➕ Item hadiah baru: ${nama}`, `Paket: ${labelPeserta(h.kategori_peserta)} - ${labelJuara(h.juara_ke)}\nHarga: ${fmtRp(harga)}\nQty: ${qty}`);
+}
+function hapusHadiah(id){ 
+  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  const h=db.hadiahKategori.find(x=>x.id===id); if(!h) return; const totalTerpakai=h.items.reduce((s,item)=>s+Number(item.qty_terpakai||0),0); if(totalTerpakai>0){toast('Masih dipakai');return;} if(!confirm('Hapus paket?')) return; db.hadiahKategori=db.hadiahKategori.filter(x=>x.id!==id); saveDB(); renderContent(); renderTopbarSaldo(); 
+  notifyTelegram(`🗑️ Hapus paket hadiah`, `Kategori: ${labelPeserta(h.kategori_peserta)}\nJuara: ${labelJuara(h.juara_ke)}`);
+}
+
+/* ============================================================
+   BELANJA HADIAH, BELANJA PERLENGKAPAN, BELANJA JALAN (dengan auth check)
+   ============================================================ */
+function renderBelanjaHadiah(){
+  const semuaHadiah = gHadiahKategori();
+  const daftar = gDaftarBelanjaHadiah();
+  const statusMap = {};
+  daftar.forEach(b => { const key = `${b.hadiah_kategori_id}_${b.item_index}`; statusMap[key] = b; });
+
+  const items = [];
+  semuaHadiah.forEach(h => {
+    h.items.forEach((item, idx) => {
+      if (Number(item.qty_dibeli||0) <= 0) return;
+      const key = `${h.id}_${idx}`;
+      const belanja = statusMap[key] || null;
+      const status = belanja ? belanja.status : 'belum_dibeli';
+      const tanggalBeli = belanja ? belanja.tanggal_beli : null;
+      items.push({...h, itemIndex: idx, itemNama: item.nama, itemHarga: item.harga_satuan, itemQtyDibeli: item.qty_dibeli, status, tanggalBeli, sudahDibeli: status==='dibeli', key});
+    });
+  });
+
+  items.sort((a,b) => {
+    if(a.sudahDibeli !== b.sudahDibeli) return a.sudahDibeli ? 1 : -1;
+    if(a.kategori_peserta !== b.kategori_peserta) return a.kategori_peserta.localeCompare(b.kategori_peserta);
+    return a.juara_ke.localeCompare(b.juara_ke);
+  });
+
+  const totalItem = items.length;
+  const totalBelum = items.filter(i=>!i.sudahDibeli).length;
+  const totalEstimasi = items.reduce((s,i)=>s+(Number(i.itemHarga||0)*Number(i.itemQtyDibeli||0)),0);
+  const totalBelumEstimasi = items.filter(i=>!i.sudahDibeli).reduce((s,i)=>s+(Number(i.itemHarga||0)*Number(i.itemQtyDibeli||0)),0);
+  const isLoggedIn = !!getCurrentUser();
+
+  if(!items.length) return `<div class="panel"><div class="panel-head"><h3>🎁 Belanja Hadiah</h3></div><div class="panel-body"><div class="empty-state"><h3>Belum ada hadiah</h3><button class="btn" onclick="goSection('hadiah')">+ Tambah Hadiah</button></div></div></div>`;
+
+  const groups = KATEGORI_PESERTA.map(kp => {
+    const groupItems = items.filter(i=>i.kategori_peserta===kp.v);
+    if(!groupItems.length) return '';
+    const groupBelum = groupItems.filter(i=>!i.sudahDibeli);
+    const groupBelumTotal = groupBelum.reduce((s,i)=>s+(Number(i.itemHarga||0)*Number(i.itemQtyDibeli||0)),0);
+    const itemHtml = groupItems.map(item => {
+      const isDibeli = item.sudahDibeli;
+      const hargaTotal = Number(item.itemHarga||0)*Number(item.itemQtyDibeli||0);
+      return `<div class="belanja-item ${isDibeli?'dibeli':''}">
+        <div class="checkbox-wrapper ${isDibeli?'checked':''} ${!isLoggedIn ? 'disabled' : ''}" onclick="${isLoggedIn ? `toggleBelanjaHadiah('${item.id}',${item.itemIndex},'${item.belanjaId||''}')` : 'toast(\'⛔ Login untuk mengedit\')'}"></div>
+        <div class="info"><div class="nama">${esc(item.itemNama)}</div><div class="detail"><span class="tag">${labelPeserta(item.kategori_peserta)}</span><span class="tag">${labelJuara(item.juara_ke)}</span><span>Qty: ${item.itemQtyDibeli}</span>${isDibeli&&item.tanggalBeli?`<span>✓ Dibeli: ${fmtDate(item.tanggalBeli)}</span>`:''}</div></div>
+        <div class="harga">${fmtRp(hargaTotal)}</div>
+        <button class="btn-small-icon" onclick="editBelanjaHadiah('${item.id}',${item.itemIndex})" ${!isLoggedIn ? 'disabled' : ''}>✎</button>
+      </div>`;
+    }).join('');
+    return `<div class="subgroup-title">${kp.l} (${groupBelum.length}/${groupItems.length} · ${fmtRp(groupBelumTotal)})</div>${itemHtml}`;
+  }).join('');
+
+  return `<div class="stat-grid"><div class="stat-card belanja-hadiah"><div class="lbl">Total Item</div><div class="val">${totalItem}</div></div><div class="stat-card pemasukan"><div class="lbl">Belum Dibeli</div><div class="val">${totalBelum}</div></div><div class="stat-card saldo"><div class="lbl">Estimasi Total</div><div class="val">${fmtRp(totalEstimasi)}</div></div></div>
+  <div class="panel"><div class="panel-head"><div><h3>🎁 Daftar Belanja Hadiah</h3><div class="desc">Belum dibeli: <strong>${fmtRp(totalBelumEstimasi)}</strong></div></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="btn success small" onclick="tandaiSemuaBelanjaHadiah()" ${!isLoggedIn ? 'disabled' : ''}>✓ Semua Dibeli</button>
+      <button class="btn secondary small" onclick="resetSemuaBelanjaHadiah()" ${!isLoggedIn ? 'disabled' : ''}>↺ Reset</button>
+    </div></div>
+  <div class="panel-body">${groups}</div></div>`;
+}
+
+function toggleBelanjaHadiah(hadiahId, itemIndex, belanjaId){
+  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  const h = db.hadiahKategori.find(x=>x.id===hadiahId);
+  if(!h || !h.items[itemIndex]) { toast('Item tidak ditemukan'); return; }
+  const item = h.items[itemIndex];
+  let existing = db.daftarBelanjaHadiah.find(b => b.hadiah_kategori_id === hadiahId && b.item_index === itemIndex && b.event_id === eid());
+  let actionMsg = '';
+  if (existing) {
+    if (existing.status === 'dibeli') { 
+      existing.status = 'belum_dibeli'; existing.tanggal_beli = null; 
+      actionMsg = `↩️ Belanja hadiah dibatalkan: ${item.nama}`;
+      toast(`"${item.nama}" → belum dibeli`); 
+    }
+    else { 
+      existing.status = 'dibeli'; existing.tanggal_beli = todayISO(); 
+      actionMsg = `✅ Belanja hadiah DIBELI: ${item.nama}`;
+      toast(`✓ "${item.nama}" dibeli`); 
+    }
+  } else {
+    db.daftarBelanjaHadiah.push({id:uid(), event_id:eid(), hadiah_kategori_id:hadiahId, item_index:itemIndex, status:'dibeli', tanggal_beli:todayISO()});
+    actionMsg = `✅ Belanja hadiah DIBELI: ${item.nama}`;
+    toast(`✓ "${item.nama}" dibeli`);
+  }
+  saveDB(); renderContent(); renderTopbarSaldo();
+  if(actionMsg) notifyTelegram(actionMsg, `Paket: ${labelPeserta(h.kategori_peserta)} - ${labelJuara(h.juara_ke)}\nQty: ${item.qty_dibeli}\nHarga: ${fmtRp(item.harga_satuan)}`);
+}
+function tandaiSemuaBelanjaHadiah(){ 
+  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  const hadiahList=gHadiahKategori(); let count=0; let detail = [];
+  hadiahList.forEach(h=>{h.items.forEach((item,idx)=>{if(Number(item.qty_dibeli||0)<=0)return; const existing=db.daftarBelanjaHadiah.find(b=>b.hadiah_kategori_id===h.id&&b.item_index===idx&&b.event_id===eid()); if(!existing||existing.status!=='dibeli'){if(existing){existing.status='dibeli';existing.tanggal_beli=todayISO();}else{db.daftarBelanjaHadiah.push({id:uid(),event_id:eid(),hadiah_kategori_id:h.id,item_index:idx,status:'dibeli',tanggal_beli:todayISO()});}count++;detail.push(`${item.nama} (${labelPeserta(h.kategori_peserta)})`);}});}); 
+  if(count===0){toast('Semua sudah dibeli');}else{saveDB();renderContent();renderTopbarSaldo();toast(`✓ ${count} item dibeli`);
+  notifyTelegram(`✅ ${count} item hadiah lomba DIBELI`, detail.join('\n'));} }
+function resetSemuaBelanjaHadiah(){ 
+  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  if(!confirm('Reset semua status?')) return; 
+  const list=gDaftarBelanjaHadiah(); 
+  list.forEach(b=>{b.status='belum_dibeli';b.tanggal_beli=null;}); 
+  saveDB(); renderContent(); toast('Reset'); 
+  notifyTelegram(`↩️ Reset semua status belanja hadiah`, `Semua status dikembalikan ke "belum dibeli"`);
+}
+function editBelanjaHadiah(hadiahId,itemIndex){ 
+  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  const h=db.hadiahKategori.find(x=>x.id===hadiahId); if(!h||!h.items[itemIndex]) return; const item=h.items[itemIndex]; const newNama=prompt('Nama:',item.nama); if(newNama===null)return; const newHarga=prompt('Harga:',item.harga_satuan); if(newHarga===null)return; const newQty=prompt('Qty:',item.qty_dibeli); if(newQty===null)return; if(!newNama.trim()||Number(newQty)<=0){toast('Nama & qty wajib');return;} if(Number(newQty)<(item.qty_terpakai||0)){toast('Qty tidak boleh kurang dari terpakai');return;} item.nama=newNama.trim(); item.harga_satuan=Number(newHarga)||0; item.qty_dibeli=Number(newQty)||0; saveDB(); renderContent(); toast('Diupdate'); 
+  notifyTelegram(`✏️ Edit item belanja hadiah: ${item.nama}`, `Paket: ${labelPeserta(h.kategori_peserta)} - ${labelJuara(h.juara_ke)}\nHarga: ${fmtRp(item.harga_satuan)}\nQty: ${item.qty_dibeli}`);
+}
+
+function renderBelanjaPerlengkapan(){
+  const semuaKebutuhan = [];
+  gLomba().forEach(l => { gKebutuhan(l.id).forEach(k => { semuaKebutuhan.push({...k, lombaNama: l.nama, lombaKategori: l.kategori_peserta}); }); });
+  const daftar = gDaftarBelanjaPerlengkapan();
+  const statusMap = {}; daftar.forEach(b => { statusMap[b.kebutuhan_id] = b; });
+
+  const items = semuaKebutuhan.map(k => {
+    const belanja = statusMap[k.id] || null;
+    const status = belanja ? belanja.status : 'belum_dibeli';
+    const harga = Number(k.harga_realisasi ?? k.harga_estimasi ?? 0);
+    return {...k, status, tanggalBeli: belanja?.tanggal_beli, sudahDibeli: status==='dibeli', hargaTotal: harga * Number(k.qty||0)};
+  });
+  items.sort((a,b) => { if(a.sudahDibeli!==b.sudahDibeli) return a.sudahDibeli?1:-1; return a.lombaNama.localeCompare(b.lombaNama); });
+
+  const totalItem = items.length, totalBelum = items.filter(i=>!i.sudahDibeli).length, totalEstimasi = items.reduce((s,i)=>s+i.hargaTotal,0), totalBelumEstimasi = items.filter(i=>!i.sudahDibeli).reduce((s,i)=>s+i.hargaTotal,0);
+  const isLoggedIn = !!getCurrentUser();
+  
+  if(!items.length) return `<div class="panel"><div class="panel-head"><h3>📦 Belanja Perlengkapan</h3></div><div class="panel-body"><div class="empty-state"><h3>Belum ada perlengkapan</h3><button class="btn" onclick="goSection('lomba')">+ Tambah Kebutuhan</button></div></div></div>`;
+
+  const groups = {}; items.forEach(item => { if(!groups[item.lombaNama]) groups[item.lombaNama]=[]; groups[item.lombaNama].push(item); });
+  const groupHtml = Object.keys(groups).sort().map(lombaNama => {
+    const groupItems = groups[lombaNama]; const groupBelum = groupItems.filter(i=>!i.sudahDibeli); const groupBelumTotal = groupBelum.reduce((s,i)=>s+i.hargaTotal,0);
+    const itemHtml = groupItems.map(item => `<div class="belanja-item ${item.sudahDibeli?'dibeli':''}">
+      <div class="checkbox-wrapper ${item.sudahDibeli?'checked':''} ${!isLoggedIn ? 'disabled' : ''}" onclick="${isLoggedIn ? `toggleBelanjaPerlengkapan('${item.id}','${item.belanjaId||''}')` : 'toast(\'⛔ Login untuk mengedit\')'}"></div>
+      <div class="info"><div class="nama">${esc(item.nama_item)}</div><div class="detail"><span class="tag tag-orange">${labelPeserta(item.lombaKategori)}</span><span>Qty: ${item.qty}</span>${item.harga_realisasi!=null?`<span>Realisasi: ${fmtRp(item.harga_realisasi)}</span>`:''}${item.sudahDibeli&&item.tanggalBeli?`<span>✓ Dibeli: ${fmtDate(item.tanggalBeli)}</span>`:''}</div></div>
+      <div class="harga">${fmtRp(item.hargaTotal)}</div>
+      <button class="btn-small-icon" onclick="editBelanjaPerlengkapan('${item.id}')" ${!isLoggedIn ? 'disabled' : ''}>✎</button>
+    </div>`).join('');
+    return `<div class="subgroup-title">📋 ${esc(lombaNama)} (${groupBelum.length}/${groupItems.length} · ${fmtRp(groupBelumTotal)})</div>${itemHtml}`;
+  }).join('');
+
+  return `<div class="stat-grid"><div class="stat-card belanja-perlengkapan"><div class="lbl">Total Item</div><div class="val">${totalItem}</div></div><div class="stat-card pemasukan"><div class="lbl">Belum Dibeli</div><div class="val">${totalBelum}</div></div><div class="stat-card saldo"><div class="lbl">Estimasi Total</div><div class="val">${fmtRp(totalEstimasi)}</div></div></div>
+  <div class="panel"><div class="panel-head"><div><h3>📦 Daftar Belanja Perlengkapan</h3><div class="desc">Belum dibeli: <strong>${fmtRp(totalBelumEstimasi)}</strong></div></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="btn success small" onclick="tandaiSemuaBelanjaPerlengkapan()" ${!isLoggedIn ? 'disabled' : ''}>✓ Semua Dibeli</button>
+      <button class="btn secondary small" onclick="resetSemuaBelanjaPerlengkapan()" ${!isLoggedIn ? 'disabled' : ''}>↺ Reset</button>
+    </div></div>
+  <div class="panel-body">${groupHtml}</div></div>`;
+}
+
+function toggleBelanjaPerlengkapan(kebutuhanId, belanjaId){
+  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  const k = db.lombaKebutuhan.find(x=>x.id===kebutuhanId);
+  if(!k) { toast('Item tidak ditemukan'); return; }
+  let existing = db.daftarBelanjaPerlengkapan.find(b => b.kebutuhan_id === kebutuhanId && b.event_id === eid());
+  let actionMsg = '';
+  if (existing) {
+    if (existing.status === 'dibeli') { 
+      existing.status = 'belum_dibeli'; existing.tanggal_beli = null; 
+      actionMsg = `↩️ Belanja perlengkapan dibatalkan: ${k.nama_item}`;
+      toast(`"${k.nama_item}" → belum dibeli`); 
+    }
+    else { 
+      existing.status = 'dibeli'; existing.tanggal_beli = todayISO(); 
+      actionMsg = `✅ Belanja perlengkapan DIBELI: ${k.nama_item}`;
+      toast(`✓ "${k.nama_item}" dibeli`); 
+    }
+  } else {
+    db.daftarBelanjaPerlengkapan.push({id:uid(), event_id:eid(), kebutuhan_id:kebutuhanId, status:'dibeli', tanggal_beli:todayISO()});
+    actionMsg = `✅ Belanja perlengkapan DIBELI: ${k.nama_item}`;
+    toast(`✓ "${k.nama_item}" dibeli`);
+  }
+  saveDB(); renderContent(); renderTopbarSaldo();
+  if(actionMsg) notifyTelegram(actionMsg, `Item: ${k.nama_item}\nQty: ${k.qty}\nLomba: ${db.lomba.find(x=>x.id===k.lomba_id)?.nama || k.lomba_id}`);
+}
+function tandaiSemuaBelanjaPerlengkapan(){ 
+  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  let count=0; let detail = [];
+  gLomba().forEach(l=>{gKebutuhan(l.id).forEach(k=>{const existing=db.daftarBelanjaPerlengkapan.find(b=>b.kebutuhan_id===k.id&&b.event_id===eid()); if(!existing||existing.status!=='dibeli'){if(existing){existing.status='dibeli';existing.tanggal_beli=todayISO();}else{db.daftarBelanjaPerlengkapan.push({id:uid(),event_id:eid(),kebutuhan_id:k.id,status:'dibeli',tanggal_beli:todayISO()});}count++;detail.push(`${k.nama_item} (${l.nama})`);}});}); 
+  if(count===0){toast('Semua sudah dibeli');}else{saveDB();renderContent();renderTopbarSaldo();toast(`✓ ${count} item dibeli`);
+  notifyTelegram(`✅ ${count} item perlengkapan DIBELI`, detail.join('\n'));} }
+function resetSemuaBelanjaPerlengkapan(){ 
+  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  if(!confirm('Reset semua status?')) return; 
+  const list=gDaftarBelanjaPerlengkapan(); 
+  list.forEach(b=>{b.status='belum_dibeli';b.tanggal_beli=null;}); 
+  saveDB(); renderContent(); toast('Reset');
+  notifyTelegram(`↩️ Reset semua status belanja perlengkapan`, `Semua status dikembalikan ke "belum dibeli"`);
+}
+function editBelanjaPerlengkapan(kebutuhanId){ 
+  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  const k=db.lombaKebutuhan.find(x=>x.id===kebutuhanId); if(!k) return; const newNama=prompt('Nama item:',k.nama_item); if(newNama===null)return; const newEst=prompt('Harga estimasi:',k.harga_estimasi); if(newEst===null)return; const newQty=prompt('Qty:',k.qty); if(newQty===null)return; if(!newNama.trim()||Number(newQty)<=0){toast('Nama & qty wajib');return;} k.nama_item=newNama.trim(); k.harga_estimasi=Number(newEst)||0; k.qty=Number(newQty)||0; saveDB(); renderContent(); toast('Diupdate'); 
+  notifyTelegram(`✏️ Edit item perlengkapan: ${k.nama_item}`, `Lomba: ${db.lomba.find(x=>x.id===k.lomba_id)?.nama || k.lomba_id}\nQty: ${k.qty}\nEstimasi: ${fmtRp(k.harga_estimasi)}`);
+}
+
+/* ============================================================
+   HADIAH JALAN SANTAI & BELANJA JALAN (dengan auth check)
+   ============================================================ */
+function renderHadiahJalanSantai(){
+  const list = gHadiahJalanSantai();
+  const total = list.reduce((s,h) => s + (Number(h.harga_satuan||0) * Number(h.qty||0)), 0);
+  const totalItems = list.reduce((s,h) => s + Number(h.qty||0), 0);
+  const isLoggedIn = !!getCurrentUser();
+
+  const rows = list.map(h => {
+    const belanja = db.daftarBelanjaJalanSantai.find(b => b.hadiah_jalan_id === h.id && b.event_id === eid());
+    const sudahDibeli = belanja && belanja.status === 'dibeli';
+    return `
+    <tr class="${sudahDibeli?'dibeli':''}">
+      <td>${esc(h.nama_hadiah)}</td>
+      <td><span class="kategori-pill jalan-santai">${labelKategoriJalan(h.kategori)}</span></td>
+      <td class="num">${fmtRp(h.harga_satuan)}</td>
+      <td class="num">${h.qty}</td>
+      <td class="num">${fmtRp(Number(h.harga_satuan||0) * Number(h.qty||0))}</td>
+      <td>${esc(h.keterangan||'-')}</td>
+      <td style="text-align:right; white-space:nowrap;">
+        <button class="btn secondary small" onclick="toggleBelanjaJalan('${h.id}')" ${!isLoggedIn ? 'disabled' : ''}>${sudahDibeli?'✓ Dibeli':'Belum'}</button>
+        <button class="icon-btn" onclick="openHadiahJalanModal('${h.id}')" ${!isLoggedIn ? 'disabled' : ''} title="Edit">✎</button>
+        <button class="icon-btn" onclick="hapusHadiahJalan('${h.id}')" ${!isLoggedIn ? 'disabled' : ''} title="Hapus">🗑</button>
+      </td>
+    </tr>`;
+  }).join('');
+
+  return `
+  <div class="stat-grid">
+    <div class="stat-card jalan-santai"><div class="lbl">Total Hadiah</div><div class="val">${list.length}</div></div>
+    <div class="stat-card pengeluaran"><div class="lbl">Total Item</div><div class="val">${totalItems}</div></div>
+    <div class="stat-card saldo"><div class="lbl">Total Biaya</div><div class="val">${fmtRp(total)}</div></div>
+  </div>
+  <div class="panel">
+    <div class="panel-head">
+      <div><h3>🏃 Hadiah Jalan Santai</h3>
+        <div class="desc">Kelola hadiah untuk acara jalan santai</div>
+      </div>
+      ${isLoggedIn ? `<button class="btn pink" onclick="openHadiahJalanModal()">+ Tambah Hadiah</button>` : `<span class="badge readonly">🔒 Login</span>`}
+    </div>
+    <div class="panel-body flush">
+      <table class="jalan-table">
+        <thead><tr><th>Nama Hadiah</th><th>Kategori</th><th class="num">Harga Satuan</th><th class="num">Qty</th><th class="num">Total</th><th>Keterangan</th><th></th></tr></thead>
+        <tbody>${rows || `<tr class="empty-row"><td colspan="7">Belum ada hadiah jalan santai.</td></tr>`}</tbody>
+        ${list.length > 0 ? `<tfoot><tr><td colspan="4">Total</td><td class="num">${fmtRp(total)}</td><td colspan="2"></td></tr></tfoot>` : ''}
+      </table>
+    </div>
+  </div>`;
+}
+
+function labelKategoriJalan(v){ return (KATEGORI_JALAN_SANTAI.find(k=>k.v===v)||{}).l || v; }
+
+function openHadiahJalanModal(id){
+  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  const editing = id ? db.hadiahJalanSantai.find(h=>h.id===id) : null;
+  setModal(editing?'Edit Hadiah Jalan Santai':'Tambah Hadiah Jalan Santai', `
+    <div class="field"><label>Nama Hadiah</label><input id="f-nama" value="${editing?esc(editing.nama_hadiah):''}" placeholder="mis. Baju, Topi, Snack Pack"></div>
+    <div class="field-row">
+      <div class="field"><label>Kategori</label>
+        <select id="f-kategori">${KATEGORI_JALAN_SANTAI.map(k=>`<option value="${k.v}" ${editing&&editing.kategori===k.v?'selected':''}>${k.l}</option>`).join('')}</select>
+      </div>
+      <div class="field"><label>Qty</label><input id="f-qty" type="number" min="1" value="${editing?editing.qty:1}"></div>
+    </div>
+    <div class="field"><label>Harga Satuan (Rp)</label><input id="f-harga" class="currency-input" type="text" value="${editing?formatCurrency(editing.harga_satuan):''}"></div>
+    <div class="field"><label>Keterangan (opsional)</label><input id="f-ket" value="${editing?esc(editing.keterangan||''):''}" placeholder="mis. Sponsor dari Toko ABC"></div>
+  `, [
+    {label:'Batal', cls:'secondary', onclick:closeModal},
+    {label:editing?'Simpan':'Tambah', cls:'pink', onclick:()=>{
+      const nama_hadiah = document.getElementById('f-nama').value.trim();
+      const kategori = document.getElementById('f-kategori').value;
+      const qty = Number(document.getElementById('f-qty').value||0);
+      const harga_satuan = getCurrencyValue(document.getElementById('f-harga'));
+      const keterangan = document.getElementById('f-ket').value.trim();
+      if(!nama_hadiah || qty <= 0 || harga_satuan <= 0){ toast('Nama, qty & harga wajib diisi'); return; }
+      let actionMsg = editing ? `✏️ Edit hadiah jalan santai: ${editing.nama_hadiah} → ${nama_hadiah}` : `➕ Hadiah jalan santai baru: ${nama_hadiah}`;
+      if(editing){ Object.assign(editing, {nama_hadiah, kategori, qty, harga_satuan, keterangan}); }
+      else{ db.hadiahJalanSantai.push({id:uid(), event_id:eid(), nama_hadiah, kategori, qty, harga_satuan, keterangan}); }
+      saveDB(); closeModal(); renderContent(); renderTopbarSaldo(); toast('Hadiah jalan santai disimpan');
+      notifyTelegram(actionMsg, `Kategori: ${labelKategoriJalan(kategori)}\nQty: ${qty}\nHarga: ${fmtRp(harga_satuan)}\nTotal: ${fmtRp(harga_satuan * qty)}\nKeterangan: ${keterangan || '-'}`);
+    }}
+  ]);
+  setTimeout(setupAllCurrencyInputs, 50);
+}
+
+function hapusHadiahJalan(id){
+  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  if(!confirm('Hapus hadiah ini?')) return;
+  const h = db.hadiahJalanSantai.find(x=>x.id===id);
+  db.hadiahJalanSantai = db.hadiahJalanSantai.filter(h=>h.id!==id);
+  saveDB(); renderContent(); renderTopbarSaldo();
+  if(h) notifyTelegram(`🗑️ Hapus hadiah jalan santai: ${h.nama_hadiah}`, `Kategori: ${labelKategoriJalan(h.kategori)}`);
+}
+
+function toggleBelanjaJalan(hadiahId){
+  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  const h = db.hadiahJalanSantai.find(x=>x.id===hadiahId);
+  if(!h) { toast('Hadiah tidak ditemukan'); return; }
+  
+  let existing = db.daftarBelanjaJalanSantai.find(b => b.hadiah_jalan_id === hadiahId && b.event_id === eid());
+  let actionMsg = '';
+  
+  if (existing) {
+    if (existing.status === 'dibeli') {
+      existing.status = 'belum_dibeli';
+      existing.tanggal_beli = null;
+      actionMsg = `↩️ Belanja jalan santai dibatalkan: ${h.nama_hadiah}`;
+      toast(`"${h.nama_hadiah}" → belum dibeli`);
+    } else {
+      existing.status = 'dibeli';
+      existing.tanggal_beli = todayISO();
+      actionMsg = `✅ Belanja jalan santai DIBELI: ${h.nama_hadiah}`;
+      toast(`✓ "${h.nama_hadiah}" dibeli`);
+    }
+  } else {
+    db.daftarBelanjaJalanSantai.push({
+      id: uid(),
+      event_id: eid(),
+      hadiah_jalan_id: hadiahId,
+      status: 'dibeli',
+      tanggal_beli: todayISO()
+    });
+    actionMsg = `✅ Belanja jalan santai DIBELI: ${h.nama_hadiah}`;
+    toast(`✓ "${h.nama_hadiah}" dibeli`);
+  }
+  saveDB(); renderContent(); renderTopbarSaldo();
+  if(actionMsg) notifyTelegram(actionMsg, `Kategori: ${labelKategoriJalan(h.kategori)}\nQty: ${h.qty}\nHarga: ${fmtRp(h.harga_satuan)}`);
+}
+
+function renderBelanjaJalanSantai(){
+  const list = gHadiahJalanSantai();
+  const daftar = gDaftarBelanjaJalanSantai();
+  const statusMap = {};
+  daftar.forEach(b => { statusMap[b.hadiah_jalan_id] = b; });
+
+  const items = list.map(h => {
+    const belanja = statusMap[h.id] || null;
+    const status = belanja ? belanja.status : 'belum_dibeli';
+    const tanggalBeli = belanja ? belanja.tanggal_beli : null;
+    const sudahDibeli = status === 'dibeli';
+    return {
+      ...h,
+      status,
+      tanggalBeli,
+      sudahDibeli,
+      belanjaId: belanja ? belanja.id : null,
+      hargaTotal: Number(h.harga_satuan||0) * Number(h.qty||0)
+    };
+  });
+
+  items.sort((a,b) => {
+    if (a.sudahDibeli !== b.sudahDibeli) return a.sudahDibeli ? 1 : -1;
+    return a.nama_hadiah.localeCompare(b.nama_hadiah);
+  });
+
+  const totalItem = items.length;
+  const totalBelum = items.filter(i => !i.sudahDibeli).length;
+  const totalSudah = items.filter(i => i.sudahDibeli).length;
+  const totalEstimasi = items.reduce((s, i) => s + i.hargaTotal, 0);
+  const totalBelumEstimasi = items.filter(i => !i.sudahDibeli).reduce((s, i) => s + i.hargaTotal, 0);
+  const isLoggedIn = !!getCurrentUser();
+
+  if (!items.length) {
+    return `
+    <div class="panel">
+      <div class="panel-head"><h3>🛍️ Belanja Jalan Santai</h3></div>
+      <div class="panel-body">
+        <div class="empty-state"><h3>Belum ada hadiah</h3><p>Tambahkan hadiah jalan santai dulu.</p>
+          ${isLoggedIn ? `<button class="btn pink" onclick="goSection('hadiah-jalan')">+ Tambah Hadiah</button>` : `<span class="badge readonly">🔒 Login</span>`}
+        </div>
+      </div>
+    </div>`;
+  }
+
+  const groups = KATEGORI_JALAN_SANTAI.map(kp => {
+    const groupItems = items.filter(i => i.kategori === kp.v);
+    if (!groupItems.length) return '';
+    const groupBelum = groupItems.filter(i => !i.sudahDibeli);
+    const groupBelumTotal = groupBelum.reduce((s, i) => s + i.hargaTotal, 0);
+
+    const itemHtml = groupItems.map(item => {
+      const isDibeli = item.sudahDibeli;
+      return `
+      <div class="belanja-item ${isDibeli ? 'dibeli' : ''}">
+        <div class="checkbox-wrapper ${isDibeli ? 'checked' : ''} ${!isLoggedIn ? 'disabled' : ''}" 
+             onclick="${isLoggedIn ? `toggleBelanjaJalan('${item.id}')` : 'toast(\'⛔ Login untuk mengedit\')'}">
+        </div>
+        <div class="info">
+          <div class="nama">${esc(item.nama_hadiah)}</div>
+          <div class="detail">
+            <span class="tag tag-pink">${labelKategoriJalan(item.kategori)}</span>
+            <span>Qty: ${item.qty}</span>
+            <span>@${fmtRp(item.harga_satuan)}</span>
+            ${isDibeli && item.tanggalBeli ? `<span>✓ Dibeli: ${fmtDate(item.tanggalBeli)}</span>` : ''}
+            ${item.keterangan ? `<span>${esc(item.keterangan)}</span>` : ''}
+          </div>
+        </div>
+        <div class="harga">${fmtRp(item.hargaTotal)}</div>
+        <button class="btn-small-icon" onclick="openHadiahJalanModal('${item.id}')" ${!isLoggedIn ? 'disabled' : ''} title="Edit">✎</button>
+      </div>`;
+    }).join('');
+
+    return `<div class="subgroup-title">${kp.l} (${groupBelum.length}/${groupItems.length} · ${fmtRp(groupBelumTotal)})</div>${itemHtml}`;
+  }).join('');
+
+  return `
+  <div class="stat-grid">
+    <div class="stat-card jalan-santai"><div class="lbl">Total Item</div><div class="val">${totalItem}</div></div>
+    <div class="stat-card pemasukan"><div class="lbl">Belum Dibeli</div><div class="val">${totalBelum}</div></div>
+    <div class="stat-card pengeluaran"><div class="lbl">Sudah Dibeli</div><div class="val">${totalSudah}</div></div>
+    <div class="stat-card saldo"><div class="lbl">Estimasi Total</div><div class="val">${fmtRp(totalEstimasi)}</div></div>
+  </div>
+  <div class="panel">
+    <div class="panel-head">
+      <div><h3>🛍️ Daftar Belanja Hadiah Jalan Santai</h3>
+        <div class="desc">Belum dibeli: <strong>${fmtRp(totalBelumEstimasi)}</strong></div>
+      </div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button class="btn success small" onclick="tandaiSemuaBelanjaJalan()" ${!isLoggedIn ? 'disabled' : ''}>✓ Semua Dibeli</button>
+        <button class="btn secondary small" onclick="resetSemuaBelanjaJalan()" ${!isLoggedIn ? 'disabled' : ''}>↺ Reset</button>
+      </div>
+    </div>
+    <div class="panel-body">
+      ${groups}
+    </div>
+  </div>`;
+}
+
+function tandaiSemuaBelanjaJalan(){
+  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  const list = gHadiahJalanSantai();
+  let count = 0;
+  let detail = [];
+  list.forEach(h => {
+    const existing = db.daftarBelanjaJalanSantai.find(b => b.hadiah_jalan_id === h.id && b.event_id === eid());
+    if (!existing || existing.status !== 'dibeli') {
+      if (existing) { existing.status = 'dibeli'; existing.tanggal_beli = todayISO(); }
+      else { db.daftarBelanjaJalanSantai.push({id:uid(), event_id:eid(), hadiah_jalan_id:h.id, status:'dibeli', tanggal_beli:todayISO()}); }
+      count++;
+      detail.push(`${h.nama_hadiah} (${labelKategoriJalan(h.kategori)})`);
+    }
+  });
+  if(count===0){ toast('Semua sudah dibeli'); }
+  else { saveDB(); renderContent(); renderTopbarSaldo(); toast(`✓ ${count} item dibeli`);
+  notifyTelegram(`✅ ${count} item jalan santai DIBELI`, detail.join('\n')); }
+}
+
+function resetSemuaBelanjaJalan(){
+  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  if(!confirm('Reset semua status belanja?')) return;
+  const list = gDaftarBelanjaJalanSantai();
+  list.forEach(b => { b.status = 'belum_dibeli'; b.tanggal_beli = null; });
+  saveDB(); renderContent(); toast('Reset semua status');
+  notifyTelegram(`↩️ Reset semua status belanja jalan santai`, `Semua status dikembalikan ke "belum dibeli"`);
+}
+
+/* ============================================================
+   JADWAL (dengan auth check)
+   ============================================================ */
+function renderJadwal(){
+  const list = gJadwal().slice().sort((a,b) => {
+    return new Date(a.tanggal) - new Date(b.tanggal);
+  });
+  const isLoggedIn = !!getCurrentUser();
+
+  const today = new Date();
+  const rows = list.map(j => {
+    const jDate = new Date(j.tanggal + 'T00:00:00');
+    const diffDays = Math.ceil((jDate - today) / (1000 * 60 * 60 * 24));
+    let statusLabel = '';
+    let statusClass = '';
+    if (j.status === 'selesai') {
+      statusLabel = 'Selesai';
+      statusClass = 'lunas';
+    } else if (diffDays < 0) {
+      statusLabel = 'Terlewat';
+      statusClass = 'belum';
+    } else if (diffDays === 0) {
+      statusLabel = 'Hari Ini!';
+      statusClass = 'dibeli';
+    } else if (diffDays <= 3) {
+      statusLabel = `${diffDays} hari lagi`;
+      statusClass = 'dibeli';
+    } else {
+      statusLabel = `${diffDays} hari lagi`;
+      statusClass = 'perlengkapan';
+    }
+
+    return `
+    <tr class="${j.status === 'selesai' ? '' : (diffDays < 0 ? 'belum-bayar' : '')}">
+      <td>${fmtDate(j.tanggal)}</td>
+      <td><span class="badge ${statusClass}">${statusLabel}</span></td>
+      <td><span class="kategori-pill">${labelKategoriJadwal(j.kategori)}</span></td>
+      <td>${esc(j.judul)}</td>
+      <td>${esc(j.deskripsi||'-')}</td>
+      <td style="text-align:right; white-space:nowrap;">
+        <button class="btn secondary small" onclick="toggleJadwalStatus('${j.id}')" ${!isLoggedIn ? 'disabled' : ''}>${j.status === 'selesai' ? 'Buka' : 'Selesai'}</button>
+        <button class="icon-btn" onclick="openJadwalModal('${j.id}')" ${!isLoggedIn ? 'disabled' : ''} title="Edit">✎</button>
+        <button class="icon-btn" onclick="hapusJadwal('${j.id}')" ${!isLoggedIn ? 'disabled' : ''} title="Hapus">🗑</button>
+      </td>
+    </tr>`;
+  }).join('');
+
+  const total = list.length;
+  const totalSelesai = list.filter(j => j.status === 'selesai').length;
+  const totalActive = total - totalSelesai;
+  const totalHariIni = list.filter(j => {
+    const jDate = new Date(j.tanggal + 'T00:00:00');
+    return jDate.toDateString() === today.toDateString() && j.status !== 'selesai';
+  }).length;
+
+  return `
+  <div class="stat-grid">
+    <div class="stat-card info"><div class="lbl">Total Jadwal</div><div class="val">${total}</div></div>
+    <div class="stat-card pemasukan"><div class="lbl">Aktif</div><div class="val">${totalActive}</div></div>
+    <div class="stat-card warning"><div class="lbl">Hari Ini</div><div class="val">${totalHariIni}</div></div>
+    <div class="stat-card"><div class="lbl">Selesai</div><div class="val">${totalSelesai}</div></div>
+  </div>
+  <div class="panel">
+    <div class="panel-head">
+      <div><h3>📅 Jadwal & Reminder</h3>
+        <div class="desc">Kelola jadwal kegiatan dan pengingat</div>
+      </div>
+      ${isLoggedIn ? `<button class="btn" onclick="openJadwalModal()">+ Tambah Jadwal</button>` : `<span class="badge readonly">🔒 Login</span>`}
+    </div>
+    <div class="panel-body flush">
+      <table class="general-table">
+        <thead><tr><th>Tanggal</th><th>Status</th><th>Kategori</th><th>Judul</th><th>Deskripsi</th><th></th></tr></thead>
+        <tbody>${rows || `<tr class="empty-row"><td colspan="6">Belum ada jadwal. ${isLoggedIn ? 'Tambahkan jadwal untuk mendapatkan pengingat.' : 'Login untuk menambah jadwal.'}</td></tr>`}</tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+function openJadwalModal(id){
+  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  const editing = id ? db.jadwal.find(j=>j.id===id) : null;
+  setModal(editing?'Edit Jadwal':'Tambah Jadwal', `
+    <div class="field"><label>Judul</label><input id="f-judul" value="${editing?esc(editing.judul):''}" placeholder="mis. Belanja Hadiah Lomba"></div>
+    <div class="field-row">
+      <div class="field"><label>Tanggal</label><input id="f-tanggal" type="date" value="${editing?editing.tanggal:todayISO()}"></div>
+      <div class="field"><label>Kategori</label>
+        <select id="f-kategori">${KATEGORI_JADWAL.map(k=>`<option value="${k.v}" ${editing&&editing.kategori===k.v?'selected':''}>${k.l}</option>`).join('')}</select>
+      </div>
+    </div>
+    <div class="field"><label>Deskripsi (opsional)</label>
+      <textarea id="f-deskripsi" rows="3" placeholder="Detail jadwal...">${editing?esc(editing.deskripsi||''):''}</textarea>
+    </div>
+    <div class="field"><label>Status</label>
+      <select id="f-status">
+        <option value="aktif" ${editing&&editing.status==='aktif'?'selected':''}>Aktif</option>
+        <option value="selesai" ${editing&&editing.status==='selesai'?'selected':''}>Selesai</option>
+      </select>
+    </div>
+  `, [
+    {label:'Batal', cls:'secondary', onclick:closeModal},
+    {label:editing?'Simpan':'Tambah', cls:'', onclick:()=>{
+      const judul = document.getElementById('f-judul').value.trim();
+      const tanggal = document.getElementById('f-tanggal').value;
+      const kategori = document.getElementById('f-kategori').value;
+      const deskripsi = document.getElementById('f-deskripsi').value.trim();
+      const status = document.getElementById('f-status').value;
+      if(!judul || !tanggal){ toast('Judul & tanggal wajib diisi'); return; }
+      let actionMsg = editing ? `✏️ Edit jadwal: ${editing.judul} → ${judul}` : `➕ Jadwal baru: ${judul}`;
+      if(editing){ Object.assign(editing, {judul, tanggal, kategori, deskripsi, status}); }
+      else{ db.jadwal.push({id:uid(), event_id:eid(), judul, tanggal, kategori, deskripsi, status}); }
+      saveDB(); closeModal(); renderContent(); renderTopbarSaldo(); toast('Jadwal disimpan');
+      notifyTelegram(actionMsg, `Tanggal: ${fmtDate(tanggal)}\nKategori: ${labelKategoriJadwal(kategori)}\nDeskripsi: ${deskripsi || '-'}`);
+    }}
+  ]);
+}
+
+function toggleJadwalStatus(id){
+  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  const j = db.jadwal.find(x=>x.id===id);
+  if(!j) return;
+  j.status = j.status === 'selesai' ? 'aktif' : 'selesai';
+  saveDB(); renderContent(); 
+  const action = j.status === 'selesai' ? '✅ Selesai' : '↩️ Dibuka kembali';
+  toast(`Jadwal "${j.judul}" ${j.status === 'selesai' ? 'selesai' : 'diaktifkan kembali'}`);
+  notifyTelegram(`${action}: ${j.judul}`, `Tanggal: ${fmtDate(j.tanggal)}`);
+}
+
+function hapusJadwal(id){
+  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  if(!confirm('Hapus jadwal ini?')) return;
+  const j = db.jadwal.find(x=>x.id===id);
+  db.jadwal = db.jadwal.filter(j=>j.id!==id);
+  saveDB(); renderContent(); toast('Jadwal dihapus');
+  if(j) notifyTelegram(`🗑️ Hapus jadwal: ${j.judul}`, `Tanggal: ${fmtDate(j.tanggal)}`);
+}
+
+/* ============================================================
+   PENGATURAN (Admin only)
+   ============================================================ */
+function renderPengaturan(){
+  if (!isAdmin()) {
+    return `<div class="empty-state"><h3>⛔ Akses Ditolak</h3><p>Halaman Pengaturan hanya untuk Admin.</p><button class="btn" onclick="goSection('dashboard')">Kembali ke Dashboard</button></div>`;
+  }
+  
+  const s = getSettings();
+  const telegram = getTelegramSettings();
+  
+  return `
+  <div class="panel">
+    <div class="panel-head"><h3>Tarif Iuran Anggota</h3></div>
+    <div class="panel-body">
+      <div class="field-row">
+        <div class="field"><label>Sekolah (Rp)</label><input id="tarif-sekolah" class="currency-input" type="text" value="${formatCurrency(s.tarif.sekolah)}"></div>
+        <div class="field"><label>Bekerja (Rp)</label><input id="tarif-bekerja" class="currency-input" type="text" value="${formatCurrency(s.tarif.bekerja)}"></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Perantauan (Rp)</label><input id="tarif-perantauan" class="currency-input" type="text" value="${formatCurrency(s.tarif.perantauan)}"></div>
+        <div class="field"><label style="color:var(--ungu);">Khusus (Rp)</label>
+          <input id="tarif-khusus" class="currency-input" type="text" value="${formatCurrency(s.tarif.khusus)}" style="border-color:var(--ungu);">
+          <div class="hint">Kategori khusus untuk anggota dengan nominal iuran berbeda</div>
+        </div>
+      </div>
+      <button class="btn" onclick="simpanTarif()">Simpan Tarif</button>
+    </div>
+  </div>
+  
+  <!-- TELEGRAM NOTIFICATION SETTINGS -->
+  <div class="panel">
+    <div class="panel-head"><h3>🤖 Telegram Notifikasi</h3></div>
+    <div class="panel-body">
+      <div class="field">
+        <label>Bot Token</label>
+        <input id="telegram-bot-token" type="text" value="${esc(telegram.botToken||'')}" placeholder="Masukkan token bot dari @BotFather">
+        <div class="hint">Contoh: 1234567890:ABCdefGHIjklMNOpqrsTUVwxyz</div>
+      </div>
+      <div class="field">
+        <label>Chat ID</label>
+        <input id="telegram-chat-id" type="text" value="${esc(telegram.chatId||'')}" placeholder="Masukkan chat ID tujuan">
+        <div class="hint">Bisa didapat dari @userinfobot atau @getidsbot</div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Status</label>
+          <div class="status">
+            <span class="dot ${telegram.enabled ? 'active' : 'inactive'}"></span>
+            <span>${telegram.enabled ? '✅ Notifikasi Aktif' : '⛔ Notifikasi Nonaktif'}</span>
+          </div>
+        </div>
+        <div class="field" style="display:flex; align-items:end; gap:8px;">
+          <button class="btn ${telegram.enabled ? 'danger' : 'success'} small" onclick="toggleTelegram()" style="margin-bottom:0;">
+            ${telegram.enabled ? '⛔ Nonaktifkan' : '✅ Aktifkan'}
+          </button>
+          <button class="btn telegram small" onclick="testTelegram()" style="margin-bottom:0;">📨 Test Kirim</button>
+        </div>
+      </div>
+      <button class="btn telegram" onclick="simpanTelegram()">💾 Simpan Pengaturan Telegram</button>
+    </div>
+  </div>
+  
+  <div class="panel">
+    <div class="panel-head"><h3>Manajemen Event</h3></div>
+    <div class="panel-body flush">
+      <table class="general-table"><thead><tr><th>Nama</th><th>Tahun</th><th></th></tr></thead>
+      <tbody>${db.events.map(e=>`<tr><td>${esc(e.nama)}${e.id===db.activeEventId?' <span class="badge lunas">Aktif</span>':''}</td><td>${esc(e.tahun)}</td><td style="text-align:right;"><button class="btn secondary small" onclick="setActiveEvent('${e.id}')">Aktifkan</button><button class="icon-btn" onclick="hapusEvent('${e.id}')">🗑</button></td></tr>`).join('')||`<tr class="empty-row"><td colspan="3">Belum ada event.</td></tr>`}</tbody></table>
+    </div>
+    <div class="panel-body"><button class="btn gold" onclick="openEventModal()">+ Buat Event</button></div>
+  </div>
+  <div class="panel">
+    <div class="panel-head"><h3>Cadangan Data</h3></div>
+    <div class="panel-body" style="display:flex;gap:10px;flex-wrap:wrap;">
+      <button class="btn secondary" onclick="exportData()">⬇ Ekspor</button>
+      <label class="btn secondary" style="margin:0;">⬆ Impor<input type="file" accept=".json" style="display:none;" onchange="importData(event)"></label>
+    </div>
+  </div>`;
+}
+
+function simpanTarif(){
+  if (!isAdmin()) { toast('⛔ Hanya Admin'); return; }
+  const s = getSettings();
+  s.tarif.sekolah = getCurrencyValue(document.getElementById('tarif-sekolah'));
+  s.tarif.bekerja = getCurrencyValue(document.getElementById('tarif-bekerja'));
+  s.tarif.perantauan = getCurrencyValue(document.getElementById('tarif-perantauan'));
+  s.tarif.khusus = getCurrencyValue(document.getElementById('tarif-khusus'));
+  saveDB(); toast('Tarif iuran disimpan');
+  notifyTelegram(`⚙️ Update tarif iuran`, `Sekolah: ${fmtRp(s.tarif.sekolah)}\nBekerja: ${fmtRp(s.tarif.bekerja)}\nPerantauan: ${fmtRp(s.tarif.perantauan)}\nKhusus: ${fmtRp(s.tarif.khusus)}`);
+}
+
+function simpanTelegram(){
+  if (!isAdmin()) { toast('⛔ Hanya Admin'); return; }
+  const botToken = document.getElementById('telegram-bot-token').value.trim();
+  const chatId = document.getElementById('telegram-chat-id').value.trim();
+  const settings = { botToken, chatId, enabled: db.telegram?.enabled || false };
+  saveTelegramSettings(settings);
+  toast('✅ Pengaturan Telegram disimpan');
+  renderContent();
+}
+
+function toggleTelegram(){
+  if (!isAdmin()) { toast('⛔ Hanya Admin'); return; }
+  const settings = getTelegramSettings();
+  if(!settings.botToken || !settings.chatId){
+    toast('⚠️ Isi Bot Token dan Chat ID terlebih dahulu');
+    return;
+  }
+  settings.enabled = !settings.enabled;
+  saveTelegramSettings(settings);
+  toast(settings.enabled ? '✅ Notifikasi Telegram diaktifkan' : '⛔ Notifikasi Telegram dinonaktifkan');
+  renderContent();
+}
+
+async function testTelegram(){
+  if (!isAdmin()) { toast('⛔ Hanya Admin'); return; }
+  const settings = getTelegramSettings();
+  if(!settings.botToken || !settings.chatId){
+    toast('⚠️ Isi Bot Token dan Chat ID terlebih dahulu');
+    return;
+  }
+  if(!settings.enabled){
+    if(!confirm('Notifikasi sedang nonaktif. Aktifkan sekarang?')) return;
+    settings.enabled = true;
+    saveTelegramSettings(settings);
+  }
+  await sendTelegramNotification(`🔔 <b>Test Notifikasi</b>\n\nHalo! Ini adalah pesan test dari Buku Keuangan Karang Taruna.\n\n✅ Notifikasi berhasil terkonfigurasi!\n\nWaktu: ${new Date().toLocaleString('id-ID')}`, true);
+}
+
+function setActiveEvent(id){ 
+  if (!canEdit()) { toast('⛔ Login untuk mengelola event'); return; }
+  db.activeEventId = id; 
+  saveDB(); renderSidebar(); goSection(currentSection); 
+  notifyTelegram(`📂 Buka event: ${db.events.find(e=>e.id===id)?.nama || id}`, '');
+}
+
+function hapusEvent(id){
+  if (!isAdmin()) { toast('⛔ Hanya Admin'); return; }
+  const e = db.events.find(x=>x.id===id); if(!e) return;
+  if(!confirm(`Hapus event "${e.nama}" beserta semua data?`)) return;
+  db.events = db.events.filter(x=>x.id!==id);
+  delete db.settings[id];
+  db.anggota = db.anggota.filter(x=>x.event_id!==id);
+  db.donatur = db.donatur.filter(x=>x.event_id!==id);
+  db.transaksiLain = db.transaksiLain.filter(x=>x.event_id!==id);
+  db.operasional = db.operasional.filter(x=>x.event_id!==id);
+  const lombaIds = db.lomba.filter(l=>l.event_id===id).map(l=>l.id);
+  db.lombaKebutuhan = db.lombaKebutuhan.filter(k=>!lombaIds.includes(k.lomba_id));
+  db.lombaHadiah = db.lombaHadiah.filter(lh=>!lombaIds.includes(lh.lomba_id));
+  db.lomba = db.lomba.filter(l=>l.event_id!==id);
+  db.hadiahKategori = db.hadiahKategori.filter(x=>x.event_id!==id);
+  db.daftarBelanjaHadiah = db.daftarBelanjaHadiah.filter(x=>x.event_id!==id);
+  db.daftarBelanjaPerlengkapan = db.daftarBelanjaPerlengkapan.filter(x=>x.event_id!==id);
+  db.hadiahJalanSantai = db.hadiahJalanSantai.filter(x=>x.event_id!==id);
+  db.daftarBelanjaJalanSantai = db.daftarBelanjaJalanSantai.filter(x=>x.event_id!==id);
+  db.jadwal = db.jadwal.filter(x=>x.event_id!==id);
+  if(db.activeEventId===id) db.activeEventId = db.events[0]?.id || null;
+  saveDB(); renderSidebar(); goSection(db.activeEventId ? currentSection : 'dashboard');
+  notifyTelegram(`🗑️ Hapus event: ${e.nama}`, '');
+}
+
+function exportData(){
+  if (!canEdit()) { toast('⛔ Login untuk ekspor data'); return; }
+  const blob = new Blob([JSON.stringify(db, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `buku-keuangan-${todayISO()}.json`;
+  a.click();
+  notifyTelegram(`⬇️ Ekspor data`, `File: buku-keuangan-${todayISO()}.json`);
+}
+
+function importData(evt){
+  if (!isAdmin()) { toast('⛔ Hanya Admin'); return; }
+  const file = evt.target.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    try{
+      const parsed = JSON.parse(reader.result);
+      if(!confirm('Impor akan MENIMPA data yang ada. Lanjutkan?')) return;
+      db = Object.assign(defaultDB(), parsed);
+      saveDB(); renderSidebar(); goSection('dashboard'); toast('Data diimpor');
+      notifyTelegram(`⬆️ Impor data`, `File: ${file.name}\nUkuran: ${(file.size/1024).toFixed(1)} KB`);
+    }catch(e){ toast('File tidak valid'); }
+  };
+  reader.readAsText(file);
+}
+
+/* ============================================================
+   EVENT MODAL
+   ============================================================ */
+function openEventModal(){
+  if (!canEdit()) { toast('⛔ Login untuk membuat event'); return; }
+  setModal('Buat Event', `
+    <div class="field"><label>Nama Event</label><input id="f-nama" placeholder="HUT RI 82"></div>
+    <div class="field"><label>Tahun</label><input id="f-tahun" type="number" value="${new Date().getFullYear()}"></div>
+  `, [
+    {label:'Batal', cls:'secondary', onclick:closeModal},
+    {label:'Buat', cls:'', onclick:()=>{
+      const nama = document.getElementById('f-nama').value.trim();
+      const tahun = document.getElementById('f-tahun').value.trim();
+      if(!nama){ toast('Nama wajib'); return; }
+      const id = uid();
+      db.events.push({id, nama, tahun, createdAt:new Date().toISOString()});
+      db.settings[id] = {tarif:{sekolah:0,bekerja:0,perantauan:0,khusus:0}};
+      db.activeEventId = id;
+      saveDB(); closeModal(); renderSidebar(); goSection('pengaturan'); toast('Event dibuat');
+      notifyTelegram(`📂 Event baru: ${nama}`, `Tahun: ${tahun}`);
+    }}
+  ]);
+}
+
+/* ============================================================
+   MODAL / TOAST HELPERS
+   ============================================================ */
+function setModal(title, bodyHtml, buttons){
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-body').innerHTML = bodyHtml;
+  document.getElementById('modal-foot').innerHTML = '';
+  const foot = document.getElementById('modal-foot');
+  buttons.forEach(b=>{
+    const btn = document.createElement('button');
+    btn.className = 'btn ' + (b.cls||'');
+    btn.textContent = b.label;
+    btn.type = 'button';
+    btn.onclick = b.onclick;
+    foot.appendChild(btn);
+  });
+  document.getElementById('overlay').classList.add('show');
+  
+  // Setup currency inputs after modal body is rendered
+  setTimeout(setupAllCurrencyInputs, 50);
+}
+function closeModal(){ document.getElementById('overlay').classList.remove('show'); }
+document.getElementById('modal-close').onclick = closeModal;
+document.getElementById('overlay').addEventListener('click', (e)=>{ if(e.target.id==='overlay') closeModal(); });
+
+let toastTimer;
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove('show'), 2400);
+}
+
+/* ============================================================
+   FUNGSI HITUNG BUKU UTAMA
+   ============================================================ */
+function hitungBukuUtama(){
+  const iuran = gAnggota().filter(a=>a.status==='lunas').reduce((s,a)=>s+Number(a.nominal_wajib||0),0);
+  const donasi = gDonatur().reduce((s,d)=>s+Number(d.jumlah||0),0);
+  const transaksiLain = gTransaksiLain().reduce((s,t)=>s+Number(t.jumlah||0),0);
+  const pemasukan = iuran + donasi + transaksiLain;
+
+  const opsional = gOperasional().reduce((s,o)=>s+Number(o.jumlah||0),0);
+  const lombaIds = gLomba().map(l=>l.id);
+  const kebutuhanLomba = db.lombaKebutuhan.filter(k=>lombaIds.includes(k.lomba_id))
+    .reduce((s,k)=> s + (Number(k.harga_realisasi ?? k.harga_estimasi ?? 0) * Number(k.qty||0)), 0);
+  
+  let hadiahLomba = 0;
+  gHadiahKategori().forEach(h => {
+    h.items.forEach(item => {
+      hadiahLomba += Number(item.harga_satuan||0) * Number(item.qty_dibeli||0);
+    });
+  });
+  
+  const hadiahJalan = gHadiahJalanSantai().reduce((s,h) => s + (Number(h.harga_satuan||0) * Number(h.qty||0)), 0);
+  
+  const pengeluaran = opsional + kebutuhanLomba + hadiahLomba + hadiahJalan;
+  return {iuran, donasi, transaksiLain, pemasukan, opsional, kebutuhanLomba, hadiahLomba, hadiahJalan, pengeluaran, saldo: pemasukan - pengeluaran};
+}
+
+/* ============================================================
+   HELPER FUNCTIONS
+   ============================================================ */
+function gAnggota(){ return db.anggota.filter(a=>a.event_id===eid()); }
+function gDonatur(){ return db.donatur.filter(d=>d.event_id===eid()); }
+function gTransaksiLain(){ return db.transaksiLain.filter(t=>t.event_id===eid()); }
+function gOperasional(){ return db.operasional.filter(o=>o.event_id===eid()); }
+function gLomba(){ return db.lomba.filter(l=>l.event_id===eid()); }
+function gKebutuhan(lombaId){ return db.lombaKebutuhan.filter(k=>k.lomba_id===lombaId); }
+function gHadiahKategori(){ return db.hadiahKategori.filter(h=>h.event_id===eid()); }
+function gLombaHadiah(lombaId){ return db.lombaHadiah.filter(lh=>lh.lomba_id===lombaId); }
+function gDaftarBelanjaHadiah(){ return db.daftarBelanjaHadiah.filter(b=>b.event_id===eid()); }
+function gDaftarBelanjaPerlengkapan(){ return db.daftarBelanjaPerlengkapan.filter(b=>b.event_id===eid()); }
+function gHadiahJalanSantai(){ return db.hadiahJalanSantai.filter(h=>h.event_id===eid()); }
+function gDaftarBelanjaJalanSantai(){ return db.daftarBelanjaJalanSantai.filter(b=>b.event_id===eid()); }
+function gJadwal(){ return db.jadwal.filter(j=>j.event_id===eid()); }
+
+/* ============================================================
+   INIT
+   ============================================================ */
+document.getElementById('event-select').addEventListener('change', (e)=>{ 
+  if (canEdit()) setActiveEvent(e.target.value); 
+  else toast('⛔ Login untuk mengubah event');
+});
+document.getElementById('btn-new-event').addEventListener('click', openEventModal);
+document.getElementById('nav').addEventListener('click', (e)=>{
+  const item = e.target.closest('[data-nav]');
+  if(item) goSection(item.dataset.nav);
+});
+document.getElementById('menu-toggle').addEventListener('click', ()=>{
+  document.getElementById('sidebar').classList.toggle('open');
+});
+
+renderSidebar();
+goSection('dashboard');

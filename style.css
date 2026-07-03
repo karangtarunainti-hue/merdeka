@@ -715,6 +715,7 @@
   .reminder-card .card-header{
     display:flex; align-items:center; gap:10px;
     margin-bottom:10px;
+    flex-wrap:wrap;
   }
   .reminder-card .card-header .icon{
     font-size:20px;
@@ -754,19 +755,23 @@
   }
   .reminder-card .card-body .item{
     display:flex;
-    align-items:center;
+    align-items:baseline;
     justify-content:space-between;
     padding:4px 0;
     border-bottom:1px dashed var(--garis);
     gap:8px;
+    flex-wrap:wrap;
   }
   .reminder-card .card-body .item:last-child{border-bottom:none;}
-  .reminder-card .card-body .item .label{flex:1;}
+  .reminder-card .card-body .item .label{flex:1 1 auto; min-width:70px;}
   .reminder-card .card-body .item .value{
     font-family:'IBM Plex Mono',monospace;
     font-size:12px;
     font-weight:600;
-    white-space:nowrap;
+    text-align:right;
+    overflow-wrap:break-word;
+    word-break:break-word;
+    max-width:100%;
   }
   .reminder-card .card-body .item .value.danger{color:var(--merah);}
   .reminder-card .card-body .item .value.warning{color:var(--orange);}

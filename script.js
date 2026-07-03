@@ -656,6 +656,13 @@ function renderContent(){
   const el = document.getElementById('content');
   const isLoggedIn = !!getCurrentUser();
   const isAdminUser = getCurrentUser()?.role === 'admin';
+
+  // Simpan fokus & posisi kursor input aktif (mis. kolom pencarian) agar tidak hilang saat re-render
+  const activeEl = document.activeElement;
+  let focusInfo = null;
+  if (activeEl && el.contains(activeEl) && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA') && activeEl.id) {
+    focusInfo = { id: activeEl.id, selStart: activeEl.selectionStart, selEnd: activeEl.selectionEnd };
+  }
   
   if(!activeEvent()){
     el.innerHTML = `<div class="empty-state"><h3>Belum ada event aktif</h3><p>${isLoggedIn ? 'Buat event tahunan dulu.' : 'Login untuk membuat atau mengelola event.'}</p>
@@ -692,6 +699,17 @@ function renderContent(){
   
   // Setup currency inputs after content rendered
   setTimeout(setupAllCurrencyInputs, 50);
+
+  // Kembalikan fokus & posisi kursor ke input yang sama (jika masih ada di DOM baru)
+  if (focusInfo) {
+    const newEl = document.getElementById(focusInfo.id);
+    if (newEl) {
+      newEl.focus();
+      if (typeof newEl.setSelectionRange === 'function' && focusInfo.selStart != null) {
+        try { newEl.setSelectionRange(focusInfo.selStart, focusInfo.selEnd); } catch(e){}
+      }
+    }
+  }
 }
 
 /* ============================================================

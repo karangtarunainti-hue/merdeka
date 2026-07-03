@@ -1,4 +1,13 @@
 /* ============================================================
+   SUPABASE CONFIG
+   Ganti dengan Project URL dan anon public key dari
+   Supabase Dashboard > Project Settings > API
+   ============================================================ */
+const SUPABASE_URL = 'https://GANTI-DENGAN-PROJECT-ID.supabase.co';
+const SUPABASE_ANON_KEY = 'GANTI-DENGAN-ANON-PUBLIC-KEY';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+/* ============================================================
    CURRENCY INPUT HELPER
    ============================================================ */
 // Format angka dengan titik ribuan
@@ -135,18 +144,13 @@ const DEFAULT_USERS = [
 ];
 
 function getUsers() {
-  try {
-    const raw = localStorage.getItem('kt_users');
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (parsed.length > 0) return parsed;
-    }
-  } catch(e) {}
+  if (db.users && db.users.length > 0) return db.users;
   return DEFAULT_USERS;
 }
 
 function saveUsers(users) {
-  localStorage.setItem('kt_users', JSON.stringify(users));
+  db.users = users;
+  saveDB();
 }
 
 function getCurrentUser() {
@@ -205,8 +209,6 @@ function logout() {
 /* ============================================================
    DATA LAYER
    ============================================================ */
-const STORAGE_KEY = 'kt_keuangan_v1';
-
 function uid(){ return (crypto.randomUUID ? crypto.randomUUID() : 'id-'+Date.now()+'-'+Math.random().toString(16).slice(2)); }
 function todayISO(){ return new Date().toISOString().slice(0,10); }
 function fmtRp(n){ return new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',minimumFractionDigits:0}).format(Number(n)||0); }
@@ -231,6 +233,7 @@ function defaultDB(){
     hadiahJalanSantai: [],
     daftarBelanjaJalanSantai: [],
     jadwal: [],
+    users: [...DEFAULT_USERS],
     telegram: {
       botToken: '',
       chatId: '',
@@ -239,47 +242,117 @@ function defaultDB(){
   };
 }
 
-function loadDB(){
-  try{
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if(!raw) return defaultDB();
-    const parsed = JSON.parse(raw);
-    if(parsed.hadiahKategori && parsed.hadiahKategori.length > 0 && parsed.hadiahKategori[0].nama_hadiah !== undefined){
-      parsed.hadiahKategori = parsed.hadiahKategori.map(h => ({
-        id: h.id,
-        event_id: h.event_id,
-        kategori_peserta: h.kategori_peserta,
-        juara_ke: h.juara_ke,
-        items: [{
-          nama: h.nama_hadiah,
-          harga_satuan: Number(h.harga_satuan||0),
-          qty_dibeli: Number(h.qty_dibeli||0),
-          qty_terpakai: Number(h.qty_terpakai||0)
-        }]
-      }));
-    }
-    if(parsed.daftarBelanja && !parsed.daftarBelanjaHadiah){
-      parsed.daftarBelanjaHadiah = parsed.daftarBelanja.map(b => ({
-        id: b.id,
-        event_id: b.event_id,
-        hadiah_kategori_id: b.hadiah_kategori_id,
-        item_index: b.item_index || 0,
-        status: b.status,
-        tanggal_beli: b.tanggal_beli
-      }));
-      delete parsed.daftarBelanja;
-    }
-    if(!parsed.daftarBelanjaPerlengkapan) parsed.daftarBelanjaPerlengkapan = [];
-    if(!parsed.hadiahJalanSantai) parsed.hadiahJalanSantai = [];
-    if(!parsed.daftarBelanjaJalanSantai) parsed.daftarBelanjaJalanSantai = [];
-    if(!parsed.jadwal) parsed.jadwal = [];
-    if(!parsed.telegram) parsed.telegram = { botToken: '', chatId: '', enabled: false };
-    return Object.assign(defaultDB(), parsed);
-  }catch(e){ console.error('Gagal memuat data', e); return defaultDB(); }
-}
-function saveDB(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(db)); }
+/* ============================================================
+   SUPABASE SYNC LAYER
+   Setiap array di objek `db` dipetakan ke satu tabel Supabase.
+   Semua fungsi render/CRUD lain tetap memanipulasi `db.xxx`
+   di memori seperti sebelumnya lalu memanggil saveDB() —
+   tidak ada perubahan pada logika CRUD yang sudah ada.
+   ============================================================ */
+const ARRAY_TABLE_MAP = {
+  events: 'kt_events',
+  anggota: 'kt_anggota',
+  donatur: 'kt_donatur',
+  transaksiLain: 'kt_transaksi_lain',
+  operasional: 'kt_operasional',
+  lomba: 'kt_lomba',
+  lombaKebutuhan: 'kt_lomba_kebutuhan',
+  hadiahKategori: 'kt_hadiah_kategori',
+  lombaHadiah: 'kt_lomba_hadiah',
+  daftarBelanjaHadiah: 'kt_daftar_belanja_hadiah',
+  daftarBelanjaPerlengkapan: 'kt_daftar_belanja_perlengkapan',
+  hadiahJalanSantai: 'kt_hadiah_jalan_santai',
+  daftarBelanjaJalanSantai: 'kt_daftar_belanja_jalan_santai',
+  jadwal: 'kt_jadwal',
+  users: 'kt_users',
+};
 
-let db = loadDB();
+async function loadDB(){
+  const result = defaultDB();
+  try{
+    const entries = Object.entries(ARRAY_TABLE_MAP);
+    const [arrayResults, settingsRes, telegramRes] = await Promise.all([
+      Promise.all(entries.map(([, table]) => sb.from(table).select('*'))),
+      sb.from('kt_settings').select('*'),
+      sb.from('kt_telegram_settings').select('*').eq('id', 'main').maybeSingle(),
+    ]);
+
+    entries.forEach(([key, table], idx) => {
+      const res = arrayResults[idx];
+      if(res.error){ console.error(`Gagal memuat ${table}:`, res.error); return; }
+      result[key] = res.data || [];
+    });
+
+    if(!settingsRes.error){
+      (settingsRes.data || []).forEach(s => { result.settings[s.event_id] = { tarif: s.tarif }; });
+    }
+
+    if(!telegramRes.error && telegramRes.data){
+      result.telegram = {
+        botToken: telegramRes.data.bot_token || '',
+        chatId: telegramRes.data.chat_id || '',
+        enabled: !!telegramRes.data.enabled,
+      };
+    }
+
+    if(result.users.length === 0) result.users = [...DEFAULT_USERS];
+    result.activeEventId = localStorage.getItem('kt_active_event') || (result.events[0] ? result.events[0].id : null);
+  }catch(e){
+    console.error('Gagal memuat data dari Supabase', e);
+    toast('⚠️ Gagal terhubung ke Supabase. Cek konfigurasi & koneksi internet.');
+  }
+  return result;
+}
+
+async function syncArrayTable(table, rows){
+  const { data: existing, error: selErr } = await sb.from(table).select('id');
+  if(selErr){ console.error(`Gagal membaca ${table}:`, selErr); return; }
+  const existingIds = new Set((existing || []).map(r => r.id));
+  const currentIds = new Set(rows.map(r => r.id));
+  const toDelete = [...existingIds].filter(id => !currentIds.has(id));
+
+  if(rows.length){
+    const { error: upErr } = await sb.from(table).upsert(rows, { onConflict: 'id' });
+    if(upErr) console.error(`Gagal menyimpan ${table}:`, upErr);
+  }
+  if(toDelete.length){
+    const { error: delErr } = await sb.from(table).delete().in('id', toDelete);
+    if(delErr) console.error(`Gagal menghapus data lama ${table}:`, delErr);
+  }
+}
+
+async function syncSettings(){
+  const rows = Object.keys(db.settings).map(eventId => ({ event_id: eventId, tarif: db.settings[eventId].tarif }));
+  if(rows.length === 0) return;
+  const { error } = await sb.from('kt_settings').upsert(rows, { onConflict: 'event_id' });
+  if(error) console.error('Gagal menyimpan kt_settings:', error);
+}
+
+async function syncTelegram(){
+  const { error } = await sb.from('kt_telegram_settings').upsert({
+    id: 'main',
+    bot_token: db.telegram.botToken,
+    chat_id: db.telegram.chatId,
+    enabled: db.telegram.enabled,
+  }, { onConflict: 'id' });
+  if(error) console.error('Gagal menyimpan kt_telegram_settings:', error);
+}
+
+async function saveDB(){
+  if(db.activeEventId) localStorage.setItem('kt_active_event', db.activeEventId);
+  try{
+    await Promise.all([
+      ...Object.entries(ARRAY_TABLE_MAP).map(([key, table]) => syncArrayTable(table, db[key])),
+      syncSettings(),
+      syncTelegram(),
+    ]);
+  }catch(e){
+    console.error('Gagal menyimpan ke Supabase', e);
+    toast('⚠️ Gagal menyimpan ke Supabase');
+  }
+}
+
+let db = defaultDB();
 
 const KATEGORI_ANGGOTA = [
   {v:'sekolah', l:'Sekolah'},
@@ -323,22 +396,12 @@ function getSettings(){
 /* ============================================================
    TELEGRAM NOTIFICATION
    ============================================================ */
-const TELEGRAM_STORAGE_KEY = 'kt_telegram_settings';
-
 function getTelegramSettings(){
-  try{
-    const raw = localStorage.getItem(TELEGRAM_STORAGE_KEY);
-    if(raw){
-      const parsed = JSON.parse(raw);
-      return { ...db.telegram, ...parsed };
-    }
-  }catch(e){}
   return db.telegram;
 }
 
 function saveTelegramSettings(settings){
   db.telegram = settings;
-  localStorage.setItem(TELEGRAM_STORAGE_KEY, JSON.stringify(settings));
   saveDB();
 }
 
@@ -2419,7 +2482,7 @@ function openEventModal(){
       const tahun = document.getElementById('f-tahun').value.trim();
       if(!nama){ toast('Nama wajib'); return; }
       const id = uid();
-      db.events.push({id, nama, tahun, createdAt:new Date().toISOString()});
+      db.events.push({id, nama, tahun, created_at:new Date().toISOString()});
       db.settings[id] = {tarif:{sekolah:0,bekerja:0,perantauan:0,khusus:0}};
       db.activeEventId = id;
       saveDB(); closeModal(); renderSidebar(); goSection('pengaturan'); toast('Event dibuat');
@@ -2522,5 +2585,10 @@ document.getElementById('menu-toggle').addEventListener('click', ()=>{
   document.getElementById('sidebar').classList.toggle('open');
 });
 
-renderSidebar();
-goSection('dashboard');
+(async function initApp(){
+  toast('⏳ Memuat data dari Supabase...');
+  db = await loadDB();
+  renderSidebar();
+  renderTopbarSaldo();
+  goSection('dashboard');
+})();

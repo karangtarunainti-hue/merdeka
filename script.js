@@ -1125,15 +1125,26 @@ function labelKategoriJadwal(v){ return (KATEGORI_JADWAL.find(k=>k.v===v)||{}).l
 /* ============================================================
    ANGGOTA (dengan auth check)
    ============================================================ */
+let filterKategoriAnggota = 'semua';
+let filterStatusAnggota = 'semua';
+let searchQueryAnggota = '';
+
 function renderAnggota(){
   const list = gAnggota();
   const s = getSettings();
+
+  let filtered = [...list];
+  if (filterKategoriAnggota !== 'semua') filtered = filtered.filter(a => a.kategori === filterKategoriAnggota);
+  if (filterStatusAnggota !== 'semua') filtered = filtered.filter(a => a.status === filterStatusAnggota);
+  if (searchQueryAnggota.trim()) { const q = searchQueryAnggota.toLowerCase().trim(); filtered = filtered.filter(a => a.nama.toLowerCase().includes(q)); }
+
   const totalTerkumpul = list.filter(a=>a.status==='lunas').reduce((sum,a)=>sum+Number(a.nominal_wajib||0),0);
   const totalPotensi = list.reduce((sum,a)=>sum+Number(a.nominal_wajib||0),0);
   const lunasCount = list.filter(a=>a.status==='lunas').length;
   const isLoggedIn = !!getCurrentUser();
+  const isFiltering = filterKategoriAnggota !== 'semua' || filterStatusAnggota !== 'semua' || !!searchQueryAnggota.trim();
 
-  const rows = list.map(a=>`
+  const rows = filtered.map(a=>`
     <tr>
       <td>${esc(a.nama)}</td>
       <td><span class="kategori-pill ${a.kategori==='khusus'?'khusus':''}">${labelKategori(a.kategori)}</span></td>
@@ -1145,6 +1156,15 @@ function renderAnggota(){
         <button class="icon-btn" onclick="hapusAnggota('${a.id}')" ${!isLoggedIn ? 'disabled' : ''} title="Hapus">🗑</button>
       </td>
     </tr>`).join('');
+
+  const filterHtml = `<div class="filter-row">
+    <div class="field" style="margin-bottom:0;min-width:150px;"><label style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;">Kategori</label>
+      <select id="filter-kategori-anggota" onchange="applyFilterAnggota()"><option value="semua" ${filterKategoriAnggota==='semua'?'selected':''}>Semua</option>${KATEGORI_ANGGOTA.map(k=>`<option value="${k.v}" ${filterKategoriAnggota===k.v?'selected':''}>${k.l}</option>`).join('')}</select></div>
+    <div class="field" style="margin-bottom:0;min-width:150px;"><label style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;">Status</label>
+      <select id="filter-status-anggota" onchange="applyFilterAnggota()"><option value="semua" ${filterStatusAnggota==='semua'?'selected':''}>Semua</option><option value="lunas" ${filterStatusAnggota==='lunas'?'selected':''}>Lunas</option><option value="belum_lunas" ${filterStatusAnggota==='belum_lunas'?'selected':''}>Belum Lunas</option></select></div>
+    <div class="search-box" style="flex:1;min-width:200px;"><input type="text" id="search-input-anggota" placeholder="🔍 Cari nama..." value="${esc(searchQueryAnggota)}" oninput="applySearchAnggota()">${searchQueryAnggota?`<button class="btn secondary small" onclick="clearSearchAnggota()">✕</button>`:''}</div>
+    ${isFiltering?`<button class="btn secondary small" onclick="resetFilterAnggota()">↺ Reset</button>`:''}
+  </div>`;
 
   return `
   <div class="stat-grid">
@@ -1160,14 +1180,19 @@ function renderAnggota(){
       </div>
       ${isLoggedIn ? `<button class="btn" onclick="openAnggotaModal()">+ Tambah Anggota</button>` : `<span class="badge readonly">🔒 Login untuk mengelola</span>`}
     </div>
-    <div class="panel-body flush">
+    <div class="panel-body">
+      ${filterHtml}
       <table class="anggota-table">
         <thead><tr><th>Nama</th><th>Kategori</th><th class="num">Nominal</th><th>Status</th><th></th></tr></thead>
-        <tbody>${rows || `<tr class="empty-row"><td colspan="5">Belum ada anggota.</td></tr>`}</tbody>
+        <tbody>${rows || `<tr class="empty-row"><td colspan="5">${isFiltering?'Tidak ditemukan.':'Belum ada anggota.'}</td></tr>`}</tbody>
       </table>
     </div>
   </div>`;
 }
+function applyFilterAnggota(){ filterKategoriAnggota=document.getElementById('filter-kategori-anggota').value; filterStatusAnggota=document.getElementById('filter-status-anggota').value; renderContent(); }
+function applySearchAnggota(){ searchQueryAnggota=document.getElementById('search-input-anggota').value; renderContent(); }
+function clearSearchAnggota(){ searchQueryAnggota=''; renderContent(); }
+function resetFilterAnggota(){ filterKategoriAnggota='semua'; filterStatusAnggota='semua'; searchQueryAnggota=''; renderContent(); }
 function labelKategori(v){ return (KATEGORI_ANGGOTA.find(k=>k.v===v)||{}).l || v; }
 
 function openAnggotaModal(id){

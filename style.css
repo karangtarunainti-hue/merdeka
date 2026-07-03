@@ -823,7 +823,22 @@
     .belanja-item{flex-wrap:wrap;}
     .belanja-item .harga{margin-left:32px;}
     .modal{max-width:100%; margin:10px;}
-    .filter-row{flex-direction:column;}
+    .filter-row{
+      flex-direction:row;
+      flex-wrap:wrap;
+      gap:10px;
+    }
+    /* Kategori & Status disandingkan 2 kolom (bukan ditumpuk satu-satu penuh
+       lebar layar) supaya tidak banyak ruang kosong di kanan select-nya.
+       Kotak pencarian tetap penuh lebar sendiri karena butuh ruang ketik. */
+    .filter-row .field{
+      flex:1 1 calc(50% - 5px) !important;
+      min-width:0 !important;
+    }
+    .filter-row .search-box{
+      flex:1 1 100% !important;
+      min-width:0 !important;
+    }
     .search-box{width:100%;}
     .search-box input{min-width:auto;}
     table{font-size:12px; table-layout:auto;}

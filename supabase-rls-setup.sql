@@ -56,6 +56,10 @@ end $$;
 -- karena kolom baru ini dipakai lewat RPC, bukan diakses langsung dari JS)
 alter table kt_users add column if not exists "passwordHash" text;
 
+-- Kolom "password" lama kemungkinan masih NOT NULL dari skema awal.
+-- Sekarang boleh null karena user baru/ter-migrasi akan pakai "passwordHash".
+alter table kt_users alter column password drop not null;
+
 alter table kt_users enable row level security;
 -- SENGAJA tidak dibuatkan policy apa pun untuk anon di sini.
 -- RLS aktif + nol policy = default DENY total (termasuk SELECT) untuk anon.

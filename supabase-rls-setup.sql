@@ -87,7 +87,7 @@ declare
   v_user kt_users%rowtype;
   v_hash text;
 begin
-  select * into v_user from kt_users where username = p_username limit 1;
+  select * into v_user from kt_users where kt_users.username = p_username limit 1;
   if not found then
     return;
   end if;

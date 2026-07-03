@@ -600,23 +600,17 @@ function renderSidebar(){
   
   // Update user info
   const nameDisplay = document.getElementById('user-name-text');
-  const roleBadge = document.getElementById('user-role-badge');
   const userIcon = document.getElementById('user-icon');
   const btnLogin = document.getElementById('btn-login');
   const btnLogout = document.getElementById('btn-logout');
   
   if (isLoggedIn) {
     nameDisplay.textContent = user.name;
-    const roleLabel = user.role === 'admin' ? 'Admin' : 'User';
-    roleBadge.textContent = roleLabel;
-    roleBadge.className = `role-badge ${user.role}`;
     userIcon.textContent = user.role === 'admin' ? '⚡' : '👤';
     btnLogin.style.display = 'none';
     btnLogout.style.display = 'inline-block';
   } else {
     nameDisplay.textContent = 'Guest';
-    roleBadge.textContent = 'View Only';
-    roleBadge.className = 'role-badge guest';
     userIcon.textContent = '👤';
     btnLogin.style.display = 'inline-block';
     btnLogout.style.display = 'none';
@@ -666,14 +660,6 @@ function renderTopbarSaldo(){
   const {saldo} = hitungBukuUtama();
   chip.classList.toggle('negatif', saldo < 0);
   document.getElementById('saldo-val').textContent = fmtRp(saldo);
-  
-  // Show readonly badge for guests
-  const badge = document.getElementById('readonly-badge');
-  if (!getCurrentUser()) {
-    badge.style.display = 'inline-block';
-  } else {
-    badge.style.display = 'none';
-  }
 }
 
 function renderContent(){
@@ -1125,7 +1111,7 @@ function generateReminders(){
           <div class="reminder-empty">Tidak ada pengingat saat ini. Semua data dalam kondisi baik.</div>
         </div>
         <div class="card-footer">
-          ${isLoggedIn ? `<button class="btn secondary small" onclick="openJadwalModal()">+ Tambah Jadwal</button>` : `<span class="badge readonly">🔒 Login untuk tambah jadwal</span>`}
+          ${isLoggedIn ? `<button class="btn secondary small" onclick="openJadwalModal()">+ Tambah Jadwal</button>` : ''}
         </div>
       </div>
     </div>`;
@@ -1181,17 +1167,22 @@ function renderAnggota(){
   const isLoggedIn = !!getCurrentUser();
   const isFiltering = filterKategoriAnggota !== 'semua' || filterStatusAnggota !== 'semua' || !!searchQueryAnggota.trim();
 
-  const rows = filtered.map(a=>`
+  const rows = filtered.map(a=> isLoggedIn ? `
     <tr>
       <td>${esc(a.nama)}</td>
       <td><span class="kategori-pill ${a.kategori==='khusus'?'khusus':''}">${labelKategori(a.kategori)}</span></td>
       <td class="num">${fmtRp(a.nominal_wajib)}</td>
       <td>${a.status==='lunas'?`<span class="badge lunas">Lunas</span> <span style="font-size:11px;color:var(--ink-soft)">${fmtDate(a.tanggal_bayar)}</span>`:`<span class="badge belum">Belum Lunas</span>`}</td>
       <td style="text-align:right; white-space:nowrap;">
-        <button class="btn secondary small" onclick="toggleLunas('${a.id}')" ${!isLoggedIn ? 'disabled' : ''}>${a.status==='lunas'?'Batalkan':'Tandai Lunas'}</button>
-        <button class="icon-btn" onclick="openAnggotaModal('${a.id}')" ${!isLoggedIn ? 'disabled' : ''} title="Edit">✎</button>
-        <button class="icon-btn" onclick="hapusAnggota('${a.id}')" ${!isLoggedIn ? 'disabled' : ''} title="Hapus">🗑</button>
+        <button class="btn secondary small" onclick="toggleLunas('${a.id}')">${a.status==='lunas'?'Batalkan':'Tandai Lunas'}</button>
+        <button class="icon-btn" onclick="openAnggotaModal('${a.id}')" title="Edit">✎</button>
+        <button class="icon-btn" onclick="hapusAnggota('${a.id}')" title="Hapus">🗑</button>
       </td>
+    </tr>` : `
+    <tr>
+      <td>${esc(a.nama)}</td>
+      <td class="num">${fmtRp(a.nominal_wajib)}</td>
+      <td>${a.status==='lunas'?`<span class="badge lunas">Lunas</span>`:`<span class="badge belum">Belum Lunas</span>`}</td>
     </tr>`).join('');
 
   const filterHtml = `<div class="filter-row">
@@ -1215,14 +1206,14 @@ function renderAnggota(){
       <div><h3>Daftar Anggota</h3>
         <div class="desc">Tarif: Sekolah ${fmtRp(s.tarif.sekolah)} · Bekerja ${fmtRp(s.tarif.bekerja)} · Perantauan ${fmtRp(s.tarif.perantauan)} · Khusus (bebas)</div>
       </div>
-      ${isLoggedIn ? `<button class="btn" onclick="openAnggotaModal()">+ Tambah Anggota</button>` : `<span class="badge readonly">🔒 Login untuk mengelola</span>`}
+      ${isLoggedIn ? `<button class="btn" onclick="openAnggotaModal()">+ Tambah Anggota</button>` : ''}
     </div>
     <div class="panel-body">
       ${filterHtml}
       <div style="overflow-x:auto; -webkit-overflow-scrolling:touch;">
       <table class="anggota-table">
-        <thead><tr><th>Nama</th><th>Kategori</th><th class="num">Nominal</th><th>Status</th><th></th></tr></thead>
-        <tbody>${rows || `<tr class="empty-row"><td colspan="5">${isFiltering?'Tidak ditemukan.':'Belum ada anggota.'}</td></tr>`}</tbody>
+        <thead>${isLoggedIn ? `<tr><th>Nama</th><th>Kategori</th><th class="num">Nominal</th><th>Status</th><th></th></tr>` : `<tr><th>Nama</th><th class="num">Nominal</th><th>Status</th></tr>`}</thead>
+        <tbody>${rows || `<tr class="empty-row"><td colspan="${isLoggedIn?5:3}">${isFiltering?'Tidak ditemukan.':'Belum ada anggota.'}</td></tr>`}</tbody>
       </table>
       </div>
     </div>
@@ -1407,7 +1398,7 @@ function renderDatabaseAnggota(){
   return `${statCards}<div class="panel"><div class="panel-head"><div><h3>📋 Database Anggota</h3><div class="desc">${totalBelum} anggota belum bayar · total tunggakan ${fmtRp(totalNominal - totalTerkumpul)}</div></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
       <button class="btn success small" onclick="tandaiSemuaLunas()" ${!isLoggedIn ? 'disabled' : ''}>✓ Tandai Semua Lunas</button>
-      ${isLoggedIn ? `<button class="btn" onclick="openAnggotaModal()">+ Tambah</button>` : `<span class="badge readonly">🔒 Login</span>`}
+      ${isLoggedIn ? `<button class="btn" onclick="openAnggotaModal()">+ Tambah</button>` : ''}
     </div></div>
     <div class="panel-body">${filterHtml}${statKategoriHtml?`<div class="kategori-grid" style="margin-bottom:16px;">${statKategoriHtml}</div>`:''}
     <div style="overflow-x:auto;"><table class="database-table"><thead><tr><th class="sortable" onclick="sortTable('nama')">Nama ${sortIndicator('nama')}</th>
@@ -1449,7 +1440,7 @@ function renderDonatur(){
     <button class="icon-btn" onclick="hapusDonatur('${d.id}')" ${!isLoggedIn ? 'disabled' : ''}>🗑</button>
   </td></tr>`).join('');
   return `<div class="stat-grid"><div class="stat-card pemasukan"><div class="lbl">Total Donasi</div><div class="val">${fmtRp(total)}</div></div></div>
-  <div class="panel"><div class="panel-head"><h3>Daftar Donatur</h3>${isLoggedIn ? `<button class="btn" onclick="openDonaturModal()">+ Tambah</button>` : `<span class="badge readonly">🔒 Login untuk mengelola</span>`}</div>
+  <div class="panel"><div class="panel-head"><h3>Daftar Donatur</h3>${isLoggedIn ? `<button class="btn" onclick="openDonaturModal()">+ Tambah</button>` : ''}</div>
   <div class="panel-body flush"><table class="general-table"><thead><tr><th>Tanggal</th><th>Nama</th><th>Keterangan</th><th class="num">Jumlah</th><th></th></tr></thead>
   <tbody>${rows||`<tr class="empty-row"><td colspan="5">Belum ada donasi.</td></tr>`}</tbody></table></div></div>`;
 }
@@ -1502,7 +1493,7 @@ function renderTransaksi(){
     <button class="icon-btn" onclick="hapusTransaksi('${t.id}')" ${!isLoggedIn ? 'disabled' : ''}>🗑</button>
   </td></tr>`).join('');
   return `<div class="stat-grid"><div class="stat-card pemasukan"><div class="lbl">Total Transaksi Lain</div><div class="val">${fmtRp(total)}</div></div></div>
-  <div class="panel"><div class="panel-head"><h3>Transaksi Lain</h3>${isLoggedIn ? `<button class="btn" onclick="openTransaksiModal()">+ Tambah</button>` : `<span class="badge readonly">🔒 Login</span>`}</div>
+  <div class="panel"><div class="panel-head"><h3>Transaksi Lain</h3>${isLoggedIn ? `<button class="btn" onclick="openTransaksiModal()">+ Tambah</button>` : ''}</div>
   <div class="panel-body flush"><table class="general-table"><thead><tr><th>Tanggal</th><th>Nama</th><th>Keterangan</th><th class="num">Jumlah</th><th></th></tr></thead>
   <tbody>${rows||`<tr class="empty-row"><td colspan="5">Belum ada transaksi.</td></tr>`}</tbody></table></div></div>`;
 }
@@ -1549,7 +1540,7 @@ function renderOperasional(){
     <button class="icon-btn" onclick="hapusOperasional('${o.id}')" ${!isLoggedIn ? 'disabled' : ''}>🗑</button>
   </td></tr>`).join('');
   return `<div class="stat-grid"><div class="stat-card pengeluaran"><div class="lbl">Total Operasional</div><div class="val">${fmtRp(total)}</div></div></div>
-  <div class="panel"><div class="panel-head"><h3>Biaya Operasional</h3>${isLoggedIn ? `<button class="btn" onclick="openOperasionalModal()">+ Tambah</button>` : `<span class="badge readonly">🔒 Login</span>`}</div>
+  <div class="panel"><div class="panel-head"><h3>Biaya Operasional</h3>${isLoggedIn ? `<button class="btn" onclick="openOperasionalModal()">+ Tambah</button>` : ''}</div>
   <div class="panel-body flush"><table class="general-table"><thead><tr><th>Tanggal</th><th>Keterangan</th><th>Catatan</th><th class="num">Jumlah</th><th></th></tr></thead>
   <tbody>${rows||`<tr class="empty-row"><td colspan="5">Belum ada biaya.</td></tr>`}</tbody></table></div></div>`;
 }
@@ -1628,7 +1619,7 @@ function renderLomba(){
           </td></tr>`;
         }).join('')||`<tr class="empty-row"><td colspan="6">Belum ada kebutuhan.</td></tr>`}</tbody>
         ${items.length?`<tfoot><tr><td colspan="4">Subtotal</td><td class="num">${fmtRp(subtotal)}</td><td></td></tr></tfoot>`:''}</table></div>
-        <div style="margin-top:10px;">${isLoggedIn ? `<button class="btn secondary small" onclick="openKebutuhanModal('${l.id}')">+ Tambah Item</button>` : `<span class="badge readonly">🔒 Login untuk tambah item</span>`}</div>
+        <div style="margin-top:10px;">${isLoggedIn ? `<button class="btn secondary small" onclick="openKebutuhanModal('${l.id}')">+ Tambah Item</button>` : ''}</div>
         <div class="subgroup-title">Hadiah Lomba (ambil dari stok bersama)</div>
         ${renderHadiahLombaBlock(l)}
       </div>
@@ -1636,7 +1627,7 @@ function renderLomba(){
   }).join('');
 
   return `<div class="stat-grid"><div class="stat-card pengeluaran"><div class="lbl">Total Kebutuhan</div><div class="val">${fmtRp(totalKebutuhan)}</div></div></div>
-  <div class="panel"><div class="panel-head"><div><h3>Daftar Lomba</h3><div class="desc">Klik kartu untuk buka rincian</div></div>${isLoggedIn ? `<button class="btn" onclick="openLombaModal()">+ Tambah Lomba</button>` : `<span class="badge readonly">🔒 Login</span>`}</div>
+  <div class="panel"><div class="panel-head"><div><h3>Daftar Lomba</h3><div class="desc">Klik kartu untuk buka rincian</div></div>${isLoggedIn ? `<button class="btn" onclick="openLombaModal()">+ Tambah Lomba</button>` : ''}</div>
   <div class="panel-body">${cards||`<div class="empty-row" style="padding:30px;text-align:center;">Belum ada lomba.</div>`}</div></div>`;
 }
 function labelPeserta(v){ return (KATEGORI_PESERTA.find(k=>k.v===v)||{}).l || v; }
@@ -1789,7 +1780,7 @@ function renderHadiah(){
   }).join('');
 
   return `<div class="stat-grid"><div class="stat-card pengeluaran"><div class="lbl">Total Belanja Hadiah</div><div class="val">${fmtRp(total)}</div></div></div>
-  <div class="panel"><div class="panel-head"><div><h3>Stok Hadiah</h3><div class="desc">Setiap paket bisa berisi multiple item</div></div>${isLoggedIn ? `<button class="btn" onclick="openHadiahModal()">+ Tambah Paket</button>` : `<span class="badge readonly">🔒 Login</span>`}</div>
+  <div class="panel"><div class="panel-head"><div><h3>Stok Hadiah</h3><div class="desc">Setiap paket bisa berisi multiple item</div></div>${isLoggedIn ? `<button class="btn" onclick="openHadiahModal()">+ Tambah Paket</button>` : ''}</div>
   <div class="panel-body">${groups.trim()||`<div style="padding:30px;text-align:center;color:var(--abu);">Belum ada stok hadiah.</div>`}</div></div>`;
 }
 
@@ -2076,7 +2067,7 @@ function renderHadiahJalanSantai(){
       <div><h3>🏃 Hadiah Jalan Santai</h3>
         <div class="desc">Kelola hadiah untuk acara jalan santai</div>
       </div>
-      ${isLoggedIn ? `<button class="btn pink" onclick="openHadiahJalanModal()">+ Tambah Hadiah</button>` : `<span class="badge readonly">🔒 Login</span>`}
+      ${isLoggedIn ? `<button class="btn pink" onclick="openHadiahJalanModal()">+ Tambah Hadiah</button>` : ''}
     </div>
     <div class="panel-body flush">
       <table class="jalan-table">
@@ -2205,7 +2196,7 @@ function renderBelanjaJalanSantai(){
       <div class="panel-head"><h3>🛍️ Belanja Jalan Santai</h3></div>
       <div class="panel-body">
         <div class="empty-state"><h3>Belum ada hadiah</h3><p>Tambahkan hadiah jalan santai dulu.</p>
-          ${isLoggedIn ? `<button class="btn pink" onclick="goSection('hadiah-jalan')">+ Tambah Hadiah</button>` : `<span class="badge readonly">🔒 Login</span>`}
+          ${isLoggedIn ? `<button class="btn pink" onclick="goSection('hadiah-jalan')">+ Tambah Hadiah</button>` : ''}
         </div>
       </div>
     </div>`;
@@ -2360,7 +2351,7 @@ function renderJadwal(){
       <div><h3>📅 Jadwal & Reminder</h3>
         <div class="desc">Kelola jadwal kegiatan dan pengingat</div>
       </div>
-      ${isLoggedIn ? `<button class="btn" onclick="openJadwalModal()">+ Tambah Jadwal</button>` : `<span class="badge readonly">🔒 Login</span>`}
+      ${isLoggedIn ? `<button class="btn" onclick="openJadwalModal()">+ Tambah Jadwal</button>` : ''}
     </div>
     <div class="panel-body flush">
       <table class="general-table">

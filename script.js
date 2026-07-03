@@ -1482,14 +1482,14 @@ function renderTransaksi(){
   </td></tr>`).join('');
   return `<div class="stat-grid"><div class="stat-card pemasukan"><div class="lbl">Total Transaksi Lain</div><div class="val">${fmtRp(total)}</div></div></div>
   <div class="panel"><div class="panel-head"><h3>Transaksi Lain</h3>${isLoggedIn ? `<button class="btn" onclick="openTransaksiModal()">+ Tambah</button>` : `<span class="badge readonly">🔒 Login</span>`}</div>
-  <div class="panel-body flush"><table class="general-table"><thead><tr><th>Tanggal</th><th>Jenis</th><th>Keterangan</th><th class="num">Jumlah</th><th></th></tr></thead>
+  <div class="panel-body flush"><table class="general-table"><thead><tr><th>Tanggal</th><th>Nama</th><th>Keterangan</th><th class="num">Jumlah</th><th></th></tr></thead>
   <tbody>${rows||`<tr class="empty-row"><td colspan="5">Belum ada transaksi.</td></tr>`}</tbody></table></div></div>`;
 }
 function openTransaksiModal(id){
   if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
   const editing = id ? db.transaksiLain.find(t=>t.id===id) : null;
   setModal(editing?'Edit Transaksi':'Tambah Transaksi', `
-    <div class="field"><label>Jenis</label><input id="f-jenis" value="${editing?esc(editing.jenis):''}"></div>
+    <div class="field"><label>Nama</label><input id="f-jenis" value="${editing?esc(editing.jenis):''}"></div>
     <div class="field-row"><div class="field"><label>Jumlah (Rp)</label><input id="f-jumlah" class="currency-input" type="text" value="${editing?formatCurrency(editing.jumlah):''}"></div>
     <div class="field"><label>Tanggal</label><input id="f-tanggal" type="date" value="${editing?editing.tanggal:todayISO()}"></div></div>
     <div class="field"><label>Keterangan</label><input id="f-ket" value="${editing?esc(editing.keterangan||''):''}"></div>
@@ -1500,12 +1500,12 @@ function openTransaksiModal(id){
       const jumlah = getCurrencyValue(document.getElementById('f-jumlah'));
       const tanggal = document.getElementById('f-tanggal').value||todayISO();
       const ket = document.getElementById('f-ket').value.trim();
-      if(!jenis||jumlah<=0){ toast('Jenis & jumlah wajib'); return; }
+      if(!jenis||jumlah<=0){ toast('Nama & jumlah wajib'); return; }
       let actionMsg = '';
       if(editing){ actionMsg = `✏️ Edit transaksi: ${editing.jenis} → ${jenis}`; Object.assign(editing,{jenis,jumlah,tanggal,keterangan:ket}); }
       else{ actionMsg = `➕ Transaksi baru: ${jenis}`; db.transaksiLain.push({id:uid(),event_id:eid(),jenis,jumlah,tanggal,keterangan:ket}); }
       saveDB(); closeModal(); renderContent(); renderTopbarSaldo(); toast('Disimpan');
-      notifyTelegram(actionMsg, `Jenis: ${jenis}\nJumlah: ${fmtRp(jumlah)}\nTanggal: ${fmtDate(tanggal)}\nKeterangan: ${ket || '-'}`);
+      notifyTelegram(actionMsg, `Nama: ${jenis}\nJumlah: ${fmtRp(jumlah)}\nTanggal: ${fmtDate(tanggal)}\nKeterangan: ${ket || '-'}`);
     }}
   ]);
   setTimeout(setupAllCurrencyInputs, 50);

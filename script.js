@@ -136,11 +136,18 @@ function setCurrencyValue(inputEl, value) {
    ============================================================ */
 const AUTH_STORAGE_KEY = 'kt_auth_user';
 
-// Default users
+// Hash password dengan SHA-256 (Web Crypto API) — password TIDAK PERNAH disimpan/dikirim plaintext
+async function hashPassword(pw) {
+  const enc = new TextEncoder().encode(String(pw));
+  const buf = await crypto.subtle.digest('SHA-256', enc);
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// Default users (passwordHash = sha256 dari 'admin123' / 'user123')
 const DEFAULT_USERS = [
-  { id: 'admin1', name: 'Admin Utama', username: 'admin', password: 'admin123', role: 'admin' },
-  { id: 'user1', name: 'User 1', username: 'user', password: 'user123', role: 'user' },
-  { id: 'user2', name: 'User 2', username: 'user2', password: 'user123', role: 'user' },
+  { id: 'admin1', name: 'Admin Utama', username: 'admin', passwordHash: '240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9', role: 'admin' },
+  { id: 'user1', name: 'User 1', username: 'user', passwordHash: 'e606e38b0d8c19b24cf0ee3808183162ea7cd63ff7912dbb22b5e803286b4446', role: 'user' },
+  { id: 'user2', name: 'User 2', username: 'user2', passwordHash: 'e606e38b0d8c19b24cf0ee3808183162ea7cd63ff7912dbb22b5e803286b4446', role: 'user' },
 ];
 
 function getUsers() {
@@ -187,15 +194,47 @@ function canManageSettings() {
   return isAdmin();
 }
 
-function login(username, password) {
+async function login(username, password) {
   const users = getUsers();
-  const user = users.find(u => u.username === username && u.password === password);
-  if (user) {
-    const { password: _, ...userWithoutPassword } = user;
-    setCurrentUser(userWithoutPassword);
-    return userWithoutPassword;
+  const user = users.find(u => u.username === username);
+  if (!user) return null;
+
+  const inputHash = await hashPassword(password);
+  let match = false;
+
+  if (user.passwordHash) {
+    match = user.passwordHash === inputHash;
+  } else if (user.password) {
+    // Kompatibilitas mundur: user lama yang masih plaintext (data lama di Supabase).
+    // Kalau cocok, langsung migrasi ke hash & hapus plaintext-nya.
+    match = user.password === password;
+    if (match) {
+      user.passwordHash = inputHash;
+      delete user.password;
+      saveUsers(users);
+    }
   }
-  return null;
+
+  if (!match) return null;
+  const { password: _p, passwordHash: _h, ...userWithoutPassword } = user;
+  setCurrentUser(userWithoutPassword);
+  return userWithoutPassword;
+}
+
+// Quick-login dari daftar akun di modal login — TIDAK memerlukan/menampilkan password
+// (sebelumnya password mentah disisipkan ke atribut onclick dan terlihat lewat "Inspect Element")
+function quickLoginById(userId) {
+  const users = getUsers();
+  const user = users.find(u => u.id === userId);
+  if (!user) { toast('❌ Login gagal'); return; }
+  const { password: _p, passwordHash: _h, ...userWithoutPassword } = user;
+  setCurrentUser(userWithoutPassword);
+  closeModal();
+  renderSidebar();
+  renderTopbarSaldo();
+  renderContent();
+  toast(`✅ Login sebagai ${user.name} (${user.role})`);
+  notifyTelegram(`🔑 User login: ${user.name}`, `Role: ${user.role}`);
 }
 
 function logout() {
@@ -323,9 +362,20 @@ async function syncArrayTable(table, rows){
 
 async function syncSettings(){
   const rows = Object.keys(db.settings).map(eventId => ({ event_id: eventId, tarif: db.settings[eventId].tarif }));
-  if(rows.length === 0) return;
-  const { error } = await sb.from('kt_settings').upsert(rows, { onConflict: 'event_id' });
-  if(error) console.error('Gagal menyimpan kt_settings:', error);
+  const { data: existing, error: selErr } = await sb.from('kt_settings').select('event_id');
+  if(selErr){ console.error('Gagal membaca kt_settings:', selErr); return; }
+  const existingIds = new Set((existing || []).map(r => r.event_id));
+  const currentIds = new Set(Object.keys(db.settings));
+  const toDelete = [...existingIds].filter(id => !currentIds.has(id));
+
+  if(rows.length){
+    const { error } = await sb.from('kt_settings').upsert(rows, { onConflict: 'event_id' });
+    if(error) console.error('Gagal menyimpan kt_settings:', error);
+  }
+  if(toDelete.length){
+    const { error: delErr } = await sb.from('kt_settings').delete().in('event_id', toDelete);
+    if(delErr) console.error('Gagal menghapus kt_settings lama:', delErr);
+  }
 }
 
 async function syncTelegram(){
@@ -338,8 +388,25 @@ async function syncTelegram(){
   if(error) console.error('Gagal menyimpan kt_telegram_settings:', error);
 }
 
-async function saveDB(){
+// saveDB() dipanggil di puluhan tempat setiap ada perubahan kecil. Sebelumnya setiap panggilan
+// langsung melakukan sync PENUH (select+upsert+delete-diff) ke 15+ tabel sekaligus, dan bisa
+// berjalan paralel tanpa lock kalau dipanggil beruntun cepat (race condition antar sync).
+// Sekarang di-debounce (nunggu 400ms jeda aktivitas) dan diberi lock supaya hanya 1 proses
+// sync yang jalan pada satu waktu; kalau ada request baru saat masih sync, ditandai untuk
+// dijalankan ulang setelah yang sedang berjalan selesai.
+let _saveDBTimer = null;
+let _saveDBRunning = false;
+let _saveDBQueued = false;
+
+function saveDB(){
   if(db.activeEventId) localStorage.setItem('kt_active_event', db.activeEventId);
+  clearTimeout(_saveDBTimer);
+  _saveDBTimer = setTimeout(_flushSaveDB, 400);
+}
+
+async function _flushSaveDB(){
+  if(_saveDBRunning){ _saveDBQueued = true; return; }
+  _saveDBRunning = true;
   try{
     await Promise.all([
       ...Object.entries(ARRAY_TABLE_MAP).map(([key, table]) => syncArrayTable(table, db[key])),
@@ -349,8 +416,20 @@ async function saveDB(){
   }catch(e){
     console.error('Gagal menyimpan ke Supabase', e);
     toast('⚠️ Gagal menyimpan ke Supabase');
+  }finally{
+    _saveDBRunning = false;
+    if(_saveDBQueued){
+      _saveDBQueued = false;
+      _flushSaveDB();
+    }
   }
 }
+
+// Best-effort: kalau tab ditutup saat masih ada perubahan yang belum sempat ke-sync
+// (masih dalam jeda debounce), coba paksa flush segera.
+window.addEventListener('beforeunload', ()=>{
+  if(_saveDBTimer){ clearTimeout(_saveDBTimer); _flushSaveDB(); }
+});
 
 let db = defaultDB();
 
@@ -438,17 +517,23 @@ async function sendTelegramNotification(message, isTest = false){
   }
 }
 
+// Telegram parse_mode 'HTML' hanya mengizinkan tag tertentu; karakter < > & pada teks dinamis
+// (nama anggota/keterangan dsb, yang berasal dari input user) harus di-escape, kalau tidak
+// Telegram akan menolak seluruh pesan (parse error) dan notifikasi gagal terkirim tanpa
+// pemberitahuan ke user (hanya console.error).
+function escTelegram(s){ return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
 function formatNotificationMessage(action, data, eventName){
   const timestamp = new Date().toLocaleString('id-ID');
   const user = getCurrentUser();
   const userName = user ? user.name : 'Guest (View Only)';
   const userRole = user ? user.role : 'guest';
   let msg = `<b>📋 Karang Taruna - Buku Keuangan</b>\n\n`;
-  msg += `<b>Event:</b> ${eventName}\n`;
-  msg += `<b>Waktu:</b> ${timestamp}\n`;
-  msg += `<b>👤 User:</b> ${userName} (${userRole})\n\n`;
-  msg += `<b>📌 Aksi:</b> ${action}\n`;
-  if(data) msg += `<b>📝 Detail:</b>\n${data}\n`;
+  msg += `<b>Event:</b> ${escTelegram(eventName)}\n`;
+  msg += `<b>Waktu:</b> ${escTelegram(timestamp)}\n`;
+  msg += `<b>👤 User:</b> ${escTelegram(userName)} (${escTelegram(userRole)})\n\n`;
+  msg += `<b>📌 Aksi:</b> ${escTelegram(action)}\n`;
+  if(data) msg += `<b>📝 Detail:</b>\n${escTelegram(data)}\n`;
   
   if(activeEvent()){
     const {saldo, pemasukan, pengeluaran} = hitungBukuUtama();
@@ -641,7 +726,7 @@ function openLoginModal() {
     <p style="color:var(--ink-soft); margin-bottom:16px;">Pilih akun untuk login atau login dengan username & password.</p>
     <div class="login-options">
       ${users.map(u => `
-        <div class="login-user" onclick="quickLogin('${u.username}','${u.password}')">
+        <div class="login-user" onclick="quickLoginById('${u.id}')">
           <div class="info">
             <div class="avatar ${u.role}">${u.role === 'admin' ? '⚡' : '👤'}</div>
             <div class="detail">
@@ -666,8 +751,14 @@ function openLoginModal() {
   `, []);
 }
 
-function quickLogin(username, password) {
-  const user = login(username, password);
+async function manualLogin() {
+  const username = document.getElementById('login-username')?.value?.trim();
+  const password = document.getElementById('login-password')?.value?.trim();
+  if (!username || !password) {
+    toast('⚠️ Isi username dan password');
+    return;
+  }
+  const user = await login(username, password);
   if (user) {
     closeModal();
     renderSidebar();
@@ -678,16 +769,6 @@ function quickLogin(username, password) {
   } else {
     toast('❌ Login gagal');
   }
-}
-
-function manualLogin() {
-  const username = document.getElementById('login-username')?.value?.trim();
-  const password = document.getElementById('login-password')?.value?.trim();
-  if (!username || !password) {
-    toast('⚠️ Isi username dan password');
-    return;
-  }
-  quickLogin(username, password);
 }
 
 /* ============================================================
@@ -754,7 +835,7 @@ function openUserModal(id) {
     </div>
   `, [
     {label:'Batal', cls:'secondary', onclick:closeModal},
-    {label: editing ? 'Simpan' : 'Tambah', cls:'', onclick:() => {
+    {label: editing ? 'Simpan' : 'Tambah', cls:'', onclick: async () => {
       const name = document.getElementById('f-name').value.trim();
       const username = document.getElementById('f-username').value.trim();
       const password = document.getElementById('f-password').value.trim();
@@ -774,7 +855,10 @@ function openUserModal(id) {
         const user = usersList.find(u => u.id === id);
         if (user) {
           user.name = name;
-          if (password && password !== '******') user.password = password;
+          if (password && password !== '******') {
+            user.passwordHash = await hashPassword(password);
+            delete user.password;
+          }
           user.role = role;
         }
         saveUsers(usersList);
@@ -784,7 +868,7 @@ function openUserModal(id) {
           id: uid(),
           name,
           username,
-          password: password || 'user123',
+          passwordHash: await hashPassword(password || 'user123'),
           role
         });
         saveUsers(usersList);
@@ -1672,7 +1756,12 @@ function openHadiahModal(id){
   if(editing) openHadiahGroups.add(id);
   setTimeout(setupAllCurrencyInputs, 50);
 }
-function addItemRow(){ const container=document.getElementById('items-container'); if(!container) return; const idx=Math.floor(Math.random()*10000); const row=document.createElement('div'); row.className='field-row'; row.style.cssText='border-bottom:1px solid var(--garis);padding-bottom:10px;margin-bottom:10px;'; row.innerHTML=`<div class="field"><input type="text" id="edit-item-name-${idx}" placeholder="Nama hadiah"></div><div class="field"><input type="text" id="edit-item-price-${idx}" class="currency-input" placeholder="Harga"></div><div class="field"><input type="number" id="edit-item-qty-${idx}" placeholder="Qty" value="1"></div><button class="btn danger-text small" onclick="removeItemRow(this.closest('.field-row'))">✕</button>`; container.appendChild(row); setTimeout(setupAllCurrencyInputs, 0); }
+function addItemRow(){ const container=document.getElementById('items-container'); if(!container) return; const idx=Math.floor(Math.random()*10000); const row=document.createElement('div'); row.className='field-row'; row.style.cssText='border-bottom:1px solid var(--garis);padding-bottom:10px;margin-bottom:10px;'; row.innerHTML=`<div class="field"><input type="text" id="edit-item-name-${idx}" placeholder="Nama hadiah"></div><div class="field"><input type="text" id="edit-item-price-${idx}" class="currency-input" placeholder="Harga"></div><div class="field"><input type="number" id="edit-item-qty-${idx}" placeholder="Qty" value="1"></div><button class="btn danger-text small" onclick="removeItemRow(this.closest('.field-row'))">✕</button>`; container.appendChild(row);
+  // Hanya setup input currency milik baris BARU ini — jangan panggil setupAllCurrencyInputs()
+  // karena itu akan menempelkan listener kedua/ketiga/dst ke input yang sudah ada sebelumnya
+  // (setiap listener dibuat sebagai fungsi anonim baru sehingga browser tidak men-dedupe-nya).
+  row.querySelectorAll('.currency-input').forEach(setupCurrencyInput);
+}
 function removeItemRow(element){ if(typeof element==='number'){const rows=document.querySelectorAll('#items-container .field-row'); if(rows.length>1) rows[element].remove(); else toast('Minimal 1 item'); return;} const rows=document.querySelectorAll('#items-container .field-row'); if(rows.length>1) element.remove(); else toast('Minimal 1 item'); }
 function editHadiahItem(hadiahId,itemIdx){ 
   if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
@@ -2443,11 +2532,15 @@ function hapusEvent(id){
 
 function exportData(){
   if (!canEdit()) { toast('⛔ Login untuk ekspor data'); return; }
-  const blob = new Blob([JSON.stringify(db, null, 2)], {type:'application/json'});
+  // Redaksi token Telegram — ini kredensial live, bukan "data", tidak perlu ikut ke file backup.
+  const exportable = JSON.parse(JSON.stringify(db));
+  if (exportable.telegram) exportable.telegram.botToken = '';
+  const blob = new Blob([JSON.stringify(exportable, null, 2)], {type:'application/json'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = `buku-keuangan-${todayISO()}.json`;
   a.click();
+  toast('✅ Data diekspor (token Telegram tidak disertakan, atur ulang jika perlu)');
   notifyTelegram(`⬇️ Ekspor data`, `File: buku-keuangan-${todayISO()}.json`);
 }
 

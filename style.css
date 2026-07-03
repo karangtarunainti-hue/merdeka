@@ -323,6 +323,28 @@
   .stat-card.belanja-perlengkapan{border-top:3px solid var(--orange);}
   .stat-card.warning{border-top:3px solid var(--orange);}
   .stat-card.info{border-top:3px solid var(--biru);}
+
+  .kategori-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:10px;}
+  .kategori-card{
+    background:var(--cream-card); border:1px solid var(--garis); border-radius:var(--radius);
+    border-top:3px solid var(--abu); padding:12px 14px; display:flex; flex-direction:column; gap:10px;
+  }
+  .kategori-card.k-sekolah{border-top-color:var(--biru);}
+  .kategori-card.k-bekerja{border-top-color:var(--hijau);}
+  .kategori-card.k-perantauan{border-top-color:var(--gold);}
+  .kategori-card.k-khusus{border-top-color:var(--ungu);}
+  .kategori-card .kc-title{font-weight:700; font-size:14px;}
+  .kategori-card .kc-stats{display:flex; gap:18px;}
+  .kategori-card .kc-stat{display:flex; flex-direction:column; gap:2px;}
+  .kategori-card .kc-stat .n{font-family:'IBM Plex Mono',monospace; font-weight:600; font-size:16px; line-height:1;}
+  .kategori-card .kc-stat .l{font-size:10px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-soft);}
+  .kategori-card .kc-stat.lunas .n{color:var(--hijau);}
+  .kategori-card .kc-stat.belum .n{color:var(--merah);}
+  .kategori-card .kc-progress{display:flex; flex-direction:column; gap:5px; margin-top:auto;}
+  .kategori-card .kc-progress-bar{height:6px; border-radius:4px; background:var(--garis); overflow:hidden;}
+  .kategori-card .kc-progress-fill{height:100%; background:var(--hijau); border-radius:4px;}
+  .kategori-card .kc-money{display:flex; justify-content:space-between; align-items:baseline; font-size:11.5px; color:var(--ink-soft);}
+  .kategori-card .kc-money b{font-family:'IBM Plex Mono',monospace; font-size:12.5px; color:var(--ink); font-weight:600;}
   .stat-card.jalan-santai{border-top:3px solid var(--pink);}
 
   .panel{

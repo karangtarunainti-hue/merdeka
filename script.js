@@ -1336,14 +1336,23 @@ function renderDatabaseAnggota(){
     <div class="stat-card pemasukan"><div class="lbl">Terkumpul</div><div class="val">${fmtRp(totalTerkumpul)}</div></div>
     <div class="stat-card warning"><div class="lbl">Tunggakan</div><div class="val">${fmtRp(totalNominal - totalTerkumpul)}</div></div></div>`;
 
-  const statKategoriHtml = Object.values(statKategori).map(k => `
-    <div style="display:flex;align-items:center;gap:14px;padding:8px 12px;background:var(--cream);border-radius:8px;border:1px solid var(--garis);">
-      <span style="font-weight:600;min-width:80px;">${k.label}</span>
-      <span style="font-size:13px;">${k.total} anggota</span>
-      <span style="font-size:13px;color:var(--hijau);">${k.lunas} lunas</span>
-      <span style="font-size:13px;color:var(--merah);">${k.total - k.lunas} belum</span>
-      <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;margin-left:auto;">${fmtRp(k.terkumpul)} / ${fmtRp(k.nominal)}</span>
-    </div>`).join('');
+  const statKategoriHtml = Object.entries(statKategori).map(([kv, k]) => {
+    const belum = k.total - k.lunas;
+    const pct = k.nominal > 0 ? Math.round((k.terkumpul / k.nominal) * 100) : 0;
+    return `
+    <div class="kategori-card k-${kv}">
+      <div class="kc-title">${k.label}</div>
+      <div class="kc-stats">
+        <div class="kc-stat"><span class="n">${k.total}</span><span class="l">Anggota</span></div>
+        <div class="kc-stat lunas"><span class="n">${k.lunas}</span><span class="l">Lunas</span></div>
+        <div class="kc-stat belum"><span class="n">${belum}</span><span class="l">Belum</span></div>
+      </div>
+      <div class="kc-progress">
+        <div class="kc-progress-bar"><div class="kc-progress-fill" style="width:${pct}%;"></div></div>
+        <div class="kc-money"><span>Terkumpul <b>${fmtRp(k.terkumpul)}</b></span><span>dari <b>${fmtRp(k.nominal)}</b></span></div>
+      </div>
+    </div>`;
+  }).join('');
 
   const filterHtml = `<div class="filter-row">
     <div class="field" style="margin-bottom:0;min-width:150px;"><label style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;">Kategori</label>
@@ -1361,7 +1370,7 @@ function renderDatabaseAnggota(){
       <button class="btn success small" onclick="tandaiSemuaLunas()" ${!isLoggedIn ? 'disabled' : ''}>✓ Tandai Semua Lunas</button>
       ${isLoggedIn ? `<button class="btn" onclick="openAnggotaModal()">+ Tambah</button>` : `<span class="badge readonly">🔒 Login</span>`}
     </div></div>
-    <div class="panel-body">${filterHtml}${statKategoriHtml?`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;margin-bottom:16px;">${statKategoriHtml}</div>`:''}
+    <div class="panel-body">${filterHtml}${statKategoriHtml?`<div class="kategori-grid" style="margin-bottom:16px;">${statKategoriHtml}</div>`:''}
     <div style="overflow-x:auto;"><table class="database-table"><thead><tr><th class="sortable" onclick="sortTable('nama')">Nama ${sortIndicator('nama')}</th>
       <th class="sortable" onclick="sortTable('kategori')">Kategori ${sortIndicator('kategori')}</th>
       <th class="num sortable" onclick="sortTable('nominal')">Nominal ${sortIndicator('nominal')}</th>

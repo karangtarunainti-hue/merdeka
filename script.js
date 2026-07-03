@@ -1176,7 +1176,7 @@ function renderAnggota(){
   <div class="panel">
     <div class="panel-head">
       <div><h3>Daftar Anggota</h3>
-        <div class="desc">Tarif: Sekolah ${fmtRp(s.tarif.sekolah)} · Bekerja ${fmtRp(s.tarif.bekerja)} · Perantauan ${fmtRp(s.tarif.perantauan)} · Khusus ${fmtRp(s.tarif.khusus)}</div>
+        <div class="desc">Tarif: Sekolah ${fmtRp(s.tarif.sekolah)} · Bekerja ${fmtRp(s.tarif.bekerja)} · Perantauan ${fmtRp(s.tarif.perantauan)} · Khusus (bebas)</div>
       </div>
       ${isLoggedIn ? `<button class="btn" onclick="openAnggotaModal()">+ Tambah Anggota</button>` : `<span class="badge readonly">🔒 Login untuk mengelola</span>`}
     </div>
@@ -1206,8 +1206,9 @@ function openAnggotaModal(id){
         ${KATEGORI_ANGGOTA.map(k=>`<option value="${k.v}" ${editing&&editing.kategori===k.v?'selected':''}>${k.l}</option>`).join('')}
       </select>
     </div>
-    <div class="field"><label>Nominal Wajib (otomatis)</label>
-      <input id="f-nominal" class="currency-input" value="${editing?fmtRp(editing.nominal_wajib):''}" disabled style="background:var(--cream);">
+    <div class="field"><label id="f-nominal-label">Nominal Wajib (otomatis)</label>
+      <input id="f-nominal" class="currency-input" value="${editing?fmtRp(editing.nominal_wajib):''}" ${editing&&editing.kategori==='khusus'?'':'disabled'} style="${editing&&editing.kategori==='khusus'?'':'background:var(--cream);'}">
+      <div class="hint" id="f-nominal-hint" style="${editing&&editing.kategori==='khusus'?'':'display:none;'}">Kategori Khusus: isi nominal iuran secara bebas sesuai kesepakatan.</div>
     </div>
   `, [
     {label:'Batal', cls:'secondary', onclick:closeModal},
@@ -1215,7 +1216,8 @@ function openAnggotaModal(id){
       const nama = document.getElementById('f-nama').value.trim();
       const kategori = document.getElementById('f-kategori').value;
       if(!nama){ toast('Nama anggota wajib diisi'); return; }
-      const nominal = getSettings().tarif[kategori] || 0;
+      const nominal = kategori==='khusus' ? getCurrencyValue(document.getElementById('f-nominal')) : (getSettings().tarif[kategori] || 0);
+      if(kategori==='khusus' && (!nominal || nominal<=0)){ toast('Isi nominal iuran untuk kategori khusus'); return; }
       let actionMsg = '';
       if(editing){
         actionMsg = `✏️ Edit anggota: ${editing.nama} → ${nama}`;
@@ -1233,10 +1235,22 @@ function openAnggotaModal(id){
 function updateNominalPreview(){
   const kEl = document.getElementById('f-kategori');
   if(!kEl) return;
-  const s = getSettings();
   const nominalInput = document.getElementById('f-nominal');
-  if (nominalInput) {
+  const labelEl = document.getElementById('f-nominal-label');
+  const hintEl = document.getElementById('f-nominal-hint');
+  if (!nominalInput) return;
+  if (kEl.value === 'khusus') {
+    nominalInput.disabled = false;
+    nominalInput.style.background = '';
+    if (labelEl) labelEl.textContent = 'Nominal Wajib (bebas)';
+    if (hintEl) hintEl.style.display = '';
+  } else {
+    const s = getSettings();
     setCurrencyValue(nominalInput, s.tarif[kEl.value] || 0);
+    nominalInput.disabled = true;
+    nominalInput.style.background = 'var(--cream)';
+    if (labelEl) labelEl.textContent = 'Nominal Wajib (otomatis)';
+    if (hintEl) hintEl.style.display = 'none';
   }
 }
 function toggleLunas(id){
@@ -2388,9 +2402,9 @@ function renderPengaturan(){
       </div>
       <div class="field-row">
         <div class="field"><label>Perantauan (Rp)</label><input id="tarif-perantauan" class="currency-input" type="text" value="${formatCurrency(s.tarif.perantauan)}"></div>
-        <div class="field"><label style="color:var(--ungu);">Khusus (Rp)</label>
-          <input id="tarif-khusus" class="currency-input" type="text" value="${formatCurrency(s.tarif.khusus)}" style="border-color:var(--ungu);">
-          <div class="hint">Kategori khusus untuk anggota dengan nominal iuran berbeda</div>
+        <div class="field"><label style="color:var(--ungu);">Khusus</label>
+          <div style="padding:10px 12px;background:var(--cream);border:1px solid var(--garis);border-radius:8px;font-size:13px;color:var(--ink-soft);">🔓 Nominal bebas — diisi manual per anggota saat ditambahkan</div>
+          <div class="hint">Kategori khusus tidak punya tarif tetap, nominal iurannya diisi langsung saat menambah/mengedit anggota</div>
         </div>
       </div>
       <button class="btn" onclick="simpanTarif()">Simpan Tarif</button>
@@ -2453,9 +2467,8 @@ function simpanTarif(){
   s.tarif.sekolah = getCurrencyValue(document.getElementById('tarif-sekolah'));
   s.tarif.bekerja = getCurrencyValue(document.getElementById('tarif-bekerja'));
   s.tarif.perantauan = getCurrencyValue(document.getElementById('tarif-perantauan'));
-  s.tarif.khusus = getCurrencyValue(document.getElementById('tarif-khusus'));
   saveDB(); toast('Tarif iuran disimpan');
-  notifyTelegram(`⚙️ Update tarif iuran`, `Sekolah: ${fmtRp(s.tarif.sekolah)}\nBekerja: ${fmtRp(s.tarif.bekerja)}\nPerantauan: ${fmtRp(s.tarif.perantauan)}\nKhusus: ${fmtRp(s.tarif.khusus)}`);
+  notifyTelegram(`⚙️ Update tarif iuran`, `Sekolah: ${fmtRp(s.tarif.sekolah)}\nBekerja: ${fmtRp(s.tarif.bekerja)}\nPerantauan: ${fmtRp(s.tarif.perantauan)}\nKhusus: bebas (manual per anggota)`);
 }
 
 function simpanTelegram(){

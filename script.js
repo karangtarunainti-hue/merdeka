@@ -197,21 +197,6 @@ async function login(username, password) {
   return user;
 }
 
-// Quick-login dari daftar akun di modal login — TIDAK memerlukan/menampilkan password
-// (sebelumnya password mentah disisipkan ke atribut onclick dan terlihat lewat "Inspect Element")
-function quickLoginById(userId) {
-  const users = getUsers();
-  const user = users.find(u => u.id === userId);
-  if (!user) { toast('❌ Login gagal'); return; }
-  setCurrentUser(user);
-  closeModal();
-  renderSidebar();
-  renderTopbarSaldo();
-  renderContent();
-  toast(`✅ Login sebagai ${user.name} (${user.role})`);
-  notifyTelegram(`🔑 User login: ${user.name}`, `Role: ${user.role}`);
-}
-
 function logout() {
   setCurrentUser(null);
   renderSidebar();
@@ -716,34 +701,23 @@ function renderContent(){
    LOGIN MODAL
    ============================================================ */
 function openLoginModal() {
-  const users = getUsers();
   setModal('🔑 Login', `
-    <p style="color:var(--ink-soft); margin-bottom:16px;">Pilih akun untuk login atau login dengan username & password.</p>
-    <div class="login-options">
-      ${users.map(u => `
-        <div class="login-user" onclick="quickLoginById('${u.id}')">
-          <div class="info">
-            <div class="avatar ${u.role}">${u.role === 'admin' ? '⚡' : '👤'}</div>
-            <div class="detail">
-              <div class="name">${esc(u.name)}</div>
-              <div class="role">${u.role === 'admin' ? 'Admin • Akses penuh' : 'User • Bisa edit'}</div>
-            </div>
-          </div>
-          <button class="btn-select">Login</button>
-        </div>
-      `).join('')}
-    </div>
-    <hr style="border:1px solid var(--garis); margin:16px 0;">
+    <p style="color:var(--ink-soft); margin-bottom:16px;">Masuk dengan username & password akun Anda.</p>
     <div class="field-row">
-      <div class="field"><label>Username</label><input id="login-username" placeholder="admin atau user"></div>
+      <div class="field"><label>Username</label><input id="login-username" placeholder="Username"></div>
       <div class="field"><label>Password</label><input id="login-password" type="password" placeholder="******"></div>
     </div>
     <div style="display:flex; gap:8px; margin-top:8px;">
       <button class="btn" onclick="manualLogin()">Login</button>
       <button class="btn secondary" onclick="closeModal()">Batal</button>
     </div>
-    <div class="hint" style="margin-top:12px;">🔑 Default: admin/admin123 • user/user123</div>
   `, []);
+  setTimeout(()=>{
+    const pwEl = document.getElementById('login-password');
+    if (pwEl) pwEl.addEventListener('keydown', e => { if (e.key === 'Enter') manualLogin(); });
+    const userEl = document.getElementById('login-username');
+    if (userEl) { userEl.addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('login-password')?.focus(); }); userEl.focus(); }
+  }, 0);
 }
 
 async function manualLogin() {

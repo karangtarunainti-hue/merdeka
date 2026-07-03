@@ -176,6 +176,32 @@ function isUser() {
   return user && (user.role === 'user' || user.role === 'admin');
 }
 
+function isPetugas() {
+  const user = getCurrentUser();
+  return user && user.role === 'petugas';
+}
+
+function userSections() {
+  const user = getCurrentUser();
+  return (user && user.allowed_sections) || [];
+}
+
+// Bisa akses (lihat) section ini? Admin & User: semua non-adminOnly.
+// Petugas: cuma dashboard + section yang ditugaskan ke dia.
+function canAccessSection(key) {
+  const user = getCurrentUser();
+  if (!user) return false;
+  if (user.role === 'admin' || user.role === 'user') return true;
+  if (user.role === 'petugas') return key === 'dashboard' || userSections().includes(key);
+  return false;
+}
+
+// Bisa edit data di section ini? Sama aturannya dengan akses,
+// karena Petugas yang boleh masuk ke section-nya otomatis boleh kelola penuh di situ.
+function canEditSection(key) {
+  return canAccessSection(key);
+}
+
 function canEdit() {
   return isUser();
 }
@@ -617,9 +643,14 @@ function renderSidebar(){
   }
 
   const nav = document.getElementById('nav');
+  const isPetugasUser = user && user.role === 'petugas';
   const visibleSections = SECTIONS
     .filter(s => !s.adminOnly || isAdminUser)
-    .filter(s => isLoggedIn || s.adminOnly || isGuestVisible(s.key));
+    .filter(s => {
+      if (!isLoggedIn) return isGuestVisible(s.key);
+      if (isPetugasUser) return s.key === 'dashboard' || userSections().includes(s.key);
+      return true;
+    });
   nav.innerHTML = visibleSections.map(s=>`
     <div class="nav-item ${s.key===currentSection?'active':''} ${!isLoggedIn && !s.adminOnly ? '' : ''}" data-nav="${s.key}">
       ${icon(s.icon)} <span>${s.label}</span>
@@ -639,6 +670,10 @@ function goSection(key){
   }
   if (section && !user && !isGuestVisible(key)) {
     toast('⛔ Halaman ini tidak tersedia untuk Guest. Silakan login.');
+    return;
+  }
+  if (section && user && user.role === 'petugas' && key !== 'dashboard' && !userSections().includes(key)) {
+    toast('⛔ Anda tidak memiliki akses ke halaman ini');
     return;
   }
   currentSection = key;
@@ -691,6 +726,12 @@ function renderContent(){
   // Check if current section is hidden for guest
   if (section && !isLoggedIn && !isGuestVisible(currentSection)) {
     el.innerHTML = `<div class="empty-state"><h3>⛔ Akses Ditolak</h3><p>Halaman ini tidak tersedia untuk Guest.</p><button class="btn" onclick="openLoginModal()">🔑 Login untuk Mengakses</button></div>`;
+    return;
+  }
+
+  // Check if current section is outside Petugas' assigned bidang
+  if (section && isPetugas() && currentSection !== 'dashboard' && !userSections().includes(currentSection)) {
+    el.innerHTML = `<div class="empty-state"><h3>⛔ Akses Ditolak</h3><p>Anda tidak memiliki akses ke halaman ini.</p><button class="btn" onclick="goSection('dashboard')">Kembali ke Dashboard</button></div>`;
     return;
   }
   
@@ -764,8 +805,9 @@ async function manualLogin() {
     renderSidebar();
     renderTopbarSaldo();
     renderContent();
-    toast(`✅ Login sebagai ${user.name} (${user.role})`);
-    notifyTelegram(`🔑 User login: ${user.name}`, `Role: ${user.role}`);
+    const roleLabel = {admin:'Admin', user:'User', petugas:'Petugas'}[user.role] || user.role;
+    toast(`✅ Login sebagai ${user.name} (${roleLabel})`);
+    notifyTelegram(`🔑 User login: ${user.name}`, `Role: ${roleLabel}`);
   } else {
     toast('❌ Login gagal');
   }
@@ -780,11 +822,13 @@ function renderUsers() {
   }
   
   const users = getUsers();
+  const roleLabel = {admin:'Admin', user:'User', petugas:'Petugas'};
   const rows = users.map((u, idx) => `
     <tr>
       <td>${esc(u.name)}</td>
-      <td><span class="badge ${u.role === 'admin' ? 'lunas' : 'dibeli'}">${u.role}</span></td>
+      <td><span class="badge ${u.role === 'admin' ? 'lunas' : (u.role === 'petugas' ? 'khusus' : 'dibeli')}">${roleLabel[u.role] || u.role}</span></td>
       <td>${esc(u.username)}</td>
+      <td>${u.role === 'petugas' ? ((u.allowed_sections && u.allowed_sections.length) ? u.allowed_sections.map(k=>esc((SECTIONS.find(s=>s.key===k)||{}).label || k)).join(', ') : '<span style="color:var(--ink-soft);">Belum ada bidang</span>') : '<span style="color:var(--ink-soft);">Semua bidang</span>'}</td>
       <td>******</td>
       <td style="text-align:right; white-space:nowrap;">
         <button class="btn secondary small" onclick="openUserModal('${u.id}')">✎ Edit</button>
@@ -803,8 +847,8 @@ function renderUsers() {
     </div>
     <div class="panel-body flush">
       <table class="general-table">
-        <thead><tr><th>Nama</th><th>Role</th><th>Username</th><th>Password</th><th></th></tr></thead>
-        <tbody>${rows || `<tr class="empty-row"><td colspan="5">Belum ada user.</td></tr>`}</tbody>
+        <thead><tr><th>Nama</th><th>Role</th><th>Username</th><th>Bidang</th><th>Password</th><th></th></tr></thead>
+        <tbody>${rows || `<tr class="empty-row"><td colspan="6">Belum ada user.</td></tr>`}</tbody>
       </table>
     </div>
   </div>
@@ -812,6 +856,7 @@ function renderUsers() {
     <div class="panel-head"><h3>ℹ️ Tentang Role</h3></div>
     <div class="panel-body">
       <p><strong>👤 Guest (Tidak Login)</strong> — Hanya bisa melihat data (read-only). Tidak bisa menambah, mengedit, atau menghapus data.</p>
+      <p><strong>🛠️ Petugas</strong> — Login khusus untuk satu atau beberapa bidang tertentu saja (mis. hanya Iuran Anggota, atau hanya Lomba & Hadiah). Di luar bidang yang ditugaskan, halaman lain tidak terlihat dan tidak bisa diakses.</p>
       <p><strong>👤 User</strong> — Bisa melihat dan mengedit semua data (anggota, donatur, transaksi, lomba, hadiah, dll). Tidak bisa mengakses Pengaturan.</p>
       <p><strong>⚡ Admin</strong> — Akses penuh termasuk Pengaturan dan Manajemen User.</p>
     </div>
@@ -822,16 +867,30 @@ function openUserModal(id) {
   if (!isAdmin()) { toast('⛔ Hanya Admin'); return; }
   const users = getUsers();
   const editing = id ? users.find(u => u.id === id) : null;
+  const editingSections = (editing && editing.allowed_sections) || [];
   
   setModal(editing ? '✏️ Edit User' : '➕ Tambah User', `
     <div class="field"><label>Nama Lengkap</label><input id="f-name" value="${editing ? esc(editing.name) : ''}" placeholder="Nama user"></div>
     <div class="field"><label>Username</label><input id="f-username" value="${editing ? esc(editing.username) : ''}" placeholder="username" ${editing ? 'disabled' : ''}></div>
     <div class="field"><label>Password</label><input id="f-password" type="text" value="${editing ? '******' : ''}" placeholder="${editing ? 'Kosongkan untuk tidak diubah' : 'Password baru'}"></div>
     <div class="field"><label>Role</label>
-      <select id="f-role">
+      <select id="f-role" onchange="updatePetugasSectionsVisibility()">
         <option value="user" ${editing && editing.role === 'user' ? 'selected' : ''}>User (Bisa edit semua data)</option>
+        <option value="petugas" ${editing && editing.role === 'petugas' ? 'selected' : ''}>Petugas (Terbatas per bidang)</option>
         <option value="admin" ${editing && editing.role === 'admin' ? 'selected' : ''}>Admin (Akses penuh)</option>
       </select>
+    </div>
+    <div class="field" id="f-sections-field" style="${editing && editing.role === 'petugas' ? '' : 'display:none;'}">
+      <label>Bidang yang Ditugaskan</label>
+      <div class="hint" style="margin-bottom:8px;">Petugas hanya bisa melihat & mengelola bidang yang dicentang di bawah ini.</div>
+      <div class="guest-menu-list" style="display:flex;flex-direction:column;gap:8px;">
+        ${SECTIONS.filter(s=>!s.adminOnly && s.key!=='dashboard').map(s=>`
+          <label style="display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--garis);border-radius:8px;">
+            <input type="checkbox" class="f-section-check" value="${s.key}" ${editingSections.includes(s.key) ? 'checked' : ''}>
+            <span>${icon(s.icon)}</span>
+            <span>${esc(s.label)}</span>
+          </label>`).join('')}
+      </div>
     </div>
   `, [
     {label:'Batal', cls:'secondary', onclick:closeModal},
@@ -840,10 +899,14 @@ function openUserModal(id) {
       const username = document.getElementById('f-username').value.trim();
       const password = document.getElementById('f-password').value.trim();
       const role = document.getElementById('f-role').value;
+      const sections = role === 'petugas'
+        ? Array.from(document.querySelectorAll('.f-section-check:checked')).map(c => c.value)
+        : [];
       
       if (!name || !username) { toast('Nama dan username wajib'); return; }
       if (!editing && !password) { toast('Password wajib untuk user baru'); return; }
       if (editing && password && password.length < 4) { toast('Password minimal 4 karakter'); return; }
+      if (role === 'petugas' && sections.length === 0) { toast('Pilih minimal 1 bidang untuk Petugas'); return; }
       
       const usersList = getUsers();
       if (!editing && usersList.find(u => u.username === username)) {
@@ -859,6 +922,7 @@ function openUserModal(id) {
         p_username: username,
         p_password: passwordToSend,
         p_role: role,
+        p_sections: sections,
       });
       if (error) { console.error('Gagal menyimpan user:', error); toast('⚠️ Gagal menyimpan user ke Supabase'); return; }
 
@@ -870,6 +934,11 @@ function openUserModal(id) {
       renderSidebar();
     }}
   ]);
+}
+function updatePetugasSectionsVisibility() {
+  const role = document.getElementById('f-role')?.value;
+  const field = document.getElementById('f-sections-field');
+  if (field) field.style.display = role === 'petugas' ? '' : 'none';
 }
 
 async function hapusUser(id) {
@@ -1226,7 +1295,7 @@ function resetFilterAnggota(){ filterKategoriAnggota='semua'; filterStatusAnggot
 function labelKategori(v){ return (KATEGORI_ANGGOTA.find(k=>k.v===v)||{}).l || v; }
 
 function openAnggotaModal(id){
-  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('anggota')) { toast('⛔ Login untuk mengedit data'); return; }
   const editing = id ? db.anggota.find(a=>a.id===id) : null;
   const s = getSettings();
   setModal(editing?'Edit Anggota':'Tambah Anggota', `
@@ -1284,7 +1353,7 @@ function updateNominalPreview(){
   }
 }
 function toggleLunas(id){
-  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('anggota')) { toast('⛔ Login untuk mengedit data'); return; }
   const a = db.anggota.find(x=>x.id===id); if(!a) return;
   const statusBaru = a.status==='lunas' ? 'belum_lunas' : 'lunas';
   a.status = statusBaru;
@@ -1297,7 +1366,7 @@ function toggleLunas(id){
   }
 }
 function hapusAnggota(id){
-  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('anggota')) { toast('⛔ Login untuk mengedit data'); return; }
   if(!confirm('Hapus anggota ini?')) return;
   const a = db.anggota.find(x=>x.id===id);
   db.anggota = db.anggota.filter(a=>a.id!==id); 
@@ -1416,7 +1485,7 @@ function clearSearch(){ searchQuery=''; document.getElementById('search-input').
 function resetFilter(){ filterKategori='semua'; filterStatus='semua'; searchQuery=''; sortBy='nama'; sortOrder='asc'; renderContent(); }
 function sortTable(field){ if(sortBy===field){ sortOrder=sortOrder==='asc'?'desc':'asc'; }else{ sortBy=field; sortOrder='asc'; } renderContent(); }
 function tandaiSemuaLunas(){ 
-  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('database-anggota')) { toast('⛔ Login untuk mengedit data'); return; }
   const list=gAnggota().filter(a=>a.status==='belum_lunas'); 
   if(list.length===0){ toast('Semua anggota sudah lunas'); return; } 
   if(!confirm(`Tandai ${list.length} anggota menjadi LUNAS?`)) return; 
@@ -1445,7 +1514,7 @@ function renderDonatur(){
   <tbody>${rows||`<tr class="empty-row"><td colspan="5">Belum ada donasi.</td></tr>`}</tbody></table></div></div>`;
 }
 function openDonaturModal(id){
-  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('donatur')) { toast('⛔ Login untuk mengedit data'); return; }
   const editing = id ? db.donatur.find(d=>d.id===id) : null;
   setModal(editing?'Edit Donasi':'Tambah Donasi', `
     <div class="field"><label>Nama Donatur</label><input id="f-nama" value="${editing?esc(editing.nama_donatur):''}"></div>
@@ -1476,7 +1545,7 @@ function openDonaturModal(id){
   setTimeout(setupAllCurrencyInputs, 50);
 }
 function hapusDonatur(id){ 
-  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('donatur')) { toast('⛔ Login untuk mengedit data'); return; }
   if(!confirm('Hapus?')) return; 
   const d = db.donatur.find(x=>x.id===id);
   db.donatur=db.donatur.filter(d=>d.id!==id); 
@@ -1498,7 +1567,7 @@ function renderTransaksi(){
   <tbody>${rows||`<tr class="empty-row"><td colspan="5">Belum ada transaksi.</td></tr>`}</tbody></table></div></div>`;
 }
 function openTransaksiModal(id){
-  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('transaksi')) { toast('⛔ Login untuk mengedit data'); return; }
   const editing = id ? db.transaksiLain.find(t=>t.id===id) : null;
   setModal(editing?'Edit Transaksi':'Tambah Transaksi', `
     <div class="field"><label>Nama</label><input id="f-jenis" value="${editing?esc(editing.jenis):''}"></div>
@@ -1523,7 +1592,7 @@ function openTransaksiModal(id){
   setTimeout(setupAllCurrencyInputs, 50);
 }
 function hapusTransaksi(id){ 
-  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('transaksi')) { toast('⛔ Login untuk mengedit data'); return; }
   if(!confirm('Hapus?')) return; 
   const t = db.transaksiLain.find(x=>x.id===id);
   db.transaksiLain=db.transaksiLain.filter(t=>t.id!==id); 
@@ -1545,7 +1614,7 @@ function renderOperasional(){
   <tbody>${rows||`<tr class="empty-row"><td colspan="5">Belum ada biaya.</td></tr>`}</tbody></table></div></div>`;
 }
 function openOperasionalModal(id){
-  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('operasional')) { toast('⛔ Login untuk mengedit data'); return; }
   const editing = id ? db.operasional.find(o=>o.id===id) : null;
   setModal(editing?'Edit Biaya':'Tambah Biaya', `
     <div class="field"><label>Keterangan</label><input id="f-ket" value="${editing?esc(editing.keterangan):''}"></div>
@@ -1570,7 +1639,7 @@ function openOperasionalModal(id){
   setTimeout(setupAllCurrencyInputs, 50);
 }
 function hapusOperasional(id){ 
-  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('operasional')) { toast('⛔ Login untuk mengedit data'); return; }
   if(!confirm('Hapus?')) return; 
   const o = db.operasional.find(x=>x.id===id);
   db.operasional=db.operasional.filter(o=>o.id!==id); 
@@ -1653,7 +1722,7 @@ function renderHadiahLombaBlock(lomba){
 }
 
 function setLombaHadiah(lombaId, juaraKe, hadiahKategoriId){
-  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('lomba')) { toast('⛔ Login untuk mengedit data'); return; }
   const existing = db.lombaHadiah.find(lh=>lh.lomba_id===lombaId && lh.juara_ke===juaraKe);
   let actionMsg = '';
   if(existing){ 
@@ -1685,7 +1754,7 @@ function setLombaHadiah(lombaId, juaraKe, hadiahKategoriId){
 }
 
 function openLombaModal(id){
-  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('lomba')) { toast('⛔ Login untuk mengedit data'); return; }
   const editing = id ? db.lomba.find(l=>l.id===id) : null;
   setModal(editing?'Edit Lomba':'Tambah Lomba', `<div class="field"><label>Nama Lomba</label><input id="f-nama" value="${editing?esc(editing.nama):''}"></div><div class="field"><label>Kategori Peserta</label><select id="f-kategori">${KATEGORI_PESERTA.map(k=>`<option value="${k.v}" ${editing&&editing.kategori_peserta===k.v?'selected':''}>${k.l}</option>`).join('')}</select></div>`, [
     {label:'Batal', cls:'secondary', onclick:closeModal},
@@ -1706,7 +1775,7 @@ function openLombaModal(id){
   ]);
 }
 function hapusLomba(id){ 
-  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('lomba')) { toast('⛔ Login untuk mengedit data'); return; }
   if(!confirm('Hapus lomba ini?')) return; 
   const l = db.lomba.find(x=>x.id===id);
   gLombaHadiah(id).forEach(lh=>{const h=db.hadiahKategori.find(x=>x.id===lh.hadiah_kategori_id); if(h) h.items.forEach(item=>item.qty_terpakai=Math.max(0,Number(item.qty_terpakai||0)-1));}); 
@@ -1717,7 +1786,7 @@ function hapusLomba(id){
   if(l) notifyTelegram(`🗑️ Hapus lomba: ${l.nama}`, `Kategori: ${labelPeserta(l.kategori_peserta)}`);
 }
 function openKebutuhanModal(lombaId, kebutuhanId){ 
-  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('lomba')) { toast('⛔ Login untuk mengedit data'); return; }
   const editing=kebutuhanId?db.lombaKebutuhan.find(k=>k.id===kebutuhanId):null; 
   const l = db.lomba.find(x=>x.id===lombaId);
   setModal(editing?'Edit Kebutuhan':'Tambah Kebutuhan', `
@@ -1745,7 +1814,7 @@ function openKebutuhanModal(lombaId, kebutuhanId){
   setTimeout(setupAllCurrencyInputs, 50);
 }
 function hapusKebutuhan(id){ 
-  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('lomba')) { toast('⛔ Login untuk mengedit data'); return; }
   if(!confirm('Hapus item?')) return; 
   const k=db.lombaKebutuhan.find(x=>x.id===id); 
   db.lombaKebutuhan=db.lombaKebutuhan.filter(x=>x.id!==id); 
@@ -1789,7 +1858,7 @@ function toggleHadiahGroup(id){ const el=document.getElementById(`hadiah-group-$
 function labelJuara(v){ return (JUARA_LIST.find(j=>j.v===v)||{}).l || v; }
 
 function openHadiahModal(id){
-  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('hadiah')) { toast('⛔ Login untuk mengedit data'); return; }
   const editing = id ? db.hadiahKategori.find(h=>h.id===id) : null;
   const itemsHtml = editing ? editing.items.map((item, idx) => `<div class="field-row" style="border-bottom:1px solid var(--garis);padding-bottom:10px;margin-bottom:10px;"><div class="field"><input type="text" id="edit-item-name-${idx}" value="${esc(item.nama)}" placeholder="Nama"></div><div class="field"><input type="text" id="edit-item-price-${idx}" class="currency-input" value="${formatCurrency(item.harga_satuan)}" placeholder="Harga"></div><div class="field"><input type="number" id="edit-item-qty-${idx}" value="${item.qty_dibeli}" placeholder="Qty"></div><button class="btn danger-text small" onclick="removeItemRow(${idx})">✕</button></div>`).join('') : '';
   setModal(editing?'Edit Paket':'Tambah Paket', `<div class="field-row"><div class="field"><label>Kategori</label><select id="f-kp">${KATEGORI_PESERTA.map(k=>`<option value="${k.v}" ${editing&&editing.kategori_peserta===k.v?'selected':''}>${k.l}</option>`).join('')}</select></div><div class="field"><label>Juara</label><select id="f-juara">${JUARA_LIST.map(j=>`<option value="${j.v}" ${editing&&editing.juara_ke===j.v?'selected':''}>${j.l}</option>`).join('')}</select></div></div><div class="field"><label>Item Hadiah</label><div id="items-container">${itemsHtml}</div><button class="btn secondary small" onclick="addItemRow()" type="button">+ Tambah Item</button></div>`, [
@@ -1815,22 +1884,22 @@ function addItemRow(){ const container=document.getElementById('items-container'
 }
 function removeItemRow(element){ if(typeof element==='number'){const rows=document.querySelectorAll('#items-container .field-row'); if(rows.length>1) rows[element].remove(); else toast('Minimal 1 item'); return;} const rows=document.querySelectorAll('#items-container .field-row'); if(rows.length>1) element.remove(); else toast('Minimal 1 item'); }
 function editHadiahItem(hadiahId,itemIdx){ 
-  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('hadiah')) { toast('⛔ Login untuk mengedit data'); return; }
   const h=db.hadiahKategori.find(x=>x.id===hadiahId); if(!h||!h.items[itemIdx]) return; const item=h.items[itemIdx]; const newNama=prompt('Nama:',item.nama); if(newNama===null) return; const newHarga=prompt('Harga:',item.harga_satuan); if(newHarga===null) return; const newQty=prompt('Qty:',item.qty_dibeli); if(newQty===null) return; if(!newNama.trim()||Number(newQty)<=0){toast('Nama & qty wajib');return;} if(Number(newQty)<(item.qty_terpakai||0)){toast('Qty tidak boleh kurang dari terpakai');return;} item.nama=newNama.trim(); item.harga_satuan=Number(newHarga)||0; item.qty_dibeli=Number(newQty)||0; saveDB(); renderContent(); toast('Diupdate'); 
   notifyTelegram(`✏️ Edit item hadiah: ${item.nama}`, `Paket: ${labelPeserta(h.kategori_peserta)} - ${labelJuara(h.juara_ke)}\nHarga: ${fmtRp(item.harga_satuan)}\nQty: ${item.qty_dibeli}`);
 }
 function hapusHadiahItem(hadiahId,itemIdx){ 
-  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('hadiah')) { toast('⛔ Login untuk mengedit data'); return; }
   const h=db.hadiahKategori.find(x=>x.id===hadiahId); if(!h||!h.items[itemIdx]) return; if(h.items[itemIdx].qty_terpakai>0){toast('Sudah terpakai');return;} const itemName = h.items[itemIdx].nama; if(!confirm(`Hapus "${itemName}"?`)) return; h.items.splice(itemIdx,1); if(h.items.length===0) db.hadiahKategori=db.hadiahKategori.filter(x=>x.id!==hadiahId); saveDB(); renderContent(); toast('Dihapus'); 
   notifyTelegram(`🗑️ Hapus item hadiah: ${itemName}`, `Paket: ${labelPeserta(h.kategori_peserta)} - ${labelJuara(h.juara_ke)}`);
 }
 function tambahItemHadiah(hadiahId){ 
-  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('hadiah')) { toast('⛔ Login untuk mengedit data'); return; }
   const h=db.hadiahKategori.find(x=>x.id===hadiahId); if(!h) return; const nama=document.getElementById(`add-item-name-${hadiahId}`).value.trim(); const harga=getCurrencyValue(document.getElementById(`add-item-price-${hadiahId}`)); const qty=Number(document.getElementById(`add-item-qty-${hadiahId}`).value||0); if(!nama||qty<=0){toast('Nama & qty wajib');return;} h.items.push({nama,harga_satuan:harga,qty_dibeli:qty,qty_terpakai:0}); document.getElementById(`add-item-name-${hadiahId}`).value=''; document.getElementById(`add-item-price-${hadiahId}`).value=''; document.getElementById(`add-item-qty-${hadiahId}`).value='1'; saveDB(); renderContent(); toast('Item ditambahkan'); 
   notifyTelegram(`➕ Item hadiah baru: ${nama}`, `Paket: ${labelPeserta(h.kategori_peserta)} - ${labelJuara(h.juara_ke)}\nHarga: ${fmtRp(harga)}\nQty: ${qty}`);
 }
 function hapusHadiah(id){ 
-  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('hadiah')) { toast('⛔ Login untuk mengedit data'); return; }
   const h=db.hadiahKategori.find(x=>x.id===id); if(!h) return; const totalTerpakai=h.items.reduce((s,item)=>s+Number(item.qty_terpakai||0),0); if(totalTerpakai>0){toast('Masih dipakai');return;} if(!confirm('Hapus paket?')) return; db.hadiahKategori=db.hadiahKategori.filter(x=>x.id!==id); saveDB(); renderContent(); renderTopbarSaldo(); 
   notifyTelegram(`🗑️ Hapus paket hadiah`, `Kategori: ${labelPeserta(h.kategori_peserta)}\nJuara: ${labelJuara(h.juara_ke)}`);
 }
@@ -1898,7 +1967,7 @@ function renderBelanjaHadiah(){
 }
 
 function toggleBelanjaHadiah(hadiahId, itemIndex, belanjaId){
-  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('belanja-hadiah')) { toast('⛔ Login untuk mengedit data'); return; }
   const h = db.hadiahKategori.find(x=>x.id===hadiahId);
   if(!h || !h.items[itemIndex]) { toast('Item tidak ditemukan'); return; }
   const item = h.items[itemIndex];
@@ -1924,13 +1993,13 @@ function toggleBelanjaHadiah(hadiahId, itemIndex, belanjaId){
   if(actionMsg) notifyTelegram(actionMsg, `Paket: ${labelPeserta(h.kategori_peserta)} - ${labelJuara(h.juara_ke)}\nQty: ${item.qty_dibeli}\nHarga: ${fmtRp(item.harga_satuan)}`);
 }
 function tandaiSemuaBelanjaHadiah(){ 
-  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('belanja-hadiah')) { toast('⛔ Login untuk mengedit data'); return; }
   const hadiahList=gHadiahKategori(); let count=0; let detail = [];
   hadiahList.forEach(h=>{h.items.forEach((item,idx)=>{if(Number(item.qty_dibeli||0)<=0)return; const existing=db.daftarBelanjaHadiah.find(b=>b.hadiah_kategori_id===h.id&&b.item_index===idx&&b.event_id===eid()); if(!existing||existing.status!=='dibeli'){if(existing){existing.status='dibeli';existing.tanggal_beli=todayISO();}else{db.daftarBelanjaHadiah.push({id:uid(),event_id:eid(),hadiah_kategori_id:h.id,item_index:idx,status:'dibeli',tanggal_beli:todayISO()});}count++;detail.push(`${item.nama} (${labelPeserta(h.kategori_peserta)})`);}});}); 
   if(count===0){toast('Semua sudah dibeli');}else{saveDB();renderContent();renderTopbarSaldo();toast(`✓ ${count} item dibeli`);
   notifyTelegram(`✅ ${count} item hadiah lomba DIBELI`, detail.join('\n'));} }
 function resetSemuaBelanjaHadiah(){ 
-  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('belanja-hadiah')) { toast('⛔ Login untuk mengedit data'); return; }
   if(!confirm('Reset semua status?')) return; 
   const list=gDaftarBelanjaHadiah(); 
   list.forEach(b=>{b.status='belum_dibeli';b.tanggal_beli=null;}); 
@@ -1938,7 +2007,7 @@ function resetSemuaBelanjaHadiah(){
   notifyTelegram(`↩️ Reset semua status belanja hadiah`, `Semua status dikembalikan ke "belum dibeli"`);
 }
 function editBelanjaHadiah(hadiahId,itemIndex){ 
-  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('belanja-hadiah')) { toast('⛔ Login untuk mengedit data'); return; }
   const h=db.hadiahKategori.find(x=>x.id===hadiahId); if(!h||!h.items[itemIndex]) return; const item=h.items[itemIndex]; const newNama=prompt('Nama:',item.nama); if(newNama===null)return; const newHarga=prompt('Harga:',item.harga_satuan); if(newHarga===null)return; const newQty=prompt('Qty:',item.qty_dibeli); if(newQty===null)return; if(!newNama.trim()||Number(newQty)<=0){toast('Nama & qty wajib');return;} if(Number(newQty)<(item.qty_terpakai||0)){toast('Qty tidak boleh kurang dari terpakai');return;} item.nama=newNama.trim(); item.harga_satuan=Number(newHarga)||0; item.qty_dibeli=Number(newQty)||0; saveDB(); renderContent(); toast('Diupdate'); 
   notifyTelegram(`✏️ Edit item belanja hadiah: ${item.nama}`, `Paket: ${labelPeserta(h.kategori_peserta)} - ${labelJuara(h.juara_ke)}\nHarga: ${fmtRp(item.harga_satuan)}\nQty: ${item.qty_dibeli}`);
 }
@@ -1984,7 +2053,7 @@ function renderBelanjaPerlengkapan(){
 }
 
 function toggleBelanjaPerlengkapan(kebutuhanId, belanjaId){
-  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('belanja-perlengkapan')) { toast('⛔ Login untuk mengedit data'); return; }
   const k = db.lombaKebutuhan.find(x=>x.id===kebutuhanId);
   if(!k) { toast('Item tidak ditemukan'); return; }
   let existing = db.daftarBelanjaPerlengkapan.find(b => b.kebutuhan_id === kebutuhanId && b.event_id === eid());
@@ -2009,13 +2078,13 @@ function toggleBelanjaPerlengkapan(kebutuhanId, belanjaId){
   if(actionMsg) notifyTelegram(actionMsg, `Item: ${k.nama_item}\nQty: ${k.qty}\nLomba: ${db.lomba.find(x=>x.id===k.lomba_id)?.nama || k.lomba_id}`);
 }
 function tandaiSemuaBelanjaPerlengkapan(){ 
-  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('belanja-perlengkapan')) { toast('⛔ Login untuk mengedit data'); return; }
   let count=0; let detail = [];
   gLomba().forEach(l=>{gKebutuhan(l.id).forEach(k=>{const existing=db.daftarBelanjaPerlengkapan.find(b=>b.kebutuhan_id===k.id&&b.event_id===eid()); if(!existing||existing.status!=='dibeli'){if(existing){existing.status='dibeli';existing.tanggal_beli=todayISO();}else{db.daftarBelanjaPerlengkapan.push({id:uid(),event_id:eid(),kebutuhan_id:k.id,status:'dibeli',tanggal_beli:todayISO()});}count++;detail.push(`${k.nama_item} (${l.nama})`);}});}); 
   if(count===0){toast('Semua sudah dibeli');}else{saveDB();renderContent();renderTopbarSaldo();toast(`✓ ${count} item dibeli`);
   notifyTelegram(`✅ ${count} item perlengkapan DIBELI`, detail.join('\n'));} }
 function resetSemuaBelanjaPerlengkapan(){ 
-  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('belanja-perlengkapan')) { toast('⛔ Login untuk mengedit data'); return; }
   if(!confirm('Reset semua status?')) return; 
   const list=gDaftarBelanjaPerlengkapan(); 
   list.forEach(b=>{b.status='belum_dibeli';b.tanggal_beli=null;}); 
@@ -2023,7 +2092,7 @@ function resetSemuaBelanjaPerlengkapan(){
   notifyTelegram(`↩️ Reset semua status belanja perlengkapan`, `Semua status dikembalikan ke "belum dibeli"`);
 }
 function editBelanjaPerlengkapan(kebutuhanId){ 
-  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('belanja-perlengkapan')) { toast('⛔ Login untuk mengedit data'); return; }
   const k=db.lombaKebutuhan.find(x=>x.id===kebutuhanId); if(!k) return; const newNama=prompt('Nama item:',k.nama_item); if(newNama===null)return; const newEst=prompt('Harga estimasi:',k.harga_estimasi); if(newEst===null)return; const newQty=prompt('Qty:',k.qty); if(newQty===null)return; if(!newNama.trim()||Number(newQty)<=0){toast('Nama & qty wajib');return;} k.nama_item=newNama.trim(); k.harga_estimasi=Number(newEst)||0; k.qty=Number(newQty)||0; saveDB(); renderContent(); toast('Diupdate'); 
   notifyTelegram(`✏️ Edit item perlengkapan: ${k.nama_item}`, `Lomba: ${db.lomba.find(x=>x.id===k.lomba_id)?.nama || k.lomba_id}\nQty: ${k.qty}\nEstimasi: ${fmtRp(k.harga_estimasi)}`);
 }
@@ -2082,7 +2151,7 @@ function renderHadiahJalanSantai(){
 function labelKategoriJalan(v){ return (KATEGORI_JALAN_SANTAI.find(k=>k.v===v)||{}).l || v; }
 
 function openHadiahJalanModal(id){
-  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('hadiah-jalan')) { toast('⛔ Login untuk mengedit data'); return; }
   const editing = id ? db.hadiahJalanSantai.find(h=>h.id===id) : null;
   setModal(editing?'Edit Hadiah Jalan Santai':'Tambah Hadiah Jalan Santai', `
     <div class="field"><label>Nama Hadiah</label><input id="f-nama" value="${editing?esc(editing.nama_hadiah):''}" placeholder="mis. Baju, Topi, Snack Pack"></div>
@@ -2114,7 +2183,7 @@ function openHadiahJalanModal(id){
 }
 
 function hapusHadiahJalan(id){
-  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('hadiah-jalan')) { toast('⛔ Login untuk mengedit data'); return; }
   if(!confirm('Hapus hadiah ini?')) return;
   const h = db.hadiahJalanSantai.find(x=>x.id===id);
   db.hadiahJalanSantai = db.hadiahJalanSantai.filter(h=>h.id!==id);
@@ -2123,7 +2192,7 @@ function hapusHadiahJalan(id){
 }
 
 function toggleBelanjaJalan(hadiahId){
-  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('hadiah-jalan') && !canEditSection('belanja-jalan')) { toast('⛔ Login untuk mengedit data'); return; }
   const h = db.hadiahJalanSantai.find(x=>x.id===hadiahId);
   if(!h) { toast('Hadiah tidak ditemukan'); return; }
   
@@ -2257,7 +2326,7 @@ function renderBelanjaJalanSantai(){
 }
 
 function tandaiSemuaBelanjaJalan(){
-  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('belanja-jalan')) { toast('⛔ Login untuk mengedit data'); return; }
   const list = gHadiahJalanSantai();
   let count = 0;
   let detail = [];
@@ -2276,7 +2345,7 @@ function tandaiSemuaBelanjaJalan(){
 }
 
 function resetSemuaBelanjaJalan(){
-  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('belanja-jalan')) { toast('⛔ Login untuk mengedit data'); return; }
   if(!confirm('Reset semua status belanja?')) return;
   const list = gDaftarBelanjaJalanSantai();
   list.forEach(b => { b.status = 'belum_dibeli'; b.tanggal_beli = null; });
@@ -2363,7 +2432,7 @@ function renderJadwal(){
 }
 
 function openJadwalModal(id){
-  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('jadwal')) { toast('⛔ Login untuk mengedit data'); return; }
   const editing = id ? db.jadwal.find(j=>j.id===id) : null;
   setModal(editing?'Edit Jadwal':'Tambah Jadwal', `
     <div class="field"><label>Judul</label><input id="f-judul" value="${editing?esc(editing.judul):''}" placeholder="mis. Belanja Hadiah Lomba"></div>
@@ -2401,7 +2470,7 @@ function openJadwalModal(id){
 }
 
 function toggleJadwalStatus(id){
-  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('jadwal')) { toast('⛔ Login untuk mengedit data'); return; }
   const j = db.jadwal.find(x=>x.id===id);
   if(!j) return;
   j.status = j.status === 'selesai' ? 'aktif' : 'selesai';
@@ -2412,7 +2481,7 @@ function toggleJadwalStatus(id){
 }
 
 function hapusJadwal(id){
-  if (!canEdit()) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('jadwal')) { toast('⛔ Login untuk mengedit data'); return; }
   if(!confirm('Hapus jadwal ini?')) return;
   const j = db.jadwal.find(x=>x.id===id);
   db.jadwal = db.jadwal.filter(j=>j.id!==id);

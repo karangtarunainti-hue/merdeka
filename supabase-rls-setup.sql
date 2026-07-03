@@ -60,6 +60,10 @@ alter table kt_users add column if not exists "passwordHash" text;
 -- Sekarang boleh null karena user baru/ter-migrasi akan pakai "passwordHash".
 alter table kt_users alter column password drop not null;
 
+-- Kolom untuk role "petugas": daftar key section (bidang) yang boleh
+-- diakses & dikelola. Kosong untuk role admin/user (mereka tidak dibatasi).
+alter table kt_users add column if not exists allowed_sections text[] not null default '{}'::text[];
+
 alter table kt_users enable row level security;
 -- SENGAJA tidak dibuatkan policy apa pun untuk anon di sini.
 -- RLS aktif + nol policy = default DENY total (termasuk SELECT) untuk anon.
@@ -78,7 +82,7 @@ on conflict (id) do nothing;
 -- ---- rpc_login: verifikasi login, TIDAK PERNAH mengembalikan password ----
 drop function if exists rpc_login(text, text);
 create function rpc_login(p_username text, p_password text)
-returns table(id text, name text, username text, role text)
+returns table(id text, name text, username text, role text, allowed_sections text[])
 language plpgsql
 security definer
 set search_path = public, extensions
@@ -96,14 +100,14 @@ begin
 
   if v_user."passwordHash" is not null then
     if v_user."passwordHash" = v_hash then
-      return query select v_user.id, v_user.name, v_user.username, v_user.role;
+      return query select v_user.id, v_user.name, v_user.username, v_user.role, v_user.allowed_sections;
     end if;
     return;
   elsif v_user.password is not null then
     -- kompatibilitas mundur: user lama yang masih plaintext, migrasi otomatis
     if v_user.password = p_password then
       update kt_users set "passwordHash" = v_hash, password = null where id = v_user.id;
-      return query select v_user.id, v_user.name, v_user.username, v_user.role;
+      return query select v_user.id, v_user.name, v_user.username, v_user.role, v_user.allowed_sections;
     end if;
     return;
   end if;
@@ -115,18 +119,19 @@ grant execute on function rpc_login(text, text) to anon;
 -- ---- rpc_list_users: daftar user untuk halaman Manajemen User (tanpa password) ----
 drop function if exists rpc_list_users();
 create function rpc_list_users()
-returns table(id text, name text, username text, role text)
+returns table(id text, name text, username text, role text, allowed_sections text[])
 language sql
 security definer
 set search_path = public
 as $$
-  select id, name, username, role from kt_users order by name;
+  select id, name, username, role, allowed_sections from kt_users order by name;
 $$;
 grant execute on function rpc_list_users() to anon;
 
 -- ---- rpc_upsert_user: tambah/edit user (password di-hash di server) ----
 drop function if exists rpc_upsert_user(text, text, text, text, text);
-create function rpc_upsert_user(p_id text, p_name text, p_username text, p_password text, p_role text)
+drop function if exists rpc_upsert_user(text, text, text, text, text, text[]);
+create function rpc_upsert_user(p_id text, p_name text, p_username text, p_password text, p_role text, p_sections text[] default '{}'::text[])
 returns void
 language plpgsql
 security definer
@@ -139,16 +144,17 @@ begin
     v_hash := encode(digest(p_password, 'sha256'), 'hex');
   end if;
 
-  insert into kt_users (id, name, username, "passwordHash", role)
-  values (p_id, p_name, p_username, v_hash, p_role)
+  insert into kt_users (id, name, username, "passwordHash", role, allowed_sections)
+  values (p_id, p_name, p_username, v_hash, p_role, coalesce(p_sections, '{}'::text[]))
   on conflict (id) do update
     set name = excluded.name,
         username = excluded.username,
         role = excluded.role,
+        allowed_sections = coalesce(p_sections, '{}'::text[]),
         "passwordHash" = coalesce(v_hash, kt_users."passwordHash");
 end;
 $$;
-grant execute on function rpc_upsert_user(text, text, text, text, text) to anon;
+grant execute on function rpc_upsert_user(text, text, text, text, text, text[]) to anon;
 
 -- ---- rpc_delete_user ----
 drop function if exists rpc_delete_user(text);

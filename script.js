@@ -2481,9 +2481,19 @@ function renderPengaturan(){
   </div>
   <div class="panel">
     <div class="panel-head"><h3>Cadangan Data</h3></div>
-    <div class="panel-body" style="display:flex;gap:10px;flex-wrap:wrap;">
-      <button class="btn secondary" onclick="exportData()">⬇ Ekspor</button>
-      <label class="btn secondary" style="margin:0;">⬆ Impor<input type="file" accept=".json" style="display:none;" onchange="importData(event)"></label>
+    <div class="panel-body">
+      <div class="hint" style="margin-bottom:8px;">Backup penuh berisi SEMUA event sekaligus. Impor akan MENIMPA seluruh data.</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn secondary" onclick="exportData()">⬇ Ekspor Semua Data</button>
+        <label class="btn secondary" style="margin:0;">⬆ Impor (Timpa Semua)<input type="file" accept=".json" style="display:none;" onchange="importData(event)"></label>
+      </div>
+    </div>
+    <div class="panel-body" style="border-top:1px solid var(--garis);">
+      <div class="hint" style="margin-bottom:8px;">Backup khusus event aktif${activeEvent()?` (<b>${esc(activeEvent().nama)}</b>)`:''}. Aman untuk disimpan per-kegiatan; saat diimpor akan dibuat sebagai <b>event baru</b>, tidak menimpa data lain.</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn secondary" onclick="exportDataEvent()" ${!activeEvent()?'disabled':''}>⬇ Ekspor Event Aktif</button>
+        <label class="btn secondary" style="margin:0;${!activeEvent()?'opacity:.5;pointer-events:none;':''}">⬆ Impor sebagai Event Baru<input type="file" accept=".json" style="display:none;" onchange="importDataEvent(event)"></label>
+      </div>
     </div>
   </div>`;
 }
@@ -2594,6 +2604,113 @@ function importData(evt){
       saveDB(); renderSidebar(); goSection('dashboard'); toast('Data diimpor');
       notifyTelegram(`⬆️ Impor data`, `File: ${file.name}\nUkuran: ${(file.size/1024).toFixed(1)} KB`);
     }catch(e){ toast('File tidak valid'); }
+  };
+  reader.readAsText(file);
+}
+
+/* ============================================================
+   CADANGAN DATA PER EVENT AKTIF
+   Ekspor hanya mengambil data yang event_id-nya = event aktif.
+   Impor membuat EVENT BARU (id & seluruh id record di-generate ulang
+   supaya tidak bentrok dengan data yang sudah ada), lalu diaktifkan.
+   ============================================================ */
+function exportDataEvent(){
+  if (!canEdit()) { toast('⛔ Login untuk ekspor data'); return; }
+  const ev = activeEvent();
+  if(!ev){ toast('Tidak ada event aktif'); return; }
+  const id = ev.id;
+  const lombaIds = db.lomba.filter(x=>x.event_id===id).map(x=>x.id);
+
+  const payload = {
+    _type: 'kt-event-backup',
+    _version: 1,
+    exported_at: new Date().toISOString(),
+    event: { nama: ev.nama, tahun: ev.tahun },
+    settings: db.settings[id] ? { tarif: db.settings[id].tarif } : { tarif:{sekolah:0,bekerja:0,perantauan:0,khusus:0} },
+    anggota: db.anggota.filter(x=>x.event_id===id),
+    donatur: db.donatur.filter(x=>x.event_id===id),
+    transaksiLain: db.transaksiLain.filter(x=>x.event_id===id),
+    operasional: db.operasional.filter(x=>x.event_id===id),
+    lomba: db.lomba.filter(x=>x.event_id===id),
+    lombaKebutuhan: db.lombaKebutuhan.filter(x=>lombaIds.includes(x.lomba_id)),
+    lombaHadiah: db.lombaHadiah.filter(x=>lombaIds.includes(x.lomba_id)),
+    hadiahKategori: db.hadiahKategori.filter(x=>x.event_id===id),
+    daftarBelanjaHadiah: db.daftarBelanjaHadiah.filter(x=>x.event_id===id),
+    daftarBelanjaPerlengkapan: db.daftarBelanjaPerlengkapan.filter(x=>x.event_id===id),
+    hadiahJalanSantai: db.hadiahJalanSantai.filter(x=>x.event_id===id),
+    daftarBelanjaJalanSantai: db.daftarBelanjaJalanSantai.filter(x=>x.event_id===id),
+    jadwal: db.jadwal.filter(x=>x.event_id===id),
+  };
+
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  const safeName = (ev.nama||'event').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'') || 'event';
+  a.href = URL.createObjectURL(blob);
+  a.download = `backup-${safeName}-${todayISO()}.json`;
+  a.click();
+  toast(`✅ Data event "${ev.nama}" diekspor`);
+  notifyTelegram(`⬇️ Ekspor data event`, `Event: ${ev.nama}\nFile: ${a.download}`);
+}
+
+function importDataEvent(evt){
+  if (!canEdit()) { toast('⛔ Login untuk impor data'); return; }
+  const file = evt.target.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    try{
+      const parsed = JSON.parse(reader.result);
+      if(!parsed || parsed._type !== 'kt-event-backup' || !parsed.event){
+        toast('File bukan backup event yang valid'); evt.target.value=''; return;
+      }
+      if(!confirm(`Impor akan membuat EVENT BARU "${parsed.event.nama}" berisi salinan data dari file backup ini. Data event lain tidak akan berubah. Lanjutkan?`)){
+        evt.target.value=''; return;
+      }
+
+      const newEventId = uid();
+      db.events.push({ id:newEventId, nama: parsed.event.nama || 'Event Impor', tahun: parsed.event.tahun || new Date().getFullYear(), created_at: new Date().toISOString() });
+      db.settings[newEventId] = { tarif: (parsed.settings && parsed.settings.tarif) ? {...parsed.settings.tarif} : {sekolah:0,bekerja:0,perantauan:0,khusus:0} };
+
+      (parsed.anggota||[]).forEach(x=>{ db.anggota.push({...x, id:uid(), event_id:newEventId}); });
+      (parsed.donatur||[]).forEach(x=>{ db.donatur.push({...x, id:uid(), event_id:newEventId}); });
+      (parsed.transaksiLain||[]).forEach(x=>{ db.transaksiLain.push({...x, id:uid(), event_id:newEventId}); });
+      (parsed.operasional||[]).forEach(x=>{ db.operasional.push({...x, id:uid(), event_id:newEventId}); });
+      (parsed.jadwal||[]).forEach(x=>{ db.jadwal.push({...x, id:uid(), event_id:newEventId}); });
+
+      const lombaIdMap = {};
+      (parsed.lomba||[]).forEach(x=>{ const nid=uid(); lombaIdMap[x.id]=nid; db.lomba.push({...x, id:nid, event_id:newEventId}); });
+
+      const kebutuhanIdMap = {};
+      (parsed.lombaKebutuhan||[]).forEach(x=>{ const nid=uid(); kebutuhanIdMap[x.id]=nid; db.lombaKebutuhan.push({...x, id:nid, lomba_id: lombaIdMap[x.lomba_id] || x.lomba_id}); });
+
+      const hadiahKategoriIdMap = {};
+      (parsed.hadiahKategori||[]).forEach(x=>{ const nid=uid(); hadiahKategoriIdMap[x.id]=nid; db.hadiahKategori.push({...x, id:nid, event_id:newEventId}); });
+
+      (parsed.lombaHadiah||[]).forEach(x=>{ db.lombaHadiah.push({...x, id:uid(),
+        lomba_id: lombaIdMap[x.lomba_id] || x.lomba_id,
+        hadiah_kategori_id: hadiahKategoriIdMap[x.hadiah_kategori_id] || x.hadiah_kategori_id }); });
+
+      (parsed.daftarBelanjaHadiah||[]).forEach(x=>{ db.daftarBelanjaHadiah.push({...x, id:uid(), event_id:newEventId,
+        hadiah_kategori_id: hadiahKategoriIdMap[x.hadiah_kategori_id] || x.hadiah_kategori_id }); });
+
+      (parsed.daftarBelanjaPerlengkapan||[]).forEach(x=>{ db.daftarBelanjaPerlengkapan.push({...x, id:uid(), event_id:newEventId,
+        kebutuhan_id: kebutuhanIdMap[x.kebutuhan_id] || x.kebutuhan_id }); });
+
+      const hadiahJalanIdMap = {};
+      (parsed.hadiahJalanSantai||[]).forEach(x=>{ const nid=uid(); hadiahJalanIdMap[x.id]=nid; db.hadiahJalanSantai.push({...x, id:nid, event_id:newEventId}); });
+
+      (parsed.daftarBelanjaJalanSantai||[]).forEach(x=>{ db.daftarBelanjaJalanSantai.push({...x, id:uid(), event_id:newEventId,
+        hadiah_jalan_id: hadiahJalanIdMap[x.hadiah_jalan_id] || x.hadiah_jalan_id }); });
+
+      db.activeEventId = newEventId;
+      saveDB(); renderSidebar(); goSection('dashboard');
+      toast(`✅ Event "${parsed.event.nama}" berhasil diimpor & diaktifkan`);
+      notifyTelegram(`⬆️ Impor data event`, `Event baru: ${parsed.event.nama}\nFile: ${file.name}\nUkuran: ${(file.size/1024).toFixed(1)} KB`);
+    }catch(e){
+      console.error(e);
+      toast('File tidak valid');
+    } finally {
+      evt.target.value = '';
+    }
   };
   reader.readAsText(file);
 }

@@ -846,10 +846,12 @@ function renderUsers() {
       <button class="btn" onclick="openUserModal()">+ Tambah User</button>
     </div>
     <div class="panel-body flush">
-      <table class="general-table">
+      <div style="overflow-x:auto; -webkit-overflow-scrolling:touch;">
+      <table class="users-table">
         <thead><tr><th>Nama</th><th>Role</th><th>Username</th><th>Bidang</th><th>Password</th><th></th></tr></thead>
         <tbody>${rows || `<tr class="empty-row"><td colspan="6">Belum ada user.</td></tr>`}</tbody>
       </table>
+      </div>
     </div>
   </div>
   <div class="panel">

@@ -163,6 +163,28 @@ $$;
 grant execute on function rpc_delete_user(text) to anon;
 
 -- ============================================================
+-- BAGIAN 3: kt_guest_menu_settings — menu apa saja yang boleh
+-- diakses Guest (belum login), diatur admin di halaman Pengaturan.
+-- Tabel ini cuma berisi daftar key section (bukan data sensitif),
+-- jadi dibuka untuk anon sama seperti kt_telegram_settings.
+-- ============================================================
+create table if not exists kt_guest_menu_settings (
+  id text primary key,
+  hidden_sections jsonb not null default '[]'::jsonb
+);
+
+alter table kt_guest_menu_settings enable row level security;
+drop policy if exists "anon_full_access" on kt_guest_menu_settings;
+create policy "anon_full_access" on kt_guest_menu_settings
+  for all to anon using (true) with check (true);
+
+-- Seed baris default: sembunyikan "Database Anggota" & "Jadwal & Reminder"
+-- dari Guest kalau belum pernah diatur sama sekali.
+insert into kt_guest_menu_settings (id, hidden_sections)
+values ('main', '["database-anggota", "jadwal"]'::jsonb)
+on conflict (id) do nothing;
+
+-- ============================================================
 -- SELESAI. Setelah ini dijalankan, upload ulang script.js yang sudah
 -- disesuaikan (lihat pesan chat) — karena kt_users sekarang HANYA bisa
 -- diakses lewat rpc_login / rpc_list_users / rpc_upsert_user / rpc_delete_user,

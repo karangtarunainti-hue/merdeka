@@ -237,6 +237,13 @@ function defaultDB(){
       botToken: '',
       chatId: '',
       enabled: false
+    },
+    // Menu yang TIDAK boleh dilihat guest (belum login). Section yang tidak
+    // disebut di sini otomatis dianggap boleh dilihat guest (default true).
+    // Diatur admin lewat halaman Pengaturan > Akses Guest.
+    guestMenu: {
+      'database-anggota': false,
+      'jadwal': false
     }
   };
 }
@@ -269,11 +276,12 @@ async function loadDB(){
   const result = defaultDB();
   try{
     const entries = Object.entries(ARRAY_TABLE_MAP);
-    const [arrayResults, settingsRes, telegramRes, usersRes] = await Promise.all([
+    const [arrayResults, settingsRes, telegramRes, usersRes, guestMenuRes] = await Promise.all([
       Promise.all(entries.map(([, table]) => sb.from(table).select('*'))),
       sb.from('kt_settings').select('*'),
       sb.from('kt_telegram_settings').select('*').eq('id', 'main').maybeSingle(),
       sb.rpc('rpc_list_users'),
+      sb.from('kt_guest_menu_settings').select('*').eq('id', 'main').maybeSingle(),
     ]);
 
     entries.forEach(([key, table], idx) => {
@@ -295,6 +303,11 @@ async function loadDB(){
         chatId: telegramRes.data.chat_id || '',
         enabled: !!telegramRes.data.enabled,
       };
+    }
+
+    if(!guestMenuRes.error && guestMenuRes.data && guestMenuRes.data.hidden_sections){
+      result.guestMenu = {};
+      (guestMenuRes.data.hidden_sections || []).forEach(key => { result.guestMenu[key] = false; });
     }
 
     result.activeEventId = localStorage.getItem('kt_active_event') || (result.events[0] ? result.events[0].id : null);
@@ -350,6 +363,15 @@ async function syncTelegram(){
   if(error) console.error('Gagal menyimpan kt_telegram_settings:', error);
 }
 
+async function syncGuestMenu(){
+  const hiddenSections = Object.keys(db.guestMenu || {}).filter(k => db.guestMenu[k] === false);
+  const { error } = await sb.from('kt_guest_menu_settings').upsert({
+    id: 'main',
+    hidden_sections: hiddenSections,
+  }, { onConflict: 'id' });
+  if(error) console.error('Gagal menyimpan kt_guest_menu_settings:', error);
+}
+
 // saveDB() dipanggil di puluhan tempat setiap ada perubahan kecil. Sebelumnya setiap panggilan
 // langsung melakukan sync PENUH (select+upsert+delete-diff) ke 15+ tabel sekaligus, dan bisa
 // berjalan paralel tanpa lock kalau dipanggil beruntun cepat (race condition antar sync).
@@ -374,6 +396,7 @@ async function _flushSaveDB(){
       ...Object.entries(ARRAY_TABLE_MAP).map(([key, table]) => syncArrayTable(table, db[key])),
       syncSettings(),
       syncTelegram(),
+      syncGuestMenu(),
     ]);
   }catch(e){
     console.error('Gagal menyimpan ke Supabase', e);
@@ -439,6 +462,14 @@ function getSettings(){
    ============================================================ */
 function getTelegramSettings(){
   return db.telegram;
+}
+
+/* ============================================================
+   AKSES GUEST (menu apa saja yang boleh dilihat tanpa login)
+   ============================================================ */
+function isGuestVisible(sectionKey){
+  // Default: section boleh dilihat guest kecuali eksplisit diset false
+  return !(db.guestMenu && db.guestMenu[sectionKey] === false);
 }
 
 function saveTelegramSettings(settings){
@@ -591,7 +622,9 @@ function renderSidebar(){
   }
 
   const nav = document.getElementById('nav');
-  const visibleSections = SECTIONS.filter(s => !s.adminOnly || isAdminUser);
+  const visibleSections = SECTIONS
+    .filter(s => !s.adminOnly || isAdminUser)
+    .filter(s => isLoggedIn || s.adminOnly || isGuestVisible(s.key));
   nav.innerHTML = visibleSections.map(s=>`
     <div class="nav-item ${s.key===currentSection?'active':''} ${!isLoggedIn && !s.adminOnly ? '' : ''}" data-nav="${s.key}">
       ${icon(s.icon)} <span>${s.label}</span>
@@ -607,6 +640,10 @@ function goSection(key){
   const section = SECTIONS.find(s=>s.key===key);
   if (section && section.adminOnly && !(user && user.role === 'admin')) {
     toast('⛔ Hanya Admin yang bisa mengakses halaman ini');
+    return;
+  }
+  if (section && !user && !isGuestVisible(key)) {
+    toast('⛔ Halaman ini tidak tersedia untuk Guest. Silakan login.');
     return;
   }
   currentSection = key;
@@ -660,6 +697,12 @@ function renderContent(){
   const section = SECTIONS.find(s=>s.key===currentSection);
   if (section && section.adminOnly && !isAdminUser) {
     el.innerHTML = `<div class="empty-state"><h3>⛔ Akses Ditolak</h3><p>Halaman ini hanya untuk Admin.</p><button class="btn" onclick="goSection('dashboard')">Kembali ke Dashboard</button></div>`;
+    return;
+  }
+
+  // Check if current section is hidden for guest
+  if (section && !isLoggedIn && !isGuestVisible(currentSection)) {
+    el.innerHTML = `<div class="empty-state"><h3>⛔ Akses Ditolak</h3><p>Halaman ini tidak tersedia untuk Guest.</p><button class="btn" onclick="openLoginModal()">🔑 Login untuk Mengakses</button></div>`;
     return;
   }
   
@@ -2445,6 +2488,23 @@ function renderPengaturan(){
     </div>
   </div>
   
+  <!-- AKSES GUEST -->
+  <div class="panel">
+    <div class="panel-head"><h3>👁️ Akses Guest (Belum Login)</h3></div>
+    <div class="panel-body">
+      <div class="hint" style="margin-bottom:10px;">Pilih menu yang boleh dilihat pengunjung yang belum login. Menu yang tidak dicentang akan disembunyikan dari Guest dan langsung ditolak jika diakses.</div>
+      <div class="guest-menu-list" style="display:flex;flex-direction:column;gap:8px;">
+        ${SECTIONS.filter(s=>!s.adminOnly).map(s=>`
+          <label style="display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--garis);border-radius:8px;">
+            <input type="checkbox" class="guest-menu-check" data-key="${s.key}" ${isGuestVisible(s.key) ? 'checked' : ''}>
+            <span>${icon(s.icon)}</span>
+            <span>${esc(s.label)}</span>
+          </label>`).join('')}
+      </div>
+      <button class="btn" style="margin-top:12px;" onclick="simpanGuestMenu()">💾 Simpan Akses Guest</button>
+    </div>
+  </div>
+
   <div class="panel">
     <div class="panel-head"><h3>Manajemen Event</h3></div>
     <div class="panel-body flush">
@@ -2490,6 +2550,17 @@ function simpanTelegram(){
   saveTelegramSettings(settings);
   toast('✅ Pengaturan Telegram disimpan');
   renderContent();
+}
+
+function simpanGuestMenu(){
+  if (!isAdmin()) { toast('⛔ Hanya Admin'); return; }
+  const checks = document.querySelectorAll('.guest-menu-check');
+  const guestMenu = {};
+  checks.forEach(c => { guestMenu[c.dataset.key] = c.checked; });
+  db.guestMenu = guestMenu;
+  saveDB();
+  toast('✅ Akses Guest disimpan');
+  renderSidebar();
 }
 
 function toggleTelegram(){

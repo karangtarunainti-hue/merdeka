@@ -1632,17 +1632,17 @@ function renderOperasional(){
   </td></tr>`).join('');
   return `<div class="stat-grid"><div class="stat-card pengeluaran"><div class="lbl">Total Operasional</div><div class="val">${fmtRp(total)}</div></div></div>
   <div class="panel"><div class="panel-head"><h3>Biaya Operasional</h3>${isLoggedIn ? `<button class="btn" onclick="openOperasionalModal()">+ Tambah</button>` : ''}</div>
-  <div class="panel-body flush"><table class="general-table"><thead><tr><th>Tanggal</th><th>Keterangan</th><th>Catatan</th><th class="num">Jumlah</th><th></th></tr></thead>
+  <div class="panel-body flush"><table class="general-table"><thead><tr><th>Tanggal</th><th>Nama</th><th>Catatan</th><th class="num">Jumlah</th><th></th></tr></thead>
   <tbody>${rows||`<tr class="empty-row"><td colspan="5">Belum ada biaya.</td></tr>`}</tbody></table></div></div>`;
 }
 function openOperasionalModal(id){
   if (!canEditSection('operasional')) { toast('⛔ Login untuk mengedit data'); return; }
   const editing = id ? db.operasional.find(o=>o.id===id) : null;
   setModal(editing?'Edit Biaya':'Tambah Biaya', `
-    <div class="field"><label>Keterangan</label><input id="f-ket" value="${editing?esc(editing.keterangan):''}"></div>
+    <div class="field"><label>Nama</label><input id="f-ket" value="${editing?esc(editing.keterangan):''}"></div>
     <div class="field-row"><div class="field"><label>Jumlah (Rp)</label><input id="f-jumlah" class="currency-input" type="text" value="${editing?formatCurrency(editing.jumlah):''}"></div>
     <div class="field"><label>Tanggal</label><input id="f-tanggal" type="date" value="${editing?editing.tanggal:todayISO()}"></div></div>
-    <div class="field"><label>Catatan Bukti</label><input id="f-bukti" value="${editing?esc(editing.catatan_bukti||''):''}"></div>
+    <div class="field"><label>Catatan (opsional)</label><input id="f-bukti" value="${editing?esc(editing.catatan_bukti||''):''}"></div>
   `, [
     {label:'Batal', cls:'secondary', onclick:closeModal},
     {label:editing?'Simpan':'Tambah', cls:'', onclick:()=>{
@@ -1650,12 +1650,12 @@ function openOperasionalModal(id){
       const jumlah = getCurrencyValue(document.getElementById('f-jumlah'));
       const tanggal = document.getElementById('f-tanggal').value||todayISO();
       const bukti = document.getElementById('f-bukti').value.trim();
-      if(!ket||jumlah<=0){ toast('Keterangan & jumlah wajib'); return; }
+      if(!ket||jumlah<=0){ toast('Nama & jumlah wajib'); return; }
       let actionMsg = '';
       if(editing){ actionMsg = `✏️ Edit biaya operasional: ${editing.keterangan} → ${ket}`; Object.assign(editing,{keterangan:ket,jumlah,tanggal,catatan_bukti:bukti}); }
       else{ actionMsg = `➕ Biaya operasional baru: ${ket}`; db.operasional.push({id:uid(),event_id:eid(),keterangan:ket,jumlah,tanggal,catatan_bukti:bukti}); }
       saveDB(); closeModal(); renderContent(); renderTopbarSaldo(); toast('Disimpan');
-      notifyTelegram(actionMsg, `Keterangan: ${ket}\nJumlah: ${fmtRp(jumlah)}\nTanggal: ${fmtDate(tanggal)}\nCatatan: ${bukti || '-'}`);
+      notifyTelegram(actionMsg, `Nama: ${ket}\nJumlah: ${fmtRp(jumlah)}\nTanggal: ${fmtDate(tanggal)}\nCatatan: ${bukti || '-'}`);
     }}
   ]);
   setTimeout(setupAllCurrencyInputs, 50);

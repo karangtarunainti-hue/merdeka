@@ -1,6 +1,6 @@
 {
-  "name": "Buku Keuangan — Karang Taruna",
-  "short_name": "Buku Keuangan",
+  "name": "Taruna Inti",
+  "short_name": "Taruna Inti",
   "description": "Aplikasi pembukuan keuangan Karang Taruna: iuran anggota, donatur, operasional kegiatan, dan lomba.",
   "start_url": "./index.html",
   "scope": "./",

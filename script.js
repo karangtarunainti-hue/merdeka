@@ -1939,7 +1939,7 @@ function renderHadiah(){
     }).join('');
     const namaLombaKategori = semuaLomba.filter(l => l.kategori_peserta === kp.v).map(l => l.nama);
     const kebutuhanInfo = jumlahLomba > 0 ? `<span style="font-size:11.5px;color:var(--ink-soft);font-weight:500;text-transform:none;letter-spacing:0;margin-left:8px;">(${jumlahLomba} lomba)</span>` : '';
-    const daftarLombaInfo = namaLombaKategori.length ? `<div style="font-size:11.5px;color:var(--ink-soft);font-weight:400;margin:2px 0 6px;">🏁 ${namaLombaKategori.map(n=>esc(n)).join(' · ')}</div>` : '';
+    const daftarLombaInfo = namaLombaKategori.length ? `<div class="lomba-mini-list">${namaLombaKategori.map((n,i)=>`<span class="lomba-mini-chip"><span class="num">${i+1}</span>${esc(n)}</span>`).join('')}</div>` : '';
     return `<div class="subgroup-title">${kp.l}${kebutuhanInfo}</div>${daftarLombaInfo}${groupHtml}`;
   }).join('');
 

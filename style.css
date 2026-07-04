@@ -518,7 +518,7 @@
   }
   .overlay.show{display:flex;}
   .modal{
-    background:var(--cream-card); border-radius:14px; width:100%; max-width:580px;
+    background:var(--cream-card); border-radius:14px; width:100%; max-width:720px;
     box-shadow:0 20px 60px rgba(0,0,0,.25); border:1px solid var(--garis);
   }
   .modal-head{padding:18px 22px 12px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--garis);}

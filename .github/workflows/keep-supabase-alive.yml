@@ -1,0 +1,40 @@
+name: Keep Supabase Alive
+
+# Supabase free tier akan otomatis PAUSE project kalau tidak ada
+# aktivitas sama sekali selama ~7 hari. Workflow ini "nge-ping"
+# database setiap 3 hari sekali supaya dihitung sebagai aktivitas,
+# jadi project tidak pernah pause.
+
+on:
+  schedule:
+    # Jalan setiap 3 hari sekali jam 03:00 UTC (~10:00 WIB)
+    - cron: '0 3 */3 * *'
+  workflow_dispatch: {}   # tombol "Run workflow" manual di tab Actions
+
+jobs:
+  ping-supabase:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase REST API
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          set -e
+          echo "Melakukan request ringan ke Supabase..."
+
+          http_status=$(curl -s -o /tmp/response.json -w "%{http_code}" \
+            "$SUPABASE_URL/rest/v1/kt_settings?select=event_id&limit=1" \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY")
+
+          echo "HTTP status: $http_status"
+          cat /tmp/response.json
+          echo ""
+
+          if [ "$http_status" -ge 200 ] && [ "$http_status" -lt 300 ]; then
+            echo "✅ Supabase merespons normal, project tetap aktif."
+          else
+            echo "⚠️ Supabase merespons dengan status tidak normal ($http_status)."
+            exit 1
+          fi

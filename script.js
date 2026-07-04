@@ -1991,7 +1991,7 @@ function renderBelanjaHadiah(){
 
   if(!items.length) return `<div class="panel"><div class="panel-head"><h3>🎁 Belanja Hadiah</h3></div><div class="panel-body"><div class="empty-state"><h3>Belum ada hadiah</h3><button class="btn" onclick="goSection('hadiah')">+ Tambah Hadiah</button></div></div></div>`;
 
-  // Kelompokkan per NAMA barang (gabungan lintas kategori peserta & juara), total kebutuhan digabung, detail per juara tetap ada
+  // Kelompokkan per NAMA barang (gabungan lintas kategori peserta & juara) menjadi SATU checklist
   const nameMap = {};
   items.forEach(item => {
     const key = item.itemNama.trim().toLowerCase();
@@ -2004,39 +2004,29 @@ function renderBelanjaHadiah(){
     return a.nama.localeCompare(b.nama);
   });
 
-  const groups = nameGroups.map(g => {
+  window._belanjaHadiahGroups = {};
+  const groups = nameGroups.map((g, gi) => {
     const list = g.list.slice().sort((a,b) => {
-      if(a.sudahDibeli !== b.sudahDibeli) return a.sudahDibeli ? 1 : -1;
       if(a.kategori_peserta !== b.kategori_peserta) return a.kategori_peserta.localeCompare(b.kategori_peserta);
       return a.juara_ke.localeCompare(b.juara_ke);
     });
+    window._belanjaHadiahGroups[gi] = {nama: g.nama, refs: list.map(i=>({hadiahId:i.id, itemIndex:i.itemIndex}))};
+
     const totalQty = list.reduce((s,i)=>s+Number(i.itemQtyDibeli||0),0);
     const totalHarga = list.reduce((s,i)=>s+(Number(i.itemHarga||0)*Number(i.itemQtyDibeli||0)),0);
+    const semuaDibeli = list.every(i=>i.sudahDibeli);
     const belum = list.filter(i=>!i.sudahDibeli);
-    const belumQty = belum.reduce((s,i)=>s+Number(i.itemQtyDibeli||0),0);
-    const belumHarga = belum.reduce((s,i)=>s+(Number(i.itemHarga||0)*Number(i.itemQtyDibeli||0)),0);
+    const tglTerbaru = list.filter(i=>i.tanggalBeli).map(i=>i.tanggalBeli).sort().pop();
 
-    const itemHtml = list.map(item => {
-      const isDibeli = item.sudahDibeli;
-      const hargaTotal = Number(item.itemHarga||0)*Number(item.itemQtyDibeli||0);
-      return `<div class="belanja-item ${isDibeli?'dibeli':''}">
-        <div class="checkbox-wrapper ${isDibeli?'checked':''} ${!isLoggedIn ? 'disabled' : ''}" onclick="${isLoggedIn ? `toggleBelanjaHadiah('${item.id}',${item.itemIndex},'${item.belanjaId||''}')` : 'toast(\'⛔ Login untuk mengedit\')'}"></div>
-        <div class="info"><div class="detail"><span class="tag">${labelPeserta(item.kategori_peserta)}</span><span class="tag">${labelJuara(item.juara_ke)}</span><span>Qty: ${item.itemQtyDibeli}</span>${isDibeli&&item.tanggalBeli?`<span>✓ Dibeli: ${fmtDate(item.tanggalBeli)}</span>`:''}</div></div>
-        <div class="harga">${fmtRp(hargaTotal)}</div>
-        <button class="btn-small-icon" onclick="editBelanjaHadiah('${item.id}',${item.itemIndex})" ${!isLoggedIn ? 'disabled' : ''}>✎</button>
-      </div>`;
-    }).join('');
+    const tagHtml = list.map(item => `<span class="tag">${labelPeserta(item.kategori_peserta)} · ${labelJuara(item.juara_ke)} · ${item.itemQtyDibeli} pcs</span>`).join('');
 
-    return `<div class="consol-group">
-      <div class="consol-head">
-        <div class="consol-nama">🎁 ${esc(g.nama)}</div>
-        <div class="consol-stats">
-          <span class="consol-qty">Total butuh: <strong>${totalQty} pcs</strong></span>
-          <span class="consol-harga">${fmtRp(totalHarga)}</span>
-          ${belum.length ? `<span class="consol-status belum">Belum: ${belumQty} pcs · ${fmtRp(belumHarga)}</span>` : `<span class="consol-status selesai">✓ Semua sudah dibeli</span>`}
-        </div>
+    return `<div class="belanja-item ${semuaDibeli?'dibeli':''}">
+      <div class="checkbox-wrapper ${semuaDibeli?'checked':''} ${!isLoggedIn ? 'disabled' : ''}" onclick="${isLoggedIn ? `toggleBelanjaHadiahGroup(${gi})` : 'toast(\'⛔ Login untuk mengedit\')'}"></div>
+      <div class="info">
+        <div class="nama">${esc(g.nama)} <span style="font-weight:600; color:var(--ink-soft); font-size:12px;">(Total: ${totalQty} pcs)</span></div>
+        <div class="detail">${tagHtml}${semuaDibeli&&tglTerbaru?`<span>✓ Dibeli: ${fmtDate(tglTerbaru)}</span>`:(belum.length && belum.length<list.length ? `<span style="color:var(--orange);">Sebagian belum (${belum.length}/${list.length})</span>` : '')}</div>
       </div>
-      <div class="consol-detail">${itemHtml}</div>
+      <div class="harga">${fmtRp(totalHarga)}</div>
     </div>`;
   }).join('');
 
@@ -2074,6 +2064,34 @@ function toggleBelanjaHadiah(hadiahId, itemIndex, belanjaId){
   }
   saveDB(); renderContent(); renderTopbarSaldo();
   if(actionMsg) notifyTelegram(actionMsg, `Paket: ${labelPeserta(h.kategori_peserta)} - ${labelJuara(h.juara_ke)}\nQty: ${item.qty_dibeli}\nHarga: ${fmtRp(item.harga_satuan)}`);
+}
+function toggleBelanjaHadiahGroup(gi){
+  if (!canEditSection('belanja-hadiah')) { toast('⛔ Login untuk mengedit data'); return; }
+  const group = (window._belanjaHadiahGroups||{})[gi];
+  if(!group || !group.refs.length){ toast('Item tidak ditemukan'); return; }
+  const semuaDibeli = group.refs.every(r => {
+    const existing = db.daftarBelanjaHadiah.find(b=>b.hadiah_kategori_id===r.hadiahId && b.item_index===r.itemIndex && b.event_id===eid());
+    return existing && existing.status === 'dibeli';
+  });
+  const newStatus = semuaDibeli ? 'belum_dibeli' : 'dibeli';
+  const tgl = newStatus === 'dibeli' ? todayISO() : null;
+  const detail = [];
+  group.refs.forEach(r => {
+    const h = db.hadiahKategori.find(x=>x.id===r.hadiahId);
+    if(!h || !h.items[r.itemIndex]) return;
+    let existing = db.daftarBelanjaHadiah.find(b=>b.hadiah_kategori_id===r.hadiahId && b.item_index===r.itemIndex && b.event_id===eid());
+    if(existing){ existing.status = newStatus; existing.tanggal_beli = tgl; }
+    else { db.daftarBelanjaHadiah.push({id:uid(), event_id:eid(), hadiah_kategori_id:r.hadiahId, item_index:r.itemIndex, status:newStatus, tanggal_beli:tgl}); }
+    detail.push(`${labelPeserta(h.kategori_peserta)} - ${labelJuara(h.juara_ke)}`);
+  });
+  saveDB(); renderContent(); renderTopbarSaldo();
+  if(newStatus==='dibeli'){
+    toast(`✓ "${group.nama}" dibeli (semua juara)`);
+    notifyTelegram(`✅ Belanja hadiah DIBELI: ${group.nama}`, detail.join('\n'));
+  } else {
+    toast(`"${group.nama}" → belum dibeli`);
+    notifyTelegram(`↩️ Belanja hadiah dibatalkan: ${group.nama}`, detail.join('\n'));
+  }
 }
 function tandaiSemuaBelanjaHadiah(){ 
   if (!canEditSection('belanja-hadiah')) { toast('⛔ Login untuk mengedit data'); return; }
@@ -2127,31 +2145,26 @@ function renderBelanjaPerlengkapan(){
     return a.nama.localeCompare(b.nama);
   });
 
-  const groupHtml = nameGroups.map(g => {
-    const groupItems = g.list.slice().sort((a,b) => { if(a.sudahDibeli!==b.sudahDibeli) return a.sudahDibeli?1:-1; return a.lombaNama.localeCompare(b.lombaNama); });
+  window._belanjaPerlengkapanGroups = {};
+  const groupHtml = nameGroups.map((g, gi) => {
+    const groupItems = g.list.slice().sort((a,b) => a.lombaNama.localeCompare(b.lombaNama));
+    window._belanjaPerlengkapanGroups[gi] = {nama: g.nama, refs: groupItems.map(i=>i.id)};
+
     const totalQty = groupItems.reduce((s,i)=>s+Number(i.qty||0),0);
     const totalHarga = groupItems.reduce((s,i)=>s+i.hargaTotal,0);
+    const semuaDibeli = groupItems.every(i=>i.sudahDibeli);
     const groupBelum = groupItems.filter(i=>!i.sudahDibeli);
-    const groupBelumQty = groupBelum.reduce((s,i)=>s+Number(i.qty||0),0);
-    const groupBelumTotal = groupBelum.reduce((s,i)=>s+i.hargaTotal,0);
+    const tglTerbaru = groupItems.filter(i=>i.tanggalBeli).map(i=>i.tanggalBeli).sort().pop();
 
-    const itemHtml = groupItems.map(item => `<div class="belanja-item ${item.sudahDibeli?'dibeli':''}">
-      <div class="checkbox-wrapper ${item.sudahDibeli?'checked':''} ${!isLoggedIn ? 'disabled' : ''}" onclick="${isLoggedIn ? `toggleBelanjaPerlengkapan('${item.id}','${item.belanjaId||''}')` : 'toast(\'⛔ Login untuk mengedit\')'}"></div>
-      <div class="info"><div class="detail"><span class="tag tag-orange">📋 ${esc(item.lombaNama)}</span><span class="tag">${labelPeserta(item.lombaKategori)}</span><span>Qty: ${item.qty}</span>${item.harga_realisasi!=null?`<span>Realisasi: ${fmtRp(item.harga_realisasi)}</span>`:''}${item.sudahDibeli&&item.tanggalBeli?`<span>✓ Dibeli: ${fmtDate(item.tanggalBeli)}</span>`:''}</div></div>
-      <div class="harga">${fmtRp(item.hargaTotal)}</div>
-      <button class="btn-small-icon" onclick="editBelanjaPerlengkapan('${item.id}')" ${!isLoggedIn ? 'disabled' : ''}>✎</button>
-    </div>`).join('');
+    const tagHtml = groupItems.map(item => `<span class="tag tag-orange">📋 ${esc(item.lombaNama)} · ${labelPeserta(item.lombaKategori)} · ${item.qty}</span>`).join('');
 
-    return `<div class="consol-group">
-      <div class="consol-head">
-        <div class="consol-nama">📦 ${esc(g.nama)}</div>
-        <div class="consol-stats">
-          <span class="consol-qty">Total butuh: <strong>${totalQty}</strong></span>
-          <span class="consol-harga">${fmtRp(totalHarga)}</span>
-          ${groupBelum.length ? `<span class="consol-status belum">Belum: ${groupBelumQty} · ${fmtRp(groupBelumTotal)}</span>` : `<span class="consol-status selesai">✓ Semua sudah dibeli</span>`}
-        </div>
+    return `<div class="belanja-item ${semuaDibeli?'dibeli':''}">
+      <div class="checkbox-wrapper ${semuaDibeli?'checked':''} ${!isLoggedIn ? 'disabled' : ''}" onclick="${isLoggedIn ? `toggleBelanjaPerlengkapanGroup(${gi})` : 'toast(\'⛔ Login untuk mengedit\')'}"></div>
+      <div class="info">
+        <div class="nama">${esc(g.nama)} <span style="font-weight:600; color:var(--ink-soft); font-size:12px;">(Total: ${totalQty})</span></div>
+        <div class="detail">${tagHtml}${semuaDibeli&&tglTerbaru?`<span>✓ Dibeli: ${fmtDate(tglTerbaru)}</span>`:(groupBelum.length && groupBelum.length<groupItems.length ? `<span style="color:var(--orange);">Sebagian belum (${groupBelum.length}/${groupItems.length})</span>` : '')}</div>
       </div>
-      <div class="consol-detail">${itemHtml}</div>
+      <div class="harga">${fmtRp(totalHarga)}</div>
     </div>`;
   }).join('');
 
@@ -2188,6 +2201,34 @@ function toggleBelanjaPerlengkapan(kebutuhanId, belanjaId){
   }
   saveDB(); renderContent(); renderTopbarSaldo();
   if(actionMsg) notifyTelegram(actionMsg, `Item: ${k.nama_item}\nQty: ${k.qty}\nLomba: ${db.lomba.find(x=>x.id===k.lomba_id)?.nama || k.lomba_id}`);
+}
+function toggleBelanjaPerlengkapanGroup(gi){
+  if (!canEditSection('belanja-perlengkapan')) { toast('⛔ Login untuk mengedit data'); return; }
+  const group = (window._belanjaPerlengkapanGroups||{})[gi];
+  if(!group || !group.refs.length){ toast('Item tidak ditemukan'); return; }
+  const semuaDibeli = group.refs.every(kid => {
+    const existing = db.daftarBelanjaPerlengkapan.find(b=>b.kebutuhan_id===kid && b.event_id===eid());
+    return existing && existing.status === 'dibeli';
+  });
+  const newStatus = semuaDibeli ? 'belum_dibeli' : 'dibeli';
+  const tgl = newStatus === 'dibeli' ? todayISO() : null;
+  const detail = [];
+  group.refs.forEach(kid => {
+    const k = db.lombaKebutuhan.find(x=>x.id===kid);
+    if(!k) return;
+    let existing = db.daftarBelanjaPerlengkapan.find(b=>b.kebutuhan_id===kid && b.event_id===eid());
+    if(existing){ existing.status = newStatus; existing.tanggal_beli = tgl; }
+    else { db.daftarBelanjaPerlengkapan.push({id:uid(), event_id:eid(), kebutuhan_id:kid, status:newStatus, tanggal_beli:tgl}); }
+    detail.push(`${db.lomba.find(x=>x.id===k.lomba_id)?.nama || k.lomba_id}`);
+  });
+  saveDB(); renderContent(); renderTopbarSaldo();
+  if(newStatus==='dibeli'){
+    toast(`✓ "${group.nama}" dibeli (semua lomba)`);
+    notifyTelegram(`✅ Belanja perlengkapan DIBELI: ${group.nama}`, detail.join('\n'));
+  } else {
+    toast(`"${group.nama}" → belum dibeli`);
+    notifyTelegram(`↩️ Belanja perlengkapan dibatalkan: ${group.nama}`, detail.join('\n'));
+  }
 }
 function tandaiSemuaBelanjaPerlengkapan(){ 
   if (!canEditSection('belanja-perlengkapan')) { toast('⛔ Login untuk mengedit data'); return; }
@@ -2337,6 +2378,34 @@ function toggleBelanjaJalan(hadiahId){
   saveDB(); renderContent(); renderTopbarSaldo();
   if(actionMsg) notifyTelegram(actionMsg, `Kategori: ${labelKategoriJalan(h.kategori)}\nQty: ${h.qty}\nHarga: ${fmtRp(h.harga_satuan)}`);
 }
+function toggleBelanjaJalanGroup(gi){
+  if (!canEditSection('hadiah-jalan') && !canEditSection('belanja-jalan')) { toast('⛔ Login untuk mengedit data'); return; }
+  const group = (window._belanjaJalanGroups||{})[gi];
+  if(!group || !group.refs.length){ toast('Item tidak ditemukan'); return; }
+  const semuaDibeli = group.refs.every(hid => {
+    const existing = db.daftarBelanjaJalanSantai.find(b=>b.hadiah_jalan_id===hid && b.event_id===eid());
+    return existing && existing.status === 'dibeli';
+  });
+  const newStatus = semuaDibeli ? 'belum_dibeli' : 'dibeli';
+  const tgl = newStatus === 'dibeli' ? todayISO() : null;
+  const detail = [];
+  group.refs.forEach(hid => {
+    const h = db.hadiahJalanSantai.find(x=>x.id===hid);
+    if(!h) return;
+    let existing = db.daftarBelanjaJalanSantai.find(b=>b.hadiah_jalan_id===hid && b.event_id===eid());
+    if(existing){ existing.status = newStatus; existing.tanggal_beli = tgl; }
+    else { db.daftarBelanjaJalanSantai.push({id:uid(), event_id:eid(), hadiah_jalan_id:hid, status:newStatus, tanggal_beli:tgl}); }
+    detail.push(labelKategoriJalan(h.kategori));
+  });
+  saveDB(); renderContent(); renderTopbarSaldo();
+  if(newStatus==='dibeli'){
+    toast(`✓ "${group.nama}" dibeli (semua kategori)`);
+    notifyTelegram(`✅ Belanja jalan santai DIBELI: ${group.nama}`, detail.join('\n'));
+  } else {
+    toast(`"${group.nama}" → belum dibeli`);
+    notifyTelegram(`↩️ Belanja jalan santai dibatalkan: ${group.nama}`, detail.join('\n'));
+  }
+}
 
 function renderBelanjaJalanSantai(){
   const list = gHadiahJalanSantai();
@@ -2396,45 +2465,28 @@ function renderBelanjaJalanSantai(){
     return a.nama.localeCompare(b.nama);
   });
 
-  const groups = nameGroups.map(g => {
-    const groupItems = g.list.slice().sort((a,b) => { if(a.sudahDibeli!==b.sudahDibeli) return a.sudahDibeli?1:-1; return a.kategori.localeCompare(b.kategori); });
+  window._belanjaJalanGroups = {};
+  const groups = nameGroups.map((g, gi) => {
+    const groupItems = g.list.slice().sort((a,b) => a.kategori.localeCompare(b.kategori));
+    window._belanjaJalanGroups[gi] = {nama: g.nama, refs: groupItems.map(i=>i.id)};
+
     const totalQty = groupItems.reduce((s,i)=>s+Number(i.qty||0),0);
     const totalHarga = groupItems.reduce((s, i) => s + i.hargaTotal, 0);
+    const semuaDibeli = groupItems.every(i=>i.sudahDibeli);
     const groupBelum = groupItems.filter(i => !i.sudahDibeli);
-    const groupBelumQty = groupBelum.reduce((s,i)=>s+Number(i.qty||0),0);
-    const groupBelumTotal = groupBelum.reduce((s, i) => s + i.hargaTotal, 0);
+    const tglTerbaru = groupItems.filter(i=>i.tanggalBeli).map(i=>i.tanggalBeli).sort().pop();
 
-    const itemHtml = groupItems.map(item => {
-      const isDibeli = item.sudahDibeli;
-      return `
-      <div class="belanja-item ${isDibeli ? 'dibeli' : ''}">
-        <div class="checkbox-wrapper ${isDibeli ? 'checked' : ''} ${!isLoggedIn ? 'disabled' : ''}" 
-             onclick="${isLoggedIn ? `toggleBelanjaJalan('${item.id}')` : 'toast(\'⛔ Login untuk mengedit\')'}">
-        </div>
-        <div class="info">
-          <div class="detail">
-            <span class="tag tag-pink">${labelKategoriJalan(item.kategori)}</span>
-            <span>Qty: ${item.qty}</span>
-            <span>@${fmtRp(item.harga_satuan)}</span>
-            ${isDibeli && item.tanggalBeli ? `<span>✓ Dibeli: ${fmtDate(item.tanggalBeli)}</span>` : ''}
-            ${item.keterangan ? `<span>${esc(item.keterangan)}</span>` : ''}
-          </div>
-        </div>
-        <div class="harga">${fmtRp(item.hargaTotal)}</div>
-        <button class="btn-small-icon" onclick="openHadiahJalanModal('${item.id}')" ${!isLoggedIn ? 'disabled' : ''} title="Edit">✎</button>
-      </div>`;
-    }).join('');
+    const tagHtml = groupItems.map(item => `<span class="tag tag-pink">${labelKategoriJalan(item.kategori)} · ${item.qty} @${fmtRp(item.harga_satuan)}${item.keterangan?` · ${esc(item.keterangan)}`:''}</span>`).join('');
 
-    return `<div class="consol-group">
-      <div class="consol-head">
-        <div class="consol-nama">🛍️ ${esc(g.nama)}</div>
-        <div class="consol-stats">
-          <span class="consol-qty">Total butuh: <strong>${totalQty}</strong></span>
-          <span class="consol-harga">${fmtRp(totalHarga)}</span>
-          ${groupBelum.length ? `<span class="consol-status belum">Belum: ${groupBelumQty} · ${fmtRp(groupBelumTotal)}</span>` : `<span class="consol-status selesai">✓ Semua sudah dibeli</span>`}
-        </div>
+    return `<div class="belanja-item ${semuaDibeli ? 'dibeli' : ''}">
+      <div class="checkbox-wrapper ${semuaDibeli ? 'checked' : ''} ${!isLoggedIn ? 'disabled' : ''}" 
+           onclick="${isLoggedIn ? `toggleBelanjaJalanGroup(${gi})` : 'toast(\'⛔ Login untuk mengedit\')'}">
       </div>
-      <div class="consol-detail">${itemHtml}</div>
+      <div class="info">
+        <div class="nama">${esc(g.nama)} <span style="font-weight:600; color:var(--ink-soft); font-size:12px;">(Total: ${totalQty})</span></div>
+        <div class="detail">${tagHtml}${semuaDibeli&&tglTerbaru?`<span>✓ Dibeli: ${fmtDate(tglTerbaru)}</span>`:(groupBelum.length && groupBelum.length<groupItems.length ? `<span style="color:var(--orange);">Sebagian belum (${groupBelum.length}/${groupItems.length})</span>` : '')}</div>
+      </div>
+      <div class="harga">${fmtRp(totalHarga)}</div>
     </div>`;
   }).join('');
 

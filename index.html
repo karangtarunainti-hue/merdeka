@@ -20,6 +20,13 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
+<script>
+  (function(){
+    var saved = localStorage.getItem('kt_theme');
+    var theme = saved || ((window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light');
+    document.documentElement.setAttribute('data-theme', theme);
+  })();
+</script>
 </head>
 <body>
 
@@ -62,6 +69,7 @@
         <span class="lbl">Saldo</span>
         <span class="val mono" id="saldo-val">Rp 0</span>
       </div>
+      <button class="theme-toggle" id="theme-toggle" type="button" onclick="toggleTheme()" aria-label="Ganti mode gelap/terang">🌙</button>
     </div>
     <div id="content"></div>
   </main>

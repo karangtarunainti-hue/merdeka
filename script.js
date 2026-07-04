@@ -595,12 +595,12 @@ const SECTIONS = [
   {key:'donatur', label:'Donatur', sub:'Sumbangan tunai dari donatur', icon:'heart', adminOnly: false},
   {key:'transaksi', label:'Transaksi Lain', sub:'Pemasukan di luar iuran & donasi', icon:'swap', adminOnly: false},
   {key:'operasional', label:'Operasional Kegiatan', sub:'Biaya operasional umum event', icon:'briefcase', adminOnly: false},
-  {key:'lomba', label:'Lomba & Kebutuhan', sub:'Kebutuhan barang per lomba', icon:'flag', adminOnly: false},
-  {key:'belanja-perlengkapan', label:'Belanja Perlengkapan', sub:'Daftar belanja perlengkapan lomba', icon:'package', adminOnly: false},
-  {key:'hadiah', label:'Stok Hadiah Lomba', sub:'Belanja hadiah per kategori peserta', icon:'gift', adminOnly: false},
-  {key:'belanja-hadiah', label:'Belanja Hadiah', sub:'Daftar belanja hadiah lomba', icon:'shopping', adminOnly: false},
-  {key:'hadiah-jalan', label:'Hadiah Jalan Santai', sub:'Kelola hadiah jalan santai', icon:'walk', adminOnly: false},
-  {key:'belanja-jalan', label:'Belanja Jalan Santai', sub:'Daftar belanja hadiah jalan santai', icon:'shopping-bag', adminOnly: false},
+  {key:'lomba', label:'Lomba & Kebutuhan', sub:'Kebutuhan barang per lomba', icon:'flag', adminOnly: false, color:'hijau'},
+  {key:'belanja-perlengkapan', label:'Belanja Perlengkapan', sub:'Daftar belanja perlengkapan lomba', icon:'package', adminOnly: false, color:'biru'},
+  {key:'hadiah', label:'Stok Hadiah Lomba', sub:'Belanja hadiah per kategori peserta', icon:'gift', adminOnly: false, color:'gold'},
+  {key:'belanja-hadiah', label:'Belanja Hadiah', sub:'Daftar belanja hadiah lomba', icon:'shopping', adminOnly: false, color:'orange'},
+  {key:'hadiah-jalan', label:'Hadiah Jalan Santai', sub:'Kelola hadiah jalan santai', icon:'walk', adminOnly: false, color:'ungu'},
+  {key:'belanja-jalan', label:'Belanja Jalan Santai', sub:'Daftar belanja hadiah jalan santai', icon:'shopping-bag', adminOnly: false, color:'pink'},
   {key:'jadwal', label:'Jadwal & Reminder', sub:'Kelola jadwal dan pengingat', icon:'calendar', adminOnly: false},
   {key:'pengaturan', label:'Pengaturan', sub:'Tarif iuran & event', icon:'gear', adminOnly: true},
   {key:'users', label:'Manajemen User', sub:'Kelola akun pengguna', icon:'users', adminOnly: true},
@@ -663,7 +663,7 @@ function renderSidebar(){
       return true;
     });
   nav.innerHTML = visibleSections.map(s=>`
-    <div class="nav-item ${s.key===currentSection?'active':''} ${!isLoggedIn && !s.adminOnly ? '' : ''}" data-nav="${s.key}">
+    <div class="nav-item ${s.color?'nav-color-'+s.color:''} ${s.key===currentSection?'active':''} ${!isLoggedIn && !s.adminOnly ? '' : ''}" data-nav="${s.key}">
       ${icon(s.icon)} <span>${s.label}</span>
       ${s.adminOnly && !isAdminUser ? `<span class="lock-icon">🔒</span>` : ''}
     </div>`).join('');

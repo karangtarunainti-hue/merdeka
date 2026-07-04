@@ -175,6 +175,37 @@
     font-size:12px;
     opacity:.5;
   }
+
+  /* Warna dasar per kategori menu: Lomba, Belanja Perlengkapan, Stok Hadiah, Belanja Hadiah, Hadiah/Belanja Jalan Santai */
+  .nav-item.nav-color-hijau svg{color:#8FD9AE;}
+  .nav-item.nav-color-hijau:hover{background:rgba(63,110,82,.28);}
+  .nav-item.nav-color-hijau.active{border-left-color:var(--hijau); color:var(--hijau);}
+  .nav-item.nav-color-hijau.active svg{color:var(--hijau);}
+
+  .nav-item.nav-color-biru svg{color:#8FCBEA;}
+  .nav-item.nav-color-biru:hover{background:rgba(58,107,140,.28);}
+  .nav-item.nav-color-biru.active{border-left-color:var(--biru); color:var(--biru);}
+  .nav-item.nav-color-biru.active svg{color:var(--biru);}
+
+  .nav-item.nav-color-gold svg{color:#EACD84;}
+  .nav-item.nav-color-gold:hover{background:rgba(201,154,60,.28);}
+  .nav-item.nav-color-gold.active{border-left-color:var(--gold); color:var(--kategori-text);}
+  .nav-item.nav-color-gold.active svg{color:var(--gold);}
+
+  .nav-item.nav-color-orange svg{color:#F2B77E;}
+  .nav-item.nav-color-orange:hover{background:rgba(201,125,60,.28);}
+  .nav-item.nav-color-orange.active{border-left-color:var(--orange); color:var(--orange);}
+  .nav-item.nav-color-orange.active svg{color:var(--orange);}
+
+  .nav-item.nav-color-ungu svg{color:#D3A6E3;}
+  .nav-item.nav-color-ungu:hover{background:rgba(123,76,140,.28);}
+  .nav-item.nav-color-ungu.active{border-left-color:var(--ungu); color:var(--ungu);}
+  .nav-item.nav-color-ungu.active svg{color:var(--ungu);}
+
+  .nav-item.nav-color-pink svg{color:#F0A8C4;}
+  .nav-item.nav-color-pink:hover{background:rgba(201,76,124,.28);}
+  .nav-item.nav-color-pink.active{border-left-color:var(--pink); color:var(--pink);}
+  .nav-item.nav-color-pink.active svg{color:var(--pink);}
   .nav-foot{padding:14px 18px 18px; font-size:11px; color:#C9A9A9; border-top:1px solid rgba(255,255,255,.1);}
 
   .main{flex:1; min-width:0; display:flex; flex-direction:column;}

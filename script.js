@@ -1777,7 +1777,7 @@ function renderHadiahLombaBlock(lomba){
     const current = assigned.find(a=>a.juara_ke===j.v);
     const currentHadiah = current ? db.hadiahKategori.find(h=>h.id===current.hadiah_kategori_id) : null;
     const opsi = gHadiahKategori().filter(h=> h.kategori_peserta===lomba.kategori_peserta && h.juara_ke===j.v &&
-      h.items.some(item => (Number(item.qty_terpakai||0) < Number(item.qty_dibeli||0)) || (currentHadiah && h.id===currentHadiah.id)));
+      (h.items.every(item => Number(item.qty_terpakai||0) < Number(item.qty_dibeli||0)) || (currentHadiah && h.id===currentHadiah.id)));
     return `<div class="juara-row"><div class="juara-tag">${j.l}</div>
       <select class="juara-select" onchange="setLombaHadiah('${lomba.id}','${j.v}',this.value)" ${!isLoggedIn ? 'disabled' : ''}>
         <option value="">— Pilih paket —</option>

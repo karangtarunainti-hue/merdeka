@@ -191,6 +191,15 @@ values ('main', '["database-anggota", "jadwal"]'::jsonb)
 on conflict (id) do nothing;
 
 -- ============================================================
+-- BAGIAN 4: kt_settings — tambah kolom hadiah_budget
+-- Untuk fitur "Atur Budget" di halaman Stok Hadiah Lomba: target
+-- budget per kombinasi Kategori Peserta (anak/ibu/dst) x Juara
+-- (1/2/3/partisipasi), disimpan sebagai jsonb per event_id.
+-- Aman dijalankan berkali-kali (idempotent).
+-- ============================================================
+alter table kt_settings add column if not exists hadiah_budget jsonb not null default '{}'::jsonb;
+
+-- ============================================================
 -- SELESAI. Setelah ini dijalankan, upload ulang script.js yang sudah
 -- disesuaikan (lihat pesan chat) — karena kt_users sekarang HANYA bisa
 -- diakses lewat rpc_login / rpc_list_users / rpc_upsert_user / rpc_delete_user,

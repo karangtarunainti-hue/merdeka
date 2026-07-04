@@ -323,7 +323,7 @@ async function loadDB(){
     result.users = (!usersRes.error && usersRes.data && usersRes.data.length) ? usersRes.data : [...DEFAULT_USERS_FALLBACK];
 
     if(!settingsRes.error){
-      (settingsRes.data || []).forEach(s => { result.settings[s.event_id] = { tarif: s.tarif }; });
+      (settingsRes.data || []).forEach(s => { result.settings[s.event_id] = { tarif: s.tarif, hadiahBudget: s.hadiah_budget || {} }; });
     }
 
     if(!telegramRes.error && telegramRes.data){
@@ -365,7 +365,7 @@ async function syncArrayTable(table, rows){
 }
 
 async function syncSettings(){
-  const rows = Object.keys(db.settings).map(eventId => ({ event_id: eventId, tarif: db.settings[eventId].tarif }));
+  const rows = Object.keys(db.settings).map(eventId => ({ event_id: eventId, tarif: db.settings[eventId].tarif, hadiah_budget: db.settings[eventId].hadiahBudget || {} }));
   const { data: existing, error: selErr } = await sb.from('kt_settings').select('event_id');
   if(selErr){ console.error('Gagal membaca kt_settings:', selErr); return; }
   const existingIds = new Set((existing || []).map(r => r.event_id));
@@ -482,9 +482,17 @@ const KATEGORI_JADWAL = [
 function activeEvent(){ return db.events.find(e=>e.id===db.activeEventId) || null; }
 function eid(){ return db.activeEventId; }
 function getSettings(){
-  if(!eid()) return {tarif:{sekolah:0,bekerja:0,perantauan:0,khusus:0}};
-  if(!db.settings[eid()]) db.settings[eid()] = {tarif:{sekolah:0,bekerja:0,perantauan:0,khusus:0}};
+  if(!eid()) return {tarif:{sekolah:0,bekerja:0,perantauan:0,khusus:0}, hadiahBudget:{}};
+  if(!db.settings[eid()]) db.settings[eid()] = {tarif:{sekolah:0,bekerja:0,perantauan:0,khusus:0}, hadiahBudget:{}};
+  if(!db.settings[eid()].hadiahBudget) db.settings[eid()].hadiahBudget = {};
   return db.settings[eid()];
+}
+
+// Budget hadiah diatur per kombinasi Kategori Peserta (anak/ibu/dst) x Juara (1/2/3/partisipasi).
+// Dipakai sebagai acuan target belanja hadiah, dibandingkan dengan total belanja aktual per paket.
+function getHadiahBudget(kategoriPeserta, juaraKe){
+  const s = getSettings();
+  return Number((s.hadiahBudget[kategoriPeserta] || {})[juaraKe] || 0);
 }
 
 /* ============================================================
@@ -1900,7 +1908,15 @@ function renderHadiah(){
             ? `<span class="lomba-badge warn" style="margin-left:8px;">⚠️ Kurang, butuh ${kebutuhan} (dari ${jumlahLomba} lomba)</span>`
             : `<span class="lomba-badge" style="margin-left:8px;">✓ Kebutuhan ${kebutuhan} paket terpenuhi</span>`)
         : '';
-      return `<div class="hadiah-group"><div class="hadiah-group-header" onclick="toggleHadiahGroup('${h.id}')"><div><span class="title">🏆 ${labelJuara(h.juara_ke)}</span><span style="font-size:12px;color:var(--ink-soft);margin-left:8px;">${h.items.length} item · sisa ${sisaTotal}</span>${kebutuhanBadge}</div><span class="total">${fmtRp(totalItem)}</span></div>
+      const budget = getHadiahBudget(kp.v, h.juara_ke);
+      let budgetBadge = '';
+      if(budget > 0){
+        const selisih = budget - totalItem;
+        budgetBadge = selisih < 0
+          ? `<span class="lomba-badge warn" style="margin-left:8px;">💸 Lebih ${fmtRp(Math.abs(selisih))} dari budget ${fmtRp(budget)}</span>`
+          : `<span class="lomba-badge" style="margin-left:8px;">🎯 Budget ${fmtRp(budget)} · Sisa ${fmtRp(selisih)}</span>`;
+      }
+      return `<div class="hadiah-group"><div class="hadiah-group-header" onclick="toggleHadiahGroup('${h.id}')"><div><span class="title">🏆 ${labelJuara(h.juara_ke)}</span><span style="font-size:12px;color:var(--ink-soft);margin-left:8px;">${h.items.length} item · sisa ${sisaTotal}</span>${kebutuhanBadge}${budgetBadge}</div><span class="total">${fmtRp(totalItem)}</span></div>
         <div class="hadiah-group-body" id="hadiah-group-${h.id}">
           ${kurangItems.length && isLoggedIn ? `<div class="hint" style="margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
             <span>Qty sebagian item belum menyesuaikan jumlah lomba (${jumlahLomba} lomba kategori ${labelPeserta(kp.v)}).</span>
@@ -1917,9 +1933,15 @@ function renderHadiah(){
     return `<div class="subgroup-title">${kp.l}${kebutuhanInfo}</div>${groupHtml}`;
   }).join('');
 
-  return `<div class="stat-grid"><div class="stat-card pengeluaran"><div class="lbl">Total Belanja Hadiah</div><div class="val">${fmtRp(total)}</div></div></div>
+  const totalBudget = KATEGORI_PESERTA.reduce((s,kp)=>s+JUARA_LIST.reduce((s2,j)=>s2+getHadiahBudget(kp.v,j.v),0),0);
+
+  return `<div class="stat-grid">
+    <div class="stat-card pengeluaran"><div class="lbl">Total Belanja Hadiah</div><div class="val">${fmtRp(total)}</div></div>
+    ${totalBudget>0 ? `<div class="stat-card ${total>totalBudget?'defisit':'saldo'}"><div class="lbl">Total Budget Hadiah</div><div class="val">${fmtRp(totalBudget)}</div><div style="font-size:11px; color:var(--abu); margin-top:4px;">${total>totalBudget?`⚠️ Sudah lebih ${fmtRp(total-totalBudget)}`:`Sisa ${fmtRp(totalBudget-total)}`}</div></div>` : ''}
+  </div>
   <div class="panel"><div class="panel-head"><div><h3>Stok Hadiah</h3><div class="desc">Setiap paket bisa berisi multiple item · Kebutuhan Juara 1-3 mengikuti jumlah lomba per kategori</div></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      ${isLoggedIn ? `<button class="btn secondary" onclick="openHadiahBudgetModal()">🎯 Atur Budget</button>` : ''}
       ${isLoggedIn ? `<button class="btn secondary" onclick="sesuaikanSemuaKebutuhanHadiah()">⚡ Sesuaikan Semua Otomatis</button>` : ''}
       ${isLoggedIn ? `<button class="btn" onclick="openHadiahModal()">+ Tambah Paket</button>` : ''}
     </div></div>
@@ -1964,6 +1986,53 @@ function sesuaikanSemuaKebutuhanHadiah(){
 let openHadiahGroups = new Set();
 function toggleHadiahGroup(id){ const el=document.getElementById(`hadiah-group-${id}`); if(!el) return; if(openHadiahGroups.has(id)){ openHadiahGroups.delete(id); el.style.display='none'; }else{ openHadiahGroups.add(id); el.style.display='block'; } }
 function labelJuara(v){ return (JUARA_LIST.find(j=>j.v===v)||{}).l || v; }
+
+// Form pengaturan budget hadiah per Kategori Peserta (Anak/Ibu/dst) x Juara (1/2/3/Partisipasi).
+// Contoh: Lomba Anak - Juara 1 budget 100rb, Juara 2 budget 75rb, Juara 3 budget 50rb, dst.
+function openHadiahBudgetModal(){
+  if (!canEditSection('hadiah')) { toast('⛔ Login untuk mengedit data'); return; }
+  const s = getSettings();
+  const bodyHtml = KATEGORI_PESERTA.map(kp => {
+    const budgetKp = s.hadiahBudget[kp.v] || {};
+    const inputs = JUARA_LIST.map(j => `
+      <div class="field" style="min-width:130px;">
+        <label>${j.l}</label>
+        <input type="text" id="budget-${kp.v}-${j.v}" class="currency-input" value="${formatCurrency(budgetKp[j.v]||0)}">
+      </div>`).join('');
+    return `<div style="margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--garis);">
+      <div style="font-weight:700;margin-bottom:8px;">${kp.l}</div>
+      <div class="field-row" style="flex-wrap:wrap;">${inputs}</div>
+    </div>`;
+  }).join('');
+  setModal('Atur Budget Hadiah per Kategori', `
+    <div class="hint" style="margin-bottom:12px;">Tentukan target budget hadiah untuk setiap kombinasi Kategori Peserta &amp; Juara. Contoh: Lomba Anak - Juara 1 Rp100.000, Juara 2 Rp75.000, Juara 3 Rp50.000, dst. Angka ini dipakai sebagai acuan (bukan pengurang saldo) dan dibandingkan dengan total belanja hadiah aktual per paket.</div>
+    <div style="max-height:60vh;overflow-y:auto;">${bodyHtml}</div>
+  `, [
+    {label:'Batal', cls:'secondary', onclick:closeModal},
+    {label:'Simpan Budget', cls:'', onclick:()=>simpanHadiahBudget()}
+  ]);
+  setTimeout(setupAllCurrencyInputs, 50);
+}
+
+function simpanHadiahBudget(){
+  if (!canEditSection('hadiah')) { toast('⛔ Login untuk mengedit data'); return; }
+  const s = getSettings();
+  const newBudget = {};
+  const detailLines = [];
+  KATEGORI_PESERTA.forEach(kp => {
+    newBudget[kp.v] = {};
+    JUARA_LIST.forEach(j => {
+      const el = document.getElementById(`budget-${kp.v}-${j.v}`);
+      const val = el ? getCurrencyValue(el) : 0;
+      newBudget[kp.v][j.v] = val;
+      if(val > 0) detailLines.push(`${kp.l} - ${labelJuara(j.v)}: ${fmtRp(val)}`);
+    });
+  });
+  s.hadiahBudget = newBudget;
+  saveDB(); closeModal(); renderContent();
+  toast('💾 Budget hadiah disimpan');
+  notifyTelegram(`🎯 Update budget hadiah per kategori`, detailLines.length ? detailLines.join('\n') : 'Semua budget diset Rp0');
+}
 
 function openHadiahModal(id){
   if (!canEditSection('hadiah')) { toast('⛔ Login untuk mengedit data'); return; }
@@ -2979,7 +3048,7 @@ function exportDataEvent(){
     _version: 1,
     exported_at: new Date().toISOString(),
     event: { nama: ev.nama, tahun: ev.tahun },
-    settings: db.settings[id] ? { tarif: db.settings[id].tarif } : { tarif:{sekolah:0,bekerja:0,perantauan:0,khusus:0} },
+    settings: db.settings[id] ? { tarif: db.settings[id].tarif, hadiahBudget: db.settings[id].hadiahBudget || {} } : { tarif:{sekolah:0,bekerja:0,perantauan:0,khusus:0}, hadiahBudget:{} },
     anggota: db.anggota.filter(x=>x.event_id===id),
     donatur: db.donatur.filter(x=>x.event_id===id),
     transaksiLain: db.transaksiLain.filter(x=>x.event_id===id),
@@ -3021,7 +3090,10 @@ function importDataEvent(evt){
 
       const newEventId = uid();
       db.events.push({ id:newEventId, nama: parsed.event.nama || 'Event Impor', tahun: parsed.event.tahun || new Date().getFullYear(), created_at: new Date().toISOString() });
-      db.settings[newEventId] = { tarif: (parsed.settings && parsed.settings.tarif) ? {...parsed.settings.tarif} : {sekolah:0,bekerja:0,perantauan:0,khusus:0} };
+      db.settings[newEventId] = {
+        tarif: (parsed.settings && parsed.settings.tarif) ? {...parsed.settings.tarif} : {sekolah:0,bekerja:0,perantauan:0,khusus:0},
+        hadiahBudget: (parsed.settings && parsed.settings.hadiahBudget) ? JSON.parse(JSON.stringify(parsed.settings.hadiahBudget)) : {}
+      };
 
       (parsed.anggota||[]).forEach(x=>{ db.anggota.push({...x, id:uid(), event_id:newEventId}); });
       (parsed.donatur||[]).forEach(x=>{ db.donatur.push({...x, id:uid(), event_id:newEventId}); });
@@ -3084,7 +3156,7 @@ function openEventModal(){
       if(!nama){ toast('Nama wajib'); return; }
       const id = uid();
       db.events.push({id, nama, tahun, created_at:new Date().toISOString()});
-      db.settings[id] = {tarif:{sekolah:0,bekerja:0,perantauan:0,khusus:0}};
+      db.settings[id] = {tarif:{sekolah:0,bekerja:0,perantauan:0,khusus:0}, hadiahBudget:{}};
       db.activeEventId = id;
       saveDB(); closeModal(); renderSidebar(); goSection('pengaturan'); toast('Event dibuat');
       notifyTelegram(`📂 Event baru: ${nama}`, `Tahun: ${tahun}`);

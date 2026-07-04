@@ -981,18 +981,37 @@ async function hapusUser(id) {
 /* ============================================================
    DASHBOARD
    ============================================================ */
+let openBukuCards = new Set();
+function toggleBukuCard(key){
+  if(openBukuCards.has(key)) openBukuCards.delete(key); else openBukuCards.add(key);
+  renderContent();
+}
+function bukuCardHtml(item){
+  const isOpen = openBukuCards.has(item.key);
+  return `<div class="stat-card buku-card ${isOpen?'open':''}" onclick="toggleBukuCard('${item.key}')" style="cursor:pointer;">
+    <div class="lbl" style="display:flex;justify-content:space-between;align-items:center;gap:6px;">
+      <span>${item.label}</span><span style="font-size:10px;color:var(--ink-soft);">${isOpen?'▲':'▼'}</span>
+    </div>
+    <div class="val">${fmtRp(item.value)}</div>
+    ${isOpen ? `<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--garis);font-size:12.5px;color:var(--ink-soft);" onclick="event.stopPropagation();">
+      <div style="margin-bottom:8px;">${item.info}</div>
+      <button class="btn secondary small" onclick="goSection('${item.key}')">Lihat Selengkapnya →</button>
+    </div>` : ''}
+  </div>`;
+}
+
 function renderDashboard(){
   const b = hitungBukuUtama();
-  const rows = [
-    ['Iuran Anggota (lunas)', b.iuran, 'anggota'],
-    ['Donatur', b.donasi, 'donatur'],
-    ['Transaksi Lain', b.transaksiLain, 'transaksi'],
+  const pemasukanItems = [
+    {key:'anggota', label:'Total Iuran', value:b.iuran, info:`${b.jumlahIuranLunas} anggota sudah lunas`},
+    {key:'donatur', label:'Total Donasi', value:b.donasi, info:`${b.jumlahDonatur} donatur tercatat`},
+    {key:'transaksi', label:'Total Transaksi Lain', value:b.transaksiLain, info:`${b.jumlahTransaksiLain} transaksi tercatat`},
   ];
-  const rowsOut = [
-    ['Operasional Kegiatan', b.opsional, 'operasional'],
-    ['Belanja Kebutuhan Lomba', b.kebutuhanLomba, 'lomba'],
-    ['Belanja Hadiah Lomba', b.hadiahLomba, 'hadiah'],
-    ['Belanja Hadiah Jalan Santai', b.hadiahJalan, 'hadiah-jalan'],
+  const pengeluaranItems = [
+    {key:'operasional', label:'Total Operasional Kegiatan', value:b.opsional, info:`${b.jumlahOperasional} biaya tercatat`},
+    {key:'lomba', label:'Total Belanja Kebutuhan Lomba', value:b.kebutuhanLomba, info:`${b.jumlahKebutuhanLomba} item kebutuhan lomba`},
+    {key:'hadiah', label:'Total Hadiah Lomba', value:b.hadiahLomba, info:`${b.jumlahItemHadiahLomba} item hadiah lomba`},
+    {key:'hadiah-jalan', label:'Total Hadiah Jalan Santai', value:b.hadiahJalan, info:`${b.jumlahHadiahJalan} item hadiah jalan santai`},
   ];
 
   const reminderCards = generateReminders();
@@ -1006,27 +1025,15 @@ function renderDashboard(){
     <div class="stat-card saldo"><div class="lbl">Saldo Akhir</div><div class="val">${fmtRp(b.saldo)}</div><div style="font-size:11px; color:var(--abu); margin-top:4px; line-height:1.4;">Proyeksi anggaran — sudah termasuk kebutuhan &amp; hadiah yang direncanakan, belum tentu semuanya sudah dibelanjakan.</div></div>
   </div>
   <div class="panel">
-    <div class="panel-head"><h3>Rincian Pemasukan</h3></div>
-    <div class="panel-body flush">
-      <table class="general-table">
-        <thead><tr><th>Buku Anak</th><th class="num">Jumlah</th><th></th></tr></thead>
-        <tbody>
-          ${rows.map(([l,v,k])=>`<tr><td>${l}</td><td class="num">${fmtRp(v)}</td><td style="width:110px; text-align:right;"><button class="btn secondary small" onclick="goSection('${k}')">Lihat →</button></td></tr>`).join('')}
-        </tbody>
-        <tfoot><tr><td>Total Pemasukan</td><td class="num">${fmtRp(b.pemasukan)}</td><td></td></tr></tfoot>
-      </table>
+    <div class="panel-head"><div><h3>Rincian Pemasukan</h3><div class="desc">Klik card untuk lihat rincian</div></div></div>
+    <div class="panel-body">
+      <div class="stat-grid" style="margin-bottom:0;">${pemasukanItems.map(bukuCardHtml).join('')}</div>
     </div>
   </div>
   <div class="panel">
-    <div class="panel-head"><h3>Rincian Pengeluaran</h3></div>
-    <div class="panel-body flush">
-      <table class="general-table">
-        <thead><tr><th>Buku Anak</th><th class="num">Jumlah</th><th></th></tr></thead>
-        <tbody>
-          ${rowsOut.map(([l,v,k])=>`<tr><td>${l}</td><td class="num">${fmtRp(v)}</td><td style="width:110px; text-align:right;"><button class="btn secondary small" onclick="goSection('${k}')">Lihat →</button></td></tr>`).join('')}
-        </tbody>
-        <tfoot><tr><td>Total Pengeluaran</td><td class="num">${fmtRp(b.pengeluaran)}</td><td></td></tr></tfoot>
-      </table>
+    <div class="panel-head"><div><h3>Rincian Pengeluaran</h3><div class="desc">Klik card untuk lihat rincian</div></div></div>
+    <div class="panel-body">
+      <div class="stat-grid" style="margin-bottom:0;">${pengeluaranItems.map(bukuCardHtml).join('')}</div>
     </div>
   </div>`;
 }
@@ -3202,27 +3209,43 @@ function toast(msg){
    FUNGSI HITUNG BUKU UTAMA
    ============================================================ */
 function hitungBukuUtama(){
-  const iuran = gAnggota().filter(a=>a.status==='lunas').reduce((s,a)=>s+Number(a.nominal_wajib||0),0);
-  const donasi = gDonatur().reduce((s,d)=>s+Number(d.jumlah||0),0);
-  const transaksiLain = gTransaksiLain().reduce((s,t)=>s+Number(t.jumlah||0),0);
+  const anggotaLunas = gAnggota().filter(a=>a.status==='lunas');
+  const iuran = anggotaLunas.reduce((s,a)=>s+Number(a.nominal_wajib||0),0);
+  const donaturList = gDonatur();
+  const donasi = donaturList.reduce((s,d)=>s+Number(d.jumlah||0),0);
+  const transaksiLainList = gTransaksiLain();
+  const transaksiLain = transaksiLainList.reduce((s,t)=>s+Number(t.jumlah||0),0);
   const pemasukan = iuran + donasi + transaksiLain;
 
-  const opsional = gOperasional().reduce((s,o)=>s+Number(o.jumlah||0),0);
+  const operasionalList = gOperasional();
+  const opsional = operasionalList.reduce((s,o)=>s+Number(o.jumlah||0),0);
   const lombaIds = gLomba().map(l=>l.id);
-  const kebutuhanLomba = db.lombaKebutuhan.filter(k=>lombaIds.includes(k.lomba_id))
+  const kebutuhanLombaList = db.lombaKebutuhan.filter(k=>lombaIds.includes(k.lomba_id));
+  const kebutuhanLomba = kebutuhanLombaList
     .reduce((s,k)=> s + (Number(k.harga_realisasi ?? k.harga_estimasi ?? 0) * Number(k.qty||0)), 0);
-  
-  let hadiahLomba = 0;
+
+  let hadiahLomba = 0; let jumlahItemHadiahLomba = 0;
   gHadiahKategori().forEach(h => {
     h.items.forEach(item => {
       hadiahLomba += Number(item.harga_satuan||0) * Number(item.qty_dibeli||0);
+      jumlahItemHadiahLomba++;
     });
   });
-  
-  const hadiahJalan = gHadiahJalanSantai().reduce((s,h) => s + (Number(h.harga_satuan||0) * Number(h.qty||0)), 0);
-  
+
+  const hadiahJalanList = gHadiahJalanSantai();
+  const hadiahJalan = hadiahJalanList.reduce((s,h) => s + (Number(h.harga_satuan||0) * Number(h.qty||0)), 0);
+
   const pengeluaran = opsional + kebutuhanLomba + hadiahLomba + hadiahJalan;
-  return {iuran, donasi, transaksiLain, pemasukan, opsional, kebutuhanLomba, hadiahLomba, hadiahJalan, pengeluaran, saldo: pemasukan - pengeluaran};
+  return {
+    iuran, donasi, transaksiLain, pemasukan, opsional, kebutuhanLomba, hadiahLomba, hadiahJalan, pengeluaran, saldo: pemasukan - pengeluaran,
+    jumlahIuranLunas: anggotaLunas.length,
+    jumlahDonatur: donaturList.length,
+    jumlahTransaksiLain: transaksiLainList.length,
+    jumlahOperasional: operasionalList.length,
+    jumlahKebutuhanLomba: kebutuhanLombaList.length,
+    jumlahItemHadiahLomba,
+    jumlahHadiahJalan: hadiahJalanList.length,
+  };
 }
 
 /* ============================================================

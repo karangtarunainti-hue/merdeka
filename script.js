@@ -1910,10 +1910,11 @@ function renderHadiah(){
       const kurangItems = kebutuhan!=null ? h.items.filter(item => Number(item.qty_dibeli||0) < kebutuhan) : [];
       const totalItem = h.items.reduce((s, item) => s + (Number(item.harga_satuan||0) * Number(item.qty_dibeli||0)), 0);
       const sisaTotal = h.items.reduce((s, item) => s + (Number(item.qty_dibeli||0) - Number(item.qty_terpakai||0)), 0);
+      const namaLombaTitle = esc(semuaLomba.filter(l => l.kategori_peserta === kp.v).map(l => l.nama).join(', '));
       const kebutuhanBadge = kebutuhan!=null
         ? (kurangItems.length
-            ? `<span class="lomba-badge warn" style="margin-left:8px;">⚠️ Kurang, butuh ${kebutuhan} (dari ${jumlahLomba} lomba)</span>`
-            : `<span class="lomba-badge" style="margin-left:8px;">✓ Kebutuhan ${kebutuhan} paket terpenuhi</span>`)
+            ? `<span class="lomba-badge warn" style="margin-left:8px;" title="${namaLombaTitle}">⚠️ Kurang, butuh ${kebutuhan} (dari ${jumlahLomba} lomba)</span>`
+            : `<span class="lomba-badge" style="margin-left:8px;" title="${namaLombaTitle}">✓ Kebutuhan ${kebutuhan} paket terpenuhi</span>`)
         : '';
       const budget = getHadiahBudget(kp.v, h.juara_ke);
       let budgetBadge = '';
@@ -1936,8 +1937,10 @@ function renderHadiah(){
           ${isLoggedIn ? `<div class="add-item-row"><input type="text" id="add-item-name-${h.id}" placeholder="Nama hadiah" style="flex:2;"><input type="text" id="add-item-price-${h.id}" class="currency-input" placeholder="Harga" style="flex:1;"><input type="number" id="add-item-qty-${h.id}" placeholder="Qty" value="${kebutuhan!=null?kebutuhan:1}" style="flex:0.8;"><button class="btn secondary small" onclick="tambahItemHadiah('${h.id}')">+ Tambah</button></div>` : `<div class="hint" style="padding:8px 0;">🔒 Login untuk menambah item</div>`}
         </div></div>`;
     }).join('');
+    const namaLombaKategori = semuaLomba.filter(l => l.kategori_peserta === kp.v).map(l => l.nama);
     const kebutuhanInfo = jumlahLomba > 0 ? `<span style="font-size:11.5px;color:var(--ink-soft);font-weight:500;text-transform:none;letter-spacing:0;margin-left:8px;">(${jumlahLomba} lomba)</span>` : '';
-    return `<div class="subgroup-title">${kp.l}${kebutuhanInfo}</div>${groupHtml}`;
+    const daftarLombaInfo = namaLombaKategori.length ? `<div style="font-size:11.5px;color:var(--ink-soft);font-weight:400;margin:2px 0 6px;">🏁 ${namaLombaKategori.map(n=>esc(n)).join(' · ')}</div>` : '';
+    return `<div class="subgroup-title">${kp.l}${kebutuhanInfo}</div>${daftarLombaInfo}${groupHtml}`;
   }).join('');
 
   const totalBudget = KATEGORI_PESERTA.reduce((s,kp)=>s+JUARA_LIST.reduce((s2,j)=>s2+getHadiahBudget(kp.v,j.v),0),0);

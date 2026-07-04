@@ -1882,27 +1882,82 @@ function renderHadiah(){
   let total = 0;
   list.forEach(h => h.items.forEach(item => total += Number(item.harga_satuan||0) * Number(item.qty_dibeli||0)));
   const isLoggedIn = !!getCurrentUser();
-  
+  const semuaLomba = gLomba();
+
   const groups = KATEGORI_PESERTA.map(kp => {
     const items = list.filter(h => h.kategori_peserta === kp.v);
     if(!items.length) return '';
+    const jumlahLomba = semuaLomba.filter(l => l.kategori_peserta === kp.v).length;
     const groupHtml = items.map(h => {
+      const isPartisipasi = h.juara_ke === 'partisipasi';
+      const kebutuhan = isPartisipasi ? null : jumlahLomba;
+      const kurangItems = kebutuhan!=null ? h.items.filter(item => Number(item.qty_dibeli||0) < kebutuhan) : [];
       const totalItem = h.items.reduce((s, item) => s + (Number(item.harga_satuan||0) * Number(item.qty_dibeli||0)), 0);
       const sisaTotal = h.items.reduce((s, item) => s + (Number(item.qty_dibeli||0) - Number(item.qty_terpakai||0)), 0);
-      return `<div class="hadiah-group"><div class="hadiah-group-header" onclick="toggleHadiahGroup('${h.id}')"><div><span class="title">🏆 ${labelJuara(h.juara_ke)}</span><span style="font-size:12px;color:var(--ink-soft);margin-left:8px;">${h.items.length} item · sisa ${sisaTotal}</span></div><span class="total">${fmtRp(totalItem)}</span></div>
-        <div class="hadiah-group-body" id="hadiah-group-${h.id}">${h.items.map((item, idx) => { const sisa=Number(item.qty_dibeli||0)-Number(item.qty_terpakai||0); return `<div class="hadiah-item-row"><span class="item-name">${esc(item.nama)}</span><span class="item-qty">Dibeli: ${item.qty_dibeli} | Terpakai: ${item.qty_terpakai||0} | Sisa: ${sisa}</span><span class="item-price">${fmtRp(item.harga_satuan)} × ${item.qty_dibeli}</span>
+      const kebutuhanBadge = kebutuhan!=null
+        ? (kurangItems.length
+            ? `<span class="lomba-badge warn" style="margin-left:8px;">⚠️ Kurang, butuh ${kebutuhan} (dari ${jumlahLomba} lomba)</span>`
+            : `<span class="lomba-badge" style="margin-left:8px;">✓ Kebutuhan ${kebutuhan} paket terpenuhi</span>`)
+        : '';
+      return `<div class="hadiah-group"><div class="hadiah-group-header" onclick="toggleHadiahGroup('${h.id}')"><div><span class="title">🏆 ${labelJuara(h.juara_ke)}</span><span style="font-size:12px;color:var(--ink-soft);margin-left:8px;">${h.items.length} item · sisa ${sisaTotal}</span>${kebutuhanBadge}</div><span class="total">${fmtRp(totalItem)}</span></div>
+        <div class="hadiah-group-body" id="hadiah-group-${h.id}">
+          ${kurangItems.length && isLoggedIn ? `<div class="hint" style="margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+            <span>Qty sebagian item belum menyesuaikan jumlah lomba (${jumlahLomba} lomba kategori ${labelPeserta(kp.v)}).</span>
+            <button class="btn secondary small" onclick="sesuaikanKebutuhanHadiah('${h.id}')">⚡ Sesuaikan Otomatis</button>
+          </div>` : ''}
+          ${h.items.map((item, idx) => { const sisa=Number(item.qty_dibeli||0)-Number(item.qty_terpakai||0); const kurang = kebutuhan!=null && Number(item.qty_dibeli||0) < kebutuhan; return `<div class="hadiah-item-row"><span class="item-name">${esc(item.nama)}${kurang?` <span style="color:var(--orange);font-size:11px;">(butuh ${kebutuhan})</span>`:''}</span><span class="item-qty">Dibeli: ${item.qty_dibeli} | Terpakai: ${item.qty_terpakai||0} | Sisa: ${sisa}</span><span class="item-price">${fmtRp(item.harga_satuan)} × ${item.qty_dibeli}</span>
             <button class="icon-btn" onclick="editHadiahItem('${h.id}',${idx})" ${!isLoggedIn ? 'disabled' : ''}>✎</button>
             <button class="icon-btn" onclick="hapusHadiahItem('${h.id}',${idx})" ${!isLoggedIn ? 'disabled' : ''}>🗑</button>
           </div>`;}).join('')}
-          ${isLoggedIn ? `<div class="add-item-row"><input type="text" id="add-item-name-${h.id}" placeholder="Nama hadiah" style="flex:2;"><input type="text" id="add-item-price-${h.id}" class="currency-input" placeholder="Harga" style="flex:1;"><input type="number" id="add-item-qty-${h.id}" placeholder="Qty" value="1" style="flex:0.8;"><button class="btn secondary small" onclick="tambahItemHadiah('${h.id}')">+ Tambah</button></div>` : `<div class="hint" style="padding:8px 0;">🔒 Login untuk menambah item</div>`}
+          ${isLoggedIn ? `<div class="add-item-row"><input type="text" id="add-item-name-${h.id}" placeholder="Nama hadiah" style="flex:2;"><input type="text" id="add-item-price-${h.id}" class="currency-input" placeholder="Harga" style="flex:1;"><input type="number" id="add-item-qty-${h.id}" placeholder="Qty" value="${kebutuhan!=null?kebutuhan:1}" style="flex:0.8;"><button class="btn secondary small" onclick="tambahItemHadiah('${h.id}')">+ Tambah</button></div>` : `<div class="hint" style="padding:8px 0;">🔒 Login untuk menambah item</div>`}
         </div></div>`;
     }).join('');
-    return `<div class="subgroup-title">${kp.l}</div>${groupHtml}`;
+    const kebutuhanInfo = jumlahLomba > 0 ? `<span style="font-size:11.5px;color:var(--ink-soft);font-weight:500;text-transform:none;letter-spacing:0;margin-left:8px;">(${jumlahLomba} lomba)</span>` : '';
+    return `<div class="subgroup-title">${kp.l}${kebutuhanInfo}</div>${groupHtml}`;
   }).join('');
 
   return `<div class="stat-grid"><div class="stat-card pengeluaran"><div class="lbl">Total Belanja Hadiah</div><div class="val">${fmtRp(total)}</div></div></div>
-  <div class="panel"><div class="panel-head"><div><h3>Stok Hadiah</h3><div class="desc">Setiap paket bisa berisi multiple item</div></div>${isLoggedIn ? `<button class="btn" onclick="openHadiahModal()">+ Tambah Paket</button>` : ''}</div>
+  <div class="panel"><div class="panel-head"><div><h3>Stok Hadiah</h3><div class="desc">Setiap paket bisa berisi multiple item · Kebutuhan Juara 1-3 mengikuti jumlah lomba per kategori</div></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      ${isLoggedIn ? `<button class="btn secondary" onclick="sesuaikanSemuaKebutuhanHadiah()">⚡ Sesuaikan Semua Otomatis</button>` : ''}
+      ${isLoggedIn ? `<button class="btn" onclick="openHadiahModal()">+ Tambah Paket</button>` : ''}
+    </div></div>
   <div class="panel-body">${groups.trim()||`<div style="padding:30px;text-align:center;color:var(--abu);">Belum ada stok hadiah.</div>`}</div></div>`;
+}
+
+// Kebutuhan paket hadiah Juara 1/2/3 = jumlah lomba pada kategori peserta tsb (setiap lomba butuh 1 paket per juara).
+// Partisipasi tidak dihitung otomatis karena tidak terikat jumlah lomba.
+function hitungKebutuhanHadiah(kategoriPeserta, juaraKe){
+  if(juaraKe === 'partisipasi') return null;
+  return gLomba().filter(l => l.kategori_peserta === kategoriPeserta).length;
+}
+function sesuaikanKebutuhanHadiah(hadiahId){
+  if (!canEditSection('hadiah')) { toast('⛔ Login untuk mengedit data'); return; }
+  const h = db.hadiahKategori.find(x=>x.id===hadiahId);
+  if(!h){ toast('Paket tidak ditemukan'); return; }
+  const kebutuhan = hitungKebutuhanHadiah(h.kategori_peserta, h.juara_ke);
+  if(kebutuhan==null){ toast('Hadiah partisipasi tidak disesuaikan otomatis'); return; }
+  let diubah = 0;
+  h.items.forEach(item => { if(Number(item.qty_dibeli||0) < kebutuhan){ item.qty_dibeli = kebutuhan; diubah++; } });
+  if(diubah===0){ toast('Qty sudah sesuai kebutuhan'); return; }
+  saveDB(); renderContent(); renderTopbarSaldo();
+  toast(`⚡ ${diubah} item disesuaikan ke ${kebutuhan} pcs`);
+  notifyTelegram(`⚡ Qty hadiah disesuaikan otomatis`, `Paket: ${labelPeserta(h.kategori_peserta)} - ${labelJuara(h.juara_ke)}\nKebutuhan: ${kebutuhan} paket (${gLomba().filter(l=>l.kategori_peserta===h.kategori_peserta).length} lomba)\nItem disesuaikan: ${diubah}`);
+}
+function sesuaikanSemuaKebutuhanHadiah(){
+  if (!canEditSection('hadiah')) { toast('⛔ Login untuk mengedit data'); return; }
+  let totalDiubah = 0; const detail = [];
+  gHadiahKategori().forEach(h => {
+    const kebutuhan = hitungKebutuhanHadiah(h.kategori_peserta, h.juara_ke);
+    if(kebutuhan==null) return;
+    let diubah = 0;
+    h.items.forEach(item => { if(Number(item.qty_dibeli||0) < kebutuhan){ item.qty_dibeli = kebutuhan; diubah++; } });
+    if(diubah>0){ totalDiubah += diubah; detail.push(`${labelPeserta(h.kategori_peserta)} - ${labelJuara(h.juara_ke)}: ${diubah} item → ${kebutuhan} pcs`); }
+  });
+  if(totalDiubah===0){ toast('Semua qty sudah sesuai kebutuhan'); return; }
+  saveDB(); renderContent(); renderTopbarSaldo();
+  toast(`⚡ ${totalDiubah} item disesuaikan`);
+  notifyTelegram(`⚡ Qty hadiah disesuaikan otomatis (semua kategori)`, detail.join('\n'));
 }
 
 let openHadiahGroups = new Set();

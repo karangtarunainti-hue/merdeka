@@ -105,6 +105,9 @@ function setupAllCurrencyInputs() {
   document.querySelectorAll('#modal-body input[data-currency="true"]').forEach(el => {
     setupCurrencyInput(el);
   });
+  document.querySelectorAll('#content .currency-input').forEach(el => {
+    setupCurrencyInput(el);
+  });
 }
 
 // Helper untuk mendapatkan nilai numerik dari input format ribuan
@@ -1653,6 +1656,9 @@ function hapusOperasional(id){
    LOMBA & KEBUTUHAN (dengan auth check)
    ============================================================ */
 let openLombaIds = new Set();
+let lombaActiveTab = {};
+function getLombaTab(id){ return lombaActiveTab[id] || 'kebutuhan'; }
+function setLombaTab(id, tab){ lombaActiveTab[id] = tab; renderContent(); }
 
 function renderLomba(){
   const list = gLomba();
@@ -1664,11 +1670,18 @@ function renderLomba(){
     const items = gKebutuhan(l.id);
     const subtotal = items.reduce((s,k)=>s+(Number(k.harga_realisasi ?? k.harga_estimasi ?? 0)*Number(k.qty||0)),0);
     const isOpen = openLombaIds.has(l.id);
+    const activeTab = getLombaTab(l.id);
+    const hadiahAssigned = gLombaHadiah(l.id).length;
+    const hadiahBadge = hadiahAssigned===0
+      ? `<span class="lomba-badge warn">Hadiah belum diatur</span>`
+      : (hadiahAssigned<JUARA_LIST.length ? `<span class="lomba-badge warn">Hadiah sebagian</span>` : '');
     return `
     <div class="lomba-card ${isOpen?'open':''}">
       <div class="lomba-card-head" onclick="toggleLombaCard('${l.id}')" style="cursor:pointer;">
         <div><span class="name">${esc(l.nama)}</span><span class="kategori-pill" style="margin-left:8px;">${labelPeserta(l.kategori_peserta)}</span></div>
         <div style="display:flex;align-items:center;gap:14px;">
+          <span class="lomba-badge">${items.length} item</span>
+          ${hadiahBadge}
           <span class="mono" style="font-size:13px;">${fmtRp(subtotal)}</span>
           <button class="icon-btn" onclick="event.stopPropagation(); openLombaModal('${l.id}')" ${!isLoggedIn ? 'disabled' : ''}>✎</button>
           <button class="icon-btn" onclick="event.stopPropagation(); hapusLomba('${l.id}')" ${!isLoggedIn ? 'disabled' : ''}>🗑</button>
@@ -1676,23 +1689,37 @@ function renderLomba(){
         </div>
       </div>
       <div class="lomba-card-body">
-        <div class="subgroup-title">Kebutuhan Barang</div>
+        <div class="lomba-tabs">
+          <button type="button" class="lomba-tabbtn ${activeTab==='kebutuhan'?'active':''}" onclick="setLombaTab('${l.id}','kebutuhan')">Kebutuhan Barang</button>
+          <button type="button" class="lomba-tabbtn ${activeTab==='hadiah'?'active':''}" onclick="setLombaTab('${l.id}','hadiah')">Hadiah${hadiahBadge?' •':''}</button>
+        </div>
+        <div style="display:${activeTab==='kebutuhan'?'block':'none'};">
         <div style="overflow-x:auto;">
-        <table class="lomba-table"><thead><tr><th>Item</th><th class="num">Harga Estimasi</th><th class="num">Harga Realisasi</th><th class="num">Qty</th><th class="num">Subtotal</th><th></th></tr></thead>
+        <table class="lomba-table"><thead><tr><th>Item</th><th class="num">Harga</th><th class="num">Qty</th><th class="num">Subtotal</th><th></th></tr></thead>
         <tbody>${items.map(k=>{
           const harga = Number(k.harga_realisasi ?? k.harga_estimasi ?? 0);
           const belanja = db.daftarBelanjaPerlengkapan.find(b=>b.kebutuhan_id===k.id && b.event_id===eid());
           const sudahDibeli = belanja && belanja.status === 'dibeli';
-          return `<tr class="${sudahDibeli?'dibeli':''}"><td>${esc(k.nama_item)} ${sudahDibeli?'✓':''}</td><td class="num">${fmtRp(k.harga_estimasi)}</td><td class="num">${k.harga_realisasi!=null?fmtRp(k.harga_realisasi):'<span style="color:var(--abu)">—</span>'}</td><td class="num">${k.qty}</td><td class="num">${fmtRp(harga*k.qty)}</td><td style="text-align:right;white-space:nowrap;">
+          const hargaCell = k.harga_realisasi!=null ? fmtRp(k.harga_realisasi) : `${fmtRp(k.harga_estimasi)}<span style="color:var(--abu); font-size:11px;"> (estimasi)</span>`;
+          return `<tr class="${sudahDibeli?'dibeli':''}"><td>${esc(k.nama_item)} ${sudahDibeli?'✓':''}</td><td class="num">${hargaCell}</td><td class="num">${k.qty}</td><td class="num">${fmtRp(harga*k.qty)}</td><td style="text-align:right;white-space:nowrap;">
             <button class="btn secondary small" onclick="toggleBelanjaPerlengkapan('${k.id}')" ${!isLoggedIn ? 'disabled' : ''}>${sudahDibeli?'✓ Dibeli':'Belum'}</button>
             <button class="icon-btn" onclick="openKebutuhanModal('${l.id}','${k.id}')" ${!isLoggedIn ? 'disabled' : ''}>✎</button>
             <button class="icon-btn" onclick="hapusKebutuhan('${k.id}')" ${!isLoggedIn ? 'disabled' : ''}>🗑</button>
           </td></tr>`;
-        }).join('')||`<tr class="empty-row"><td colspan="6">Belum ada kebutuhan.</td></tr>`}</tbody>
-        ${items.length?`<tfoot><tr><td colspan="4">Subtotal</td><td class="num">${fmtRp(subtotal)}</td><td></td></tr></tfoot>`:''}</table></div>
-        <div style="margin-top:10px;">${isLoggedIn ? `<button class="btn secondary small" onclick="openKebutuhanModal('${l.id}')">+ Tambah Item</button>` : ''}</div>
-        <div class="subgroup-title">Hadiah Lomba (ambil dari stok bersama)</div>
+        }).join('')||`<tr class="empty-row"><td colspan="5">Belum ada kebutuhan.</td></tr>`}</tbody>
+        ${items.length?`<tfoot><tr><td colspan="3">Subtotal</td><td class="num">${fmtRp(subtotal)}</td><td></td></tr></tfoot>`:''}</table></div>
+        ${isLoggedIn ? `
+        <div class="quick-add-row">
+          <input id="qa-nama-${l.id}" type="text" placeholder="Nama item baru" onkeydown="if(event.key==='Enter'){event.preventDefault(); tambahKebutuhanCepat('${l.id}');}">
+          <input id="qa-harga-${l.id}" type="text" class="currency-input" placeholder="Harga" onkeydown="if(event.key==='Enter'){event.preventDefault(); tambahKebutuhanCepat('${l.id}');}">
+          <input id="qa-qty-${l.id}" type="number" min="1" value="1" placeholder="Qty" onkeydown="if(event.key==='Enter'){event.preventDefault(); tambahKebutuhanCepat('${l.id}');}">
+          <button class="btn secondary small" onclick="tambahKebutuhanCepat('${l.id}')">+ Tambah</button>
+        </div>` : ''}
+        </div>
+        <div style="display:${activeTab==='hadiah'?'block':'none'};">
+        <div class="hint" style="margin-bottom:10px;">Ambil dari stok hadiah bersama.</div>
         ${renderHadiahLombaBlock(l)}
+        </div>
       </div>
     </div>`;
   }).join('');
@@ -1703,6 +1730,21 @@ function renderLomba(){
 }
 function labelPeserta(v){ return (KATEGORI_PESERTA.find(k=>k.v===v)||{}).l || v; }
 function toggleLombaCard(id){ openLombaIds.has(id)?openLombaIds.delete(id):openLombaIds.add(id); renderContent(); }
+
+function tambahKebutuhanCepat(lombaId){
+  if (!canEditSection('lomba')) { toast('⛔ Login untuk mengedit data'); return; }
+  const namaEl = document.getElementById(`qa-nama-${lombaId}`);
+  const hargaEl = document.getElementById(`qa-harga-${lombaId}`);
+  const qtyEl = document.getElementById(`qa-qty-${lombaId}`);
+  const nama_item = namaEl.value.trim();
+  const harga_estimasi = getCurrencyValue(hargaEl);
+  const qty = Number(qtyEl.value || 1);
+  if(!nama_item || qty<=0){ toast('Nama & qty wajib diisi'); return; }
+  db.lombaKebutuhan.push({id:uid(), lomba_id:lombaId, nama_item, harga_estimasi, harga_realisasi:null, qty});
+  saveDB(); openLombaIds.add(lombaId); lombaActiveTab[lombaId]='kebutuhan'; renderContent(); renderTopbarSaldo(); toast('Disimpan');
+  const lomba = db.lomba.find(x=>x.id===lombaId);
+  notifyTelegram(`➕ Item kebutuhan baru: ${nama_item}`, `Lomba: ${lomba?.nama || lombaId}\nQty: ${qty}\nEstimasi: ${fmtRp(harga_estimasi)}`);
+}
 
 function renderHadiahLombaBlock(lomba){
   const assigned = gLombaHadiah(lomba.id);

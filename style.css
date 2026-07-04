@@ -437,12 +437,11 @@
   table.jalan-table th:nth-child(6), table.jalan-table td:nth-child(6) { width:18%; }
   table.jalan-table th:nth-child(7), table.jalan-table td:nth-child(7) { width:10%; }
 
-  table.lomba-table th:nth-child(1), table.lomba-table td:nth-child(1) { width:25%; }
-  table.lomba-table th:nth-child(2), table.lomba-table td:nth-child(2) { width:20%; }
-  table.lomba-table th:nth-child(3), table.lomba-table td:nth-child(3) { width:20%; }
-  table.lomba-table th:nth-child(4), table.lomba-table td:nth-child(4) { width:10%; }
-  table.lomba-table th:nth-child(5), table.lomba-table td:nth-child(5) { width:15%; }
-  table.lomba-table th:nth-child(6), table.lomba-table td:nth-child(6) { width:10%; }
+  table.lomba-table th:nth-child(1), table.lomba-table td:nth-child(1) { width:32%; }
+  table.lomba-table th:nth-child(2), table.lomba-table td:nth-child(2) { width:22%; }
+  table.lomba-table th:nth-child(3), table.lomba-table td:nth-child(3) { width:12%; }
+  table.lomba-table th:nth-child(4), table.lomba-table td:nth-child(4) { width:18%; }
+  table.lomba-table th:nth-child(5), table.lomba-table td:nth-child(5) { width:16%; }
 
   table.hadiah-table th:nth-child(1), table.hadiah-table td:nth-child(1) { width:20%; }
   table.hadiah-table th:nth-child(2), table.hadiah-table td:nth-child(2) { width:18%; }
@@ -538,6 +537,18 @@
   .lomba-card.open .lomba-card-body{display:block;}
   .lomba-card.open .chevron{transform:rotate(180deg);}
   .chevron{transition:transform .15s ease;}
+
+  .lomba-badge{display:inline-block; padding:2px 9px; border-radius:20px; font-size:11px; font-weight:600; background:var(--cream); color:var(--ink-soft); border:1px solid var(--garis); white-space:nowrap;}
+  .lomba-badge.warn{background:var(--orange-tint); color:var(--orange); border:1px solid #e3d4bf;}
+
+  .lomba-tabs{display:flex; gap:18px; border-bottom:1px solid var(--garis); margin-bottom:14px;}
+  .lomba-tabbtn{background:none; border:none; border-bottom:2px solid transparent; padding:8px 2px; font-size:13px; font-weight:600; color:var(--ink-soft); cursor:pointer; margin-bottom:-1px;}
+  .lomba-tabbtn.active{color:var(--merah-dark); border-bottom-color:var(--merah-dark);}
+
+  .quick-add-row{display:flex; gap:8px; margin-top:10px; padding-top:10px; border-top:1px dashed var(--garis); flex-wrap:wrap;}
+  .quick-add-row input{flex:1 1 120px; padding:8px 10px; border:1px solid var(--garis); border-radius:8px; background:#fff; color:var(--ink); font-size:13px;}
+  .quick-add-row input[id^="qa-qty-"]{flex:0 0 70px;}
+  .quick-add-row .btn{flex:0 0 auto;}
 
   .juara-row{display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px dashed var(--garis); flex-wrap:wrap;}
   .juara-row:last-child{border-bottom:none;}

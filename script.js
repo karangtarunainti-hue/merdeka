@@ -1690,7 +1690,7 @@ function renderLomba(){
     .reduce((s,k)=>s + (Number(k.harga_realisasi ?? k.harga_estimasi ?? 0)*Number(k.qty||0)), 0);
   const isLoggedIn = !!getCurrentUser();
 
-  const cards = list.map(l=>{
+  const cards = list.map((l, idx)=>{
     const items = gKebutuhan(l.id);
     const subtotal = items.reduce((s,k)=>s+(Number(k.harga_realisasi ?? k.harga_estimasi ?? 0)*Number(k.qty||0)),0);
     const isOpen = openLombaIds.has(l.id);
@@ -1702,7 +1702,7 @@ function renderLomba(){
     return `
     <div class="lomba-card ${isOpen?'open':''}">
       <div class="lomba-card-head" onclick="toggleLombaCard('${l.id}')" style="cursor:pointer;">
-        <div><span class="name">${esc(l.nama)}</span><span class="kategori-pill" style="margin-left:8px;">${labelPeserta(l.kategori_peserta)}</span></div>
+        <div><span class="nomor-badge kategori-${l.kategori_peserta}">${idx+1}</span><span class="name">${esc(l.nama)}</span><span class="kategori-pill" style="margin-left:8px;">${labelPeserta(l.kategori_peserta)}</span></div>
         <div style="display:flex;align-items:center;gap:14px;">
           <span class="lomba-badge">${items.length} item</span>
           ${hadiahBadge}

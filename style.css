@@ -548,6 +548,19 @@
   .kategori-pill{display:inline-block; padding:2px 9px; border-radius:20px; font-size:11px; font-weight:600; background:var(--gold-tint); color:var(--kategori-text);}
   .kategori-pill.khusus{background:var(--ungu-tint); color:var(--ungu);}
   .kategori-pill.jalan-santai{background:var(--pink-tint); color:var(--pink);}
+
+  .nomor-badge{
+    display:inline-flex; align-items:center; justify-content:center;
+    width:22px; height:22px; border-radius:50%;
+    font-size:11.5px; font-weight:700; color:#fff;
+    margin-right:8px; flex-shrink:0;
+    background:var(--abu);
+  }
+  .nomor-badge.kategori-anak{background:var(--biru);}
+  .nomor-badge.kategori-ibu{background:var(--pink);}
+  .nomor-badge.kategori-bapak-ibu{background:var(--ungu);}
+  .nomor-badge.kategori-bapak-bapak{background:var(--orange);}
+  .nomor-badge.kategori-umum{background:var(--hijau);}
   
   .subgroup-title{font-size:12.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--merah-dark); font-weight:700; margin:22px 0 8px; display:flex; align-items:center; gap:8px;}
   .subgroup-title::after{content:''; flex:1; height:1px; background:var(--garis);}

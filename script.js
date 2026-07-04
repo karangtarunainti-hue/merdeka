@@ -2893,7 +2893,7 @@ function renderPengaturan(){
     <div class="panel-head"><h3>Manajemen Event</h3></div>
     <div class="panel-body flush">
       <table class="general-table"><thead><tr><th>Nama</th><th>Tahun</th><th></th></tr></thead>
-      <tbody>${db.events.map(e=>`<tr><td>${esc(e.nama)}${e.id===db.activeEventId?' <span class="badge lunas">Aktif</span>':''}</td><td>${esc(e.tahun)}</td><td style="text-align:right;"><button class="btn secondary small" onclick="setActiveEvent('${e.id}')">Aktifkan</button><button class="icon-btn" onclick="hapusEvent('${e.id}')">🗑</button></td></tr>`).join('')||`<tr class="empty-row"><td colspan="3">Belum ada event.</td></tr>`}</tbody></table>
+      <tbody>${db.events.map(e=>`<tr><td>${esc(e.nama)}${e.id===db.activeEventId?' <span class="badge lunas">Aktif</span>':''}</td><td>${esc(e.tahun)}</td><td style="text-align:right;white-space:nowrap;">${e.id===db.activeEventId?'':`<button class="btn secondary small" onclick="setActiveEvent('${e.id}')">Aktifkan</button>`}<button class="icon-btn" onclick="openEventModal('${e.id}')" title="Ubah nama/tahun">✎</button><button class="icon-btn" onclick="hapusEvent('${e.id}')" title="Hapus event">🗑</button></td></tr>`).join('')||`<tr class="empty-row"><td colspan="3">Belum ada event.</td></tr>`}</tbody></table>
     </div>
     <div class="panel-body"><button class="btn gold" onclick="openEventModal()">+ Buat Event</button></div>
   </div>
@@ -3150,23 +3150,31 @@ function importDataEvent(evt){
 /* ============================================================
    EVENT MODAL
    ============================================================ */
-function openEventModal(){
-  if (!canEdit()) { toast('⛔ Login untuk membuat event'); return; }
-  setModal('Buat Event', `
-    <div class="field"><label>Nama Event</label><input id="f-nama" placeholder="HUT RI 82"></div>
-    <div class="field"><label>Tahun</label><input id="f-tahun" type="number" value="${new Date().getFullYear()}"></div>
+function openEventModal(id){
+  if (!canEdit()) { toast('⛔ Login untuk mengelola event'); return; }
+  const editing = id ? db.events.find(e=>e.id===id) : null;
+  setModal(editing?'Edit Event':'Buat Event', `
+    <div class="field"><label>Nama Event</label><input id="f-nama" placeholder="HUT RI 82" value="${editing?esc(editing.nama):''}"></div>
+    <div class="field"><label>Tahun</label><input id="f-tahun" type="number" value="${editing?esc(editing.tahun):new Date().getFullYear()}"></div>
   `, [
     {label:'Batal', cls:'secondary', onclick:closeModal},
-    {label:'Buat', cls:'', onclick:()=>{
+    {label:editing?'Simpan':'Buat', cls:'', onclick:()=>{
       const nama = document.getElementById('f-nama').value.trim();
       const tahun = document.getElementById('f-tahun').value.trim();
       if(!nama){ toast('Nama wajib'); return; }
-      const id = uid();
-      db.events.push({id, nama, tahun, created_at:new Date().toISOString()});
-      db.settings[id] = {tarif:{sekolah:0,bekerja:0,perantauan:0,khusus:0}, hadiahBudget:{}};
-      db.activeEventId = id;
-      saveDB(); closeModal(); renderSidebar(); goSection('pengaturan'); toast('Event dibuat');
-      notifyTelegram(`📂 Event baru: ${nama}`, `Tahun: ${tahun}`);
+      if(editing){
+        const namaLama = editing.nama;
+        editing.nama = nama; editing.tahun = tahun;
+        saveDB(); closeModal(); renderSidebar(); renderContent(); toast('Event diperbarui');
+        notifyTelegram(`✏️ Edit event: ${namaLama} → ${nama}`, `Tahun: ${tahun}`);
+      } else {
+        const newId = uid();
+        db.events.push({id:newId, nama, tahun, created_at:new Date().toISOString()});
+        db.settings[newId] = {tarif:{sekolah:0,bekerja:0,perantauan:0,khusus:0}, hadiahBudget:{}};
+        db.activeEventId = newId;
+        saveDB(); closeModal(); renderSidebar(); goSection('pengaturan'); toast('Event dibuat');
+        notifyTelegram(`📂 Event baru: ${nama}`, `Tahun: ${tahun}`);
+      }
     }}
   ]);
 }

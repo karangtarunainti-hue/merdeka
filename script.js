@@ -1991,22 +1991,53 @@ function renderBelanjaHadiah(){
 
   if(!items.length) return `<div class="panel"><div class="panel-head"><h3>🎁 Belanja Hadiah</h3></div><div class="panel-body"><div class="empty-state"><h3>Belum ada hadiah</h3><button class="btn" onclick="goSection('hadiah')">+ Tambah Hadiah</button></div></div></div>`;
 
-  const groups = KATEGORI_PESERTA.map(kp => {
-    const groupItems = items.filter(i=>i.kategori_peserta===kp.v);
-    if(!groupItems.length) return '';
-    const groupBelum = groupItems.filter(i=>!i.sudahDibeli);
-    const groupBelumTotal = groupBelum.reduce((s,i)=>s+(Number(i.itemHarga||0)*Number(i.itemQtyDibeli||0)),0);
-    const itemHtml = groupItems.map(item => {
+  // Kelompokkan per NAMA barang (gabungan lintas kategori peserta & juara), total kebutuhan digabung, detail per juara tetap ada
+  const nameMap = {};
+  items.forEach(item => {
+    const key = item.itemNama.trim().toLowerCase();
+    if(!nameMap[key]) nameMap[key] = {nama: item.itemNama, list: []};
+    nameMap[key].list.push(item);
+  });
+  const nameGroups = Object.values(nameMap).sort((a,b) => {
+    const aBelum = a.list.some(i=>!i.sudahDibeli), bBelum = b.list.some(i=>!i.sudahDibeli);
+    if(aBelum !== bBelum) return aBelum ? -1 : 1;
+    return a.nama.localeCompare(b.nama);
+  });
+
+  const groups = nameGroups.map(g => {
+    const list = g.list.slice().sort((a,b) => {
+      if(a.sudahDibeli !== b.sudahDibeli) return a.sudahDibeli ? 1 : -1;
+      if(a.kategori_peserta !== b.kategori_peserta) return a.kategori_peserta.localeCompare(b.kategori_peserta);
+      return a.juara_ke.localeCompare(b.juara_ke);
+    });
+    const totalQty = list.reduce((s,i)=>s+Number(i.itemQtyDibeli||0),0);
+    const totalHarga = list.reduce((s,i)=>s+(Number(i.itemHarga||0)*Number(i.itemQtyDibeli||0)),0);
+    const belum = list.filter(i=>!i.sudahDibeli);
+    const belumQty = belum.reduce((s,i)=>s+Number(i.itemQtyDibeli||0),0);
+    const belumHarga = belum.reduce((s,i)=>s+(Number(i.itemHarga||0)*Number(i.itemQtyDibeli||0)),0);
+
+    const itemHtml = list.map(item => {
       const isDibeli = item.sudahDibeli;
       const hargaTotal = Number(item.itemHarga||0)*Number(item.itemQtyDibeli||0);
       return `<div class="belanja-item ${isDibeli?'dibeli':''}">
         <div class="checkbox-wrapper ${isDibeli?'checked':''} ${!isLoggedIn ? 'disabled' : ''}" onclick="${isLoggedIn ? `toggleBelanjaHadiah('${item.id}',${item.itemIndex},'${item.belanjaId||''}')` : 'toast(\'⛔ Login untuk mengedit\')'}"></div>
-        <div class="info"><div class="nama">${esc(item.itemNama)}</div><div class="detail"><span class="tag">${labelPeserta(item.kategori_peserta)}</span><span class="tag">${labelJuara(item.juara_ke)}</span><span>Qty: ${item.itemQtyDibeli}</span>${isDibeli&&item.tanggalBeli?`<span>✓ Dibeli: ${fmtDate(item.tanggalBeli)}</span>`:''}</div></div>
+        <div class="info"><div class="detail"><span class="tag">${labelPeserta(item.kategori_peserta)}</span><span class="tag">${labelJuara(item.juara_ke)}</span><span>Qty: ${item.itemQtyDibeli}</span>${isDibeli&&item.tanggalBeli?`<span>✓ Dibeli: ${fmtDate(item.tanggalBeli)}</span>`:''}</div></div>
         <div class="harga">${fmtRp(hargaTotal)}</div>
         <button class="btn-small-icon" onclick="editBelanjaHadiah('${item.id}',${item.itemIndex})" ${!isLoggedIn ? 'disabled' : ''}>✎</button>
       </div>`;
     }).join('');
-    return `<div class="subgroup-title">${kp.l} (${groupBelum.length}/${groupItems.length} · ${fmtRp(groupBelumTotal)})</div>${itemHtml}`;
+
+    return `<div class="consol-group">
+      <div class="consol-head">
+        <div class="consol-nama">🎁 ${esc(g.nama)}</div>
+        <div class="consol-stats">
+          <span class="consol-qty">Total butuh: <strong>${totalQty} pcs</strong></span>
+          <span class="consol-harga">${fmtRp(totalHarga)}</span>
+          ${belum.length ? `<span class="consol-status belum">Belum: ${belumQty} pcs · ${fmtRp(belumHarga)}</span>` : `<span class="consol-status selesai">✓ Semua sudah dibeli</span>`}
+        </div>
+      </div>
+      <div class="consol-detail">${itemHtml}</div>
+    </div>`;
   }).join('');
 
   return `<div class="stat-grid"><div class="stat-card belanja-hadiah"><div class="lbl">Total Item</div><div class="val">${totalItem}</div></div><div class="stat-card pemasukan"><div class="lbl">Belum Dibeli</div><div class="val">${totalBelum}</div></div><div class="stat-card saldo"><div class="lbl">Estimasi Total</div><div class="val">${fmtRp(totalEstimasi)}</div></div></div>
@@ -2083,16 +2114,45 @@ function renderBelanjaPerlengkapan(){
   
   if(!items.length) return `<div class="panel"><div class="panel-head"><h3>📦 Belanja Perlengkapan</h3></div><div class="panel-body"><div class="empty-state"><h3>Belum ada perlengkapan</h3><button class="btn" onclick="goSection('lomba')">+ Tambah Kebutuhan</button></div></div></div>`;
 
-  const groups = {}; items.forEach(item => { if(!groups[item.lombaNama]) groups[item.lombaNama]=[]; groups[item.lombaNama].push(item); });
-  const groupHtml = Object.keys(groups).sort().map(lombaNama => {
-    const groupItems = groups[lombaNama]; const groupBelum = groupItems.filter(i=>!i.sudahDibeli); const groupBelumTotal = groupBelum.reduce((s,i)=>s+i.hargaTotal,0);
+  // Kelompokkan per NAMA barang (gabungan lintas lomba), total kebutuhan digabung, detail per lomba tetap ada
+  const nameMap = {};
+  items.forEach(item => {
+    const key = item.nama_item.trim().toLowerCase();
+    if(!nameMap[key]) nameMap[key] = {nama: item.nama_item, list: []};
+    nameMap[key].list.push(item);
+  });
+  const nameGroups = Object.values(nameMap).sort((a,b) => {
+    const aBelum = a.list.some(i=>!i.sudahDibeli), bBelum = b.list.some(i=>!i.sudahDibeli);
+    if(aBelum !== bBelum) return aBelum ? -1 : 1;
+    return a.nama.localeCompare(b.nama);
+  });
+
+  const groupHtml = nameGroups.map(g => {
+    const groupItems = g.list.slice().sort((a,b) => { if(a.sudahDibeli!==b.sudahDibeli) return a.sudahDibeli?1:-1; return a.lombaNama.localeCompare(b.lombaNama); });
+    const totalQty = groupItems.reduce((s,i)=>s+Number(i.qty||0),0);
+    const totalHarga = groupItems.reduce((s,i)=>s+i.hargaTotal,0);
+    const groupBelum = groupItems.filter(i=>!i.sudahDibeli);
+    const groupBelumQty = groupBelum.reduce((s,i)=>s+Number(i.qty||0),0);
+    const groupBelumTotal = groupBelum.reduce((s,i)=>s+i.hargaTotal,0);
+
     const itemHtml = groupItems.map(item => `<div class="belanja-item ${item.sudahDibeli?'dibeli':''}">
       <div class="checkbox-wrapper ${item.sudahDibeli?'checked':''} ${!isLoggedIn ? 'disabled' : ''}" onclick="${isLoggedIn ? `toggleBelanjaPerlengkapan('${item.id}','${item.belanjaId||''}')` : 'toast(\'⛔ Login untuk mengedit\')'}"></div>
-      <div class="info"><div class="nama">${esc(item.nama_item)}</div><div class="detail"><span class="tag tag-orange">${labelPeserta(item.lombaKategori)}</span><span>Qty: ${item.qty}</span>${item.harga_realisasi!=null?`<span>Realisasi: ${fmtRp(item.harga_realisasi)}</span>`:''}${item.sudahDibeli&&item.tanggalBeli?`<span>✓ Dibeli: ${fmtDate(item.tanggalBeli)}</span>`:''}</div></div>
+      <div class="info"><div class="detail"><span class="tag tag-orange">📋 ${esc(item.lombaNama)}</span><span class="tag">${labelPeserta(item.lombaKategori)}</span><span>Qty: ${item.qty}</span>${item.harga_realisasi!=null?`<span>Realisasi: ${fmtRp(item.harga_realisasi)}</span>`:''}${item.sudahDibeli&&item.tanggalBeli?`<span>✓ Dibeli: ${fmtDate(item.tanggalBeli)}</span>`:''}</div></div>
       <div class="harga">${fmtRp(item.hargaTotal)}</div>
       <button class="btn-small-icon" onclick="editBelanjaPerlengkapan('${item.id}')" ${!isLoggedIn ? 'disabled' : ''}>✎</button>
     </div>`).join('');
-    return `<div class="subgroup-title">📋 ${esc(lombaNama)} (${groupBelum.length}/${groupItems.length} · ${fmtRp(groupBelumTotal)})</div>${itemHtml}`;
+
+    return `<div class="consol-group">
+      <div class="consol-head">
+        <div class="consol-nama">📦 ${esc(g.nama)}</div>
+        <div class="consol-stats">
+          <span class="consol-qty">Total butuh: <strong>${totalQty}</strong></span>
+          <span class="consol-harga">${fmtRp(totalHarga)}</span>
+          ${groupBelum.length ? `<span class="consol-status belum">Belum: ${groupBelumQty} · ${fmtRp(groupBelumTotal)}</span>` : `<span class="consol-status selesai">✓ Semua sudah dibeli</span>`}
+        </div>
+      </div>
+      <div class="consol-detail">${itemHtml}</div>
+    </div>`;
   }).join('');
 
   return `<div class="stat-grid"><div class="stat-card belanja-perlengkapan"><div class="lbl">Total Item</div><div class="val">${totalItem}</div></div><div class="stat-card pemasukan"><div class="lbl">Belum Dibeli</div><div class="val">${totalBelum}</div></div><div class="stat-card saldo"><div class="lbl">Estimasi Total</div><div class="val">${fmtRp(totalEstimasi)}</div></div></div>
@@ -2323,10 +2383,25 @@ function renderBelanjaJalanSantai(){
     </div>`;
   }
 
-  const groups = KATEGORI_JALAN_SANTAI.map(kp => {
-    const groupItems = items.filter(i => i.kategori === kp.v);
-    if (!groupItems.length) return '';
+  // Kelompokkan per NAMA hadiah (gabungan lintas kategori jalan santai), total kebutuhan digabung, detail per kategori tetap ada
+  const nameMap = {};
+  items.forEach(item => {
+    const key = item.nama_hadiah.trim().toLowerCase();
+    if(!nameMap[key]) nameMap[key] = {nama: item.nama_hadiah, list: []};
+    nameMap[key].list.push(item);
+  });
+  const nameGroups = Object.values(nameMap).sort((a,b) => {
+    const aBelum = a.list.some(i=>!i.sudahDibeli), bBelum = b.list.some(i=>!i.sudahDibeli);
+    if(aBelum !== bBelum) return aBelum ? -1 : 1;
+    return a.nama.localeCompare(b.nama);
+  });
+
+  const groups = nameGroups.map(g => {
+    const groupItems = g.list.slice().sort((a,b) => { if(a.sudahDibeli!==b.sudahDibeli) return a.sudahDibeli?1:-1; return a.kategori.localeCompare(b.kategori); });
+    const totalQty = groupItems.reduce((s,i)=>s+Number(i.qty||0),0);
+    const totalHarga = groupItems.reduce((s, i) => s + i.hargaTotal, 0);
     const groupBelum = groupItems.filter(i => !i.sudahDibeli);
+    const groupBelumQty = groupBelum.reduce((s,i)=>s+Number(i.qty||0),0);
     const groupBelumTotal = groupBelum.reduce((s, i) => s + i.hargaTotal, 0);
 
     const itemHtml = groupItems.map(item => {
@@ -2337,7 +2412,6 @@ function renderBelanjaJalanSantai(){
              onclick="${isLoggedIn ? `toggleBelanjaJalan('${item.id}')` : 'toast(\'⛔ Login untuk mengedit\')'}">
         </div>
         <div class="info">
-          <div class="nama">${esc(item.nama_hadiah)}</div>
           <div class="detail">
             <span class="tag tag-pink">${labelKategoriJalan(item.kategori)}</span>
             <span>Qty: ${item.qty}</span>
@@ -2351,7 +2425,17 @@ function renderBelanjaJalanSantai(){
       </div>`;
     }).join('');
 
-    return `<div class="subgroup-title">${kp.l} (${groupBelum.length}/${groupItems.length} · ${fmtRp(groupBelumTotal)})</div>${itemHtml}`;
+    return `<div class="consol-group">
+      <div class="consol-head">
+        <div class="consol-nama">🛍️ ${esc(g.nama)}</div>
+        <div class="consol-stats">
+          <span class="consol-qty">Total butuh: <strong>${totalQty}</strong></span>
+          <span class="consol-harga">${fmtRp(totalHarga)}</span>
+          ${groupBelum.length ? `<span class="consol-status belum">Belum: ${groupBelumQty} · ${fmtRp(groupBelumTotal)}</span>` : `<span class="consol-status selesai">✓ Semua sudah dibeli</span>`}
+        </div>
+      </div>
+      <div class="consol-detail">${itemHtml}</div>
+    </div>`;
   }).join('');
 
   return `

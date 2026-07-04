@@ -638,6 +638,50 @@
     text-decoration:line-through;
     opacity:.6;
   }
+  .belanja-item.dibeli .info .detail{
+    opacity:.6;
+  }
+
+  .consol-group{
+    border:1px solid var(--garis);
+    border-radius:10px;
+    margin:0 0 14px;
+    overflow:hidden;
+    background:var(--surface);
+  }
+  .consol-head{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    flex-wrap:wrap;
+    padding:11px 14px;
+    background:var(--surface-soft);
+    border-bottom:1px solid var(--garis);
+  }
+  .consol-nama{
+    font-weight:700; font-size:14px; color:var(--ink);
+  }
+  .consol-stats{
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+    font-size:12px;
+  }
+  .consol-qty{color:var(--ink-soft);}
+  .consol-harga{
+    font-family:'IBM Plex Mono',monospace;
+    font-weight:700; font-size:13.5px;
+  }
+  .consol-status{
+    padding:2px 9px; border-radius:20px;
+    font-size:11px; font-weight:600;
+    white-space:nowrap;
+  }
+  .consol-status.belum{
+    background:var(--orange-tint); color:var(--orange);
+  }
+  .consol-status.selesai{
+    background:var(--hijau-tint, #d7f4e2); color:var(--hijau);
+  }
+  .consol-detail .belanja-item:last-child{
+    border-bottom:none;
+  }
   .belanja-item .btn-small-icon{
     background:transparent; border:none;
     color:var(--abu); font-size:16px;

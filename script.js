@@ -597,7 +597,7 @@ const SECTIONS = [
   {key:'operasional', label:'Operasional Kegiatan', sub:'Biaya operasional umum event', icon:'briefcase', adminOnly: false},
   {key:'lomba', label:'Lomba & Kebutuhan', sub:'Kebutuhan barang per lomba', icon:'flag', adminOnly: false},
   {key:'belanja-perlengkapan', label:'Belanja Perlengkapan', sub:'Daftar belanja perlengkapan lomba', icon:'package', adminOnly: false},
-  {key:'hadiah', label:'Stok Hadiah Lomba', sub:'Belanja hadiah per kategori peserta', icon:'gift', adminOnly: false},
+  {key:'hadiah', label:'Kebutuhan Hadiah Lomba', sub:'Belanja hadiah per kategori peserta', icon:'gift', adminOnly: false},
   {key:'belanja-hadiah', label:'Belanja Hadiah', sub:'Daftar belanja hadiah lomba', icon:'shopping', adminOnly: false},
   {key:'hadiah-jalan', label:'Hadiah Jalan Santai', sub:'Kelola hadiah jalan santai', icon:'walk', adminOnly: false},
   {key:'belanja-jalan', label:'Belanja Jalan Santai', sub:'Daftar belanja hadiah jalan santai', icon:'shopping-bag', adminOnly: false},
@@ -1891,7 +1891,7 @@ function hapusKebutuhan(id){
 }
 
 /* ============================================================
-   STOK HADIAH LOMBA (dengan auth check)
+   KEBUTUHAN HADIAH LOMBA (dengan auth check)
    ============================================================ */
 function renderHadiah(){
   const list = gHadiahKategori();
@@ -1946,13 +1946,13 @@ function renderHadiah(){
     <div class="stat-card pengeluaran"><div class="lbl">Total Belanja Hadiah</div><div class="val">${fmtRp(total)}</div></div>
     ${totalBudget>0 ? `<div class="stat-card ${total>totalBudget?'defisit':'saldo'}"><div class="lbl">Total Budget Hadiah</div><div class="val">${fmtRp(totalBudget)}</div><div style="font-size:11px; color:var(--abu); margin-top:4px;">${total>totalBudget?`⚠️ Sudah lebih ${fmtRp(total-totalBudget)}`:`Sisa ${fmtRp(totalBudget-total)}`}</div></div>` : ''}
   </div>
-  <div class="panel"><div class="panel-head"><div><h3>Stok Hadiah</h3><div class="desc">Setiap paket bisa berisi multiple item · Kebutuhan Juara 1-3 mengikuti jumlah lomba per kategori</div></div>
+  <div class="panel"><div class="panel-head"><div><h3>Kebutuhan Hadiah Lomba</h3><div class="desc">Setiap paket bisa berisi multiple item · Kebutuhan Juara 1-3 mengikuti jumlah lomba per kategori</div></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
       ${isLoggedIn ? `<button class="btn secondary" onclick="openHadiahBudgetModal()">🎯 Atur Budget</button>` : ''}
       ${isLoggedIn ? `<button class="btn secondary" onclick="sesuaikanSemuaKebutuhanHadiah()">⚡ Sesuaikan Semua Otomatis</button>` : ''}
       ${isLoggedIn ? `<button class="btn" onclick="openHadiahModal()">+ Tambah Paket</button>` : ''}
     </div></div>
-  <div class="panel-body">${groups.trim()||`<div style="padding:30px;text-align:center;color:var(--abu);">Belum ada stok hadiah.</div>`}</div></div>`;
+  <div class="panel-body">${groups.trim()||`<div style="padding:30px;text-align:center;color:var(--abu);">Belum ada kebutuhan hadiah.</div>`}</div></div>`;
 }
 
 // Kebutuhan paket hadiah Juara 1/2/3 = jumlah lomba pada kategori peserta tsb (setiap lomba butuh 1 paket per juara).

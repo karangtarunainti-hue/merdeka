@@ -588,9 +588,9 @@ const SECTIONS = [
   {key:'transaksi', label:'Transaksi Lain', sub:'Pemasukan di luar iuran & donasi', icon:'swap', adminOnly: false},
   {key:'operasional', label:'Operasional Kegiatan', sub:'Biaya operasional umum event', icon:'briefcase', adminOnly: false},
   {key:'lomba', label:'Lomba & Kebutuhan', sub:'Kebutuhan barang per lomba', icon:'flag', adminOnly: false},
+  {key:'belanja-perlengkapan', label:'Belanja Perlengkapan', sub:'Daftar belanja perlengkapan lomba', icon:'package', adminOnly: false},
   {key:'hadiah', label:'Stok Hadiah Lomba', sub:'Belanja hadiah per kategori peserta', icon:'gift', adminOnly: false},
   {key:'belanja-hadiah', label:'Belanja Hadiah', sub:'Daftar belanja hadiah lomba', icon:'shopping', adminOnly: false},
-  {key:'belanja-perlengkapan', label:'Belanja Perlengkapan', sub:'Daftar belanja perlengkapan lomba', icon:'package', adminOnly: false},
   {key:'hadiah-jalan', label:'Hadiah Jalan Santai', sub:'Kelola hadiah jalan santai', icon:'walk', adminOnly: false},
   {key:'belanja-jalan', label:'Belanja Jalan Santai', sub:'Daftar belanja hadiah jalan santai', icon:'shopping-bag', adminOnly: false},
   {key:'jadwal', label:'Jadwal & Reminder', sub:'Kelola jadwal dan pengingat', icon:'calendar', adminOnly: false},
@@ -994,7 +994,7 @@ function renderDashboard(){
   <div class="stat-grid">
     <div class="stat-card pemasukan"><div class="lbl">Total Pemasukan</div><div class="val">${fmtRp(b.pemasukan)}</div></div>
     <div class="stat-card pengeluaran"><div class="lbl">Total Pengeluaran</div><div class="val">${fmtRp(b.pengeluaran)}</div></div>
-    <div class="stat-card saldo"><div class="lbl">Saldo Akhir</div><div class="val">${fmtRp(b.saldo)}</div></div>
+    <div class="stat-card saldo"><div class="lbl">Saldo Akhir</div><div class="val">${fmtRp(b.saldo)}</div><div style="font-size:11px; color:var(--abu); margin-top:4px; line-height:1.4;">Proyeksi anggaran — sudah termasuk kebutuhan &amp; hadiah yang direncanakan, belum tentu semuanya sudah dibelanjakan.</div></div>
   </div>
   <div class="panel">
     <div class="panel-head"><h3>Rincian Pemasukan</h3></div>
@@ -1268,7 +1268,15 @@ function renderAnggota(){
     ${isFiltering?`<button class="btn secondary small" onclick="resetFilterAnggota()">↺ Reset</button>`:''}
   </div>`;
 
+  const tarifBelumDiisi = Number(s.tarif.sekolah||0)<=0 && Number(s.tarif.bekerja||0)<=0 && Number(s.tarif.perantauan||0)<=0;
+  const tarifBanner = (tarifBelumDiisi && isLoggedIn) ? `
+    <div class="panel" style="background:var(--orange-tint); border-left:3px solid var(--orange); display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; padding:14px 16px; margin-bottom:16px;">
+      <div style="font-size:13.5px; color:var(--ink-soft);">⚠️ Tarif iuran (Sekolah/Bekerja/Perantauan) belum diisi — anggota yang ditambahkan sekarang akan tercatat <b>Rp 0</b>. Set tarif dulu di Pengaturan.</div>
+      <button class="btn small" onclick="goSection('pengaturan')" style="white-space:nowrap;">⚙️ Buka Pengaturan</button>
+    </div>` : '';
+
   return `
+  ${tarifBanner}
   <div class="stat-grid">
     <div class="stat-card"><div class="lbl">Total Anggota</div><div class="val">${list.length}</div></div>
     <div class="stat-card pemasukan"><div class="lbl">Terkumpul (Lunas)</div><div class="val">${fmtRp(totalTerkumpul)}</div></div>

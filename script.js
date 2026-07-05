@@ -654,7 +654,12 @@ const ICONS = {
   package:'<rect x="3" y="5" width="18" height="14" rx="1" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M8 5v14M16 5v14M3 10h18" stroke="currentColor" stroke-width="1.6"/>',
   walk:'<path d="M13 4a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0z" fill="currentColor"/><path d="M8 21l3-7-2-4 3-3 3 4 1 6" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 11l-3 3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M9 21v-4l3-3" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round"/><path d="M12 14l2 3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
   'shopping-bag':'<rect x="5" y="8" width="14" height="13" rx="2" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M8 6c0-2.2 1.8-4 4-4s4 1.8 4 4v2" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round"/><circle cx="9" cy="14" r="1" fill="currentColor"/><circle cx="15" cy="14" r="1" fill="currentColor"/>',
-  calendar:'<rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M3 10h18" stroke="currentColor" stroke-width="1.6"/><path d="M8 2v4M16 2v4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="12" cy="14" r="1.2" fill="currentColor"/><circle cx="16" cy="14" r="1.2" fill="currentColor"/><circle cx="8" cy="14" r="1.2" fill="currentColor"/>'
+  calendar:'<rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M3 10h18" stroke="currentColor" stroke-width="1.6"/><path d="M8 2v4M16 2v4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="12" cy="14" r="1.2" fill="currentColor"/><circle cx="16" cy="14" r="1.2" fill="currentColor"/><circle cx="8" cy="14" r="1.2" fill="currentColor"/>',
+  pen:'<path d="M4 20l1-4L15 6l4 4L9 20l-4 1z" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linejoin="round"/><path d="M13 8l3 3" stroke="currentColor" stroke-width="1.6"/>',
+  pot:'<path d="M4 10h16v6a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4v-6z" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linejoin="round"/><path d="M2 10h20" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M2 8h3M19 8h3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
+  food:'<path d="M7 2v8M5 2v5a2 2 0 0 0 2 2 2 2 0 0 0 2-2V2" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 10v12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M17 2c-1.5 0-2.5 1.6-2.5 4s1 4 2.5 4v12" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>',
+  bath:'<path d="M12 3c3 4 5 6.6 5 9.5A5 5 0 0 1 7 12.5C7 9.6 9 7 12 3z" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linejoin="round"/>',
+  tag:'<path d="M12 3h6a2 2 0 0 1 2 2v6L11 20l-8-8L12 3z" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linejoin="round"/><circle cx="16" cy="7" r="1.3" fill="currentColor"/>'
 };
 function icon(name){ return `<svg viewBox="0 0 24 24">${ICONS[name]||''}</svg>`; }
 
@@ -2171,6 +2176,34 @@ function hapusHadiah(id){
 }
 
 /* ============================================================
+   KATEGORI TOKO — pengelompokan otomatis daftar belanja hadiah
+   berdasarkan nama item, supaya barang sejenis (alat tulis,
+   kebutuhan dapur, makanan, kamar mandi) tidak campur dan bisa
+   dibeli sekaligus di satu toko.
+   ============================================================ */
+const KATEGORI_TOKO_LIST = [
+  {key:'alat_tulis', label:'Alat Tulis', icon:'pen'},
+  {key:'dapur', label:'Kebutuhan Dapur', icon:'pot'},
+  {key:'makanan', label:'Makanan & Jajanan', icon:'food'},
+  {key:'kamar_mandi', label:'Kamar Mandi', icon:'bath'},
+  {key:'lainnya', label:'Lainnya', icon:'tag'}
+];
+const KATEGORI_TOKO_KEYWORDS = {
+  alat_tulis: ['pulpen','bolpoin','bolpen','pena','pensil','penghapus','penggaris','buku tulis','buku gambar','buku','spidol','crayon','krayon','lem','gunting','kertas','map plastik',' map','stabilo','tipe-x','tipex','rautan','sampul','isolasi','selotip','staples','klip','tinta','stiker','origami','karton','pewarna','cat air','sketchbook'],
+  dapur: ['piring','gelas','mangkok','mangkuk','panci','wajan','sendok','garpu','pisau dapur','pisau','termos','toples','ember','gayung','baskom','rantang','teflon','talenan','serbet','kompor','tupperware','kotak makan','nampan','cobek','teko','dispenser','centong','saringan'],
+  makanan: ['snack','snek','biskuit','wafer','coklat','cokelat','permen','minyak goreng','minyak','gula pasir','gula','kopi','teh','susu','indomie','mie instan','mie','sarden','kecap','saus','roti','sirup','minuman','air mineral','aqua','beras','telur','kornet','sosis','keju','selai','madu','kacang','kerupuk','chiki','marimas','agar-agar','agar','jelly','jeli','jajan','oreo','tango','richeese','chitato','taro','better','gery','roma','pop mie'],
+  kamar_mandi: ['sabun','shampo','sampo','sikat gigi','odol','pasta gigi','handuk','tissue','tisu','pewangi','pembersih lantai','pembersih','deterjen','pembalut','cotton bud','parfum','minyak wangi','sunlight','rinso','molto','downy','pengharum','kapas']
+};
+function kategoriTokoFromNama(nama){
+  const n = ' ' + (nama||'').toLowerCase().trim() + ' ';
+  for(const kat of ['alat_tulis','dapur','makanan','kamar_mandi']){
+    if(KATEGORI_TOKO_KEYWORDS[kat].some(kw => n.includes(kw))) return kat;
+  }
+  return 'lainnya';
+}
+function infoKategoriToko(key){ return KATEGORI_TOKO_LIST.find(k=>k.key===key) || KATEGORI_TOKO_LIST[KATEGORI_TOKO_LIST.length-1]; }
+
+/* ============================================================
    BELANJA HADIAH, BELANJA PERLENGKAPAN, BELANJA JALAN (dengan auth check)
    ============================================================ */
 function renderBelanjaHadiah(){
@@ -2212,13 +2245,20 @@ function renderBelanjaHadiah(){
     if(!nameMap[key]) nameMap[key] = {nama: item.itemNama, list: []};
     nameMap[key].list.push(item);
   });
-  const nameGroups = Object.values(nameMap).sort((a,b) => {
+
+  // Lalu kelompokkan per KATEGORI TOKO (alat tulis / dapur / makanan / kamar mandi / lainnya)
+  // supaya barang sejenis tidak campur dan bisa dibeli sekaligus di satu toko.
+  const kategoriOrder = KATEGORI_TOKO_LIST.map(k=>k.key);
+  const nameGroups = Object.values(nameMap).map(g => ({...g, kategoriToko: kategoriTokoFromNama(g.nama)})).sort((a,b) => {
+    const ordA = kategoriOrder.indexOf(a.kategoriToko), ordB = kategoriOrder.indexOf(b.kategoriToko);
+    if(ordA !== ordB) return ordA - ordB;
     const aBelum = a.list.some(i=>!i.sudahDibeli), bBelum = b.list.some(i=>!i.sudahDibeli);
     if(aBelum !== bBelum) return aBelum ? -1 : 1;
     return a.nama.localeCompare(b.nama);
   });
 
   window._belanjaHadiahGroups = {};
+  let lastKategoriToko = null;
   const groups = nameGroups.map((g, gi) => {
     const list = g.list.slice().sort((a,b) => {
       if(a.kategori_peserta !== b.kategori_peserta) return a.kategori_peserta.localeCompare(b.kategori_peserta);
@@ -2234,7 +2274,16 @@ function renderBelanjaHadiah(){
 
     const tagHtml = list.map(item => `<span class="tag">${labelPeserta(item.kategori_peserta)} · ${labelJuara(item.juara_ke)} · ${item.itemQtyDibeli} pcs</span>`).join('');
 
-    return `<div class="belanja-item ${semuaDibeli?'dibeli':''}">
+    // Header kategori toko, muncul setiap kali kategori berganti
+    let headerHtml = '';
+    if(g.kategoriToko !== lastKategoriToko){
+      lastKategoriToko = g.kategoriToko;
+      const info = infoKategoriToko(g.kategoriToko);
+      const groupItemCount = nameGroups.filter(x=>x.kategoriToko===g.kategoriToko).length;
+      headerHtml = `<div class="kategori-toko-header"><div class="kategori-toko-icon">${icon(info.icon)}</div><div class="kategori-toko-label">${esc(info.label)}</div><div class="kategori-toko-count">${groupItemCount} item</div></div>`;
+    }
+
+    return `${headerHtml}<div class="belanja-item ${semuaDibeli?'dibeli':''}">
       <div class="checkbox-wrapper ${semuaDibeli?'checked':''} ${!isLoggedIn ? 'disabled' : ''}" onclick="${isLoggedIn ? `toggleBelanjaHadiahGroup(${gi})` : 'toast(\'⛔ Login untuk mengedit\')'}"></div>
       <div class="info">
         <div class="nama">${esc(g.nama)} <span style="font-weight:600; color:var(--ink-soft); font-size:12px;">(Total: ${totalQty} pcs)</span></div>

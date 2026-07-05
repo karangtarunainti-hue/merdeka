@@ -1829,12 +1829,15 @@ function renderHadiahLombaBlock(lomba){
   const rows = JUARA_LIST.map(j=>{
     const current = assigned.find(a=>a.juara_ke===j.v);
     const currentHadiah = current ? db.hadiahKategori.find(h=>h.id===current.hadiah_kategori_id) : null;
-    const opsi = gHadiahKategori().filter(h=> h.kategori_peserta===lomba.kategori_peserta && h.juara_ke===j.v &&
-      (h.items.every(item => (Number(item.qty_dibeli||0)-Number(item.qty_terpakai||0)) >= multiplier) || (currentHadiah && h.id===currentHadiah.id)));
+    const opsi = gHadiahKategori().filter(h=> h.kategori_peserta===lomba.kategori_peserta && h.juara_ke===j.v);
     return `<div class="juara-row"><div class="juara-tag">${j.l}</div>
       <select class="juara-select" onchange="setLombaHadiah('${lomba.id}','${j.v}',this.value)" ${!isLoggedIn ? 'disabled' : ''}>
         <option value="">— Pilih paket —</option>
-        ${opsi.map(h=>{const label=h.items.map(item=>item.nama).join(', '); return `<option value="${h.id}" ${currentHadiah&&h.id===currentHadiah.id?'selected':''}>${label}</option>`;}).join('')}
+        ${opsi.map(h=>{
+          const kurang = h.items.some(item => (Number(item.qty_dibeli||0)-Number(item.qty_terpakai||0)) < multiplier);
+          const label=(kurang?'⚠️ ':'')+h.items.map(item=>item.nama).join(', ');
+          return `<option value="${h.id}" ${currentHadiah&&h.id===currentHadiah.id?'selected':''}>${label}</option>`;
+        }).join('')}
       </select>
     </div>`;
   }).join('');

@@ -658,6 +658,9 @@
   .belanja-item .info .detail .tag-orange{
     background:var(--orange-tint); color:var(--orange);
   }
+  .belanja-item .info .detail .tag.pack-tag{
+    background:var(--hijau-tint, #d7f4e2); color:var(--hijau, #2f9e5b);
+  }
   .belanja-item .harga{
     font-family:'Roboto Mono',monospace;
     font-weight:600;

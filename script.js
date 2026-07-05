@@ -2220,7 +2220,7 @@ function renderBelanjaHadiah(){
       const belanja = statusMap[key] || null;
       const status = belanja ? belanja.status : 'belum_dibeli';
       const tanggalBeli = belanja ? belanja.tanggal_beli : null;
-      items.push({...h, itemIndex: idx, itemNama: item.nama, itemHarga: item.harga_satuan, itemQtyDibeli: item.qty_dibeli, status, tanggalBeli, sudahDibeli: status==='dibeli', key});
+      items.push({...h, itemIndex: idx, itemNama: item.nama, itemHarga: item.harga_satuan, itemQtyDibeli: item.qty_dibeli, isi_per_pack: item.isi_per_pack||1, status, tanggalBeli, sudahDibeli: status==='dibeli', key});
     });
   });
 
@@ -2271,8 +2271,11 @@ function renderBelanjaHadiah(){
     const semuaDibeli = list.every(i=>i.sudahDibeli);
     const belum = list.filter(i=>!i.sudahDibeli);
     const tglTerbaru = list.filter(i=>i.tanggalBeli).map(i=>i.tanggalBeli).sort().pop();
+    const isiPerPack = Math.max(1, Number(list[0].isi_per_pack||1));
+    const jumlahPack = isiPerPack > 1 ? Math.ceil(totalQty / isiPerPack) : null;
 
     const tagHtml = list.map(item => `<span class="tag">${labelPeserta(item.kategori_peserta)} · ${labelJuara(item.juara_ke)} · ${item.itemQtyDibeli} pcs</span>`).join('');
+    const packTagHtml = jumlahPack ? `<span class="tag pack-tag">📦 Beli ${jumlahPack} pack (isi ${isiPerPack} → ${jumlahPack*isiPerPack} pcs)</span>` : '';
 
     // Header kategori toko, muncul setiap kali kategori berganti
     let headerHtml = '';
@@ -2287,11 +2290,11 @@ function renderBelanjaHadiah(){
       <div class="checkbox-wrapper ${semuaDibeli?'checked':''} ${!isLoggedIn ? 'disabled' : ''}" onclick="${isLoggedIn ? `toggleBelanjaHadiahGroup(${gi})` : 'toast(\'⛔ Login untuk mengedit\')'}"></div>
       <div class="info">
         <div class="nama">${esc(g.nama)} <span style="font-weight:600; color:var(--ink-soft); font-size:12px;">(Total: ${totalQty} pcs)</span></div>
-        <div class="detail">${tagHtml}${semuaDibeli&&tglTerbaru?`<span>✓ Dibeli: ${fmtDate(tglTerbaru)}</span>`:(belum.length && belum.length<list.length ? `<span style="color:var(--orange);">Sebagian belum (${belum.length}/${list.length})</span>` : '')}</div>
+        <div class="detail">${packTagHtml}${tagHtml}${semuaDibeli&&tglTerbaru?`<span>✓ Dibeli: ${fmtDate(tglTerbaru)}</span>`:(belum.length && belum.length<list.length ? `<span style="color:var(--orange);">Sebagian belum (${belum.length}/${list.length})</span>` : '')}</div>
       </div>
       <div class="harga" style="display:flex; align-items:center; gap:4px;">
         <span>${fmtRp(totalHarga)}</span>
-        <button class="btn-small-icon" title="Update harga" onclick="event.stopPropagation(); ${isLoggedIn ? `editHargaBelanjaHadiahGroup(${gi})` : `toast('⛔ Login untuk mengedit')`}" ${!isLoggedIn ? 'disabled' : ''}>${icon('pen')}</button>
+        <button class="btn-small-icon" title="Update harga & kemasan" onclick="event.stopPropagation(); ${isLoggedIn ? `editHargaBelanjaHadiahGroup(${gi})` : `toast('⛔ Login untuk mengedit')`}" ${!isLoggedIn ? 'disabled' : ''}>${icon('pen')}</button>
       </div>
     </div>`;
   }).join('');
@@ -2365,19 +2368,44 @@ function editHargaBelanjaHadiahGroup(gi){
   if(!group || !group.refs.length){ toast('Item tidak ditemukan'); return; }
   const firstRef = group.refs[0];
   const firstH = db.hadiahKategori.find(x=>x.id===firstRef.hadiahId);
-  const hargaSekarang = firstH && firstH.items[firstRef.itemIndex] ? firstH.items[firstRef.itemIndex].harga_satuan : 0;
-  const input = prompt(`Update harga satuan "${group.nama}" (Rp):`, hargaSekarang);
-  if(input===null) return;
-  const harga = Number(String(input).replace(/[^0-9]/g,''));
-  if(!(harga >= 0)){ toast('Harga tidak valid'); return; }
-  let count = 0;
+  const firstItem = firstH ? firstH.items[firstRef.itemIndex] : null;
+  if(!firstItem){ toast('Item tidak ditemukan'); return; }
+
+  const isiSekarang = Math.max(1, Number(firstItem.isi_per_pack||1));
+  const isiInput = prompt(`"${group.nama}" dijual isi berapa per pack?\n(Isi 1 kalau dijual satuan/bijian, isi 12 kalau 1 pack = 12 pcs, dst.)`, isiSekarang);
+  if(isiInput===null) return;
+  const isiPerPack = Math.max(1, Number(String(isiInput).replace(/[^0-9]/g,''))||1);
+
+  const hargaSatuanSekarang = Number(firstItem.harga_satuan||0);
+  const isPack = isiPerPack > 1;
+  const labelHarga = isPack ? `Harga per PACK (isi ${isiPerPack} pcs)` : 'Harga per pcs (satuan)';
+  const defaultHargaInput = isPack ? hargaSatuanSekarang * isiPerPack : hargaSatuanSekarang;
+  const hargaInput = prompt(`${labelHarga} untuk "${group.nama}" (Rp):`, defaultHargaInput);
+  if(hargaInput===null) return;
+  const hargaMasuk = Number(String(hargaInput).replace(/[^0-9]/g,''));
+  if(!(hargaMasuk >= 0)){ toast('Harga tidak valid'); return; }
+  const hargaSatuanBaru = isPack ? Math.round(hargaMasuk / isiPerPack) : hargaMasuk;
+
+  let count = 0, totalQty = 0;
   group.refs.forEach(r => {
     const h = db.hadiahKategori.find(x=>x.id===r.hadiahId);
-    if(h && h.items[r.itemIndex]){ h.items[r.itemIndex].harga_satuan = harga; count++; }
+    if(h && h.items[r.itemIndex]){
+      h.items[r.itemIndex].harga_satuan = hargaSatuanBaru;
+      h.items[r.itemIndex].isi_per_pack = isiPerPack;
+      totalQty += Number(h.items[r.itemIndex].qty_dibeli||0);
+      count++;
+    }
   });
   saveDB(); renderContent(); renderTopbarSaldo();
-  toast(`✓ Harga "${group.nama}" diupdate ke ${fmtRp(harga)} (${count} paket)`);
-  notifyTelegram(`✏️ Update harga belanja hadiah: ${group.nama}`, `Harga satuan baru: ${fmtRp(harga)}\nDiterapkan ke ${count} paket`);
+
+  if(isPack){
+    const jumlahPack = Math.ceil(totalQty / isiPerPack);
+    toast(`✓ "${group.nama}": beli ${jumlahPack} pack (isi ${isiPerPack}) — Rp${fmtRp(hargaSatuanBaru)}/pcs`);
+    notifyTelegram(`✏️ Update kemasan & harga belanja hadiah: ${group.nama}`, `Isi per pack: ${isiPerPack}\nHarga per pack: ${fmtRp(hargaMasuk)} (≈ ${fmtRp(hargaSatuanBaru)}/pcs)\nKebutuhan: ${totalQty} pcs → beli ${jumlahPack} pack`);
+  } else {
+    toast(`✓ Harga "${group.nama}" diupdate ke ${fmtRp(hargaSatuanBaru)}/pcs (${count} paket)`);
+    notifyTelegram(`✏️ Update harga belanja hadiah: ${group.nama}`, `Harga satuan baru: ${fmtRp(hargaSatuanBaru)}\nDiterapkan ke ${count} paket`);
+  }
 }
 function tandaiSemuaBelanjaHadiah(){ 
   if (!canEditSection('belanja-hadiah')) { toast('⛔ Login untuk mengedit data'); return; }

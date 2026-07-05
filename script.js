@@ -1338,7 +1338,7 @@ function renderAnggota(){
 
   return `
   ${tarifBanner}
-  <div class="stat-grid">
+  <div class="stat-grid-ringkasan" style="margin-bottom:26px;">
     <div class="stat-card"><div class="lbl">Total Anggota</div><div class="val">${list.length}</div></div>
     <div class="stat-card pemasukan"><div class="lbl">Terkumpul (Lunas)</div><div class="val">${fmtRp(totalTerkumpul)}</div></div>
     <div class="stat-card"><div class="lbl">Sudah Lunas</div><div class="val">${lunasCount} / ${list.length}</div></div>

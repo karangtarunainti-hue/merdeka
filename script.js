@@ -3166,10 +3166,16 @@ function renderLPJ(){
   return `
   <div class="lpj-print-area">
     <div class="lpj-header">
-      <div class="lpj-eyebrow">Karang Taruna Inti</div>
-      <h2>LAPORAN PERTANGGUNGJAWABAN (LPJ)</h2>
-      <div class="lpj-sub">Kegiatan: ${esc(ev.nama)} — Tahun ${esc(String(ev.tahun))}</div>
-      <div class="lpj-meta">Dicetak: ${fmtDate(todayISO())}</div>
+      <div class="lpj-header-inner">
+        <img src="icons/logo-kop.png" alt="Logo Karang Taruna Inti" class="lpj-logo">
+        <div class="lpj-header-text">
+          <div class="lpj-eyebrow">Karang Taruna Inti</div>
+          <h2>LAPORAN PERTANGGUNGJAWABAN (LPJ)</h2>
+          <div class="lpj-sub">Kegiatan: ${esc(ev.nama)} — Tahun ${esc(String(ev.tahun))}</div>
+          <div class="lpj-meta">Dicetak: ${fmtDate(todayISO())}</div>
+        </div>
+        <div class="lpj-header-spacer" aria-hidden="true"></div>
+      </div>
     </div>
 
     <h3>1. Ringkasan Keuangan</h3>

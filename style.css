@@ -1013,6 +1013,9 @@
     table.hadiah-table th:nth-child(1), table.hadiah-table td:nth-child(1),
     table.general-table th:nth-child(1), table.general-table td:nth-child(1) { width:auto; min-width:100px; }
 
+    .lpj-logo{width:48px; height:48px;}
+    .lpj-header-spacer{width:48px;}
+
     /* --- Operasional Kegiatan: format lebih ringkas agar fit tanpa scroll --- */
     table.tanggal-nominal-table{table-layout:fixed;}
     table.tanggal-nominal-table th, table.tanggal-nominal-table td{white-space:normal; word-break:break-word;}
@@ -1092,6 +1095,10 @@
   padding:32px; max-width:820px; margin:0 auto; box-shadow:var(--shadow);
 }
 .lpj-header{text-align:center; border-bottom:2px solid var(--ink); padding-bottom:16px; margin-bottom:24px;}
+.lpj-header-inner{display:flex; align-items:center; gap:16px;}
+.lpj-logo{width:72px; height:72px; object-fit:contain; flex-shrink:0;}
+.lpj-header-text{flex:1; min-width:0; text-align:center;}
+.lpj-header-spacer{width:72px; flex-shrink:0;}
 .lpj-eyebrow{font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-soft); margin-bottom:6px;}
 .lpj-header h2{margin:0 0 8px; font-size:20px; letter-spacing:.03em;}
 .lpj-sub{font-size:14.5px; color:var(--ink); font-weight:600;}

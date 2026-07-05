@@ -3118,7 +3118,7 @@ function renderLPJ(){
 
   ${isLoggedIn ? `
   <div class="lpj-toolbar no-print">
-    <button class="btn" onclick="window.print()">🖨️ Cetak / Simpan sebagai PDF</button>
+    <button class="btn small" onclick="window.print()">🖨️ Cetak / Simpan sebagai PDF</button>
   </div>` : ''}`;
 }
 

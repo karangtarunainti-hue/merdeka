@@ -2901,12 +2901,12 @@ function renderJadwal(){
 
     return `
     <tr class="${j.status === 'selesai' ? '' : (diffDays < 0 ? 'belum-bayar' : '')}">
-      <td>${fmtDate(j.tanggal)}</td>
-      <td><span class="badge ${statusClass}">${statusLabel}</span></td>
-      <td><span class="kategori-pill">${labelKategoriJadwal(j.kategori)}</span></td>
-      <td>${esc(j.judul)}</td>
-      <td>${esc(j.deskripsi||'-')}</td>
-      <td style="text-align:right; white-space:nowrap;">
+      <td data-label="Tanggal">${fmtDate(j.tanggal)}</td>
+      <td data-label="Status"><span class="badge ${statusClass}">${statusLabel}</span></td>
+      <td data-label="Kategori"><span class="kategori-pill">${labelKategoriJadwal(j.kategori)}</span></td>
+      <td data-label="Judul">${esc(j.judul)}</td>
+      <td data-label="Deskripsi">${esc(j.deskripsi||'-')}</td>
+      <td data-label="Aksi" class="jadwal-actions" style="text-align:right; white-space:nowrap;">
         <button class="btn secondary small" onclick="toggleJadwalStatus('${j.id}')" ${!isLoggedIn ? 'disabled' : ''}>${j.status === 'selesai' ? 'Buka' : 'Selesai'}</button>
         <button class="icon-btn" onclick="openJadwalModal('${j.id}')" ${!isLoggedIn ? 'disabled' : ''} title="Edit">✎</button>
         <button class="icon-btn" onclick="hapusJadwal('${j.id}')" ${!isLoggedIn ? 'disabled' : ''} title="Hapus">🗑</button>
@@ -2937,7 +2937,7 @@ function renderJadwal(){
       ${isLoggedIn ? `<button class="btn" onclick="openJadwalModal()">+ Tambah Jadwal</button>` : ''}
     </div>
     <div class="panel-body flush">
-      <table class="general-table">
+      <table class="general-table jadwal-table">
         <thead><tr><th>Tanggal</th><th>Status</th><th>Kategori</th><th>Judul</th><th>Deskripsi</th><th></th></tr></thead>
         <tbody>${rows || `<tr class="empty-row"><td colspan="6">Belum ada jadwal. ${isLoggedIn ? 'Tambahkan jadwal untuk mendapatkan pengingat.' : 'Login untuk menambah jadwal.'}</td></tr>`}</tbody>
       </table>

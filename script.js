@@ -489,6 +489,11 @@ const KATEGORI_ANGGOTA = [
   {v:'perantauan', l:'Perantauan'},
   {v:'khusus', l:'Khusus'},
 ];
+const RT_LIST = [
+  {v:'rt1', l:'RT 1'},
+  {v:'rt2', l:'RT 2'},
+  {v:'rt3', l:'RT 3'},
+];
 const KATEGORI_PESERTA = [
   {v:'anak', l:'Anak'},
   {v:'remaja', l:'Remaja'},
@@ -1378,6 +1383,32 @@ function applySearchAnggota(){ searchQueryAnggota=document.getElementById('searc
 function clearSearchAnggota(){ searchQueryAnggota=''; renderContent(); }
 function resetFilterAnggota(){ filterKategoriAnggota='semua'; filterStatusAnggota='semua'; searchQueryAnggota=''; renderContent(); }
 function labelKategori(v){ return (KATEGORI_ANGGOTA.find(k=>k.v===v)||{}).l || v; }
+function labelRT(v){ return (RT_LIST.find(k=>k.v===v)||{}).l || v || '-'; }
+
+/* ============================================================
+   PENEBAK JENIS KELAMIN DARI NAMA (heuristik, bukan data pasti)
+   Menebak berdasarkan nama depan yang cocok dengan daftar nama umum
+   di Indonesia, dengan fallback ke pola akhiran nama yang umum.
+   Hasil bisa saja meleset untuk nama yang tidak umum/unisex.
+   ============================================================ */
+const NAMA_PRIA_UMUM = ['muhammad','mohammad','ahmad','achmad','budi','agus','dedi','deni','dedy','deny','dodi','doni','eko','fajar','hadi','hendra','hendro','iwan','joko','johan','yusuf','yusup','yudi','yudha','andi','andre','anton','aris','bagus','bayu','bima','danang','dani','dimas','edi','edo','erik','fadli','fahmi','fauzi','feri','ferry','gilang','guntur','hari','hasan','heri','herry','ilham','imam','indra','irfan','irwan','ivan','jaka','komang','ketut','made','wayan','nyoman','kurniawan','lukman','mahmud','marno','miftah','nanang','nur','oki','omar','panji','pratama','putra','ramadhan','rangga','reza','rian','ridho','rifki','rizal','rizky','robby','roni','rudi','ryan','saiful','samsul','sandi','sigit','slamet','sofyan','sugeng','sukarno','suryanto','tarno','taufik','teguh','tono','topan','trisno','umar','wahyu','wawan','wildan','yahya','yanto','yasin','zaenal','zainal','zaki','arief','ade','asep','bambang','dadang','darma','dwi','endro','faisal','gunawan','hardi','husein','ismail','kadek','kadir','madi','narto','rahmat','sutrisno','suparman','wisnu'];
+
+const NAMA_WANITA_UMUM = ['siti','sri','dewi','ayu','putri','wulan','indah','rina','rini','ratna','ratih','ratu','ani','ana','anisa','annisa','anggi','arum','asri','citra','dian','diah','dina','eka','erna','fitri','fitria','gita','hana','ika','ina','indi','intan','ira','irma','kartika','kirana','laila','lestari','lia','lina','lisa','maya','melati','melinda','mira','nadia','nadya','nia','nina','novi','novita','nurul','oktavia','putu','rahayu','rahmawati','reni','riri','rizka','rosa','sari','septi','shinta','sinta','tania','tari','tia','tina','tuti','ulfa','ulfah','umi','vera','vina','wening','wida','wiwik','yani','yanti','yuli','yulia','yuniar','yustina','zahra','zulaikha','ambar','bella','desi','elin','endah','farah','ida','ima','juwita','kiki','lala','marlina','mega','nining','nurhayati','okta','rahma','rosita','salma','tata','titin','vika','wiwin','yeni'];
+
+const AKHIRAN_PRIA_UMUM = ['yanto','anto','ansyah','uddin','udin','ullah','wan'];
+const AKHIRAN_WANITA_UMUM = ['wati','ningsih','ningrum','yanti','nita','iyah','ita'];
+
+function guessGender(nama){
+  if(!nama) return null;
+  const firstName = String(nama).trim().toLowerCase().split(/\s+/)[0].replace(/[^a-z]/g,'');
+  if(!firstName) return null;
+  if(NAMA_PRIA_UMUM.includes(firstName)) return 'pria';
+  if(NAMA_WANITA_UMUM.includes(firstName)) return 'wanita';
+  for(const s of AKHIRAN_PRIA_UMUM){ if(firstName.endsWith(s)) return 'pria'; }
+  for(const s of AKHIRAN_WANITA_UMUM){ if(firstName.endsWith(s)) return 'wanita'; }
+  return null;
+}
+function labelGender(v){ return v==='pria' ? '♂ Pria' : v==='wanita' ? '♀ Wanita' : 'Tidak diketahui'; }
 
 function openAnggotaModal(id){
   if (!canEditSection('anggota')) { toast('⛔ Login untuk mengedit data'); return; }
@@ -1390,6 +1421,11 @@ function openAnggotaModal(id){
         ${KATEGORI_ANGGOTA.map(k=>`<option value="${k.v}" ${editing&&editing.kategori===k.v?'selected':''}>${k.l}</option>`).join('')}
       </select>
     </div>
+    <div class="field"><label>RT</label>
+      <select id="f-rt">
+        ${RT_LIST.map(r=>`<option value="${r.v}" ${editing&&editing.rt===r.v?'selected':''}>${r.l}</option>`).join('')}
+      </select>
+    </div>
     <div class="field"><label id="f-nominal-label">Nominal Wajib (otomatis)</label>
       <input id="f-nominal" class="currency-input" value="${editing?fmtRp(editing.nominal_wajib):''}" ${editing&&editing.kategori==='khusus'?'':'disabled'} style="${editing&&editing.kategori==='khusus'?'':'background:var(--cream);'}">
       <div class="hint" id="f-nominal-hint" style="${editing&&editing.kategori==='khusus'?'':'display:none;'}">Kategori Khusus: isi nominal iuran secara bebas sesuai kesepakatan.</div>
@@ -1399,19 +1435,20 @@ function openAnggotaModal(id){
     {label: editing?'Simpan':'Tambah', cls:'', onclick:()=>{
       const nama = document.getElementById('f-nama').value.trim();
       const kategori = document.getElementById('f-kategori').value;
+      const rt = document.getElementById('f-rt').value;
       if(!nama){ toast('Nama anggota wajib diisi'); return; }
       const nominal = kategori==='khusus' ? getCurrencyValue(document.getElementById('f-nominal')) : (getSettings().tarif[kategori] || 0);
       if(kategori==='khusus' && (!nominal || nominal<=0)){ toast('Isi nominal iuran untuk kategori khusus'); return; }
       let actionMsg = '';
       if(editing){
         actionMsg = `✏️ Edit anggota: ${editing.nama} → ${nama}`;
-        editing.nama = nama; editing.kategori = kategori; editing.nominal_wajib = nominal;
+        editing.nama = nama; editing.kategori = kategori; editing.rt = rt; editing.nominal_wajib = nominal;
       } else {
         actionMsg = `➕ Tambah anggota: ${nama} (${labelKategori(kategori)})`;
-        db.anggota.push({id:uid(), event_id:eid(), nama, kategori, nominal_wajib:nominal, status:'belum_lunas', tanggal_bayar:null});
+        db.anggota.push({id:uid(), event_id:eid(), nama, kategori, rt, nominal_wajib:nominal, status:'belum_lunas', tanggal_bayar:null});
       }
       saveDB(); closeModal(); renderContent(); renderTopbarSaldo(); toast('Data anggota disimpan');
-      notifyTelegram(actionMsg, `Nama: ${nama}\nKategori: ${labelKategori(kategori)}\nNominal: ${fmtRp(nominal)}`);
+      notifyTelegram(actionMsg, `Nama: ${nama}\nKategori: ${labelKategori(kategori)}\nRT: ${labelRT(rt)}\nNominal: ${fmtRp(nominal)}`);
     }}
   ]);
   setTimeout(updateNominalPreview, 0);
@@ -1464,6 +1501,8 @@ function hapusAnggota(id){
    ============================================================ */
 let filterKategori = 'semua';
 let filterStatus = 'semua';
+let filterGender = 'semua';
+let filterRT = 'semua';
 let searchQuery = '';
 let sortBy = 'nama';
 let sortOrder = 'asc';
@@ -1473,6 +1512,8 @@ function renderDatabaseAnggota(){
   let filtered = [...list];
   if (filterKategori !== 'semua') filtered = filtered.filter(a => a.kategori === filterKategori);
   if (filterStatus !== 'semua') filtered = filtered.filter(a => a.status === filterStatus);
+  if (filterGender !== 'semua') filtered = filtered.filter(a => (guessGender(a.nama) || 'tidak_diketahui') === filterGender);
+  if (filterRT !== 'semua') filtered = filtered.filter(a => a.rt === filterRT);
   if (searchQuery.trim()) { const q = searchQuery.toLowerCase().trim(); filtered = filtered.filter(a => a.nama.toLowerCase().includes(q)); }
   
   filtered.sort((a,b) => {
@@ -1480,6 +1521,7 @@ function renderDatabaseAnggota(){
     switch(sortBy){
       case 'nama': valA = a.nama; valB = b.nama; break;
       case 'kategori': valA = a.kategori; valB = b.kategori; break;
+      case 'rt': valA = a.rt||''; valB = b.rt||''; break;
       case 'nominal': valA = Number(a.nominal_wajib||0); valB = Number(b.nominal_wajib||0); break;
       case 'status': valA = a.status; valB = b.status; break;
       case 'tanggal': valA = a.tanggal_bayar || ''; valB = b.tanggal_bayar || ''; break;
@@ -1494,6 +1536,9 @@ function renderDatabaseAnggota(){
   const totalTerkumpul = filtered.filter(a=>a.status==='lunas').reduce((s,a)=>s+Number(a.nominal_wajib||0),0);
   const isLoggedIn = !!getCurrentUser();
 
+  const totalPria = filtered.filter(a=>guessGender(a.nama)==='pria').length;
+  const totalWanita = filtered.filter(a=>guessGender(a.nama)==='wanita').length;
+
   const statKategori = {};
   KATEGORI_ANGGOTA.forEach(k => {
     const items = filtered.filter(a=>a.kategori===k.v);
@@ -1503,6 +1548,7 @@ function renderDatabaseAnggota(){
   const rows = filtered.map(a=>`<tr class="${a.status==='belum_lunas'?'belum-bayar':''}">
     <td>${esc(a.nama)}</td>
     <td><span class="kategori-pill ${a.kategori==='khusus'?'khusus':''}">${labelKategori(a.kategori)}</span></td>
+    <td>${labelRT(a.rt)}</td>
     <td class="num">${fmtRp(a.nominal_wajib)}</td>
     <td>${a.status==='lunas'?`<span class="badge lunas">Lunas</span>`:`<span class="badge belum">Belum Bayar</span>`}</td>
     <td style="font-size:12px;color:var(--ink-soft);">${a.status==='lunas'?fmtDate(a.tanggal_bayar):'-'}</td>
@@ -1518,7 +1564,14 @@ function renderDatabaseAnggota(){
     <div class="stat-card warning"><div class="lbl">Belum Bayar</div><div class="val">${totalBelum}</div></div>
     <div class="stat-card"><div class="lbl">Total Iuran</div><div class="val">${fmtRp(totalNominal)}</div></div>
     <div class="stat-card pemasukan"><div class="lbl">Terkumpul</div><div class="val">${fmtRp(totalTerkumpul)}</div></div>
-    <div class="stat-card warning"><div class="lbl">Tunggakan</div><div class="val">${fmtRp(totalNominal - totalTerkumpul)}</div></div></div>`;
+    <div class="stat-card warning"><div class="lbl">Tunggakan</div><div class="val">${fmtRp(totalNominal - totalTerkumpul)}</div></div>
+    <div class="stat-card gender-card" title="Perkiraan berdasarkan nama, bukan data pasti">
+      <div class="lbl">Pria &amp; Wanita</div>
+      <div class="gender-stats">
+        <div class="gender-stat"><span class="n">${totalPria}</span><span class="l">♂ Pria</span></div>
+        <div class="gender-stat"><span class="n">${totalWanita}</span><span class="l">♀ Wanita</span></div>
+      </div>
+    </div></div>`;
 
   const statKategoriHtml = Object.entries(statKategori).map(([kv, k]) => {
     const belum = k.total - k.lunas;
@@ -1543,6 +1596,10 @@ function renderDatabaseAnggota(){
       <select id="filter-kategori" onchange="applyFilter()"><option value="semua" ${filterKategori==='semua'?'selected':''}>Semua</option>${KATEGORI_ANGGOTA.map(k=>`<option value="${k.v}" ${filterKategori===k.v?'selected':''}>${k.l}</option>`).join('')}</select></div>
     <div class="field" style="margin-bottom:0;min-width:150px;"><label style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;">Status</label>
       <select id="filter-status" onchange="applyFilter()"><option value="semua" ${filterStatus==='semua'?'selected':''}>Semua</option><option value="lunas" ${filterStatus==='lunas'?'selected':''}>Lunas</option><option value="belum_lunas" ${filterStatus==='belum_lunas'?'selected':''}>Belum Bayar</option></select></div>
+    <div class="field" style="margin-bottom:0;min-width:150px;"><label style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;">Jenis Kelamin</label>
+      <select id="filter-gender" onchange="applyFilter()" title="Perkiraan berdasarkan nama, bukan data pasti"><option value="semua" ${filterGender==='semua'?'selected':''}>Semua</option><option value="pria" ${filterGender==='pria'?'selected':''}>♂ Pria</option><option value="wanita" ${filterGender==='wanita'?'selected':''}>♀ Wanita</option><option value="tidak_diketahui" ${filterGender==='tidak_diketahui'?'selected':''}>Tidak diketahui</option></select></div>
+    <div class="field" style="margin-bottom:0;min-width:150px;"><label style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;">RT</label>
+      <select id="filter-rt" onchange="applyFilter()"><option value="semua" ${filterRT==='semua'?'selected':''}>Semua</option>${RT_LIST.map(r=>`<option value="${r.v}" ${filterRT===r.v?'selected':''}>${r.l}</option>`).join('')}</select></div>
     <div class="search-box" style="flex:1;min-width:200px;"><input type="text" id="search-input" placeholder="🔍 Cari nama..." value="${esc(searchQuery)}" oninput="applySearch()">${searchQuery?`<button class="btn secondary small" onclick="clearSearch()">✕</button>`:''}</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;"><button class="btn small" onclick="exportAnggotaCSV()">⬇ Ekspor CSV</button><button class="btn secondary small" onclick="resetFilter()">↺ Reset</button></div>
   </div>`;
@@ -1557,17 +1614,18 @@ function renderDatabaseAnggota(){
     <div class="panel-body">${filterHtml}${statKategoriHtml?`<div class="kategori-grid" style="margin-bottom:16px;">${statKategoriHtml}</div>`:''}
     <div style="overflow-x:auto;"><table class="database-table"><thead><tr><th class="sortable" onclick="sortTable('nama')">Nama ${sortIndicator('nama')}</th>
       <th class="sortable" onclick="sortTable('kategori')">Kategori ${sortIndicator('kategori')}</th>
+      <th class="sortable" onclick="sortTable('rt')">RT ${sortIndicator('rt')}</th>
       <th class="num sortable" onclick="sortTable('nominal')">Nominal ${sortIndicator('nominal')}</th>
       <th class="sortable" onclick="sortTable('status')">Status ${sortIndicator('status')}</th>
       <th class="sortable" onclick="sortTable('tanggal')">Tgl Bayar ${sortIndicator('tanggal')}</th><th></th></tr></thead>
-      <tbody>${rows||`<tr class="empty-row"><td colspan="6">${searchQuery?'Tidak ditemukan':'Belum ada anggota'}</td></tr>`}</tbody>
-      ${filtered.length>0?`<tfoot><tr><td colspan="2">Total ${filtered.length} anggota</td><td class="num">${fmtRp(totalNominal)}</td><td colspan="3"></td></tr></tfoot>`:''}</table></div></div></div>`;
+      <tbody>${rows||`<tr class="empty-row"><td colspan="7">${searchQuery?'Tidak ditemukan':'Belum ada anggota'}</td></tr>`}</tbody>
+      ${filtered.length>0?`<tfoot><tr><td colspan="3">Total ${filtered.length} anggota</td><td class="num">${fmtRp(totalNominal)}</td><td colspan="3"></td></tr></tfoot>`:''}</table></div></div></div>`;
 }
 
-function applyFilter(){ filterKategori=document.getElementById('filter-kategori').value; filterStatus=document.getElementById('filter-status').value; renderContent(); }
+function applyFilter(){ filterKategori=document.getElementById('filter-kategori').value; filterStatus=document.getElementById('filter-status').value; filterGender=document.getElementById('filter-gender').value; filterRT=document.getElementById('filter-rt').value; renderContent(); }
 function applySearch(){ searchQuery=document.getElementById('search-input').value; renderContent(); }
 function clearSearch(){ searchQuery=''; document.getElementById('search-input').value=''; renderContent(); }
-function resetFilter(){ filterKategori='semua'; filterStatus='semua'; searchQuery=''; sortBy='nama'; sortOrder='asc'; renderContent(); }
+function resetFilter(){ filterKategori='semua'; filterStatus='semua'; filterGender='semua'; filterRT='semua'; searchQuery=''; sortBy='nama'; sortOrder='asc'; renderContent(); }
 function sortTable(field){ if(sortBy===field){ sortOrder=sortOrder==='asc'?'desc':'asc'; }else{ sortBy=field; sortOrder='asc'; } renderContent(); }
 function tandaiSemuaLunas(){ 
   if (!canEditSection('database-anggota')) { toast('⛔ Login untuk mengedit data'); return; }
@@ -1580,7 +1638,7 @@ function tandaiSemuaLunas(){
   const detail = list.map(a => `${a.nama} (${labelKategori(a.kategori)}) - ${fmtRp(a.nominal_wajib)}`).join('\n');
   notifyTelegram(`✅ ${list.length} anggota ditandai LUNAS`, detail);
 }
-function exportAnggotaCSV(){ const list=gAnggota(); if(list.length===0){ toast('Tidak ada data'); return; } let csv='No,Nama,Kategori,Nominal,Status,Tanggal Bayar\n'; list.forEach((a,i)=>{const status=a.status==='lunas'?'Lunas':'Belum Bayar'; const tgl=a.tanggal_bayar?fmtDate(a.tanggal_bayar):'-'; csv+=`${i+1},"${a.nama}",${labelKategori(a.kategori)},${a.nominal_wajib},${status},${tgl}\n`;}); const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}); const link=document.createElement('a'); link.href=URL.createObjectURL(blob); link.download=`database-anggota-${todayISO()}.csv`; link.click(); toast('CSV berhasil diekspor'); }
+function exportAnggotaCSV(){ const list=gAnggota(); if(list.length===0){ toast('Tidak ada data'); return; } let csv='No,Nama,Kategori,RT,Nominal,Status,Tanggal Bayar\n'; list.forEach((a,i)=>{const status=a.status==='lunas'?'Lunas':'Belum Bayar'; const tgl=a.tanggal_bayar?fmtDate(a.tanggal_bayar):'-'; csv+=`${i+1},"${a.nama}",${labelKategori(a.kategori)},${labelRT(a.rt)},${a.nominal_wajib},${status},${tgl}\n`;}); const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}); const link=document.createElement('a'); link.href=URL.createObjectURL(blob); link.download=`database-anggota-${todayISO()}.csv`; link.click(); toast('CSV berhasil diekspor'); }
 
 /* ============================================================
    DONATUR, TRANSAKSI, OPERASIONAL (dengan auth check)

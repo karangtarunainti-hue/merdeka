@@ -346,6 +346,11 @@
   .stat-card.buku-card:hover{border-color:var(--merah); box-shadow:0 1px 6px rgba(0,0,0,.06);}
   .stat-card.buku-card.open{border-color:var(--merah);}
 
+  .gender-stats{display:flex; gap:22px; margin-top:2px;}
+  .gender-stat{display:flex; flex-direction:column; gap:3px;}
+  .gender-stat .n{font-family:'Roboto Mono',monospace; font-weight:600; font-size:clamp(15px, 4.2vw, 21px); line-height:1;}
+  .gender-stat .l{font-size:11px; color:var(--ink-soft);}
+
   .kategori-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:10px;}
   .kategori-card{
     background:var(--cream-card); border:1px solid var(--garis); border-radius:var(--radius);
@@ -453,12 +458,13 @@
   table.anggota-table th:nth-child(4), table.anggota-table td:nth-child(4) { width:25%; }
   table.anggota-table th:nth-child(5), table.anggota-table td:nth-child(5) { width:20%; }
 
-  table.database-table th:nth-child(1), table.database-table td:nth-child(1) { width:20%; }
-  table.database-table th:nth-child(2), table.database-table td:nth-child(2) { width:14%; }
-  table.database-table th:nth-child(3), table.database-table td:nth-child(3) { width:16%; }
+  table.database-table th:nth-child(1), table.database-table td:nth-child(1) { width:18%; }
+  table.database-table th:nth-child(2), table.database-table td:nth-child(2) { width:13%; }
+  table.database-table th:nth-child(3), table.database-table td:nth-child(3) { width:10%; }
   table.database-table th:nth-child(4), table.database-table td:nth-child(4) { width:14%; }
-  table.database-table th:nth-child(5), table.database-table td:nth-child(5) { width:16%; }
-  table.database-table th:nth-child(6), table.database-table td:nth-child(6) { width:20%; }
+  table.database-table th:nth-child(5), table.database-table td:nth-child(5) { width:13%; }
+  table.database-table th:nth-child(6), table.database-table td:nth-child(6) { width:14%; }
+  table.database-table th:nth-child(7), table.database-table td:nth-child(7) { width:18%; }
 
   table.jalan-table th:nth-child(1), table.jalan-table td:nth-child(1) { width:18%; }
   table.jalan-table th:nth-child(2), table.jalan-table td:nth-child(2) { width:14%; }

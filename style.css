@@ -1027,11 +1027,10 @@
     .lpj-meta{font-size:10.5px;}
     .lpj-print-area h3{font-size:13px; margin:22px 0 8px; padding-bottom:5px;}
     .lpj-print-area h4{font-size:11.5px; margin:16px 0 6px;}
-    table.lpj-table{font-size:10.3px; table-layout:fixed;}
+    table.lpj-table, table.lpj-table td, table.lpj-table th{font-size:10.5px; table-layout:fixed;}
     table.lpj-table td, table.lpj-table th{padding:5px 3px; white-space:normal; word-break:break-word; overflow-wrap:break-word;}
     table.lpj-table td.indent{padding-left:9px;}
-    table.lpj-table th{font-size:8.7px; letter-spacing:.01em;}
-    table.lpj-table td.num, table.lpj-table th.num{font-size:9.5px; padding-left:2px; padding-right:4px;}
+    table.lpj-table td.num, table.lpj-table th.num{padding-left:2px; padding-right:4px;}
     /* Tabel rincian (2.1 - 3.4): tidak digulir horizontal, semua kolom
        dipaksa muat dengan mengecilkan font & membiarkan teks turun baris. */
     .lpj-table-scroll{overflow-x:visible; margin:0 0 4px;}

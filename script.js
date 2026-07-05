@@ -4877,15 +4877,22 @@ function renderGudangKelola(){
 }
 let gudangSearchKelola = '';
 
+function gudangLokasiOptions(selectedGudang){
+  const known = RT_LIST.map(rt=>`<option value="${esc(rt.l)}" ${selectedGudang===rt.l?'selected':''}>${esc(rt.l)}</option>`).join('');
+  const legacy = (selectedGudang && !RT_LIST.some(rt=>rt.l===selectedGudang))
+    ? `<option value="${esc(selectedGudang)}" selected>${esc(selectedGudang)} (lama)</option>` : '';
+  return `<option value="">-- Pilih Lokasi --</option>${known}${legacy}`;
+}
 function openGudangStokModal(id){
   const item = id ? gudangInventory.find(i=>i.id===id) : null;
+  const dipinjam = item ? (item.total - item.tersedia) : 0;
   const body = `
     <div class="field"><label>Nama Barang</label><input type="text" id="gs-nama" placeholder="Kursi Plastik Hijau" value="${item?esc(item.nama):''}"></div>
-    <div class="field"><label>Lokasi / Gudang</label><input type="text" id="gs-gudang" placeholder="Gudang RT 1" value="${item?esc(item.gudang):''}"></div>
-    <div class="filter-row">
-      <div class="field" style="flex:1;"><label>Total Unit</label><input type="number" min="0" id="gs-total" value="${item?item.total:''}"></div>
-      <div class="field" style="flex:1;"><label>Tersedia</label><input type="number" min="0" id="gs-tersedia" value="${item?item.tersedia:''}"></div>
-    </div>`;
+    <div class="field"><label>Lokasi / Gudang</label>
+      <select id="gs-gudang">${gudangLokasiOptions(item?item.gudang:'')}</select>
+    </div>
+    <div class="field"><label>Total Unit</label><input type="number" min="0" id="gs-total" value="${item?item.total:''}"></div>
+    ${item ? `<div class="hint" style="margin:-6px 0 14px;">Sedang dipinjam: <b>${dipinjam}</b> unit. Stok tersedia otomatis dihitung dari Total Unit dikurangi yang sedang dipinjam.</div>` : ''}`;
   setModal(item?'Ubah Aset':'Tambah Aset', body, [
     {label:'Batal', cls:'secondary', onclick: closeModal},
     {label:'Simpan', onclick: ()=>gudangSaveStok(id)},
@@ -4895,20 +4902,22 @@ async function gudangSaveStok(id){
   const nama = document.getElementById('gs-nama').value.trim();
   const gudang = document.getElementById('gs-gudang').value.trim();
   const total = parseInt(document.getElementById('gs-total').value, 10);
-  const tersedia = parseInt(document.getElementById('gs-tersedia').value, 10);
   if(!nama || !gudang){ toast('⛔ Nama & lokasi wajib diisi.'); return; }
-  if(isNaN(total) || isNaN(tersedia) || total<0 || tersedia<0){ toast('⛔ Total & tersedia harus angka valid.'); return; }
-  if(tersedia > total){ toast('⛔ Stok tersedia tidak boleh melebihi total unit.'); return; }
+  if(isNaN(total) || total<0){ toast('⛔ Total unit harus angka valid.'); return; }
   const now = todayISO();
   try{
     if(id){
+      const existing = gudangInventory.find(i=>i.id===id);
+      const dipinjam = existing.total - existing.tersedia;
+      if(dipinjam > total){ toast(`⛔ Total unit (${total}) tidak boleh kurang dari jumlah yang sedang dipinjam (${dipinjam}).`); return; }
+      const tersedia = total - dipinjam;
       const upd = await sb.from('kt_gudang_inventory').update({nama, gudang, total, tersedia, last_updated: now}).eq('id', id);
       if(upd.error) throw new Error(upd.error.message);
-      const item = gudangInventory.find(i=>i.id===id);
-      Object.assign(item, {nama, gudang, total, tersedia, lastUpdated: now});
+      Object.assign(existing, {nama, gudang, total, tersedia, lastUpdated: now});
       toast('✅ Data aset tersimpan.');
     } else {
       const newId = uid();
+      const tersedia = total;
       const ins = await sb.from('kt_gudang_inventory').insert({id:newId, nama, gudang, total, tersedia, last_updated: now, is_active: true});
       if(ins.error) throw new Error(ins.error.message);
       gudangInventory.push({id:newId, nama, gudang, total, tersedia, lastUpdated: now, isActive: true});

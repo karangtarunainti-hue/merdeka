@@ -313,15 +313,19 @@ async function loadDB(){
       sb.from('kt_guest_menu_settings').select('*').eq('id', 'main').maybeSingle(),
     ]);
 
+    const failedTables = [];
     entries.forEach(([key, table], idx) => {
       const res = arrayResults[idx];
-      if(res.error){ console.error(`Gagal memuat ${table}:`, res.error); return; }
+      if(res.error){ console.error(`Gagal memuat ${table}:`, res.error); failedTables.push(table); return; }
       result[key] = res.data || [];
       // Catat ID mana saja yang KITA tahu ada di server saat ini. Dipakai nanti oleh
       // syncArrayTable() supaya delete-diff tidak menghapus data yang ditambahkan
       // client lain setelah kita load (lihat penjelasan di syncArrayTable).
       _lastKnownIds[table] = new Set(result[key].map(r => r.id));
     });
+    if(failedTables.length){
+      toast(`⚠️ Gagal memuat data: ${failedTables.join(', ')} — cek koneksi lalu muat ulang halaman`);
+    }
 
     if(usersRes.error){ console.error('Gagal memuat users:', usersRes.error); }
     result.users = (!usersRes.error && usersRes.data && usersRes.data.length) ? usersRes.data : [...DEFAULT_USERS_FALLBACK];
@@ -367,7 +371,7 @@ const _lastKnownIds = {};
 
 async function syncArrayTable(table, rows){
   const { data: existing, error: selErr } = await sb.from(table).select('id');
-  if(selErr){ console.error(`Gagal membaca ${table}:`, selErr); return; }
+  if(selErr){ console.error(`Gagal membaca ${table}:`, selErr); throw new Error(`Gagal membaca ${table}: ${selErr.message}`); }
   const existingIds = new Set((existing || []).map(r => r.id));
   const currentIds = new Set(rows.map(r => r.id));
   const knownIds = _lastKnownIds[table] || new Set();
@@ -375,11 +379,11 @@ async function syncArrayTable(table, rows){
 
   if(rows.length){
     const { error: upErr } = await sb.from(table).upsert(rows, { onConflict: 'id' });
-    if(upErr){ console.error(`Gagal menyimpan ${table}:`, upErr); return; }
+    if(upErr){ console.error(`Gagal menyimpan ${table}:`, upErr); throw new Error(`Gagal menyimpan ${table}: ${upErr.message}`); }
   }
   if(toDelete.length){
     const { error: delErr } = await sb.from(table).delete().in('id', toDelete);
-    if(delErr) console.error(`Gagal menghapus data lama ${table}:`, delErr);
+    if(delErr){ console.error(`Gagal menghapus data lama ${table}:`, delErr); throw new Error(`Gagal menghapus ${table}: ${delErr.message}`); }
   }
 
   // Update memori "ID yang kita kenal": gabungan ID milik kita sendiri (currentIds)
@@ -395,18 +399,18 @@ let _lastKnownSettingsIds = new Set();
 async function syncSettings(){
   const rows = Object.keys(db.settings).map(eventId => ({ event_id: eventId, tarif: db.settings[eventId].tarif, hadiah_budget: db.settings[eventId].hadiahBudget || {} }));
   const { data: existing, error: selErr } = await sb.from('kt_settings').select('event_id');
-  if(selErr){ console.error('Gagal membaca kt_settings:', selErr); return; }
+  if(selErr){ console.error('Gagal membaca kt_settings:', selErr); throw new Error(`Gagal membaca kt_settings: ${selErr.message}`); }
   const existingIds = new Set((existing || []).map(r => r.event_id));
   const currentIds = new Set(Object.keys(db.settings));
   const toDelete = [...existingIds].filter(id => _lastKnownSettingsIds.has(id) && !currentIds.has(id));
 
   if(rows.length){
     const { error } = await sb.from('kt_settings').upsert(rows, { onConflict: 'event_id' });
-    if(error){ console.error('Gagal menyimpan kt_settings:', error); return; }
+    if(error){ console.error('Gagal menyimpan kt_settings:', error); throw new Error(`Gagal menyimpan kt_settings: ${error.message}`); }
   }
   if(toDelete.length){
     const { error: delErr } = await sb.from('kt_settings').delete().in('event_id', toDelete);
-    if(delErr) console.error('Gagal menghapus kt_settings lama:', delErr);
+    if(delErr){ console.error('Gagal menghapus kt_settings lama:', delErr); throw new Error(`Gagal menghapus kt_settings: ${delErr.message}`); }
   }
 
   const survivedRemote = [...existingIds].filter(id => !toDelete.includes(id));
@@ -420,7 +424,7 @@ async function syncTelegram(){
     chat_id: db.telegram.chatId,
     enabled: db.telegram.enabled,
   }, { onConflict: 'id' });
-  if(error) console.error('Gagal menyimpan kt_telegram_settings:', error);
+  if(error){ console.error('Gagal menyimpan kt_telegram_settings:', error); throw new Error(`Gagal menyimpan pengaturan Telegram: ${error.message}`); }
 }
 
 async function syncGuestMenu(){
@@ -429,7 +433,7 @@ async function syncGuestMenu(){
     id: 'main',
     hidden_sections: hiddenSections,
   }, { onConflict: 'id' });
-  if(error) console.error('Gagal menyimpan kt_guest_menu_settings:', error);
+  if(error){ console.error('Gagal menyimpan kt_guest_menu_settings:', error); throw new Error(`Gagal menyimpan pengaturan menu guest: ${error.message}`); }
 }
 
 // saveDB() dipanggil di puluhan tempat setiap ada perubahan kecil. Sebelumnya setiap panggilan
@@ -460,7 +464,7 @@ async function _flushSaveDB(){
     ]);
   }catch(e){
     console.error('Gagal menyimpan ke Supabase', e);
-    toast('⚠️ Gagal menyimpan ke Supabase');
+    toast(`⚠️ ${e.message || 'Gagal menyimpan ke Supabase'} — coba simpan ulang`);
   }finally{
     _saveDBRunning = false;
     if(_saveDBQueued){

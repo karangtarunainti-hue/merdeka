@@ -1637,14 +1637,13 @@ function renderTransaksi(){
   const list = gTransaksiLain().slice().sort((a,b)=>(b.tanggal||'').localeCompare(a.tanggal||''));
   const total = list.reduce((s,t)=>s+Number(t.jumlah||0),0);
   const isLoggedIn = !!getCurrentUser();
-  const rows = list.map(t=>`<tr><td>${fmtDate(t.tanggal)}</td><td>${esc(t.jenis)}</td><td>${esc(t.keterangan||'-')}</td><td class="num">${fmtRp(t.jumlah)}</td><td style="text-align:right;">
-    <button class="icon-btn" onclick="openTransaksiModal('${t.id}')" ${!isLoggedIn ? 'disabled' : ''}>✎</button>
-    <button class="icon-btn" onclick="hapusTransaksi('${t.id}')" ${!isLoggedIn ? 'disabled' : ''}>🗑</button>
-  </td></tr>`).join('');
+  const rows = list.map(t=>`<tr${isLoggedIn ? ` class="row-clickable" onclick="openTransaksiModal('${t.id}')"` : ''}><td>${fmtDateShort(t.tanggal)}</td><td>${esc(t.jenis)}</td><td>${esc(t.keterangan||'-')}</td><td class="num">${fmtRp(t.jumlah)}</td>${isLoggedIn ? `<td style="text-align:right;">
+    <button class="icon-btn" onclick="event.stopPropagation();hapusTransaksi('${t.id}')">🗑</button>
+  </td>` : ''}</tr>`).join('');
   return `<div class="stat-grid"><div class="stat-card pemasukan"><div class="lbl">Total Transaksi Lain</div><div class="val">${fmtRp(total)}</div></div></div>
   <div class="panel"><div class="panel-head"><h3>Transaksi Lain</h3>${isLoggedIn ? `<button class="btn" onclick="openTransaksiModal()">+ Tambah</button>` : ''}</div>
-  <div class="panel-body flush"><table class="general-table"><thead><tr><th>Tanggal</th><th>Nama</th><th>Keterangan</th><th class="num">Jumlah</th><th></th></tr></thead>
-  <tbody>${rows||`<tr class="empty-row"><td colspan="5">Belum ada transaksi.</td></tr>`}</tbody></table></div></div>`;
+  <div class="panel-body flush"><table class="general-table tanggal-nominal-table"><thead><tr><th>Tanggal</th><th>Nama</th><th>Keterangan</th><th class="num">Jumlah</th>${isLoggedIn ? '<th></th>' : ''}</tr></thead>
+  <tbody>${rows||`<tr class="empty-row"><td colspan="${isLoggedIn?5:4}">Belum ada transaksi.</td></tr>`}</tbody></table></div></div>`;
 }
 function openTransaksiModal(id){
   if (!canEditSection('transaksi')) { toast('⛔ Login untuk mengedit data'); return; }

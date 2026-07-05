@@ -458,6 +458,11 @@ function saveDB(){
 async function _flushSaveDB(){
   if(_saveDBRunning){ _saveDBQueued = true; return; }
   _saveDBRunning = true;
+  // Perbaikan mandiri: dokumen Panitia/Sinoman yang sempat dibuat sebelum
+  // fix tanggal-null bisa masih menyimpan tanggal:'' di memori. Kolom
+  // `tanggal` di Supabase bertipe date, jadi '' harus jadi null dulu
+  // sebelum dikirim, kalau tidak Postgres akan menolak (22007).
+  db.panitiaSinoman.forEach(d => { if(d.tanggal === '') d.tanggal = null; });
   try{
     await Promise.all([
       ...Object.entries(ARRAY_TABLE_MAP).map(([key, table]) => syncArrayTable(table, db[key])),

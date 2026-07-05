@@ -1296,6 +1296,12 @@ function renderAnggota(){
   if (filterStatusAnggota !== 'semua') filtered = filtered.filter(a => a.status === filterStatusAnggota);
   if (searchQueryAnggota.trim()) { const q = searchQueryAnggota.toLowerCase().trim(); filtered = filtered.filter(a => a.nama.toLowerCase().includes(q)); }
 
+  filtered.sort((a,b)=>{
+    const aBelum = a.status!=='lunas', bBelum = b.status!=='lunas';
+    if (aBelum !== bBelum) return aBelum ? -1 : 1;
+    return a.nama.localeCompare(b.nama, 'id', {sensitivity:'base'});
+  });
+
   const totalTerkumpul = list.filter(a=>a.status==='lunas').reduce((sum,a)=>sum+Number(a.nominal_wajib||0),0);
   const totalPotensi = list.reduce((sum,a)=>sum+Number(a.nominal_wajib||0),0);
   const lunasCount = list.filter(a=>a.status==='lunas').length;
@@ -1307,7 +1313,7 @@ function renderAnggota(){
       <td>${esc(a.nama)}</td>
       <td><span class="kategori-pill ${a.kategori==='khusus'?'khusus':''}">${labelKategori(a.kategori)}</span></td>
       <td class="num">${fmtRp(a.nominal_wajib)}</td>
-      <td>${a.status==='lunas'?`<span class="badge lunas">Lunas</span> <span style="font-size:11px;color:var(--ink-soft)">${fmtDate(a.tanggal_bayar)}</span>`:`<span class="badge belum">Belum Lunas</span>`}</td>
+      <td>${a.status==='lunas'?`<span class="badge lunas">Lunas</span> <span style="font-size:11px;color:var(--ink-soft)">${fmtDate(a.tanggal_bayar)}</span>`:`<span class="badge belum">Belum</span>`}</td>
       <td style="text-align:right; white-space:nowrap;">
         <button class="btn secondary small" onclick="toggleLunas('${a.id}')">${a.status==='lunas'?'Batalkan':'Tandai Lunas'}</button>
         <button class="icon-btn" onclick="openAnggotaModal('${a.id}')" title="Edit">✎</button>
@@ -1317,7 +1323,7 @@ function renderAnggota(){
     <tr>
       <td>${esc(a.nama)}</td>
       <td class="num">${fmtRp(a.nominal_wajib)}</td>
-      <td>${a.status==='lunas'?`<span class="badge lunas">Lunas</span>`:`<span class="badge belum">Belum Lunas</span>`}</td>
+      <td>${a.status==='lunas'?`<span class="badge lunas">Lunas</span>`:`<span class="badge belum">Belum</span>`}</td>
     </tr>`).join('');
 
   const filterHtml = `<div class="filter-row">

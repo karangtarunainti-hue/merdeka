@@ -3196,47 +3196,47 @@ function renderLPJ(){
 
     <h3>2. Rincian Pemasukan</h3>
     <h4>2.1 Iuran Anggota</h4>
-    <table class="lpj-table lpj-detail">
+    <div class="lpj-table-scroll"><table class="lpj-table lpj-detail">
       <thead><tr><th>Kategori</th><th>Anggota</th><th>Lunas</th><th class="num">Total Terkumpul</th></tr></thead>
       <tbody>${kategoriRekap.map(r=>`<tr><td>${esc(r.label)}</td><td>${r.total}</td><td>${r.lunas}</td><td class="num">${fmtRp(r.nominal)}</td></tr>`).join('') || emptyRow(4,'Belum ada data anggota.')}</tbody>
-    </table>
+    </table></div>
 
     <h4>2.2 Donatur</h4>
-    <table class="lpj-table lpj-detail">
+    <div class="lpj-table-scroll"><table class="lpj-table lpj-detail">
       <thead><tr><th>Tanggal</th><th>Nama</th><th>Keterangan</th><th class="num">Jumlah</th></tr></thead>
       <tbody>${donaturList.map(d=>`<tr><td>${fmtDate(d.tanggal)}</td><td>${esc(d.nama_donatur)}</td><td>${esc(d.keterangan||'-')}</td><td class="num">${fmtRp(d.jumlah)}</td></tr>`).join('') || emptyRow(4,'Belum ada donasi.')}</tbody>
-    </table>
+    </table></div>
 
     <h4>2.3 Transaksi Lain</h4>
-    <table class="lpj-table lpj-detail">
+    <div class="lpj-table-scroll"><table class="lpj-table lpj-detail">
       <thead><tr><th>Tanggal</th><th>Nama</th><th>Keterangan</th><th class="num">Jumlah</th></tr></thead>
       <tbody>${transaksiList.map(t=>`<tr><td>${fmtDate(t.tanggal)}</td><td>${esc(t.jenis)}</td><td>${esc(t.keterangan||'-')}</td><td class="num">${fmtRp(t.jumlah)}</td></tr>`).join('') || emptyRow(4,'Belum ada transaksi.')}</tbody>
-    </table>
+    </table></div>
 
     <h3>3. Rincian Pengeluaran</h3>
     <h4>3.1 Operasional Kegiatan</h4>
-    <table class="lpj-table lpj-detail">
+    <div class="lpj-table-scroll"><table class="lpj-table lpj-detail">
       <thead><tr><th>Tanggal</th><th>Nama</th><th>Catatan</th><th class="num">Jumlah</th></tr></thead>
       <tbody>${operasionalList.map(o=>`<tr><td>${fmtDate(o.tanggal)}</td><td>${esc(o.keterangan)}</td><td>${esc(o.catatan_bukti||'-')}</td><td class="num">${fmtRp(o.jumlah)}</td></tr>`).join('') || emptyRow(4,'Belum ada biaya operasional.')}</tbody>
-    </table>
+    </table></div>
 
     <h4>3.2 Kebutuhan Lomba</h4>
-    <table class="lpj-table lpj-detail lpj-kebutuhan-table">
+    <div class="lpj-table-scroll"><table class="lpj-table lpj-detail lpj-kebutuhan-table">
       <thead><tr><th>Lomba</th><th>Nama Barang</th><th class="num">Qty</th><th class="num">Harga</th><th class="num">Subtotal</th></tr></thead>
       <tbody>${kebutuhanRows.map(r=>`<tr><td>${esc(r.lomba)}</td><td>${esc(r.nama)}</td><td class="num">${r.qty}</td><td class="num">${fmtRp(r.harga)}</td><td class="num">${fmtRp(r.subtotal)}</td></tr>`).join('') || emptyRow(5,'Belum ada data kebutuhan lomba.')}</tbody>
-    </table>
+    </table></div>
 
     <h4>3.3 Hadiah Lomba</h4>
-    <table class="lpj-table lpj-detail lpj-hadiah-table">
+    <div class="lpj-table-scroll"><table class="lpj-table lpj-detail lpj-hadiah-table">
       <thead><tr><th>Kategori</th><th>Juara</th><th>Nama Barang</th><th class="num">Qty</th><th class="num">Harga</th><th class="num">Subtotal</th></tr></thead>
       <tbody>${hadiahRows.map(r=>`<tr><td>${esc(r.kategori)}</td><td>${esc(r.juara)}</td><td>${esc(r.nama)}</td><td class="num">${r.qty}</td><td class="num">${fmtRp(r.harga)}</td><td class="num">${fmtRp(r.subtotal)}</td></tr>`).join('') || emptyRow(6,'Belum ada data hadiah lomba.')}</tbody>
-    </table>
+    </table></div>
 
     <h4>3.4 Hadiah Jalan Santai</h4>
-    <table class="lpj-table lpj-detail lpj-jalan-santai-table">
+    <div class="lpj-table-scroll"><table class="lpj-table lpj-detail lpj-jalan-santai-table">
       <thead><tr><th>Nama Barang</th><th class="num">Qty</th><th class="num">Harga</th><th class="num">Subtotal</th></tr></thead>
       <tbody>${hadiahJalanList.map(h=>`<tr><td>${esc(h.nama_hadiah)}</td><td class="num">${h.qty}</td><td class="num">${fmtRp(h.harga_satuan)}</td><td class="num">${fmtRp(Number(h.harga_satuan||0)*Number(h.qty||0))}</td></tr>`).join('') || emptyRow(4,'Belum ada data hadiah jalan santai.')}</tbody>
-    </table>
+    </table></div>
 
     <h3>4. Penutup</h3>
     <p class="lpj-penutup">Demikian Laporan Pertanggungjawaban kegiatan <strong>${esc(ev.nama)}</strong> ini kami susun berdasarkan data yang tercatat pada sistem, untuk dipergunakan sebagaimana mestinya.</p>

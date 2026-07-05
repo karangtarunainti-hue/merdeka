@@ -570,6 +570,7 @@
     background:var(--abu);
   }
   .nomor-badge.kategori-anak{background:var(--biru);}
+  .nomor-badge.kategori-remaja{background:var(--gold);}
   .nomor-badge.kategori-ibu{background:var(--pink);}
   .nomor-badge.kategori-bapak-ibu{background:var(--ungu);}
   .nomor-badge.kategori-bapak-bapak{background:var(--orange);}

@@ -491,6 +491,7 @@ const KATEGORI_ANGGOTA = [
 ];
 const KATEGORI_PESERTA = [
   {v:'anak', l:'Anak'},
+  {v:'remaja', l:'Remaja'},
   {v:'ibu', l:'Ibu'},
   {v:'bapak-ibu', l:'Bapak-Ibu'},
   {v:'bapak-bapak', l:'Bapak-Bapak'},

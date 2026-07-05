@@ -3859,7 +3859,7 @@ function panitiaBuatBaru(){
     judul: 'Susunan Panitia',
     organisasi: 'Karang Taruna Inti',
     dusun: '', desa: '', kecamatan: '', kabupaten: '',
-    hari: '', tanggal: '', tempat: '',
+    hari: '', tanggal: null, tempat: '',
     jadwal_piket: Array.from({length:9}, () => ({ pagi:'', siang:'', sore:'' })),
     kelompok_utama: [
       { id: uid(), judul: 'Undur-Undur Walimahan (Among Tamu)', koor: '', rows: [] },
@@ -3917,6 +3917,9 @@ function panitiaHapus(id){
 // ---- Update field-field sederhana (tanpa re-render, supaya kursor tidak lompat) ----
 function panitiaSetTop(docId, field, value){
   const doc = panitiaGetDoc(docId); if(!doc) return;
+  // Kolom `tanggal` di Supabase bertipe date — kirim null kalau kosong,
+  // karena string kosong '' ditolak Postgres untuk tipe date.
+  if(field === 'tanggal' && value === '') value = null;
   doc[field] = value; panitiaTouch(doc); saveDB();
 }
 function panitiaSetJadwal(docId, idx, field, value){

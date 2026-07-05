@@ -1780,8 +1780,29 @@ function renderLomba(){
   }).join('');
 
   return `<div class="stat-grid"><div class="stat-card pengeluaran"><div class="lbl">Total Kebutuhan</div><div class="val">${fmtRp(totalKebutuhan)}</div></div></div>
+  ${renderStokHadiahRingkas()}
   <div class="panel"><div class="panel-head"><div><h3>Daftar Lomba</h3><div class="desc">Klik kartu untuk buka rincian</div></div>${isLoggedIn ? `<button class="btn" onclick="openLombaModal()">+ Tambah Lomba</button>` : ''}</div>
   <div class="panel-body">${cards||`<div class="empty-row" style="padding:30px;text-align:center;">Belum ada lomba.</div>`}</div></div>`;
+}
+// Ringkasan stok hadiah bersama, ditampilkan terpisah dari dropdown pemilihan paket per lomba
+function renderStokHadiahRingkas(){
+  const kategoriDenganStok = KATEGORI_PESERTA.filter(kp => gHadiahKategori().some(h=>h.kategori_peserta===kp.v));
+  if(!kategoriDenganStok.length) return '';
+  const body = kategoriDenganStok.map(kp => {
+    const paketKategori = gHadiahKategori().filter(h=>h.kategori_peserta===kp.v);
+    const juaraRows = JUARA_LIST.filter(j=>paketKategori.some(h=>h.juara_ke===j.v)).map(j=>{
+      const paket = paketKategori.filter(h=>h.juara_ke===j.v);
+      const chips = paket.flatMap(h=>h.items.map(item=>{
+        const sisa = Number(item.qty_dibeli||0)-Number(item.qty_terpakai||0);
+        const habis = sisa<=0;
+        return `<span class="lomba-mini-chip" style="${habis?'opacity:.55;':''}"><span class="num" style="background:${habis?'var(--abu)':'var(--merah)'};">${sisa}</span>${esc(item.nama)}</span>`;
+      })).join('');
+      return `<div style="margin-bottom:10px;"><div style="font-size:12px;font-weight:700;color:var(--ink-soft);margin-bottom:5px;">${j.l}</div><div class="lomba-mini-list" style="margin:0;">${chips||'<span class="hint">Belum ada item</span>'}</div></div>`;
+    }).join('');
+    return `<div style="margin-bottom:14px;"><div style="font-weight:700;margin-bottom:8px;">${kp.l}</div>${juaraRows}</div>`;
+  }).join('');
+  return `<div class="panel"><div class="panel-head"><div><h3>📦 Stok Hadiah Tersedia</h3><div class="desc">Sisa pcs tiap item di stok hadiah bersama, per kategori & juara</div></div></div>
+  <div class="panel-body">${body}</div></div>`;
 }
 function labelPeserta(v){ return (KATEGORI_PESERTA.find(k=>k.v===v)||{}).l || v; }
 function toggleLombaCard(id){ openLombaIds.has(id)?openLombaIds.delete(id):openLombaIds.add(id); renderContent(); }
@@ -1813,7 +1834,7 @@ function renderHadiahLombaBlock(lomba){
     return `<div class="juara-row"><div class="juara-tag">${j.l}</div>
       <select class="juara-select" onchange="setLombaHadiah('${lomba.id}','${j.v}',this.value)" ${!isLoggedIn ? 'disabled' : ''}>
         <option value="">— Pilih paket —</option>
-        ${opsi.map(h=>{const label=h.items.map(item=>`${item.nama} (${item.qty_dibeli-item.qty_terpakai} pcs)`).join(', '); return `<option value="${h.id}" ${currentHadiah&&h.id===currentHadiah.id?'selected':''}>${label}</option>`;}).join('')}
+        ${opsi.map(h=>{const label=h.items.map(item=>item.nama).join(', '); return `<option value="${h.id}" ${currentHadiah&&h.id===currentHadiah.id?'selected':''}>${label}</option>`;}).join('')}
       </select>
     </div>`;
   }).join('');

@@ -1585,14 +1585,13 @@ function renderDonatur(){
   const list = gDonatur().slice().sort((a,b)=>(b.tanggal||'').localeCompare(a.tanggal||''));
   const total = list.reduce((s,d)=>s+Number(d.jumlah||0),0);
   const isLoggedIn = !!getCurrentUser();
-  const rows = list.map(d=>`<tr><td>${fmtDate(d.tanggal)}</td><td>${esc(d.nama_donatur)}</td><td>${esc(d.keterangan||'-')}</td><td class="num">${fmtRp(d.jumlah)}</td><td style="text-align:right;">
-    <button class="icon-btn" onclick="openDonaturModal('${d.id}')" ${!isLoggedIn ? 'disabled' : ''}>✎</button>
-    <button class="icon-btn" onclick="hapusDonatur('${d.id}')" ${!isLoggedIn ? 'disabled' : ''}>🗑</button>
-  </td></tr>`).join('');
+  const rows = list.map(d=>`<tr${isLoggedIn ? ` class="row-clickable" onclick="openDonaturModal('${d.id}')"` : ''}><td>${fmtDateShort(d.tanggal)}</td><td>${esc(d.nama_donatur)}</td><td>${esc(d.keterangan||'-')}</td><td class="num">${fmtRp(d.jumlah)}</td>${isLoggedIn ? `<td style="text-align:right;">
+    <button class="icon-btn" onclick="event.stopPropagation();hapusDonatur('${d.id}')">🗑</button>
+  </td>` : ''}</tr>`).join('');
   return `<div class="stat-grid"><div class="stat-card pemasukan"><div class="lbl">Total Donasi</div><div class="val">${fmtRp(total)}</div></div></div>
   <div class="panel"><div class="panel-head"><h3>Daftar Donatur</h3>${isLoggedIn ? `<button class="btn" onclick="openDonaturModal()">+ Tambah</button>` : ''}</div>
-  <div class="panel-body flush"><table class="general-table"><thead><tr><th>Tanggal</th><th>Nama</th><th>Keterangan</th><th class="num">Jumlah</th><th></th></tr></thead>
-  <tbody>${rows||`<tr class="empty-row"><td colspan="5">Belum ada donasi.</td></tr>`}</tbody></table></div></div>`;
+  <div class="panel-body flush"><table class="general-table tanggal-nominal-table"><thead><tr><th>Tanggal</th><th>Nama</th><th>Keterangan</th><th class="num">Jumlah</th>${isLoggedIn ? '<th></th>' : ''}</tr></thead>
+  <tbody>${rows||`<tr class="empty-row"><td colspan="${isLoggedIn?5:4}">Belum ada donasi.</td></tr>`}</tbody></table></div></div>`;
 }
 function openDonaturModal(id){
   if (!canEditSection('donatur')) { toast('⛔ Login untuk mengedit data'); return; }
@@ -1690,7 +1689,7 @@ function renderOperasional(){
   </td>` : ''}</tr>`).join('');
   return `<div class="stat-grid"><div class="stat-card pengeluaran"><div class="lbl">Total Operasional</div><div class="val">${fmtRp(total)}</div></div></div>
   <div class="panel"><div class="panel-head"><h3>Biaya Operasional</h3>${isLoggedIn ? `<button class="btn" onclick="openOperasionalModal()">+ Tambah</button>` : ''}</div>
-  <div class="panel-body flush"><table class="general-table operasional-table"><thead><tr><th>Tanggal</th><th>Nama</th><th>Catatan</th><th class="num">Jumlah</th>${isLoggedIn ? '<th></th>' : ''}</tr></thead>
+  <div class="panel-body flush"><table class="general-table tanggal-nominal-table"><thead><tr><th>Tanggal</th><th>Nama</th><th>Catatan</th><th class="num">Jumlah</th>${isLoggedIn ? '<th></th>' : ''}</tr></thead>
   <tbody>${rows||`<tr class="empty-row"><td colspan="${isLoggedIn?5:4}">Belum ada biaya.</td></tr>`}</tbody></table></div></div>`;
 }
 function openOperasionalModal(id){

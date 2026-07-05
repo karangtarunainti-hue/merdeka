@@ -317,6 +317,10 @@ async function loadDB(){
       const res = arrayResults[idx];
       if(res.error){ console.error(`Gagal memuat ${table}:`, res.error); return; }
       result[key] = res.data || [];
+      // Catat ID mana saja yang KITA tahu ada di server saat ini. Dipakai nanti oleh
+      // syncArrayTable() supaya delete-diff tidak menghapus data yang ditambahkan
+      // client lain setelah kita load (lihat penjelasan di syncArrayTable).
+      _lastKnownIds[table] = new Set(result[key].map(r => r.id));
     });
 
     if(usersRes.error){ console.error('Gagal memuat users:', usersRes.error); }
@@ -324,6 +328,7 @@ async function loadDB(){
 
     if(!settingsRes.error){
       (settingsRes.data || []).forEach(s => { result.settings[s.event_id] = { tarif: s.tarif, hadiahBudget: s.hadiah_budget || {} }; });
+      _lastKnownSettingsIds = new Set((settingsRes.data || []).map(s => s.event_id));
     }
 
     if(!telegramRes.error && telegramRes.data){
@@ -347,22 +352,45 @@ async function loadDB(){
   return result;
 }
 
+// PENTING — soal keamanan data multi-device/multi-tab:
+// `rows` adalah snapshot `db[key]` di memori tab ini, yang di-load SEKALI saat init.
+// Kalau tab/device lain menambah baris baru ke tabel yang sama sesudah itu, baris itu
+// akan muncul di `existing` (hasil select di bawah) tapi TIDAK ADA di `rows` milik kita —
+// bukan karena kita menghapusnya, tapi karena kita belum pernah tahu baris itu ada.
+// Dulu itu dianggap "harus dihapus" (existingIds - currentIds), jadi data yang baru
+// ditambahkan device lain bisa ke-delete oleh sync device ini. Untuk mencegah itu,
+// kita hanya boleh menghapus ID yang PERNAH kita kenal (ada di _lastKnownIds, artinya
+// ID itu ada waktu kita load/sync terakhir) dan sekarang sudah tidak ada lagi di rows
+// kita (berarti KITA yang menghapusnya). ID yang muncul di server tapi tidak pernah kita
+// kenal sebelumnya dibiarkan saja — itu punya device lain, bukan urusan sync ini.
+const _lastKnownIds = {};
+
 async function syncArrayTable(table, rows){
   const { data: existing, error: selErr } = await sb.from(table).select('id');
   if(selErr){ console.error(`Gagal membaca ${table}:`, selErr); return; }
   const existingIds = new Set((existing || []).map(r => r.id));
   const currentIds = new Set(rows.map(r => r.id));
-  const toDelete = [...existingIds].filter(id => !currentIds.has(id));
+  const knownIds = _lastKnownIds[table] || new Set();
+  const toDelete = [...existingIds].filter(id => knownIds.has(id) && !currentIds.has(id));
 
   if(rows.length){
     const { error: upErr } = await sb.from(table).upsert(rows, { onConflict: 'id' });
-    if(upErr) console.error(`Gagal menyimpan ${table}:`, upErr);
+    if(upErr){ console.error(`Gagal menyimpan ${table}:`, upErr); return; }
   }
   if(toDelete.length){
     const { error: delErr } = await sb.from(table).delete().in('id', toDelete);
     if(delErr) console.error(`Gagal menghapus data lama ${table}:`, delErr);
   }
+
+  // Update memori "ID yang kita kenal": gabungan ID milik kita sendiri (currentIds)
+  // dan ID milik device lain yang masih hidup di server dan tidak kita sentuh.
+  const survivedRemote = [...existingIds].filter(id => !toDelete.includes(id));
+  _lastKnownIds[table] = new Set([...survivedRemote, ...currentIds]);
 }
+
+// Sama seperti _lastKnownIds di syncArrayTable — mencegah setting event milik device
+// lain (yang belum sempat kita lihat) ikut terhapus saat kita sync.
+let _lastKnownSettingsIds = new Set();
 
 async function syncSettings(){
   const rows = Object.keys(db.settings).map(eventId => ({ event_id: eventId, tarif: db.settings[eventId].tarif, hadiah_budget: db.settings[eventId].hadiahBudget || {} }));
@@ -370,16 +398,19 @@ async function syncSettings(){
   if(selErr){ console.error('Gagal membaca kt_settings:', selErr); return; }
   const existingIds = new Set((existing || []).map(r => r.event_id));
   const currentIds = new Set(Object.keys(db.settings));
-  const toDelete = [...existingIds].filter(id => !currentIds.has(id));
+  const toDelete = [...existingIds].filter(id => _lastKnownSettingsIds.has(id) && !currentIds.has(id));
 
   if(rows.length){
     const { error } = await sb.from('kt_settings').upsert(rows, { onConflict: 'event_id' });
-    if(error) console.error('Gagal menyimpan kt_settings:', error);
+    if(error){ console.error('Gagal menyimpan kt_settings:', error); return; }
   }
   if(toDelete.length){
     const { error: delErr } = await sb.from('kt_settings').delete().in('event_id', toDelete);
     if(delErr) console.error('Gagal menghapus kt_settings lama:', delErr);
   }
+
+  const survivedRemote = [...existingIds].filter(id => !toDelete.includes(id));
+  _lastKnownSettingsIds = new Set([...survivedRemote, ...currentIds]);
 }
 
 async function syncTelegram(){

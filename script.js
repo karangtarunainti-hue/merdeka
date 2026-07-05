@@ -653,6 +653,44 @@ const SECTIONS = [
   {key:'pengaturan', label:'Pengaturan', sub:'Tarif iuran & event', icon:'gear', adminOnly: true},
   {key:'users', label:'Manajemen User', sub:'Kelola akun pengguna', icon:'users', adminOnly: true},
 ];
+
+/* ============================================================
+   FITUR OPSIONAL PER EVENT
+   Beberapa event (mis. sekadar iuran rutin) tidak butuh semua modul.
+   Fitur di bawah ini bisa dimatikan per-event lewat modal Buat/Edit
+   Event. Menu inti (Buku Utama, Iuran, Database Anggota, LPJ,
+   Pengaturan, Manajemen User) selalu aktif dan tidak bisa dimatikan.
+   ============================================================ */
+const FITUR_OPSIONAL = [
+  {key:'donatur', label:'Donatur', menus:['donatur']},
+  {key:'transaksi', label:'Transaksi Lain', menus:['transaksi']},
+  {key:'operasional', label:'Operasional Kegiatan', menus:['operasional']},
+  {key:'lomba', label:'Lomba & Kebutuhan', menus:['lomba','belanja-perlengkapan']},
+  {key:'hadiah', label:'Hadiah Lomba', menus:['hadiah','belanja-hadiah']},
+  {key:'jalan_santai', label:'Hadiah Jalan Santai', menus:['hadiah-jalan','belanja-jalan']},
+  {key:'jadwal', label:'Jadwal & Reminder', menus:['jadwal']},
+];
+// Preset dipakai di modal event supaya tidak perlu centang satu-satu tiap bikin event baru.
+const FITUR_PRESET_SEDERHANA = {donatur:false, transaksi:false, operasional:false, lomba:false, hadiah:false, jalan_santai:false, jadwal:false};
+const FITUR_PRESET_LENGKAP = {donatur:true, transaksi:true, operasional:true, lomba:true, hadiah:true, jalan_santai:true, jadwal:true};
+
+// Default: fitur dianggap aktif kalau belum pernah diset (backward-compat utk event lama).
+function eventFitur(ev){
+  const f = (ev && ev.fitur) || {};
+  const out = {};
+  FITUR_OPSIONAL.forEach(x => out[x.key] = f[x.key] !== false);
+  return out;
+}
+// Cek apakah sebuah menu/section aktif untuk event yang sedang dibuka.
+// Menu yang tidak terdaftar di FITUR_OPSIONAL (menu inti) selalu true.
+function isMenuAktif(menuKey){
+  const ev = activeEvent();
+  if (!ev) return true;
+  const fitur = eventFitur(ev);
+  const item = FITUR_OPSIONAL.find(x => x.menus.includes(menuKey));
+  if (!item) return true;
+  return !!fitur[item.key];
+}
 const ICONS = {
   grid:'<path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z" stroke-width="1.6" stroke="currentColor" fill="none" stroke-linejoin="round"/>',
   users:'<circle cx="8.5" cy="8" r="3" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M2.5 20c0-3.5 2.7-6 6-6s6 2.5 6 6" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round"/><circle cx="17" cy="8.5" r="2.4" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M15.5 13c2.6.3 4.5 2.3 4.9 5.3" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round"/>',
@@ -711,6 +749,7 @@ function renderSidebar(){
   const isPetugasUser = user && user.role === 'petugas';
   const visibleSections = SECTIONS
     .filter(s => !s.adminOnly || isAdminUser)
+    .filter(s => isMenuAktif(s.key))
     .filter(s => {
       if (!isLoggedIn) return isGuestVisible(s.key);
       if (isPetugasUser) return s.key === 'dashboard' || userSections().includes(s.key);
@@ -731,6 +770,10 @@ function goSection(key){
   const section = SECTIONS.find(s=>s.key===key);
   if (section && section.adminOnly && !(user && user.role === 'admin')) {
     toast('⛔ Hanya Admin yang bisa mengakses halaman ini');
+    return;
+  }
+  if (section && !isMenuAktif(key)) {
+    toast('⛔ Fitur ini tidak diaktifkan untuk event ini');
     return;
   }
   if (section && !user && !isGuestVisible(key)) {
@@ -785,6 +828,12 @@ function renderContent(){
   const section = SECTIONS.find(s=>s.key===currentSection);
   if (section && section.adminOnly && !isAdminUser) {
     el.innerHTML = `<div class="empty-state"><h3>⛔ Akses Ditolak</h3><p>Halaman ini hanya untuk Admin.</p><button class="btn" onclick="goSection('dashboard')">Kembali ke Dashboard</button></div>`;
+    return;
+  }
+
+  // Check if current section's feature is turned off for this event
+  if (section && !isMenuAktif(currentSection)) {
+    el.innerHTML = `<div class="empty-state"><h3>Fitur tidak aktif</h3><p>Fitur ini dimatikan untuk event "${esc(activeEvent().nama)}". Aktifkan lagi lewat tombol ✎ di daftar event pada halaman Pengaturan kalau dibutuhkan.</p><button class="btn" onclick="goSection('dashboard')">Kembali ke Dashboard</button></div>`;
     return;
   }
 
@@ -1065,13 +1114,13 @@ function renderDashboard(){
     {key:'anggota', label:'Total Iuran', value:b.iuran, info:`${b.jumlahIuranLunas} anggota sudah lunas`},
     {key:'donatur', label:'Total Donasi', value:b.donasi, info:`${b.jumlahDonatur} donatur tercatat`},
     {key:'transaksi', label:'Total Transaksi Lain', value:b.transaksiLain, info:`${b.jumlahTransaksiLain} transaksi tercatat`},
-  ];
+  ].filter(item => isMenuAktif(item.key));
   const pengeluaranItems = [
     {key:'operasional', label:'Total Operasional Kegiatan', value:b.opsional, info:`${b.jumlahOperasional} biaya tercatat`},
     {key:'lomba', label:'Total Belanja Kebutuhan Lomba', value:b.kebutuhanLomba, info:`${b.jumlahKebutuhanLomba} item kebutuhan lomba`},
     {key:'hadiah', label:'Total Hadiah Lomba', value:b.hadiahLomba, info:`${b.jumlahItemHadiahLomba} item hadiah lomba`},
     {key:'hadiah-jalan', label:'Total Hadiah Jalan Santai', value:b.hadiahJalan, info:`${b.jumlahHadiahJalan} item hadiah jalan santai`},
-  ];
+  ].filter(item => isMenuAktif(item.key));
 
   const reminderCards = generateReminders();
   const isLoggedIn = !!getCurrentUser();
@@ -1104,7 +1153,7 @@ function generateReminders(){
   const today = new Date();
   const isLoggedIn = !!getCurrentUser();
 
-  const jadwalList = gJadwal().filter(j => j.status !== 'selesai');
+  const jadwalList = isMenuAktif('jadwal') ? gJadwal().filter(j => j.status !== 'selesai') : [];
   const upcomingJadwal = jadwalList.filter(j => {
     const jDate = new Date(j.tanggal + 'T00:00:00');
     const diffDays = Math.ceil((jDate - today) / (1000 * 60 * 60 * 24));
@@ -1146,7 +1195,7 @@ function generateReminders(){
   }
 
   const hadiahItems = [];
-  gHadiahKategori().forEach(h => {
+  if (isMenuAktif('hadiah')) gHadiahKategori().forEach(h => {
     h.items.forEach((item, idx) => {
       if (Number(item.qty_dibeli||0) <= 0) return;
       const belanja = db.daftarBelanjaHadiah.find(b => b.hadiah_kategori_id === h.id && b.item_index === idx && b.event_id === eid());
@@ -1157,7 +1206,7 @@ function generateReminders(){
   });
 
   const perlengkapanItems = [];
-  gLomba().forEach(l => {
+  if (isMenuAktif('lomba')) gLomba().forEach(l => {
     gKebutuhan(l.id).forEach(k => {
       const belanja = db.daftarBelanjaPerlengkapan.find(b => b.kebutuhan_id === k.id && b.event_id === eid());
       if (!belanja || belanja.status !== 'dibeli') {
@@ -1166,10 +1215,10 @@ function generateReminders(){
     });
   });
 
-  const jalanItems = gHadiahJalanSantai().filter(h => {
+  const jalanItems = isMenuAktif('jalan_santai') ? gHadiahJalanSantai().filter(h => {
     const belanja = db.daftarBelanjaJalanSantai.find(b => b.hadiah_jalan_id === h.id && b.event_id === eid());
     return !belanja || belanja.status !== 'dibeli';
-  });
+  }) : [];
 
   const totalBelum = hadiahItems.length + perlengkapanItems.length + jalanItems.length;
 
@@ -3190,6 +3239,60 @@ function renderLPJ(){
 
   const emptyRow = (n,text)=>`<tr class="empty-row"><td colspan="${n}">${text}</td></tr>`;
 
+  const showDonatur = isMenuAktif('donatur');
+  const showTransaksi = isMenuAktif('transaksi');
+  const showOperasional = isMenuAktif('operasional');
+  const showLomba = isMenuAktif('lomba');
+  const showHadiah = isMenuAktif('hadiah');
+  const showJalan = isMenuAktif('jalan_santai');
+
+  // 2. Rincian Pemasukan — Iuran Anggota selalu ada, sisanya menyesuaikan fitur event
+  const pemasukanSubs = [
+    { title:'Iuran Anggota', html:`
+    <div class="lpj-table-scroll"><table class="lpj-table lpj-detail">
+      <thead><tr><th>Kategori</th><th>Anggota</th><th>Lunas</th><th class="num">Total Terkumpul</th></tr></thead>
+      <tbody>${kategoriRekap.map(r=>`<tr><td>${esc(r.label)}</td><td>${r.total}</td><td>${r.lunas}</td><td class="num">${fmtRp(r.nominal)}</td></tr>`).join('') || emptyRow(4,'Belum ada data anggota.')}</tbody>
+    </table></div>` },
+  ];
+  if (showDonatur) pemasukanSubs.push({ title:'Donatur', html:`
+    <div class="lpj-table-scroll"><table class="lpj-table lpj-detail">
+      <thead><tr><th>Tanggal</th><th>Nama</th><th>Keterangan</th><th class="num">Jumlah</th></tr></thead>
+      <tbody>${donaturList.map(d=>`<tr><td>${fmtDate(d.tanggal)}</td><td>${esc(d.nama_donatur)}</td><td>${esc(d.keterangan||'-')}</td><td class="num">${fmtRp(d.jumlah)}</td></tr>`).join('') || emptyRow(4,'Belum ada donasi.')}</tbody>
+    </table></div>` });
+  if (showTransaksi) pemasukanSubs.push({ title:'Transaksi Lain', html:`
+    <div class="lpj-table-scroll"><table class="lpj-table lpj-detail">
+      <thead><tr><th>Tanggal</th><th>Nama</th><th>Keterangan</th><th class="num">Jumlah</th></tr></thead>
+      <tbody>${transaksiList.map(t=>`<tr><td>${fmtDate(t.tanggal)}</td><td>${esc(t.jenis)}</td><td>${esc(t.keterangan||'-')}</td><td class="num">${fmtRp(t.jumlah)}</td></tr>`).join('') || emptyRow(4,'Belum ada transaksi.')}</tbody>
+    </table></div>` });
+
+  // 3. Rincian Pengeluaran — semua sub-bagian opsional, tergantung fitur event
+  const pengeluaranSubs = [];
+  if (showOperasional) pengeluaranSubs.push({ title:'Operasional Kegiatan', html:`
+    <div class="lpj-table-scroll"><table class="lpj-table lpj-detail">
+      <thead><tr><th>Tanggal</th><th>Nama</th><th>Catatan</th><th class="num">Jumlah</th></tr></thead>
+      <tbody>${operasionalList.map(o=>`<tr><td>${fmtDate(o.tanggal)}</td><td>${esc(o.keterangan)}</td><td>${esc(o.catatan_bukti||'-')}</td><td class="num">${fmtRp(o.jumlah)}</td></tr>`).join('') || emptyRow(4,'Belum ada biaya operasional.')}</tbody>
+    </table></div>` });
+  if (showLomba) pengeluaranSubs.push({ title:'Kebutuhan Lomba', html:`
+    <div class="lpj-table-scroll"><table class="lpj-table lpj-detail lpj-kebutuhan-table">
+      <thead><tr><th>Lomba</th><th>Nama Barang</th><th class="num">Qty</th><th class="num">Harga</th><th class="num">Subtotal</th></tr></thead>
+      <tbody>${kebutuhanRows.map(r=>`<tr><td>${esc(r.lomba)}</td><td>${esc(r.nama)}</td><td class="num">${r.qty}</td><td class="num">${fmtRp(r.harga)}</td><td class="num">${fmtRp(r.subtotal)}</td></tr>`).join('') || emptyRow(5,'Belum ada data kebutuhan lomba.')}</tbody>
+    </table></div>` });
+  if (showHadiah) pengeluaranSubs.push({ title:'Hadiah Lomba', html:`
+    <div class="lpj-table-scroll"><table class="lpj-table lpj-detail lpj-hadiah-table">
+      <thead><tr><th>Kategori</th><th>Juara</th><th>Nama Barang</th><th class="num">Qty</th><th class="num">Harga</th><th class="num">Subtotal</th></tr></thead>
+      <tbody>${hadiahRows.map(r=>`<tr><td>${esc(r.kategori)}</td><td>${esc(r.juara)}</td><td>${esc(r.nama)}</td><td class="num">${r.qty}</td><td class="num">${fmtRp(r.harga)}</td><td class="num">${fmtRp(r.subtotal)}</td></tr>`).join('') || emptyRow(6,'Belum ada data hadiah lomba.')}</tbody>
+    </table></div>` });
+  if (showJalan) pengeluaranSubs.push({ title:'Hadiah Jalan Santai', html:`
+    <div class="lpj-table-scroll"><table class="lpj-table lpj-detail lpj-jalan-santai-table">
+      <thead><tr><th>Nama Barang</th><th class="num">Qty</th><th class="num">Harga</th><th class="num">Subtotal</th></tr></thead>
+      <tbody>${hadiahJalanList.map(h=>`<tr><td>${esc(h.nama_hadiah)}</td><td class="num">${h.qty}</td><td class="num">${fmtRp(h.harga_satuan)}</td><td class="num">${fmtRp(Number(h.harga_satuan||0)*Number(h.qty||0))}</td></tr>`).join('') || emptyRow(4,'Belum ada data hadiah jalan santai.')}</tbody>
+    </table></div>` });
+
+  const pemasukanHtml = pemasukanSubs.map((s,i)=>`<h4>2.${i+1} ${esc(s.title)}</h4>${s.html}`).join('');
+  const pengeluaranHtml = pengeluaranSubs.length
+    ? pengeluaranSubs.map((s,i)=>`<h4>3.${i+1} ${esc(s.title)}</h4>${s.html}`).join('')
+    : `<p style="font-size:13px; color:var(--ink-soft); margin:8px 0 20px;">Tidak ada modul pengeluaran yang diaktifkan untuk event ini.</p>`;
+
   return `
   <div class="lpj-scale-wrap" id="lpj-scale-wrap">
   <div class="lpj-print-area" id="lpj-print-area">
@@ -3211,60 +3314,22 @@ function renderLPJ(){
       <tbody>
         <tr class="lpj-subtotal"><td>Total Pemasukan</td><td class="num">${fmtRp(b.pemasukan)}</td></tr>
         <tr><td class="indent">Iuran Anggota (${b.jumlahIuranLunas} lunas)</td><td class="num">${fmtRp(b.iuran)}</td></tr>
-        <tr><td class="indent">Donatur (${b.jumlahDonatur} donasi)</td><td class="num">${fmtRp(b.donasi)}</td></tr>
-        <tr><td class="indent">Transaksi Lain (${b.jumlahTransaksiLain})</td><td class="num">${fmtRp(b.transaksiLain)}</td></tr>
+        ${showDonatur ? `<tr><td class="indent">Donatur (${b.jumlahDonatur} donasi)</td><td class="num">${fmtRp(b.donasi)}</td></tr>` : ''}
+        ${showTransaksi ? `<tr><td class="indent">Transaksi Lain (${b.jumlahTransaksiLain})</td><td class="num">${fmtRp(b.transaksiLain)}</td></tr>` : ''}
         <tr class="lpj-subtotal"><td>Total Pengeluaran</td><td class="num">${fmtRp(b.pengeluaran)}</td></tr>
-        <tr><td class="indent">Operasional Kegiatan (${b.jumlahOperasional})</td><td class="num">${fmtRp(b.opsional)}</td></tr>
-        <tr><td class="indent">Kebutuhan Lomba (${b.jumlahKebutuhanLomba})</td><td class="num">${fmtRp(b.kebutuhanLomba)}</td></tr>
-        <tr><td class="indent">Hadiah Lomba (${b.jumlahItemHadiahLomba} item)</td><td class="num">${fmtRp(b.hadiahLomba)}</td></tr>
-        <tr><td class="indent">Hadiah Jalan Santai (${b.jumlahHadiahJalan})</td><td class="num">${fmtRp(b.hadiahJalan)}</td></tr>
+        ${showOperasional ? `<tr><td class="indent">Operasional Kegiatan (${b.jumlahOperasional})</td><td class="num">${fmtRp(b.opsional)}</td></tr>` : ''}
+        ${showLomba ? `<tr><td class="indent">Kebutuhan Lomba (${b.jumlahKebutuhanLomba})</td><td class="num">${fmtRp(b.kebutuhanLomba)}</td></tr>` : ''}
+        ${showHadiah ? `<tr><td class="indent">Hadiah Lomba (${b.jumlahItemHadiahLomba} item)</td><td class="num">${fmtRp(b.hadiahLomba)}</td></tr>` : ''}
+        ${showJalan ? `<tr><td class="indent">Hadiah Jalan Santai (${b.jumlahHadiahJalan})</td><td class="num">${fmtRp(b.hadiahJalan)}</td></tr>` : ''}
         <tr class="lpj-total"><td>Saldo Akhir</td><td class="num">${fmtRp(b.saldo)}</td></tr>
       </tbody>
     </table>
 
     <h3>2. Rincian Pemasukan</h3>
-    <h4>2.1 Iuran Anggota</h4>
-    <div class="lpj-table-scroll"><table class="lpj-table lpj-detail">
-      <thead><tr><th>Kategori</th><th>Anggota</th><th>Lunas</th><th class="num">Total Terkumpul</th></tr></thead>
-      <tbody>${kategoriRekap.map(r=>`<tr><td>${esc(r.label)}</td><td>${r.total}</td><td>${r.lunas}</td><td class="num">${fmtRp(r.nominal)}</td></tr>`).join('') || emptyRow(4,'Belum ada data anggota.')}</tbody>
-    </table></div>
-
-    <h4>2.2 Donatur</h4>
-    <div class="lpj-table-scroll"><table class="lpj-table lpj-detail">
-      <thead><tr><th>Tanggal</th><th>Nama</th><th>Keterangan</th><th class="num">Jumlah</th></tr></thead>
-      <tbody>${donaturList.map(d=>`<tr><td>${fmtDate(d.tanggal)}</td><td>${esc(d.nama_donatur)}</td><td>${esc(d.keterangan||'-')}</td><td class="num">${fmtRp(d.jumlah)}</td></tr>`).join('') || emptyRow(4,'Belum ada donasi.')}</tbody>
-    </table></div>
-
-    <h4>2.3 Transaksi Lain</h4>
-    <div class="lpj-table-scroll"><table class="lpj-table lpj-detail">
-      <thead><tr><th>Tanggal</th><th>Nama</th><th>Keterangan</th><th class="num">Jumlah</th></tr></thead>
-      <tbody>${transaksiList.map(t=>`<tr><td>${fmtDate(t.tanggal)}</td><td>${esc(t.jenis)}</td><td>${esc(t.keterangan||'-')}</td><td class="num">${fmtRp(t.jumlah)}</td></tr>`).join('') || emptyRow(4,'Belum ada transaksi.')}</tbody>
-    </table></div>
+    ${pemasukanHtml}
 
     <h3>3. Rincian Pengeluaran</h3>
-    <h4>3.1 Operasional Kegiatan</h4>
-    <div class="lpj-table-scroll"><table class="lpj-table lpj-detail">
-      <thead><tr><th>Tanggal</th><th>Nama</th><th>Catatan</th><th class="num">Jumlah</th></tr></thead>
-      <tbody>${operasionalList.map(o=>`<tr><td>${fmtDate(o.tanggal)}</td><td>${esc(o.keterangan)}</td><td>${esc(o.catatan_bukti||'-')}</td><td class="num">${fmtRp(o.jumlah)}</td></tr>`).join('') || emptyRow(4,'Belum ada biaya operasional.')}</tbody>
-    </table></div>
-
-    <h4>3.2 Kebutuhan Lomba</h4>
-    <div class="lpj-table-scroll"><table class="lpj-table lpj-detail lpj-kebutuhan-table">
-      <thead><tr><th>Lomba</th><th>Nama Barang</th><th class="num">Qty</th><th class="num">Harga</th><th class="num">Subtotal</th></tr></thead>
-      <tbody>${kebutuhanRows.map(r=>`<tr><td>${esc(r.lomba)}</td><td>${esc(r.nama)}</td><td class="num">${r.qty}</td><td class="num">${fmtRp(r.harga)}</td><td class="num">${fmtRp(r.subtotal)}</td></tr>`).join('') || emptyRow(5,'Belum ada data kebutuhan lomba.')}</tbody>
-    </table></div>
-
-    <h4>3.3 Hadiah Lomba</h4>
-    <div class="lpj-table-scroll"><table class="lpj-table lpj-detail lpj-hadiah-table">
-      <thead><tr><th>Kategori</th><th>Juara</th><th>Nama Barang</th><th class="num">Qty</th><th class="num">Harga</th><th class="num">Subtotal</th></tr></thead>
-      <tbody>${hadiahRows.map(r=>`<tr><td>${esc(r.kategori)}</td><td>${esc(r.juara)}</td><td>${esc(r.nama)}</td><td class="num">${r.qty}</td><td class="num">${fmtRp(r.harga)}</td><td class="num">${fmtRp(r.subtotal)}</td></tr>`).join('') || emptyRow(6,'Belum ada data hadiah lomba.')}</tbody>
-    </table></div>
-
-    <h4>3.4 Hadiah Jalan Santai</h4>
-    <div class="lpj-table-scroll"><table class="lpj-table lpj-detail lpj-jalan-santai-table">
-      <thead><tr><th>Nama Barang</th><th class="num">Qty</th><th class="num">Harga</th><th class="num">Subtotal</th></tr></thead>
-      <tbody>${hadiahJalanList.map(h=>`<tr><td>${esc(h.nama_hadiah)}</td><td class="num">${h.qty}</td><td class="num">${fmtRp(h.harga_satuan)}</td><td class="num">${fmtRp(Number(h.harga_satuan||0)*Number(h.qty||0))}</td></tr>`).join('') || emptyRow(4,'Belum ada data hadiah jalan santai.')}</tbody>
-    </table></div>
+    ${pengeluaranHtml}
 
     <h3>4. Penutup</h3>
     <p class="lpj-penutup">Demikian Laporan Pertanggungjawaban kegiatan <strong>${esc(ev.nama)}</strong> ini kami susun berdasarkan data yang tercatat pada sistem, untuk dipergunakan sebagaimana mestinya.</p>
@@ -3447,7 +3512,8 @@ async function testTelegram(){
 function setActiveEvent(id){ 
   if (!canEdit()) { toast('⛔ Login untuk mengelola event'); return; }
   db.activeEventId = id; 
-  saveDB(); renderSidebar(); goSection(currentSection); 
+  saveDB(); renderSidebar();
+  goSection(isMenuAktif(currentSection) ? currentSection : 'dashboard');
   notifyTelegram(`📂 Buka event: ${db.events.find(e=>e.id===id)?.nama || id}`, '');
 }
 
@@ -3523,7 +3589,7 @@ function exportDataEvent(){
     _type: 'kt-event-backup',
     _version: 1,
     exported_at: new Date().toISOString(),
-    event: { nama: ev.nama, tahun: ev.tahun },
+    event: { nama: ev.nama, tahun: ev.tahun, fitur: ev.fitur || null },
     settings: db.settings[id] ? { tarif: db.settings[id].tarif, hadiahBudget: db.settings[id].hadiahBudget || {} } : { tarif:{sekolah:0,bekerja:0,perantauan:0,khusus:0}, hadiahBudget:{} },
     anggota: db.anggota.filter(x=>x.event_id===id),
     donatur: db.donatur.filter(x=>x.event_id===id),
@@ -3565,7 +3631,7 @@ function importDataEvent(evt){
       }
 
       const newEventId = uid();
-      db.events.push({ id:newEventId, nama: parsed.event.nama || 'Event Impor', tahun: parsed.event.tahun || new Date().getFullYear(), created_at: new Date().toISOString() });
+      db.events.push({ id:newEventId, nama: parsed.event.nama || 'Event Impor', tahun: parsed.event.tahun || new Date().getFullYear(), fitur: parsed.event.fitur || undefined, created_at: new Date().toISOString() });
       db.settings[newEventId] = {
         tarif: (parsed.settings && parsed.settings.tarif) ? {...parsed.settings.tarif} : {sekolah:0,bekerja:0,perantauan:0,khusus:0},
         hadiahBudget: (parsed.settings && parsed.settings.hadiahBudget) ? JSON.parse(JSON.stringify(parsed.settings.hadiahBudget)) : {}
@@ -3622,23 +3688,41 @@ function importDataEvent(evt){
 function openEventModal(id){
   if (!canEdit()) { toast('⛔ Login untuk mengelola event'); return; }
   const editing = id ? db.events.find(e=>e.id===id) : null;
+  const fiturAwal = eventFitur(editing);
   setModal(editing?'Edit Event':'Buat Event', `
     <div class="field"><label>Nama Event</label><input id="f-nama" placeholder="HUT RI 82" value="${editing?esc(editing.nama):''}"></div>
     <div class="field"><label>Tahun</label><input id="f-tahun" type="number" value="${editing?esc(editing.tahun):new Date().getFullYear()}"></div>
+
+    <div class="field" style="margin-top:6px;">
+      <label>Fitur yang Dipakai</label>
+      <div class="field-hint" style="margin:-2px 0 8px; color:var(--ink-soft); font-size:12.5px;">Nonaktifkan modul yang tidak dipakai supaya menu lebih ringkas. Iuran, Buku Utama & LPJ selalu aktif.</div>
+      <div style="display:flex; gap:8px; margin-bottom:10px;">
+        <button type="button" class="btn secondary small" onclick="setFiturModalPreset('lengkap')">Pilih Semua (Lengkap)</button>
+        <button type="button" class="btn secondary small" onclick="setFiturModalPreset('sederhana')">Hanya Iuran & LPJ</button>
+      </div>
+      <div id="fitur-opsional-list" style="display:flex; flex-direction:column; gap:6px;">
+        ${FITUR_OPSIONAL.map(f=>`
+          <label style="display:flex; align-items:center; gap:8px; font-size:13.5px; font-weight:400;">
+            <input type="checkbox" id="fitur-${f.key}" ${fiturAwal[f.key]?'checked':''}> ${esc(f.label)}
+          </label>`).join('')}
+      </div>
+    </div>
   `, [
     {label:'Batal', cls:'secondary', onclick:closeModal},
     {label:editing?'Simpan':'Buat', cls:'', onclick:()=>{
       const nama = document.getElementById('f-nama').value.trim();
       const tahun = document.getElementById('f-tahun').value.trim();
       if(!nama){ toast('Nama wajib'); return; }
+      const fitur = {};
+      FITUR_OPSIONAL.forEach(f => fitur[f.key] = !!document.getElementById(`fitur-${f.key}`)?.checked);
       if(editing){
         const namaLama = editing.nama;
-        editing.nama = nama; editing.tahun = tahun;
+        editing.nama = nama; editing.tahun = tahun; editing.fitur = fitur;
         saveDB(); closeModal(); renderSidebar(); renderContent(); toast('Event diperbarui');
         notifyTelegram(`✏️ Edit event: ${namaLama} → ${nama}`, `Tahun: ${tahun}`);
       } else {
         const newId = uid();
-        db.events.push({id:newId, nama, tahun, created_at:new Date().toISOString()});
+        db.events.push({id:newId, nama, tahun, fitur, created_at:new Date().toISOString()});
         db.settings[newId] = {tarif:{sekolah:0,bekerja:0,perantauan:0,khusus:0}, hadiahBudget:{}};
         db.activeEventId = newId;
         saveDB(); closeModal(); renderSidebar(); goSection('pengaturan'); toast('Event dibuat');
@@ -3646,6 +3730,13 @@ function openEventModal(id){
       }
     }}
   ]);
+}
+function setFiturModalPreset(preset){
+  const src = preset === 'lengkap' ? FITUR_PRESET_LENGKAP : FITUR_PRESET_SEDERHANA;
+  FITUR_OPSIONAL.forEach(f=>{
+    const cb = document.getElementById(`fitur-${f.key}`);
+    if(cb) cb.checked = !!src[f.key];
+  });
 }
 
 /* ============================================================

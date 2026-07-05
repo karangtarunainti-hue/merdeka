@@ -1920,7 +1920,7 @@ function renderHadiah(){
       const kebutuhanBadge = kebutuhan!=null
         ? (kurangItems.length
             ? `<span class="lomba-badge warn" style="margin-left:8px;" title="${namaLombaTitle}">⚠️ Kurang, butuh ${kebutuhan} pcs (dari ${jumlahLomba} lomba${rincianLomba})</span>`
-            : `<span class="lomba-badge" style="margin-left:8px;" title="${namaLombaTitle}">✓ Kebutuhan ${kebutuhan} pcs terpenuhi</span>`)
+            : `<span class="lomba-badge" style="margin-left:8px;" title="${namaLombaTitle}">✓ Kebutuhan untuk ${jumlahLomba} lomba terpenuhi</span>`)
         : '';
       const budget = getHadiahBudget(kp.v, h.juara_ke);
       let budgetBadge = '';

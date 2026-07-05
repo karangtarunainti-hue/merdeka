@@ -3143,7 +3143,7 @@ function applyLpjMobileScale(){
   }
   const available = wrap.clientWidth;
   if (!available) return;
-  const scale = Math.min(1, available / LPJ_DESIGN_WIDTH);
+  const scale = Math.min(1, (available / LPJ_DESIGN_WIDTH) * 1.12);
   area.style.zoom = scale;
 }
 window.addEventListener('resize', ()=>{

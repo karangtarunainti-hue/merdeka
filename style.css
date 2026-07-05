@@ -320,6 +320,16 @@
     gap:14px;
     margin-bottom:26px;
   }
+  /* Ringkasan utama (Total Pemasukan & Total Pengeluaran): selalu 2 kolom sejajar,
+     tidak ikut aturan auto-fit di atas supaya konsisten di semua lebar layar. */
+  .stat-grid-ringkasan{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:14px;
+    margin-bottom:14px;
+  }
+  .stat-grid-ringkasan .stat-card{margin-bottom:0;}
+  .stat-grid-saldo{margin-bottom:26px;}
   .stat-card{
     background:var(--cream-card); border:1px solid var(--garis); border-radius:var(--radius);
     padding:16px 18px;

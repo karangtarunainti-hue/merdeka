@@ -1776,7 +1776,6 @@ function renderLomba(){
         </div>` : ''}
         </div>
         <div style="display:${activeTab==='hadiah'?'block':'none'};">
-        <div class="hint" style="margin-bottom:10px;">Ambil dari stok hadiah bersama.</div>
         ${renderHadiahLombaBlock(l)}
         </div>
       </div>
@@ -1784,32 +1783,8 @@ function renderLomba(){
   }).join('');
 
   return `<div class="stat-grid"><div class="stat-card pengeluaran"><div class="lbl">Total Kebutuhan</div><div class="val">${fmtRp(totalKebutuhan)}</div></div></div>
-  ${renderStokHadiahRingkas()}
   <div class="panel"><div class="panel-head"><div><h3>Daftar Lomba</h3><div class="desc">Klik kartu untuk buka rincian</div></div>${isLoggedIn ? `<button class="btn" onclick="openLombaModal()">+ Tambah Lomba</button>` : ''}</div>
   <div class="panel-body">${cards||`<div class="empty-row" style="padding:30px;text-align:center;">Belum ada lomba.</div>`}</div></div>`;
-}
-// Ringkasan stok hadiah: qty yang harus dibeli (kebutuhan, mengikuti jumlah lomba) vs yang sudah diset dibeli.
-function renderStokHadiahRingkas(){
-  const kategoriDenganStok = KATEGORI_PESERTA.filter(kp => gHadiahKategori().some(h=>h.kategori_peserta===kp.v));
-  if(!kategoriDenganStok.length) return '';
-  const body = kategoriDenganStok.map(kp => {
-    const paketKategori = gHadiahKategori().filter(h=>h.kategori_peserta===kp.v);
-    const juaraRows = JUARA_LIST.filter(j=>paketKategori.some(h=>h.juara_ke===j.v)).map(j=>{
-      const paket = paketKategori.filter(h=>h.juara_ke===j.v);
-      const kebutuhan = hitungKebutuhanHadiah(kp.v, j.v);
-      const chips = paket.flatMap(h=>h.items.map(item=>{
-        const target = hitungTargetQtyItem(item, kebutuhan);
-        const dibeli = Number(item.qty_dibeli||0);
-        const kurang = target!=null && dibeli < target;
-        const label = target!=null ? `${dibeli}/${target}` : `${dibeli}`;
-        return `<span class="lomba-mini-chip" style="${kurang?'':''}"><span class="num" style="background:${kurang?'var(--merah)':'var(--abu)'};">${label}</span>${esc(item.nama)}</span>`;
-      })).join('');
-      return `<div style="margin-bottom:10px;"><div style="font-size:12px;font-weight:700;color:var(--ink-soft);margin-bottom:5px;">${j.l}${kebutuhan!=null?` <span style="font-weight:500;color:var(--abu);">· butuh ${kebutuhan} paket</span>`:''}</div><div class="lomba-mini-list" style="margin:0;">${chips||'<span class="hint">Belum ada item</span>'}</div></div>`;
-    }).join('');
-    return `<div style="margin-bottom:14px;"><div style="font-weight:700;margin-bottom:8px;">${kp.l}</div>${juaraRows}</div>`;
-  }).join('');
-  return `<div class="panel"><div class="panel-head"><div><h3>📦 Stok Hadiah</h3><div class="desc">Angka = sudah dibeli / kebutuhan (merah = masih kurang), per kategori & juara</div></div></div>
-  <div class="panel-body">${body}</div></div>`;
 }
 function labelPeserta(v){ return (KATEGORI_PESERTA.find(k=>k.v===v)||{}).l || v; }
 function toggleLombaCard(id){ openLombaIds.has(id)?openLombaIds.delete(id):openLombaIds.add(id); renderContent(); }
@@ -1830,18 +1805,17 @@ function tambahKebutuhanCepat(lombaId){
 }
 
 // Paket hadiah tidak lagi dipilih manual per lomba — otomatis mengikuti kategori peserta lomba.
-// Blok ini cuma menampilkan (read-only) paket apa yang otomatis berlaku untuk lomba ini.
+// Blok ini menampilkan (read-only) rincian item + qty dari paket yang otomatis berlaku untuk lomba ini.
 function renderHadiahLombaBlock(lomba){
-  const multiplier = Math.max(1, Number(lomba.jumlah_anggota_regu||1));
   const rows = JUARA_LIST.map(j=>{
     const opsi = gHadiahKategori().filter(h=> h.kategori_peserta===lomba.kategori_peserta && h.juara_ke===j.v);
     const isiPaket = opsi.length
-      ? opsi.flatMap(h=>h.items.map(item=>esc(item.nama))).join(', ')
+      ? opsi.flatMap(h=>h.items.map(item=>`${esc(item.nama)} ×${item.qty_per_paket||1}`)).join(', ')
       : `<span class="hint">Belum ada paket</span>`;
     return `<div class="juara-row"><div class="juara-tag">${j.l}</div><div style="flex:1;padding:6px 0;">${isiPaket}</div></div>`;
   }).join('');
   const noStok = gHadiahKategori().filter(h=>h.kategori_peserta===lomba.kategori_peserta).length === 0;
-  return `<div class="hint" style="margin-bottom:8px;">🎁 Paket hadiah otomatis mengikuti kategori "${labelPeserta(lomba.kategori_peserta)}" — atur isi paketnya di menu Kebutuhan Hadiah Lomba.${multiplier>1?` Lomba ini beregu ×${multiplier}, sudah otomatis dihitung ke kebutuhan stok.`:''}</div>${rows}${noStok?`<div class="hint" style="margin-top:8px;">Belum ada paket hadiah untuk kategori ini. <a style="color:var(--merah);font-weight:600;cursor:pointer;" onclick="goSection('hadiah')">Tambah di sini</a></div>`:''}`;
+  return `${rows}${noStok?`<div class="hint" style="margin-top:8px;">Belum ada paket hadiah untuk kategori ini. <a style="color:var(--merah);font-weight:600;cursor:pointer;" onclick="goSection('hadiah')">Tambah di sini</a></div>`:''}`;
 }
 
 function openLombaModal(id){

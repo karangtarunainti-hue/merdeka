@@ -3773,7 +3773,7 @@ function setModal(title, bodyHtml, buttons){
   // Setup currency inputs after modal body is rendered
   setTimeout(setupAllCurrencyInputs, 50);
 }
-function closeModal(){ document.getElementById('overlay').classList.remove('show'); }
+function closeModal(){ document.getElementById('overlay').classList.remove('show'); if(typeof closeAllGudangCombos==='function') closeAllGudangCombos(); }
 document.getElementById('modal-close').onclick = closeModal;
 document.getElementById('overlay').addEventListener('click', (e)=>{ if(e.target.id==='overlay') closeModal(); });
 
@@ -4448,30 +4448,57 @@ function gudangComboPanelHtml(idx, selectedId){
     </div>
     <div class="combo-list" data-combo-list>${groupsHtml || '<div class="combo-empty">Belum ada aset aktif.</div>'}</div>`;
 }
-function toggleGudangCombo(idx){
-  const panel = document.getElementById(`gp-combo-panel-${idx}`);
-  if(!panel) return;
-  const willOpen = !panel.classList.contains('show');
-  document.querySelectorAll('.combo-panel.show').forEach(p=>{ if(p!==panel) p.classList.remove('show'); });
-  document.querySelectorAll('.combo-trigger.open').forEach(t=>{ if(t!==panel.previousElementSibling) t.classList.remove('open'); });
-  panel.classList.toggle('show', willOpen);
-  const trigger = panel.previousElementSibling;
-  if(trigger) trigger.classList.toggle('open', willOpen);
-  if(willOpen){
-    const search = panel.querySelector('.combo-search');
-    if(search){ search.value=''; filterGudangCombo(idx,''); setTimeout(()=>search.focus(), 30); }
+let _gudangComboOpenIdx = null;
+let _gudangComboPanelEl = null;
+function gudangComboPositionPanel(trigger, panel){
+  const rect = trigger.getBoundingClientRect();
+  const vw = window.innerWidth, vh = window.innerHeight;
+  panel.style.left = Math.max(8, rect.left) + 'px';
+  panel.style.width = rect.width + 'px';
+  // Ukur tinggi panel dulu (sudah ada di body tapi belum "show") supaya bisa hitung apakah cukup ruang di bawah.
+  const panelH = panel.offsetHeight || 320;
+  const spaceBelow = vh - rect.bottom;
+  const spaceAbove = rect.top;
+  if(spaceBelow < panelH + 12 && spaceAbove > spaceBelow){
+    panel.style.top = Math.max(8, rect.top - panelH - 6) + 'px';
+  } else {
+    panel.style.top = (rect.bottom + 6) + 'px';
   }
+  // Jangan sampai melebar keluar dari layar di kanan
+  const maxLeft = vw - rect.width - 8;
+  if(parseFloat(panel.style.left) > maxLeft) panel.style.left = Math.max(8, maxLeft) + 'px';
+}
+function toggleGudangCombo(idx){
+  const trigger = document.getElementById(`gp-combo-trigger-${idx}`);
+  if(!trigger) return;
+  if(_gudangComboOpenIdx === idx){ closeAllGudangCombos(); return; }
+  closeAllGudangCombos();
+  const row = _gudangPinjamRows[idx];
+  const panel = document.createElement('div');
+  panel.className = 'combo-panel combo-panel-floating';
+  panel.id = 'gudang-combo-floating';
+  panel.innerHTML = gudangComboPanelHtml(idx, row ? row.itemId : '');
+  document.body.appendChild(panel);
+  gudangComboPositionPanel(trigger, panel);
+  requestAnimationFrame(()=>panel.classList.add('show'));
+  trigger.classList.add('open');
+  _gudangComboOpenIdx = idx;
+  _gudangComboPanelEl = panel;
+  const search = panel.querySelector('.combo-search');
+  if(search) setTimeout(()=>search.focus(), 30);
 }
 function closeAllGudangCombos(){
-  document.querySelectorAll('.combo-panel.show').forEach(p=>p.classList.remove('show'));
+  if(_gudangComboPanelEl){ _gudangComboPanelEl.remove(); _gudangComboPanelEl = null; }
   document.querySelectorAll('.combo-trigger.open').forEach(t=>t.classList.remove('open'));
+  _gudangComboOpenIdx = null;
 }
 function selectGudangComboItem(idx, itemId){
   _gudangPinjamRows[idx].itemId = itemId;
+  closeAllGudangCombos();
   renderGudangPinjamModalBody();
 }
 function filterGudangCombo(idx, query){
-  const panel = document.getElementById(`gp-combo-panel-${idx}`);
+  const panel = _gudangComboPanelEl;
   if(!panel) return;
   const q = query.trim().toLowerCase();
   let anyVisible = false;
@@ -4496,8 +4523,10 @@ function filterGudangCombo(idx, query){
   } else if(emptyEl){ emptyEl.remove(); }
 }
 document.addEventListener('click', (e)=>{
-  if(!e.target.closest('.combo')) closeAllGudangCombos();
+  if(e.target.closest('.combo-panel-floating') || e.target.closest('.combo-trigger')) return;
+  closeAllGudangCombos();
 });
+window.addEventListener('resize', closeAllGudangCombos);
 document.addEventListener('keydown', (e)=>{
   if(e.key==='Escape') closeAllGudangCombos();
 });
@@ -4509,11 +4538,10 @@ function renderGudangPinjamModalBody(){
     <div class="item-fields-row" style="display:flex; gap:8px; align-items:flex-end; margin-bottom:10px;">
       <div class="field combo" style="flex:2; margin-bottom:0; position:relative;">
         <label>Barang${idx===0?' <span class="combo-hint">— ketuk untuk lihat daftar &amp; stok</span>':''}</label>
-        <button type="button" class="combo-trigger${selectedItem?'':' placeholder'}" onclick="toggleGudangCombo(${idx})">
+        <button type="button" id="gp-combo-trigger-${idx}" class="combo-trigger${selectedItem?'':' placeholder'}" onclick="toggleGudangCombo(${idx})">
           <span class="combo-trigger-label">${selectedItem ? esc(gudangComboItemLabel(selectedItem)) : '-- Pilih Barang --'}</span>
           ${gudangComboIconChevron()}
         </button>
-        <div class="combo-panel" id="gp-combo-panel-${idx}">${gudangComboPanelHtml(idx, r.itemId)}</div>
       </div>
       <div class="field" style="flex:1; margin-bottom:0;">
         <label>Jumlah</label>
@@ -4550,6 +4578,7 @@ function gudangPinjamAddRow(){
 }
 function gudangPinjamRemoveRow(idx){
   if(_gudangPinjamRows.length<=1){ toast('Minimal satu baris barang diperlukan.'); return; }
+  closeAllGudangCombos();
   _gudangPinjamRows.splice(idx,1);
   renderGudangPinjamModalBody();
 }

@@ -458,13 +458,14 @@
   table.anggota-table th:nth-child(4), table.anggota-table td:nth-child(4) { width:25%; }
   table.anggota-table th:nth-child(5), table.anggota-table td:nth-child(5) { width:20%; }
 
-  table.database-table th:nth-child(1), table.database-table td:nth-child(1) { width:18%; }
-  table.database-table th:nth-child(2), table.database-table td:nth-child(2) { width:13%; }
+  table.database-table th:nth-child(1), table.database-table td:nth-child(1) { width:16%; }
+  table.database-table th:nth-child(2), table.database-table td:nth-child(2) { width:11%; }
   table.database-table th:nth-child(3), table.database-table td:nth-child(3) { width:10%; }
-  table.database-table th:nth-child(4), table.database-table td:nth-child(4) { width:14%; }
-  table.database-table th:nth-child(5), table.database-table td:nth-child(5) { width:13%; }
-  table.database-table th:nth-child(6), table.database-table td:nth-child(6) { width:14%; }
-  table.database-table th:nth-child(7), table.database-table td:nth-child(7) { width:18%; }
+  table.database-table th:nth-child(4), table.database-table td:nth-child(4) { width:13%; }
+  table.database-table th:nth-child(5), table.database-table td:nth-child(5) { width:12%; }
+  table.database-table th:nth-child(6), table.database-table td:nth-child(6) { width:11%; }
+  table.database-table th:nth-child(7), table.database-table td:nth-child(7) { width:12%; }
+  table.database-table th:nth-child(8), table.database-table td:nth-child(8) { width:15%; }
 
   table.jalan-table th:nth-child(1), table.jalan-table td:nth-child(1) { width:18%; }
   table.jalan-table th:nth-child(2), table.jalan-table td:nth-child(2) { width:14%; }
@@ -626,6 +627,11 @@
   .juara-row:last-child{border-bottom:none;}
   .juara-tag{width:96px; flex-shrink:0; font-size:12px; font-weight:700; color:var(--merah-dark);}
   .juara-select{flex:1; min-width:180px; padding:7px 10px; border-radius:8px; border:1px solid var(--garis); background:var(--surface); color:var(--ink); font-size:13px;}
+
+  .inline-edit-select{width:100%; min-width:100px; padding:5px 6px; border-radius:6px; border:1px solid transparent; background:transparent; color:var(--ink); font-size:13px; font-family:inherit; cursor:pointer;}
+  .inline-edit-select:hover:not(:disabled){border-color:var(--garis); background:var(--surface);}
+  .inline-edit-select:focus{outline:2px solid var(--gold); outline-offset:1px; border-color:var(--gold); background:var(--surface);}
+  .inline-edit-select:disabled{cursor:not-allowed; opacity:.75; -webkit-appearance:none; appearance:none; background:transparent; border:none; color:inherit;}
   .stok-sisa{font-size:11px; color:var(--ink-soft);}
 
   .toast{

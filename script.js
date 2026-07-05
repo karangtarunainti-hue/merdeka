@@ -1390,6 +1390,14 @@ function resetFilterAnggota(){ filterKategoriAnggota='semua'; filterStatusAnggot
 function labelKategori(v){ return (KATEGORI_ANGGOTA.find(k=>k.v===v)||{}).l || v; }
 function labelRT(v){ return (RT_LIST.find(k=>k.v===v)||{}).l || v || '-'; }
 
+/* RT belum tentu terisi untuk data lama (a.rt kosong/undefined). Dropdown-nya
+   otomatis menampilkan opsi pertama (RT 1) sebagai default visual browser,
+   tapi itu cuma tampilan — datanya sendiri tetap kosong kalau tidak dibaca
+   lewat helper ini. Dulu filter/sort/CSV membaca a.rt langsung sehingga baris
+   yang "kelihatan" RT 1 tidak ikut ketemu saat difilter/disortir per RT 1.
+   getRT() menyamakan nilai yang dipakai untuk tampilan dan untuk pencarian. */
+function getRT(a){ return (a && a.rt) || RT_LIST[0].v; }
+
 /* ============================================================
    PENEBAK JENIS KELAMIN DARI NAMA (heuristik, bukan data pasti)
    Menebak berdasarkan nama depan yang cocok dengan daftar nama umum
@@ -1436,7 +1444,7 @@ function openAnggotaModal(id){
     </div>
     <div class="field"><label>RT</label>
       <select id="f-rt">
-        ${RT_LIST.map(r=>`<option value="${r.v}" ${editing&&editing.rt===r.v?'selected':''}>${r.l}</option>`).join('')}
+        ${RT_LIST.map(r=>`<option value="${r.v}" ${editing&&getRT(editing)===r.v?'selected':''}>${r.l}</option>`).join('')}
       </select>
     </div>
     <div class="field"><label>Jenis Kelamin</label>
@@ -1553,7 +1561,7 @@ function renderDatabaseAnggota(){
   if (filterKategori !== 'semua') filtered = filtered.filter(a => a.kategori === filterKategori);
   if (filterStatus !== 'semua') filtered = filtered.filter(a => a.status === filterStatus);
   if (filterGender !== 'semua') filtered = filtered.filter(a => getGender(a) === filterGender);
-  if (filterRT !== 'semua') filtered = filtered.filter(a => a.rt === filterRT);
+  if (filterRT !== 'semua') filtered = filtered.filter(a => getRT(a) === filterRT);
   if (searchQuery.trim()) { const q = searchQuery.toLowerCase().trim(); filtered = filtered.filter(a => a.nama.toLowerCase().includes(q)); }
   
   filtered.sort((a,b) => {
@@ -1561,7 +1569,7 @@ function renderDatabaseAnggota(){
     switch(sortBy){
       case 'nama': valA = a.nama; valB = b.nama; break;
       case 'kategori': valA = a.kategori; valB = b.kategori; break;
-      case 'rt': valA = a.rt||''; valB = b.rt||''; break;
+      case 'rt': valA = getRT(a); valB = getRT(b); break;
       case 'gender': valA = labelGender(getGender(a)); valB = labelGender(getGender(b)); break;
       case 'nominal': valA = Number(a.nominal_wajib||0); valB = Number(b.nominal_wajib||0); break;
       case 'status': valA = a.status; valB = b.status; break;
@@ -1586,11 +1594,17 @@ function renderDatabaseAnggota(){
     statKategori[k.v] = {label: k.l, total: items.length, lunas: items.filter(a=>a.status==='lunas').length, nominal: items.reduce((s,a)=>s+Number(a.nominal_wajib||0),0), terkumpul: items.filter(a=>a.status==='lunas').reduce((s,a)=>s+Number(a.nominal_wajib||0),0)};
   });
 
+  const statRT = {};
+  RT_LIST.forEach(r => {
+    const items = filtered.filter(a=>getRT(a)===r.v);
+    statRT[r.v] = {label: r.l, total: items.length, lunas: items.filter(a=>a.status==='lunas').length, nominal: items.reduce((s,a)=>s+Number(a.nominal_wajib||0),0), terkumpul: items.filter(a=>a.status==='lunas').reduce((s,a)=>s+Number(a.nominal_wajib||0),0)};
+  });
+
   const rows = filtered.map(a=>`<tr class="${a.status==='belum_lunas'?'belum-bayar':''}">
     <td>${esc(a.nama)}</td>
     <td><span class="kategori-pill ${a.kategori==='khusus'?'khusus':''}">${labelKategori(a.kategori)}</span></td>
     <td><select class="inline-edit-select" onchange="updateAnggotaField('${a.id}','rt',this.value)" ${!isLoggedIn?'disabled':''}>
-      ${RT_LIST.map(r=>`<option value="${r.v}" ${a.rt===r.v?'selected':''}>${r.l}</option>`).join('')}
+      ${RT_LIST.map(r=>`<option value="${r.v}" ${getRT(a)===r.v?'selected':''}>${r.l}</option>`).join('')}
     </select></td>
     <td><select class="inline-edit-select" onchange="updateAnggotaField('${a.id}','gender',this.value)" ${!isLoggedIn?'disabled':''}>
       ${GENDER_LIST.map(g=>`<option value="${g.v}" ${getGender(a)===g.v?'selected':''}>${g.l}</option>`).join('')}
@@ -1619,23 +1633,26 @@ function renderDatabaseAnggota(){
       </div>
     </div></div>`;
 
-  const statKategoriHtml = Object.entries(statKategori).map(([kv, k]) => {
-    const belum = k.total - k.lunas;
-    const pct = k.nominal > 0 ? Math.round((k.terkumpul / k.nominal) * 100) : 0;
+  const renderCountCard = (key, s) => {
+    const belum = s.total - s.lunas;
+    const pct = s.nominal > 0 ? Math.round((s.terkumpul / s.nominal) * 100) : 0;
     return `
-    <div class="kategori-card k-${kv}">
-      <div class="kc-title">${k.label}</div>
+    <div class="kategori-card k-${key}">
+      <div class="kc-title">${s.label}</div>
       <div class="kc-stats">
-        <div class="kc-stat"><span class="n">${k.total}</span><span class="l">Anggota</span></div>
-        <div class="kc-stat lunas"><span class="n">${k.lunas}</span><span class="l">Lunas</span></div>
+        <div class="kc-stat"><span class="n">${s.total}</span><span class="l">Anggota</span></div>
+        <div class="kc-stat lunas"><span class="n">${s.lunas}</span><span class="l">Lunas</span></div>
         <div class="kc-stat belum"><span class="n">${belum}</span><span class="l">Belum</span></div>
       </div>
       <div class="kc-progress">
         <div class="kc-progress-bar"><div class="kc-progress-fill" style="width:${pct}%;"></div></div>
-        <div class="kc-money"><span>Terkumpul <b>${fmtRp(k.terkumpul)}</b></span><span>dari <b>${fmtRp(k.nominal)}</b></span></div>
+        <div class="kc-money"><span>Terkumpul <b>${fmtRp(s.terkumpul)}</b></span><span>dari <b>${fmtRp(s.nominal)}</b></span></div>
       </div>
     </div>`;
-  }).join('');
+  };
+
+  const statKategoriHtml = Object.entries(statKategori).map(([kv, k]) => renderCountCard(kv, k)).join('');
+  const statRTHtml = Object.entries(statRT).map(([rv, r]) => renderCountCard(rv, r)).join('');
 
   const filterHtml = `<div class="filter-row">
     <div class="field" style="margin-bottom:0;min-width:150px;"><label style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;">Kategori</label>
@@ -1658,6 +1675,7 @@ function renderDatabaseAnggota(){
       ${isLoggedIn ? `<button class="btn" onclick="openAnggotaModal()">+ Tambah</button>` : ''}
     </div></div>
     <div class="panel-body">${filterHtml}${statKategoriHtml?`<div class="kategori-grid" style="margin-bottom:16px;">${statKategoriHtml}</div>`:''}
+    ${statRTHtml?`<div class="stat-section-label">Jumlah Anggota per RT</div><div class="kategori-grid" style="margin-bottom:16px;">${statRTHtml}</div>`:''}
     <div style="overflow-x:auto;"><table class="database-table"><thead><tr><th class="sortable" onclick="sortTable('nama')">Nama ${sortIndicator('nama')}</th>
       <th class="sortable" onclick="sortTable('kategori')">Kategori ${sortIndicator('kategori')}</th>
       <th class="sortable" onclick="sortTable('rt')">RT ${sortIndicator('rt')}</th>
@@ -1685,7 +1703,7 @@ function tandaiSemuaLunas(){
   const detail = list.map(a => `${a.nama} (${labelKategori(a.kategori)}) - ${fmtRp(a.nominal_wajib)}`).join('\n');
   notifyTelegram(`✅ ${list.length} anggota ditandai LUNAS`, detail);
 }
-function exportAnggotaCSV(){ const list=gAnggota(); if(list.length===0){ toast('Tidak ada data'); return; } let csv='No,Nama,Kategori,RT,Jenis Kelamin,Nominal,Status,Tanggal Bayar\n'; list.forEach((a,i)=>{const status=a.status==='lunas'?'Lunas':'Belum Bayar'; const tgl=a.tanggal_bayar?fmtDate(a.tanggal_bayar):'-'; csv+=`${i+1},"${a.nama}",${labelKategori(a.kategori)},${labelRT(a.rt)},${labelGender(getGender(a))},${a.nominal_wajib},${status},${tgl}\n`;}); const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}); const link=document.createElement('a'); link.href=URL.createObjectURL(blob); link.download=`database-anggota-${todayISO()}.csv`; link.click(); toast('CSV berhasil diekspor'); }
+function exportAnggotaCSV(){ const list=gAnggota(); if(list.length===0){ toast('Tidak ada data'); return; } let csv='No,Nama,Kategori,RT,Jenis Kelamin,Nominal,Status,Tanggal Bayar\n'; list.forEach((a,i)=>{const status=a.status==='lunas'?'Lunas':'Belum Bayar'; const tgl=a.tanggal_bayar?fmtDate(a.tanggal_bayar):'-'; csv+=`${i+1},"${a.nama}",${labelKategori(a.kategori)},${labelRT(getRT(a))},${labelGender(getGender(a))},${a.nominal_wajib},${status},${tgl}\n`;}); const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}); const link=document.createElement('a'); link.href=URL.createObjectURL(blob); link.download=`database-anggota-${todayISO()}.csv`; link.click(); toast('CSV berhasil diekspor'); }
 
 /* ============================================================
    DONATUR, TRANSAKSI, OPERASIONAL (dengan auth check)

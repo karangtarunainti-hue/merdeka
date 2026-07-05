@@ -352,6 +352,7 @@
   .gender-stat .l{font-size:11px; color:var(--ink-soft);}
 
   .kategori-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:10px;}
+  .stat-section-label{font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-soft); margin:0 0 8px;}
   .kategori-card{
     background:var(--cream-card); border:1px solid var(--garis); border-radius:var(--radius);
     padding:12px 14px; display:flex; flex-direction:column; gap:10px;

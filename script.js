@@ -3038,14 +3038,16 @@ function renderLPJ(){
   });
 
   const hadiahJalanList = gHadiahJalanSantai();
+  const isLoggedIn = !!getCurrentUser();
 
   const emptyRow = (n,text)=>`<tr class="empty-row"><td colspan="${n}">${text}</td></tr>`;
 
   return `
+  ${isLoggedIn ? `
   <div class="lpj-toolbar no-print">
     <button class="btn" onclick="window.print()">🖨️ Cetak / Simpan sebagai PDF</button>
     <div class="hint" style="margin-top:8px;">Tips: pada dialog cetak, pilih tujuan "Save as PDF" untuk menyimpan sebagai file PDF.</div>
-  </div>
+  </div>` : ''}
 
   <div class="lpj-print-area">
     <div class="lpj-header">

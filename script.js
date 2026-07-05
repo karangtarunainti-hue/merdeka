@@ -4409,6 +4409,9 @@ function openGudangPinjamModal(){
   if(aktif.length===0){ toast('⛔ Belum ada aset aktif yang bisa dipinjam.'); return; }
   _gudangPinjamRows = [{itemId:'', qty:1}];
   renderGudangPinjamModalBody();
+  // Langsung buka daftar barang & stok begitu modal tampil, supaya peminjam
+  // (yang belum tentu hapal nama-nama aset) bisa langsung menelusuri pilihannya.
+  setTimeout(()=>toggleGudangCombo(0), 80);
 }
 function gudangComboIconChevron(){
   return `<svg class="combo-chevron" width="15" height="15" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
@@ -4505,7 +4508,7 @@ function renderGudangPinjamModalBody(){
     return `
     <div class="item-fields-row" style="display:flex; gap:8px; align-items:flex-end; margin-bottom:10px;">
       <div class="field combo" style="flex:2; margin-bottom:0; position:relative;">
-        <label>Barang</label>
+        <label>Barang${idx===0?' <span class="combo-hint">— ketuk untuk lihat daftar &amp; stok</span>':''}</label>
         <button type="button" class="combo-trigger${selectedItem?'':' placeholder'}" onclick="toggleGudangCombo(${idx})">
           <span class="combo-trigger-label">${selectedItem ? esc(gudangComboItemLabel(selectedItem)) : '-- Pilih Barang --'}</span>
           ${gudangComboIconChevron()}
@@ -4539,7 +4542,12 @@ function renderGudangPinjamModalBody(){
     {label:'Periksa & Kirim', onclick: gudangValidateAndConfirmPinjam},
   ]);
 }
-function gudangPinjamAddRow(){ _gudangPinjamRows.push({itemId:'', qty:1}); renderGudangPinjamModalBody(); }
+function gudangPinjamAddRow(){
+  _gudangPinjamRows.push({itemId:'', qty:1});
+  const newIdx = _gudangPinjamRows.length-1;
+  renderGudangPinjamModalBody();
+  setTimeout(()=>toggleGudangCombo(newIdx), 80);
+}
 function gudangPinjamRemoveRow(idx){
   if(_gudangPinjamRows.length<=1){ toast('Minimal satu baris barang diperlukan.'); return; }
   _gudangPinjamRows.splice(idx,1);

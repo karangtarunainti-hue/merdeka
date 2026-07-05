@@ -591,6 +591,7 @@
   .combo-option-sisa{font-size:11.5px; color:var(--ink-soft); font-family:'Roboto Mono',monospace;}
   .combo-check{color:var(--gold); flex:none;}
   .combo-empty{padding:18px 10px; text-align:center; font-size:12.5px; color:var(--ink-soft);}
+  .combo-hint{font-weight:400; text-transform:none; letter-spacing:0; color:var(--abu); font-size:11.5px;}
 
 
   /* Style untuk input angka dengan format ribuan */

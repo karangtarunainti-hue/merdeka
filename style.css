@@ -404,6 +404,8 @@
   .icon-btn{background:transparent; border:none; color:var(--ink-soft); padding:4px 6px; border-radius:6px;}
   .icon-btn:hover{background:var(--merah-tint); color:var(--merah);}
   .icon-btn:disabled{opacity:.3; cursor:not-allowed; pointer-events:none;}
+  tr.row-clickable{cursor:pointer;}
+  tr.row-clickable:hover{background:var(--merah-tint, rgba(0,0,0,.03));}
 
   .panel-body.flush {
     padding: 0;
@@ -983,6 +985,12 @@
     table.lomba-table th:nth-child(1), table.lomba-table td:nth-child(1),
     table.hadiah-table th:nth-child(1), table.hadiah-table td:nth-child(1),
     table.general-table th:nth-child(1), table.general-table td:nth-child(1) { width:auto; min-width:100px; }
+
+    /* --- Operasional Kegiatan: format lebih ringkas agar fit tanpa scroll --- */
+    table.operasional-table{table-layout:auto;}
+    table.operasional-table th, table.operasional-table td{white-space:normal; word-break:break-word;}
+    table.operasional-table th:nth-child(1), table.operasional-table td:nth-child(1){ width:auto; min-width:0; white-space:nowrap; }
+    .panel-body.flush:has(table.operasional-table){overflow-x:visible;}
 
     /* --- Manajemen User: kartu, bukan tabel geser --- */
     table.users-table{table-layout:auto;}

@@ -241,6 +241,7 @@ function uid(){ return (crypto.randomUUID ? crypto.randomUUID() : 'id-'+Date.now
 function todayISO(){ return new Date().toISOString().slice(0,10); }
 function fmtRp(n){ return new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',minimumFractionDigits:0}).format(Number(n)||0); }
 function fmtDate(iso){ if(!iso) return '-'; const d=new Date(iso+'T00:00:00'); return d.toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'}); }
+function fmtDateShort(iso){ if(!iso) return '-'; const d=new Date(iso+'T00:00:00'); return d.toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'2-digit'}); }
 function esc(s){ return String(s??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
 function defaultDB(){
@@ -1684,14 +1685,13 @@ function renderOperasional(){
   const list = gOperasional().slice().sort((a,b)=>(b.tanggal||'').localeCompare(a.tanggal||''));
   const total = list.reduce((s,o)=>s+Number(o.jumlah||0),0);
   const isLoggedIn = !!getCurrentUser();
-  const rows = list.map(o=>`<tr><td>${fmtDate(o.tanggal)}</td><td>${esc(o.keterangan)}</td><td>${esc(o.catatan_bukti||'-')}</td><td class="num">${fmtRp(o.jumlah)}</td><td style="text-align:right;">
-    <button class="icon-btn" onclick="openOperasionalModal('${o.id}')" ${!isLoggedIn ? 'disabled' : ''}>✎</button>
-    <button class="icon-btn" onclick="hapusOperasional('${o.id}')" ${!isLoggedIn ? 'disabled' : ''}>🗑</button>
-  </td></tr>`).join('');
+  const rows = list.map(o=>`<tr${isLoggedIn ? ` class="row-clickable" onclick="openOperasionalModal('${o.id}')"` : ''}><td>${fmtDateShort(o.tanggal)}</td><td>${esc(o.keterangan)}</td><td>${esc(o.catatan_bukti||'-')}</td><td class="num">${fmtRp(o.jumlah)}</td>${isLoggedIn ? `<td style="text-align:right;">
+    <button class="icon-btn" onclick="event.stopPropagation();hapusOperasional('${o.id}')">🗑</button>
+  </td>` : ''}</tr>`).join('');
   return `<div class="stat-grid"><div class="stat-card pengeluaran"><div class="lbl">Total Operasional</div><div class="val">${fmtRp(total)}</div></div></div>
   <div class="panel"><div class="panel-head"><h3>Biaya Operasional</h3>${isLoggedIn ? `<button class="btn" onclick="openOperasionalModal()">+ Tambah</button>` : ''}</div>
-  <div class="panel-body flush"><table class="general-table"><thead><tr><th>Tanggal</th><th>Nama</th><th>Catatan</th><th class="num">Jumlah</th><th></th></tr></thead>
-  <tbody>${rows||`<tr class="empty-row"><td colspan="5">Belum ada biaya.</td></tr>`}</tbody></table></div></div>`;
+  <div class="panel-body flush"><table class="general-table operasional-table"><thead><tr><th>Tanggal</th><th>Nama</th><th>Catatan</th><th class="num">Jumlah</th>${isLoggedIn ? '<th></th>' : ''}</tr></thead>
+  <tbody>${rows||`<tr class="empty-row"><td colspan="${isLoggedIn?5:4}">Belum ada biaya.</td></tr>`}</tbody></table></div></div>`;
 }
 function openOperasionalModal(id){
   if (!canEditSection('operasional')) { toast('⛔ Login untuk mengedit data'); return; }

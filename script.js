@@ -638,6 +638,7 @@ const SECTIONS = [
   {key:'hadiah-jalan', label:'Hadiah Jalan Santai', sub:'Kelola hadiah jalan santai', icon:'walk', adminOnly: false},
   {key:'belanja-jalan', label:'Belanja Jalan Santai', sub:'Daftar belanja hadiah jalan santai', icon:'shopping-bag', adminOnly: false},
   {key:'jadwal', label:'Jadwal & Reminder', sub:'Kelola jadwal dan pengingat', icon:'calendar', adminOnly: false},
+  {key:'lpj', label:'Laporan (LPJ)', sub:'Cetak laporan pertanggungjawaban', icon:'report', adminOnly: false},
   {key:'pengaturan', label:'Pengaturan', sub:'Tarif iuran & event', icon:'gear', adminOnly: true},
   {key:'users', label:'Manajemen User', sub:'Kelola akun pengguna', icon:'users', adminOnly: true},
 ];
@@ -660,7 +661,8 @@ const ICONS = {
   pot:'<path d="M4 10h16v6a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4v-6z" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linejoin="round"/><path d="M2 10h20" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M2 8h3M19 8h3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
   food:'<path d="M7 2v8M5 2v5a2 2 0 0 0 2 2 2 2 0 0 0 2-2V2" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 10v12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M17 2c-1.5 0-2.5 1.6-2.5 4s1 4 2.5 4v12" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>',
   bath:'<path d="M12 3c3 4 5 6.6 5 9.5A5 5 0 0 1 7 12.5C7 9.6 9 7 12 3z" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linejoin="round"/>',
-  tag:'<path d="M12 3h6a2 2 0 0 1 2 2v6L11 20l-8-8L12 3z" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linejoin="round"/><circle cx="16" cy="7" r="1.3" fill="currentColor"/>'
+  tag:'<path d="M12 3h6a2 2 0 0 1 2 2v6L11 20l-8-8L12 3z" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linejoin="round"/><circle cx="16" cy="7" r="1.3" fill="currentColor"/>',
+  report:'<path d="M6 3h9l3 3v15H6V3z" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linejoin="round"/><path d="M15 3v3h3" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linejoin="round"/><path d="M9 12h6M9 15h6M9 9h3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>'
 };
 function icon(name){ return `<svg viewBox="0 0 24 24">${ICONS[name]||''}</svg>`; }
 
@@ -801,6 +803,7 @@ function renderContent(){
     case 'hadiah-jalan': el.innerHTML = renderHadiahJalanSantai(); break;
     case 'belanja-jalan': el.innerHTML = renderBelanjaJalanSantai(); break;
     case 'jadwal': el.innerHTML = renderJadwal(); break;
+    case 'lpj': el.innerHTML = renderLPJ(); break;
     case 'pengaturan': el.innerHTML = renderPengaturan(); break;
     case 'users': el.innerHTML = renderUsers(); break;
     default: el.innerHTML = renderDashboard();
@@ -2998,6 +3001,138 @@ function hapusJadwal(id){
   saveDB(); renderContent(); toast('Jadwal dihapus');
   if(j) notifyTelegram(`🗑️ Hapus jadwal: ${j.judul}`, `Tanggal: ${fmtDate(j.tanggal)}`);
 }
+
+/* ============================================================
+   LAPORAN PERTANGGUNGJAWABAN (LPJ) - native, tanpa AI
+   Merangkai data yang sudah ada di db jadi laporan siap cetak/PDF.
+   ============================================================ */
+function renderLPJ(){
+  const ev = activeEvent();
+  if (!ev) return `<div class="panel"><div class="panel-body" style="padding:24px;">Tidak ada event aktif.</div></div>`;
+
+  const b = hitungBukuUtama();
+  const anggotaList = gAnggota();
+  const kategoriRekap = KATEGORI_ANGGOTA.map(k=>{
+    const listK = anggotaList.filter(a=>a.kategori===k.v);
+    const lunasK = listK.filter(a=>a.status==='lunas');
+    return { label:k.l, total:listK.length, lunas:lunasK.length, nominal:lunasK.reduce((s,a)=>s+Number(a.nominal_wajib||0),0) };
+  }).filter(r=>r.total>0);
+
+  const donaturList = gDonatur().slice().sort((x,y)=>(x.tanggal||'').localeCompare(y.tanggal||''));
+  const transaksiList = gTransaksiLain().slice().sort((x,y)=>(x.tanggal||'').localeCompare(y.tanggal||''));
+  const operasionalList = gOperasional().slice().sort((x,y)=>(x.tanggal||'').localeCompare(y.tanggal||''));
+
+  const kebutuhanRows = [];
+  gLomba().forEach(l=>{
+    gKebutuhan(l.id).forEach(k=>{
+      const harga = Number(k.harga_realisasi ?? k.harga_estimasi ?? 0);
+      kebutuhanRows.push({ lomba:l.nama, nama:k.nama_item, qty:k.qty, harga, subtotal: harga*Number(k.qty||0) });
+    });
+  });
+
+  const hadiahRows = [];
+  gHadiahKategori().forEach(h=>{
+    (h.items||[]).forEach(item=>{
+      hadiahRows.push({ kategori:labelPeserta(h.kategori_peserta), juara:labelJuara(h.juara_ke), nama:item.nama, qty:item.qty_dibeli, harga:item.harga_satuan, subtotal:Number(item.harga_satuan||0)*Number(item.qty_dibeli||0) });
+    });
+  });
+
+  const hadiahJalanList = gHadiahJalanSantai();
+
+  const emptyRow = (n,text)=>`<tr class="empty-row"><td colspan="${n}">${text}</td></tr>`;
+
+  return `
+  <div class="lpj-toolbar no-print">
+    <button class="btn" onclick="window.print()">🖨️ Cetak / Simpan sebagai PDF</button>
+    <div class="hint" style="margin-top:8px;">Tips: pada dialog cetak, pilih tujuan "Save as PDF" untuk menyimpan sebagai file PDF.</div>
+  </div>
+
+  <div class="lpj-print-area">
+    <div class="lpj-header">
+      <div class="lpj-eyebrow">Karang Taruna Taruna Inti</div>
+      <h2>LAPORAN PERTANGGUNGJAWABAN (LPJ)</h2>
+      <div class="lpj-sub">Kegiatan: ${esc(ev.nama)} — Tahun ${esc(String(ev.tahun))}</div>
+      <div class="lpj-meta">Dicetak: ${fmtDate(todayISO())}</div>
+    </div>
+
+    <h3>1. Ringkasan Keuangan</h3>
+    <table class="lpj-table">
+      <tbody>
+        <tr class="lpj-subtotal"><td>Total Pemasukan</td><td class="num">${fmtRp(b.pemasukan)}</td></tr>
+        <tr><td class="indent">Iuran Anggota (${b.jumlahIuranLunas} lunas)</td><td class="num">${fmtRp(b.iuran)}</td></tr>
+        <tr><td class="indent">Donatur (${b.jumlahDonatur} donasi)</td><td class="num">${fmtRp(b.donasi)}</td></tr>
+        <tr><td class="indent">Transaksi Lain (${b.jumlahTransaksiLain})</td><td class="num">${fmtRp(b.transaksiLain)}</td></tr>
+        <tr class="lpj-subtotal"><td>Total Pengeluaran</td><td class="num">${fmtRp(b.pengeluaran)}</td></tr>
+        <tr><td class="indent">Operasional Kegiatan (${b.jumlahOperasional})</td><td class="num">${fmtRp(b.opsional)}</td></tr>
+        <tr><td class="indent">Kebutuhan Lomba (${b.jumlahKebutuhanLomba})</td><td class="num">${fmtRp(b.kebutuhanLomba)}</td></tr>
+        <tr><td class="indent">Hadiah Lomba (${b.jumlahItemHadiahLomba} item)</td><td class="num">${fmtRp(b.hadiahLomba)}</td></tr>
+        <tr><td class="indent">Hadiah Jalan Santai (${b.jumlahHadiahJalan})</td><td class="num">${fmtRp(b.hadiahJalan)}</td></tr>
+        <tr class="lpj-total"><td>Saldo Akhir</td><td class="num">${fmtRp(b.saldo)}</td></tr>
+      </tbody>
+    </table>
+
+    <h3>2. Rincian Pemasukan</h3>
+    <h4>2.1 Iuran Anggota</h4>
+    <table class="lpj-table lpj-detail">
+      <thead><tr><th>Kategori</th><th>Anggota</th><th>Lunas</th><th class="num">Total Terkumpul</th></tr></thead>
+      <tbody>${kategoriRekap.map(r=>`<tr><td>${esc(r.label)}</td><td>${r.total}</td><td>${r.lunas}</td><td class="num">${fmtRp(r.nominal)}</td></tr>`).join('') || emptyRow(4,'Belum ada data anggota.')}</tbody>
+    </table>
+
+    <h4>2.2 Donatur</h4>
+    <table class="lpj-table lpj-detail">
+      <thead><tr><th>Tanggal</th><th>Nama</th><th>Keterangan</th><th class="num">Jumlah</th></tr></thead>
+      <tbody>${donaturList.map(d=>`<tr><td>${fmtDate(d.tanggal)}</td><td>${esc(d.nama_donatur)}</td><td>${esc(d.keterangan||'-')}</td><td class="num">${fmtRp(d.jumlah)}</td></tr>`).join('') || emptyRow(4,'Belum ada donasi.')}</tbody>
+    </table>
+
+    <h4>2.3 Transaksi Lain</h4>
+    <table class="lpj-table lpj-detail">
+      <thead><tr><th>Tanggal</th><th>Nama</th><th>Keterangan</th><th class="num">Jumlah</th></tr></thead>
+      <tbody>${transaksiList.map(t=>`<tr><td>${fmtDate(t.tanggal)}</td><td>${esc(t.jenis)}</td><td>${esc(t.keterangan||'-')}</td><td class="num">${fmtRp(t.jumlah)}</td></tr>`).join('') || emptyRow(4,'Belum ada transaksi.')}</tbody>
+    </table>
+
+    <h3>3. Rincian Pengeluaran</h3>
+    <h4>3.1 Operasional Kegiatan</h4>
+    <table class="lpj-table lpj-detail">
+      <thead><tr><th>Tanggal</th><th>Nama</th><th>Catatan</th><th class="num">Jumlah</th></tr></thead>
+      <tbody>${operasionalList.map(o=>`<tr><td>${fmtDate(o.tanggal)}</td><td>${esc(o.keterangan)}</td><td>${esc(o.catatan_bukti||'-')}</td><td class="num">${fmtRp(o.jumlah)}</td></tr>`).join('') || emptyRow(4,'Belum ada biaya operasional.')}</tbody>
+    </table>
+
+    <h4>3.2 Kebutuhan Lomba</h4>
+    <table class="lpj-table lpj-detail">
+      <thead><tr><th>Lomba</th><th>Nama Barang</th><th>Qty</th><th class="num">Harga</th><th class="num">Subtotal</th></tr></thead>
+      <tbody>${kebutuhanRows.map(r=>`<tr><td>${esc(r.lomba)}</td><td>${esc(r.nama)}</td><td>${r.qty}</td><td class="num">${fmtRp(r.harga)}</td><td class="num">${fmtRp(r.subtotal)}</td></tr>`).join('') || emptyRow(5,'Belum ada data kebutuhan lomba.')}</tbody>
+    </table>
+
+    <h4>3.3 Hadiah Lomba</h4>
+    <table class="lpj-table lpj-detail">
+      <thead><tr><th>Kategori</th><th>Juara</th><th>Nama Barang</th><th>Qty</th><th class="num">Harga</th><th class="num">Subtotal</th></tr></thead>
+      <tbody>${hadiahRows.map(r=>`<tr><td>${esc(r.kategori)}</td><td>${esc(r.juara)}</td><td>${esc(r.nama)}</td><td>${r.qty}</td><td class="num">${fmtRp(r.harga)}</td><td class="num">${fmtRp(r.subtotal)}</td></tr>`).join('') || emptyRow(6,'Belum ada data hadiah lomba.')}</tbody>
+    </table>
+
+    <h4>3.4 Hadiah Jalan Santai</h4>
+    <table class="lpj-table lpj-detail">
+      <thead><tr><th>Nama Barang</th><th>Qty</th><th class="num">Harga</th><th class="num">Subtotal</th></tr></thead>
+      <tbody>${hadiahJalanList.map(h=>`<tr><td>${esc(h.nama_hadiah)}</td><td>${h.qty}</td><td class="num">${fmtRp(h.harga_satuan)}</td><td class="num">${fmtRp(Number(h.harga_satuan||0)*Number(h.qty||0))}</td></tr>`).join('') || emptyRow(4,'Belum ada data hadiah jalan santai.')}</tbody>
+    </table>
+
+    <h3>4. Penutup</h3>
+    <p class="lpj-penutup">Demikian Laporan Pertanggungjawaban kegiatan <strong>${esc(ev.nama)}</strong> ini kami susun berdasarkan data yang tercatat pada sistem, untuk dipergunakan sebagaimana mestinya.</p>
+
+    <div class="lpj-signature">
+      <div class="sign-block">
+        <div class="sign-label">Mengetahui,<br>Ketua Karang Taruna</div>
+        <div class="sign-space"></div>
+        <div class="sign-name">( .......................... )</div>
+      </div>
+      <div class="sign-block">
+        <div class="sign-label">Bendahara</div>
+        <div class="sign-space"></div>
+        <div class="sign-name">( .......................... )</div>
+      </div>
+    </div>
+  </div>`;
+}
+
 
 /* ============================================================
    PENGATURAN (Admin only)

@@ -989,9 +989,10 @@
     /* --- Operasional Kegiatan: format lebih ringkas agar fit tanpa scroll --- */
     table.operasional-table{table-layout:fixed;}
     table.operasional-table th, table.operasional-table td{white-space:normal; word-break:break-word;}
-    table.operasional-table th:nth-child(1), table.operasional-table td:nth-child(1){ width:58px; min-width:0; white-space:nowrap; padding:8px 4px; }
+    table.operasional-table th:nth-child(1), table.operasional-table td:nth-child(1){ width:66px; min-width:0; white-space:nowrap; padding:8px 4px 8px 14px; }
     table.operasional-table th:nth-child(4), table.operasional-table td:nth-child(4){ width:82px; white-space:nowrap; padding:8px 4px; }
-    table.operasional-table th:nth-child(5), table.operasional-table td:nth-child(5){ width:32px; padding:6px 2px; text-align:center; }
+    table.operasional-table th:nth-child(5), table.operasional-table td:nth-child(5){ width:32px; padding:6px 14px 6px 2px; text-align:center; }
+    table.operasional-table tbody tr:not(.empty-row) td:last-child:nth-child(4){ padding-right:14px; }
     .panel-body.flush:has(table.operasional-table){overflow-x:visible;}
 
     /* --- Manajemen User: kartu, bukan tabel geser --- */

@@ -1915,6 +1915,10 @@ function renderHadiah(){
       const kebutuhan = isPartisipasi ? null : totalKebutuhanPaket;
       const kurangItems = kebutuhan!=null ? h.items.filter(item => Number(item.qty_dibeli||0) < hitungTargetQtyItem(item, kebutuhan)) : [];
       const totalItem = h.items.reduce((s, item) => s + (Number(item.harga_satuan||0) * Number(item.qty_dibeli||0)), 0);
+      // Harga SATU paket saja (isi paket × qty/paket) — dipakai untuk dibandingkan
+      // dengan budget, karena budget diatur per paket/per pemenang, bukan akumulasi
+      // seluruh lomba di kategori ini (yang jumlahnya beda-beda tiap kategori).
+      const totalPerPaket = h.items.reduce((s, item) => s + (Number(item.harga_satuan||0) * Math.max(1,Number(item.qty_per_paket||1))), 0);
       const namaLombaTitle = esc(lombaKategoriList.map(l => Number(l.jumlah_anggota_regu||1)>1 ? `${l.nama} (beregu ×${l.jumlah_anggota_regu})` : l.nama).join(', '));
       const rincianLomba = adaBeregu ? ` = ${lombaKategoriList.map(l=>Number(l.jumlah_anggota_regu||1)).join('+')}` : '';
       const kebutuhanBadge = kebutuhan!=null
@@ -1925,10 +1929,10 @@ function renderHadiah(){
       const budget = getHadiahBudget(kp.v, h.juara_ke);
       let budgetBadge = '';
       if(budget > 0){
-        const selisih = budget - totalItem;
+        const selisih = budget - totalPerPaket;
         budgetBadge = selisih < 0
-          ? `<span class="lomba-badge warn" style="margin-left:8px;">💸 Lebih ${fmtRp(Math.abs(selisih))} dari budget ${fmtRp(budget)}</span>`
-          : `<span class="lomba-badge" style="margin-left:8px;">🎯 Budget ${fmtRp(budget)} · Sisa ${fmtRp(selisih)}</span>`;
+          ? `<span class="lomba-badge warn" style="margin-left:8px;" title="Harga 1 paket: ${fmtRp(totalPerPaket)}">💸 Lebih ${fmtRp(Math.abs(selisih))} dari budget ${fmtRp(budget)}</span>`
+          : `<span class="lomba-badge" style="margin-left:8px;" title="Harga 1 paket: ${fmtRp(totalPerPaket)}">🎯 Budget ${fmtRp(budget)} · Sisa ${fmtRp(selisih)}</span>`;
       }
       return `<div class="hadiah-group"><div class="hadiah-group-header" onclick="toggleHadiahGroup('${h.id}')"><div><span class="title">🏆 ${labelJuara(h.juara_ke)}</span><span style="font-size:12px;color:var(--ink-soft);margin-left:8px;">${h.items.length} item</span>${kebutuhanBadge}${budgetBadge}</div><div style="display:flex;align-items:center;gap:4px;"><span class="total">${fmtRp(totalItem)}</span>${isLoggedIn ? `<button class="icon-btn" onclick="event.stopPropagation();openHadiahModal('${h.id}')" title="Edit paket">✎</button><button class="icon-btn" onclick="event.stopPropagation();hapusHadiah('${h.id}')" title="Hapus paket">🗑</button>` : ''}</div></div>
         <div class="hadiah-group-body" id="hadiah-group-${h.id}" style="display:${openHadiahGroups.has(h.id)?'block':'none'};">
@@ -1945,7 +1949,16 @@ function renderHadiah(){
     return `<div class="subgroup-title">${kp.l}${kebutuhanInfo}</div>${daftarLombaInfo}${groupHtml}`;
   }).join('');
 
-  const totalBudget = KATEGORI_PESERTA.reduce((s,kp)=>s+JUARA_LIST.reduce((s2,j)=>s2+getHadiahBudget(kp.v,j.v),0),0);
+  // Total budget SEHARUSNYA untuk seluruh event = budget per paket × jumlah paket yang
+  // dibutuhkan di kategori itu (mengikuti jumlah lomba, sama seperti kebutuhan stok).
+  // Untuk juara "partisipasi" (tidak ada target otomatis) budget dihitung apa adanya (×1),
+  // supaya tidak dibandingkan dengan kesalahan skala seperti sebelumnya.
+  const totalBudget = KATEGORI_PESERTA.reduce((s,kp)=>s+JUARA_LIST.reduce((s2,j)=>{
+    const budgetPerPaket = getHadiahBudget(kp.v, j.v);
+    if(budgetPerPaket<=0) return s2;
+    const keb = hitungKebutuhanHadiah(kp.v, j.v);
+    return s2 + budgetPerPaket * (keb!=null ? keb : 1);
+  },0),0);
 
   return `<div class="stat-grid">
     <div class="stat-card pengeluaran"><div class="lbl">Total Belanja Hadiah</div><div class="val">${fmtRp(total)}</div></div>

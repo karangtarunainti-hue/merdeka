@@ -3624,7 +3624,7 @@ function closeSidebar(){
 }
 
 (async function initApp(){
-  toast('⏳ Memuat data dari Supabase...');
+  toast('⏳ Mengunduh data dari pusat...');
   db = await loadDB();
   renderSidebar();
   renderTopbarSaldo();

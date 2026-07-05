@@ -726,6 +726,9 @@
     opacity:.3;
     cursor:not-allowed;
   }
+  .belanja-item .btn-small-icon svg{
+    width:14px; height:14px; display:block;
+  }
 
   .kategori-toko-header{
     display:flex; align-items:center; gap:8px;

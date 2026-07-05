@@ -1243,3 +1243,23 @@ table.panitia-table .pt-input{width:100%;}
   .pt-side{border-left:none; padding-left:0; border-top:1px dashed var(--garis); padding-top:14px;}
   .panitia-paper{padding:20px;}
 }
+
+/* ============================================================
+   GUDANG ASET DESA (modul hasil merger dari aplikasi Sedesa)
+   ============================================================ */
+.gudang-tabs{display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:16px;}
+.gudang-lokasi-block{margin-bottom:22px;}
+.gudang-lokasi-block:last-child{margin-bottom:0;}
+.gudang-lokasi-head{display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:10px; font-weight:600; font-size:14px;}
+.gudang-item-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(200px, 1fr)); gap:12px;}
+.gudang-item-card{background:var(--surface); border:1px solid var(--garis); border-radius:var(--radius); padding:14px;}
+.gudang-item-name{font-weight:600; font-size:13.5px; margin-bottom:6px;}
+.gudang-item-stok{margin-bottom:8px;}
+.gudang-item-bar{height:6px; border-radius:4px; background:var(--table-head); overflow:hidden; margin-bottom:8px;}
+.gudang-item-bar-fill{height:100%; background:var(--hijau); border-radius:4px;}
+.gudang-item-bar-fill.stok-menipis{background:var(--orange);}
+.gudang-item-bar-fill.stok-habis{background:var(--merah);}
+.gudang-item-meta{font-size:11px; color:var(--ink-soft);}
+@media (max-width:720px){
+  .gudang-item-grid{grid-template-columns:repeat(auto-fill, minmax(150px, 1fr));}
+}

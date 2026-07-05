@@ -495,8 +495,8 @@ const RT_LIST = [
   {v:'rt3', l:'RT 3'},
 ];
 const GENDER_LIST = [
-  {v:'pria', l:'♂ Pria'},
-  {v:'wanita', l:'♀ Wanita'},
+  {v:'pria', l:'Laki-Laki'},
+  {v:'wanita', l:'Perempuan'},
   {v:'tidak_diketahui', l:'Tidak diketahui'},
 ];
 const KATEGORI_PESERTA = [
@@ -1421,7 +1421,7 @@ function guessGender(nama){
   for(const s of AKHIRAN_WANITA_UMUM){ if(firstName.endsWith(s)) return 'wanita'; }
   return null;
 }
-function labelGender(v){ return v==='pria' ? '♂ Pria' : v==='wanita' ? '♀ Wanita' : 'Tidak diketahui'; }
+function labelGender(v){ return v==='pria' ? 'Laki-Laki' : v==='wanita' ? 'Perempuan' : 'Tidak diketahui'; }
 
 /* Jenis kelamin sekarang adalah data asli (a.gender) yang bisa dikoreksi manual.
    Untuk data lama yang belum pernah dikoreksi (a.gender belum ada), gunakan
@@ -1585,9 +1585,6 @@ function renderDatabaseAnggota(){
   const totalTerkumpul = filtered.filter(a=>a.status==='lunas').reduce((s,a)=>s+Number(a.nominal_wajib||0),0);
   const isLoggedIn = !!getCurrentUser();
 
-  const totalPria = filtered.filter(a=>getGender(a)==='pria').length;
-  const totalWanita = filtered.filter(a=>getGender(a)==='wanita').length;
-
   const statKategori = {};
   KATEGORI_ANGGOTA.forEach(k => {
     const items = filtered.filter(a=>a.kategori===k.v);
@@ -1598,6 +1595,12 @@ function renderDatabaseAnggota(){
   RT_LIST.forEach(r => {
     const items = filtered.filter(a=>getRT(a)===r.v);
     statRT[r.v] = {label: r.l, total: items.length, lunas: items.filter(a=>a.status==='lunas').length, nominal: items.reduce((s,a)=>s+Number(a.nominal_wajib||0),0), terkumpul: items.filter(a=>a.status==='lunas').reduce((s,a)=>s+Number(a.nominal_wajib||0),0)};
+  });
+
+  const statGender = {};
+  [{v:'pria', l:'Laki-Laki'}, {v:'wanita', l:'Perempuan'}].forEach(g => {
+    const items = filtered.filter(a=>getGender(a)===g.v);
+    statGender[g.v] = {label: g.l, total: items.length, lunas: items.filter(a=>a.status==='lunas').length, nominal: items.reduce((s,a)=>s+Number(a.nominal_wajib||0),0), terkumpul: items.filter(a=>a.status==='lunas').reduce((s,a)=>s+Number(a.nominal_wajib||0),0)};
   });
 
   const rows = filtered.map(a=>`<tr class="${a.status==='belum_lunas'?'belum-bayar':''}">
@@ -1624,14 +1627,7 @@ function renderDatabaseAnggota(){
     <div class="stat-card warning"><div class="lbl">Belum Bayar</div><div class="val">${totalBelum}</div></div>
     <div class="stat-card"><div class="lbl">Total Iuran</div><div class="val">${fmtRp(totalNominal)}</div></div>
     <div class="stat-card pemasukan"><div class="lbl">Terkumpul</div><div class="val">${fmtRp(totalTerkumpul)}</div></div>
-    <div class="stat-card warning"><div class="lbl">Tunggakan</div><div class="val">${fmtRp(totalNominal - totalTerkumpul)}</div></div>
-    <div class="stat-card gender-card" title="Bisa dikoreksi manual lewat tabel atau form edit anggota">
-      <div class="lbl">Pria &amp; Wanita</div>
-      <div class="gender-stats">
-        <div class="gender-stat"><span class="n">${totalPria}</span><span class="l">♂ Pria</span></div>
-        <div class="gender-stat"><span class="n">${totalWanita}</span><span class="l">♀ Wanita</span></div>
-      </div>
-    </div></div>`;
+    <div class="stat-card warning"><div class="lbl">Tunggakan</div><div class="val">${fmtRp(totalNominal - totalTerkumpul)}</div></div></div>`;
 
   const renderCountCard = (key, s) => {
     const belum = s.total - s.lunas;
@@ -1653,6 +1649,7 @@ function renderDatabaseAnggota(){
 
   const statKategoriHtml = Object.entries(statKategori).map(([kv, k]) => renderCountCard(kv, k)).join('');
   const statRTHtml = Object.entries(statRT).map(([rv, r]) => renderCountCard(rv, r)).join('');
+  const statGenderHtml = Object.entries(statGender).map(([gv, g]) => renderCountCard(gv, g)).join('');
 
   const filterHtml = `<div class="filter-row">
     <div class="field" style="margin-bottom:0;min-width:150px;"><label style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;">Kategori</label>
@@ -1660,7 +1657,7 @@ function renderDatabaseAnggota(){
     <div class="field" style="margin-bottom:0;min-width:150px;"><label style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;">Status</label>
       <select id="filter-status" onchange="applyFilter()"><option value="semua" ${filterStatus==='semua'?'selected':''}>Semua</option><option value="lunas" ${filterStatus==='lunas'?'selected':''}>Lunas</option><option value="belum_lunas" ${filterStatus==='belum_lunas'?'selected':''}>Belum Bayar</option></select></div>
     <div class="field" style="margin-bottom:0;min-width:150px;"><label style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;">Jenis Kelamin</label>
-      <select id="filter-gender" onchange="applyFilter()"><option value="semua" ${filterGender==='semua'?'selected':''}>Semua</option><option value="pria" ${filterGender==='pria'?'selected':''}>♂ Pria</option><option value="wanita" ${filterGender==='wanita'?'selected':''}>♀ Wanita</option><option value="tidak_diketahui" ${filterGender==='tidak_diketahui'?'selected':''}>Tidak diketahui</option></select></div>
+      <select id="filter-gender" onchange="applyFilter()"><option value="semua" ${filterGender==='semua'?'selected':''}>Semua</option><option value="pria" ${filterGender==='pria'?'selected':''}>Laki-Laki</option><option value="wanita" ${filterGender==='wanita'?'selected':''}>Perempuan</option><option value="tidak_diketahui" ${filterGender==='tidak_diketahui'?'selected':''}>Tidak diketahui</option></select></div>
     <div class="field" style="margin-bottom:0;min-width:150px;"><label style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;">RT</label>
       <select id="filter-rt" onchange="applyFilter()"><option value="semua" ${filterRT==='semua'?'selected':''}>Semua</option>${RT_LIST.map(r=>`<option value="${r.v}" ${filterRT===r.v?'selected':''}>${r.l}</option>`).join('')}</select></div>
     <div class="search-box" style="flex:1;min-width:200px;"><input type="text" id="search-input" placeholder="🔍 Cari nama..." value="${esc(searchQuery)}" oninput="applySearch()">${searchQuery?`<button class="btn secondary small" onclick="clearSearch()">✕</button>`:''}</div>
@@ -1675,7 +1672,7 @@ function renderDatabaseAnggota(){
       ${isLoggedIn ? `<button class="btn" onclick="openAnggotaModal()">+ Tambah</button>` : ''}
     </div></div>
     <div class="panel-body">${filterHtml}${statKategoriHtml?`<div class="kategori-grid" style="margin-bottom:16px;">${statKategoriHtml}</div>`:''}
-    ${statRTHtml?`<div class="stat-section-label">Jumlah Anggota per RT</div><div class="kategori-grid" style="margin-bottom:16px;">${statRTHtml}</div>`:''}
+    ${(statRTHtml||statGenderHtml)?`<div class="stat-section-label">Jumlah Anggota per RT &amp; Jenis Kelamin</div><div class="kategori-grid" style="margin-bottom:16px;">${statRTHtml}${statGenderHtml}</div>`:''}
     <div style="overflow-x:auto;"><table class="database-table"><thead><tr><th class="sortable" onclick="sortTable('nama')">Nama ${sortIndicator('nama')}</th>
       <th class="sortable" onclick="sortTable('kategori')">Kategori ${sortIndicator('kategori')}</th>
       <th class="sortable" onclick="sortTable('rt')">RT ${sortIndicator('rt')}</th>

@@ -346,11 +346,6 @@
   .stat-card.buku-card:hover{border-color:var(--merah); box-shadow:0 1px 6px rgba(0,0,0,.06);}
   .stat-card.buku-card.open{border-color:var(--merah);}
 
-  .gender-stats{display:flex; gap:22px; margin-top:2px;}
-  .gender-stat{display:flex; flex-direction:column; gap:3px;}
-  .gender-stat .n{font-family:'Roboto Mono',monospace; font-weight:600; font-size:clamp(15px, 4.2vw, 21px); line-height:1;}
-  .gender-stat .l{font-size:11px; color:var(--ink-soft);}
-
   .kategori-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:10px;}
   .stat-section-label{font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-soft); margin:0 0 8px;}
   .kategori-card{

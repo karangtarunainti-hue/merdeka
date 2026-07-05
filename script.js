@@ -4410,30 +4410,115 @@ function openGudangPinjamModal(){
   _gudangPinjamRows = [{itemId:'', qty:1}];
   renderGudangPinjamModalBody();
 }
-function gudangPinjamItemOptions(selectedId){
-  const {order, map} = gudangGroupByLokasi(gudangInventory.filter(i=>i.isActive));
-  return order.map(lokasi=>`<optgroup label="${esc(lokasi)}">${map[lokasi].map(i=>{
-    const disabled = i.tersedia<=0 ? 'disabled' : '';
-    const label = `${i.nama} (Sisa ${i.tersedia})${i.tersedia<=0?' — Habis':''}`;
-    return `<option value="${i.id}" ${i.id===selectedId?'selected':''} ${disabled}>${esc(label)}</option>`;
-  }).join('')}</optgroup>`).join('');
+function gudangComboIconChevron(){
+  return `<svg class="combo-chevron" width="15" height="15" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 }
+function gudangComboIconCheck(){
+  return `<svg class="combo-check" width="15" height="15" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+}
+function gudangComboItemLabel(i){ return i ? `${i.nama} — ${i.gudang}` : ''; }
+function gudangComboPanelHtml(idx, selectedId){
+  const {order, map} = gudangGroupByLokasi(gudangInventory.filter(i=>i.isActive));
+  const groupsHtml = order.map(lokasi=>`
+    <div class="combo-group" data-combo-group>
+      <div class="combo-group-label">${esc(lokasi)}</div>
+      ${map[lokasi].map(i=>{
+        const habis = i.tersedia<=0;
+        const selected = i.id===selectedId;
+        return `<button type="button" class="combo-option${habis?' disabled':''}${selected?' selected':''}"
+          data-combo-name="${esc(i.nama.toLowerCase())}"
+          ${habis?'disabled':`onclick="selectGudangComboItem(${idx}, '${i.id}')"`}>
+          <span class="combo-option-main">
+            <span class="combo-option-name">${esc(i.nama)}</span>
+            <span class="combo-option-loc">${esc(i.gudang)}</span>
+          </span>
+          <span class="combo-option-side">
+            ${habis ? '<span class="badge stok-habis">Habis</span>' : `<span class="combo-option-sisa">Sisa ${i.tersedia}</span>`}
+            ${selected ? gudangComboIconCheck() : ''}
+          </span>
+        </button>`;
+      }).join('')}
+    </div>`).join('');
+  return `
+    <div class="combo-search-wrap">
+      <input type="text" class="combo-search" placeholder="Cari nama barang..." oninput="filterGudangCombo(${idx}, this.value)">
+    </div>
+    <div class="combo-list" data-combo-list>${groupsHtml || '<div class="combo-empty">Belum ada aset aktif.</div>'}</div>`;
+}
+function toggleGudangCombo(idx){
+  const panel = document.getElementById(`gp-combo-panel-${idx}`);
+  if(!panel) return;
+  const willOpen = !panel.classList.contains('show');
+  document.querySelectorAll('.combo-panel.show').forEach(p=>{ if(p!==panel) p.classList.remove('show'); });
+  document.querySelectorAll('.combo-trigger.open').forEach(t=>{ if(t!==panel.previousElementSibling) t.classList.remove('open'); });
+  panel.classList.toggle('show', willOpen);
+  const trigger = panel.previousElementSibling;
+  if(trigger) trigger.classList.toggle('open', willOpen);
+  if(willOpen){
+    const search = panel.querySelector('.combo-search');
+    if(search){ search.value=''; filterGudangCombo(idx,''); setTimeout(()=>search.focus(), 30); }
+  }
+}
+function closeAllGudangCombos(){
+  document.querySelectorAll('.combo-panel.show').forEach(p=>p.classList.remove('show'));
+  document.querySelectorAll('.combo-trigger.open').forEach(t=>t.classList.remove('open'));
+}
+function selectGudangComboItem(idx, itemId){
+  _gudangPinjamRows[idx].itemId = itemId;
+  renderGudangPinjamModalBody();
+}
+function filterGudangCombo(idx, query){
+  const panel = document.getElementById(`gp-combo-panel-${idx}`);
+  if(!panel) return;
+  const q = query.trim().toLowerCase();
+  let anyVisible = false;
+  panel.querySelectorAll('[data-combo-group]').forEach(group=>{
+    let groupHas = false;
+    group.querySelectorAll('.combo-option').forEach(opt=>{
+      const match = !q || opt.getAttribute('data-combo-name').includes(q);
+      opt.style.display = match ? '' : 'none';
+      if(match) groupHas = true;
+    });
+    group.style.display = groupHas ? '' : 'none';
+    if(groupHas) anyVisible = true;
+  });
+  let emptyEl = panel.querySelector('.combo-empty-search');
+  if(!anyVisible){
+    if(!emptyEl){
+      emptyEl = document.createElement('div');
+      emptyEl.className = 'combo-empty combo-empty-search';
+      emptyEl.textContent = 'Barang tidak ditemukan.';
+      panel.querySelector('[data-combo-list]').appendChild(emptyEl);
+    }
+  } else if(emptyEl){ emptyEl.remove(); }
+}
+document.addEventListener('click', (e)=>{
+  if(!e.target.closest('.combo')) closeAllGudangCombos();
+});
+document.addEventListener('keydown', (e)=>{
+  if(e.key==='Escape') closeAllGudangCombos();
+});
 function renderGudangPinjamModalBody(){
-  const rowsHtml = _gudangPinjamRows.map((r,idx)=>`
+  const activeInv = gudangInventory.filter(i=>i.isActive);
+  const rowsHtml = _gudangPinjamRows.map((r,idx)=>{
+    const selectedItem = activeInv.find(i=>i.id===r.itemId);
+    return `
     <div class="item-fields-row" style="display:flex; gap:8px; align-items:flex-end; margin-bottom:10px;">
-      <div class="field" style="flex:2; margin-bottom:0;">
+      <div class="field combo" style="flex:2; margin-bottom:0; position:relative;">
         <label>Barang</label>
-        <select onchange="_gudangPinjamRows[${idx}].itemId=this.value">
-          <option value="">-- Pilih Barang --</option>
-          ${gudangPinjamItemOptions(r.itemId)}
-        </select>
+        <button type="button" class="combo-trigger${selectedItem?'':' placeholder'}" onclick="toggleGudangCombo(${idx})">
+          <span class="combo-trigger-label">${selectedItem ? esc(gudangComboItemLabel(selectedItem)) : '-- Pilih Barang --'}</span>
+          ${gudangComboIconChevron()}
+        </button>
+        <div class="combo-panel" id="gp-combo-panel-${idx}">${gudangComboPanelHtml(idx, r.itemId)}</div>
       </div>
       <div class="field" style="flex:1; margin-bottom:0;">
         <label>Jumlah</label>
         <input type="number" min="1" value="${r.qty}" oninput="_gudangPinjamRows[${idx}].qty=parseInt(this.value,10)||1">
       </div>
       <button type="button" class="icon-btn" title="Hapus baris" onclick="gudangPinjamRemoveRow(${idx})">🗑</button>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 
   const body = `
     <div class="field"><label>Nama Peminjam</label><input type="text" id="gp-nama" placeholder="Nama lengkap peminjam"></div>

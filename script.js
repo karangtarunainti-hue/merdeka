@@ -4526,7 +4526,17 @@ document.addEventListener('click', (e)=>{
   if(e.target.closest('.combo-panel-floating') || e.target.closest('.combo-trigger')) return;
   closeAllGudangCombos();
 });
-window.addEventListener('resize', closeAllGudangCombos);
+function gudangComboRepositionOpen(){
+  if(_gudangComboOpenIdx===null || !_gudangComboPanelEl) return;
+  const trigger = document.getElementById(`gp-combo-trigger-${_gudangComboOpenIdx}`);
+  if(!trigger || !document.body.contains(trigger)){ closeAllGudangCombos(); return; }
+  gudangComboPositionPanel(trigger, _gudangComboPanelEl);
+}
+// Pakai reposisi (bukan tutup) saat resize/scroll — resize sering terpicu oleh
+// keyboard HP yang muncul waktu kolom cari di-fokus, jadi kalau langsung ditutup
+// dropdown-nya akan langsung hilang lagi begitu baru dibuka (flicker berulang).
+window.addEventListener('resize', gudangComboRepositionOpen);
+window.addEventListener('scroll', gudangComboRepositionOpen, true);
 document.addEventListener('keydown', (e)=>{
   if(e.key==='Escape') closeAllGudangCombos();
 });

@@ -823,6 +823,10 @@ function renderContent(){
   // Setup currency inputs after content rendered
   setTimeout(setupAllCurrencyInputs, 50);
 
+  if (currentSection === 'lpj') {
+    requestAnimationFrame(applyLpjMobileScale);
+  }
+
   // Kembalikan fokus & posisi kursor ke input yang sama (jika masih ada di DOM baru)
   if (focusInfo) {
     const newEl = document.getElementById(focusInfo.id);
@@ -3124,6 +3128,29 @@ function hapusJadwal(id){
 }
 
 /* ============================================================
+   LPJ - scale tampilan di layar kecil (HP) supaya identik dengan
+   tampilan desktop, hanya diperkecil proporsional (bukan reflow/
+   ubah layout). Menggunakan CSS zoom, dihitung ulang tiap resize.
+   ============================================================ */
+const LPJ_DESIGN_WIDTH = 820;
+function applyLpjMobileScale(){
+  const wrap = document.getElementById('lpj-scale-wrap');
+  const area = document.getElementById('lpj-print-area');
+  if (!wrap || !area) return;
+  if (window.innerWidth > LPJ_DESIGN_WIDTH){
+    area.style.zoom = '';
+    return;
+  }
+  const available = wrap.clientWidth;
+  if (!available) return;
+  const scale = Math.min(1, available / LPJ_DESIGN_WIDTH);
+  area.style.zoom = scale;
+}
+window.addEventListener('resize', ()=>{
+  if (currentSection === 'lpj') applyLpjMobileScale();
+});
+
+/* ============================================================
    LAPORAN PERTANGGUNGJAWABAN (LPJ) - native, tanpa AI
    Merangkai data yang sudah ada di db jadi laporan siap cetak/PDF.
    ============================================================ */
@@ -3164,7 +3191,8 @@ function renderLPJ(){
   const emptyRow = (n,text)=>`<tr class="empty-row"><td colspan="${n}">${text}</td></tr>`;
 
   return `
-  <div class="lpj-print-area">
+  <div class="lpj-scale-wrap" id="lpj-scale-wrap">
+  <div class="lpj-print-area" id="lpj-print-area">
     <div class="lpj-header">
       <div class="lpj-header-inner">
         <img src="icons/logo-kop.png" alt="Logo Karang Taruna Inti" class="lpj-logo">
@@ -3240,6 +3268,7 @@ function renderLPJ(){
 
     <h3>4. Penutup</h3>
     <p class="lpj-penutup">Demikian Laporan Pertanggungjawaban kegiatan <strong>${esc(ev.nama)}</strong> ini kami susun berdasarkan data yang tercatat pada sistem, untuk dipergunakan sebagaimana mestinya.</p>
+  </div>
   </div>
 
   ${isLoggedIn ? `

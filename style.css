@@ -1013,36 +1013,10 @@
     table.hadiah-table th:nth-child(1), table.hadiah-table td:nth-child(1),
     table.general-table th:nth-child(1), table.general-table td:nth-child(1) { width:auto; min-width:100px; }
 
-    .lpj-logo{width:44px; height:44px;}
-    .lpj-header-spacer{display:none;}
-
-    /* --- LPJ: rapikan di layar hp tanpa mengubah tampilan desktop --- */
-    .lpj-print-area{padding:18px 14px 26px; max-width:100%; border-radius:calc(var(--radius) * 0.7);}
-    .lpj-header{padding-bottom:12px; margin-bottom:18px;}
-    .lpj-header-inner{align-items:flex-start; gap:10px;}
-    .lpj-header-text{text-align:left;}
-    .lpj-eyebrow{font-size:10px; margin-bottom:4px;}
-    .lpj-header h2{font-size:15.5px; line-height:1.3; margin:0 0 6px;}
-    .lpj-sub{font-size:12px;}
-    .lpj-meta{font-size:10.5px;}
-    .lpj-print-area h3{font-size:13px; margin:22px 0 8px; padding-bottom:5px;}
-    .lpj-print-area h4{font-size:11.5px; margin:16px 0 6px;}
-    table.lpj-table, table.lpj-table td, table.lpj-table th{font-size:10.5px; table-layout:fixed;}
-    table.lpj-table td, table.lpj-table th{padding:5px 3px; white-space:normal; word-break:break-word; overflow-wrap:break-word;}
-    table.lpj-table td.indent{padding-left:9px;}
-    table.lpj-table td.num, table.lpj-table th.num{padding-left:2px; padding-right:4px;}
-    /* Tabel rincian (2.1 - 3.4): tidak digulir horizontal, semua kolom
-       dipaksa muat dengan mengecilkan font & membiarkan teks turun baris. */
-    .lpj-table-scroll{overflow-x:visible; margin:0 0 4px;}
-    .lpj-table-scroll table.lpj-detail{min-width:0; width:100%;}
-    table.lpj-hadiah-table th:nth-child(3), table.lpj-hadiah-table td:nth-child(3){width:30%;}
-    table.lpj-hadiah-table th:nth-child(4), table.lpj-hadiah-table td:nth-child(4){width:12%; padding-left:2px; padding-right:2px;}
-    table.lpj-kebutuhan-table th:nth-child(2), table.lpj-kebutuhan-table td:nth-child(2){width:30%;}
-    table.lpj-kebutuhan-table th:nth-child(3), table.lpj-kebutuhan-table td:nth-child(3){width:12%; padding-left:2px; padding-right:2px;}
-    table.lpj-jalan-santai-table th:nth-child(1), table.lpj-jalan-santai-table td:nth-child(1){width:44%;}
-    table.lpj-jalan-santai-table th:nth-child(2), table.lpj-jalan-santai-table td:nth-child(2){width:14%; padding-left:2px; padding-right:2px;}
-    .lpj-penutup{font-size:11px;}
-    .lpj-toolbar .btn{width:100%;}
+    /* Tampilan LPJ di HP: di-scale utuh (lihat applyLpjMobileScale di script.js)
+       supaya persis sama seperti desktop, hanya diperkecil proporsional. */
+    .lpj-scale-wrap{overflow-x:hidden;}
+    #lpj-print-area{width:820px; max-width:none;}
 
     /* --- Operasional Kegiatan: format lebih ringkas agar fit tanpa scroll --- */
     table.tanggal-nominal-table{table-layout:fixed;}
@@ -1118,6 +1092,7 @@
    LPJ (Laporan Pertanggungjawaban) — tampilan & cetak
    ============================================================ */
 .lpj-toolbar{margin-top:20px; margin-bottom:16px; text-align:center;}
+.lpj-scale-wrap{width:100%; overflow:hidden;}
 .lpj-print-area{
   background:var(--surface); border:1px solid var(--garis); border-radius:var(--radius);
   padding:32px; max-width:820px; margin:0 auto; box-shadow:var(--shadow);
@@ -1174,5 +1149,7 @@ table.lpj-kebutuhan-table th:nth-child(4), table.lpj-kebutuhan-table td:nth-chil
   .lpj-print-area{box-shadow:none; border:none; padding:0; max-width:100%;}
   .lpj-table-scroll{overflow:visible !important;}
   table.lpj-table{min-width:0 !important;}
+  #lpj-print-area{zoom:1 !important; width:auto !important;}
+  .lpj-scale-wrap{overflow:visible !important;}
   body{background:#fff;}
 }

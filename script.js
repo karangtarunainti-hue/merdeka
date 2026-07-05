@@ -1168,24 +1168,27 @@ function generateReminders(){
     });
   }
 
-  const stokMenipis = [];
+  const stokKurang = [];
   gHadiahKategori().forEach(h => {
+    const kebutuhan = hitungKebutuhanHadiah(h.kategori_peserta, h.juara_ke);
+    if (kebutuhan == null) return; // partisipasi: tidak dihitung otomatis
     h.items.forEach(item => {
-      const sisa = Number(item.qty_dibeli||0) - Number(item.qty_terpakai||0);
-      if (sisa > 0 && sisa <= 3) {
-        stokMenipis.push({nama: item.nama, sisa: sisa, kategori: labelPeserta(h.kategori_peserta)});
+      const target = hitungTargetQtyItem(item, kebutuhan);
+      const dibeli = Number(item.qty_dibeli||0);
+      if (dibeli < target) {
+        stokKurang.push({nama: item.nama, kurang: target - dibeli, kategori: labelPeserta(h.kategori_peserta)});
       }
     });
   });
 
-  if (stokMenipis.length > 0) {
-    const labels = stokMenipis.slice(0, 3).map(i => `${i.nama} (sisa ${i.sisa})`).join(', ');
+  if (stokKurang.length > 0) {
+    const labels = stokKurang.slice(0, 3).map(i => `${i.nama} (kurang ${i.kurang})`).join(', ');
     reminders.push({
       type: 'warning',
       icon: '⚠️',
-      title: 'Stok Hadiah Menipis',
-      count: stokMenipis.length,
-      items: [{label: 'Item:', value: stokMenipis.length > 3 ? `${labels} +${stokMenipis.length-3} lagi` : labels}],
+      title: 'Stok Hadiah Belum Sesuai Kebutuhan',
+      count: stokKurang.length,
+      items: [{label: 'Item:', value: stokKurang.length > 3 ? `${labels} +${stokKurang.length-3} lagi` : labels}],
       action: {label: 'Cek Stok →', link: 'hadiah'}
     });
   }
@@ -1726,10 +1729,11 @@ function renderLomba(){
     const subtotal = items.reduce((s,k)=>s+(Number(k.harga_realisasi ?? k.harga_estimasi ?? 0)*Number(k.qty||0)),0);
     const isOpen = openLombaIds.has(l.id);
     const activeTab = getLombaTab(l.id);
-    const hadiahAssigned = gLombaHadiah(l.id).length;
-    const hadiahBadge = hadiahAssigned===0
+    const juaraUtama = JUARA_LIST.filter(j=>j.v!=='partisipasi');
+    const juaraTersedia = juaraUtama.filter(j=>gHadiahKategori().some(h=>h.kategori_peserta===l.kategori_peserta && h.juara_ke===j.v));
+    const hadiahBadge = juaraTersedia.length===0
       ? `<span class="lomba-badge warn">Hadiah belum diatur</span>`
-      : (hadiahAssigned<JUARA_LIST.length ? `<span class="lomba-badge warn">Hadiah sebagian</span>` : '');
+      : (juaraTersedia.length<juaraUtama.length ? `<span class="lomba-badge warn">Hadiah sebagian</span>` : '');
     return `
     <div class="lomba-card ${isOpen?'open':''}">
       <div class="lomba-card-head" onclick="toggleLombaCard('${l.id}')" style="cursor:pointer;">
@@ -1784,7 +1788,7 @@ function renderLomba(){
   <div class="panel"><div class="panel-head"><div><h3>Daftar Lomba</h3><div class="desc">Klik kartu untuk buka rincian</div></div>${isLoggedIn ? `<button class="btn" onclick="openLombaModal()">+ Tambah Lomba</button>` : ''}</div>
   <div class="panel-body">${cards||`<div class="empty-row" style="padding:30px;text-align:center;">Belum ada lomba.</div>`}</div></div>`;
 }
-// Ringkasan stok hadiah bersama, ditampilkan terpisah dari dropdown pemilihan paket per lomba
+// Ringkasan stok hadiah: qty yang harus dibeli (kebutuhan, mengikuti jumlah lomba) vs yang sudah diset dibeli.
 function renderStokHadiahRingkas(){
   const kategoriDenganStok = KATEGORI_PESERTA.filter(kp => gHadiahKategori().some(h=>h.kategori_peserta===kp.v));
   if(!kategoriDenganStok.length) return '';
@@ -1792,16 +1796,19 @@ function renderStokHadiahRingkas(){
     const paketKategori = gHadiahKategori().filter(h=>h.kategori_peserta===kp.v);
     const juaraRows = JUARA_LIST.filter(j=>paketKategori.some(h=>h.juara_ke===j.v)).map(j=>{
       const paket = paketKategori.filter(h=>h.juara_ke===j.v);
+      const kebutuhan = hitungKebutuhanHadiah(kp.v, j.v);
       const chips = paket.flatMap(h=>h.items.map(item=>{
-        const sisa = Number(item.qty_dibeli||0)-Number(item.qty_terpakai||0);
-        const habis = sisa<=0;
-        return `<span class="lomba-mini-chip" style="${habis?'opacity:.55;':''}"><span class="num" style="background:${habis?'var(--abu)':'var(--merah)'};">${sisa}</span>${esc(item.nama)}</span>`;
+        const target = hitungTargetQtyItem(item, kebutuhan);
+        const dibeli = Number(item.qty_dibeli||0);
+        const kurang = target!=null && dibeli < target;
+        const label = target!=null ? `${dibeli}/${target}` : `${dibeli}`;
+        return `<span class="lomba-mini-chip" style="${kurang?'':''}"><span class="num" style="background:${kurang?'var(--merah)':'var(--abu)'};">${label}</span>${esc(item.nama)}</span>`;
       })).join('');
-      return `<div style="margin-bottom:10px;"><div style="font-size:12px;font-weight:700;color:var(--ink-soft);margin-bottom:5px;">${j.l}</div><div class="lomba-mini-list" style="margin:0;">${chips||'<span class="hint">Belum ada item</span>'}</div></div>`;
+      return `<div style="margin-bottom:10px;"><div style="font-size:12px;font-weight:700;color:var(--ink-soft);margin-bottom:5px;">${j.l}${kebutuhan!=null?` <span style="font-weight:500;color:var(--abu);">· butuh ${kebutuhan} paket</span>`:''}</div><div class="lomba-mini-list" style="margin:0;">${chips||'<span class="hint">Belum ada item</span>'}</div></div>`;
     }).join('');
     return `<div style="margin-bottom:14px;"><div style="font-weight:700;margin-bottom:8px;">${kp.l}</div>${juaraRows}</div>`;
   }).join('');
-  return `<div class="panel"><div class="panel-head"><div><h3>📦 Stok Hadiah Tersedia</h3><div class="desc">Sisa pcs tiap item di stok hadiah bersama, per kategori & juara</div></div></div>
+  return `<div class="panel"><div class="panel-head"><div><h3>📦 Stok Hadiah</h3><div class="desc">Angka = sudah dibeli / kebutuhan (merah = masih kurang), per kategori & juara</div></div></div>
   <div class="panel-body">${body}</div></div>`;
 }
 function labelPeserta(v){ return (KATEGORI_PESERTA.find(k=>k.v===v)||{}).l || v; }
@@ -1822,61 +1829,19 @@ function tambahKebutuhanCepat(lombaId){
   notifyTelegram(`➕ Item kebutuhan baru: ${nama_item}`, `Lomba: ${lomba?.nama || lombaId}\nQty: ${qty}\nEstimasi: ${fmtRp(harga_estimasi)}`);
 }
 
+// Paket hadiah tidak lagi dipilih manual per lomba — otomatis mengikuti kategori peserta lomba.
+// Blok ini cuma menampilkan (read-only) paket apa yang otomatis berlaku untuk lomba ini.
 function renderHadiahLombaBlock(lomba){
-  const assigned = gLombaHadiah(lomba.id);
-  const isLoggedIn = !!getCurrentUser();
   const multiplier = Math.max(1, Number(lomba.jumlah_anggota_regu||1));
   const rows = JUARA_LIST.map(j=>{
-    const current = assigned.find(a=>a.juara_ke===j.v);
-    const currentHadiah = current ? db.hadiahKategori.find(h=>h.id===current.hadiah_kategori_id) : null;
     const opsi = gHadiahKategori().filter(h=> h.kategori_peserta===lomba.kategori_peserta && h.juara_ke===j.v);
-    return `<div class="juara-row"><div class="juara-tag">${j.l}</div>
-      <select class="juara-select" onchange="setLombaHadiah('${lomba.id}','${j.v}',this.value)" ${!isLoggedIn ? 'disabled' : ''}>
-        <option value="">— Pilih paket —</option>
-        ${opsi.map(h=>{
-          const kurang = h.items.some(item => (Number(item.qty_dibeli||0)-Number(item.qty_terpakai||0)) < multiplier);
-          const label=(kurang?'⚠️ ':'')+h.items.map(item=>item.nama).join(', ');
-          return `<option value="${h.id}" ${currentHadiah&&h.id===currentHadiah.id?'selected':''}>${label}</option>`;
-        }).join('')}
-      </select>
-    </div>`;
+    const isiPaket = opsi.length
+      ? opsi.flatMap(h=>h.items.map(item=>esc(item.nama))).join(', ')
+      : `<span class="hint">Belum ada paket</span>`;
+    return `<div class="juara-row"><div class="juara-tag">${j.l}</div><div style="flex:1;padding:6px 0;">${isiPaket}</div></div>`;
   }).join('');
   const noStok = gHadiahKategori().filter(h=>h.kategori_peserta===lomba.kategori_peserta).length === 0;
-  return `${multiplier>1?`<div class="hint" style="margin-bottom:8px;">👥 Lomba beregu · ${multiplier} anggota per regu — setiap paket yang dipilih otomatis mengurangi stok ${multiplier} pcs.</div>`:''}${rows}${noStok?`<div class="hint" style="margin-top:8px;">Belum ada stok hadiah untuk kategori ini. <a style="color:var(--merah);font-weight:600;cursor:pointer;" onclick="goSection('hadiah')">Tambah di sini</a></div>`:''}`;
-}
-
-function setLombaHadiah(lombaId, juaraKe, hadiahKategoriId){
-  if (!canEditSection('lomba')) { toast('⛔ Login untuk mengedit data'); return; }
-  const lomba = db.lomba.find(l=>l.id===lombaId);
-  const multiplier = Math.max(1, Number(lomba?.jumlah_anggota_regu||1));
-  const existing = db.lombaHadiah.find(lh=>lh.lomba_id===lombaId && lh.juara_ke===juaraKe);
-  let actionMsg = '';
-  if(existing){ 
-    const oldH=db.hadiahKategori.find(h=>h.id===existing.hadiah_kategori_id); 
-    if(oldH) oldH.items.forEach(item=>item.qty_terpakai=Math.max(0,Number(item.qty_terpakai||0)-multiplier)); 
-  }
-  if(!hadiahKategoriId){ 
-    if(existing) {
-      actionMsg = `🗑️ Hapus hadiah dari lomba ${existing.lomba_id} untuk juara ${juaraKe}`;
-      db.lombaHadiah=db.lombaHadiah.filter(lh=>lh!==existing); 
-    }
-  }
-  else{ 
-    const newH=db.hadiahKategori.find(h=>h.id===hadiahKategoriId); 
-    if(!newH){saveDB();renderContent();return;} 
-    const semuaTersedia=newH.items.every(item=>(Number(item.qty_dibeli||0)-Number(item.qty_terpakai||0))>=multiplier); 
-    if(!semuaTersedia){toast(`Stok tidak cukup untuk ${multiplier} anggota regu`);saveDB();renderContent();return;} 
-    newH.items.forEach(item=>item.qty_terpakai=Number(item.qty_terpakai||0)+multiplier); 
-    if(existing){
-      actionMsg = `✏️ Update hadiah lomba ${lombaId} juara ${juaraKe}`;
-      existing.hadiah_kategori_id=hadiahKategoriId;
-    }else{
-      actionMsg = `➕ Assign hadiah ke lomba ${lombaId} juara ${juaraKe}`;
-      db.lombaHadiah.push({id:uid(),lomba_id:lombaId,juara_ke:juaraKe,hadiah_kategori_id:hadiahKategoriId});
-    }
-  }
-  saveDB(); renderContent(); renderTopbarSaldo();
-  notifyTelegram(actionMsg, `Lomba: ${lombaId}\nJuara: ${juaraKe}\nPaket hadiah: ${hadiahKategoriId || 'dihapus'}\nAnggota/regu: ${multiplier}`);
+  return `<div class="hint" style="margin-bottom:8px;">🎁 Paket hadiah otomatis mengikuti kategori "${labelPeserta(lomba.kategori_peserta)}" — atur isi paketnya di menu Kebutuhan Hadiah Lomba.${multiplier>1?` Lomba ini beregu ×${multiplier}, sudah otomatis dihitung ke kebutuhan stok.`:''}</div>${rows}${noStok?`<div class="hint" style="margin-top:8px;">Belum ada paket hadiah untuk kategori ini. <a style="color:var(--merah);font-weight:600;cursor:pointer;" onclick="goSection('hadiah')">Tambah di sini</a></div>`:''}`;
 }
 
 function openLombaModal(id){
@@ -1890,13 +1855,13 @@ function openLombaModal(id){
       if(!nama){toast('Nama wajib');return;}
       let actionMsg = editing ? `✏️ Edit lomba: ${editing.nama} → ${nama}` : `➕ Lomba baru: ${nama}`;
       if(editing){ 
-        if(editing.kategori_peserta!==kategori_peserta){ 
-          gLombaHadiah(editing.id).forEach(lh=>{const h=db.hadiahKategori.find(x=>x.id===lh.hadiah_kategori_id); if(h) h.items.forEach(item=>item.qty_terpakai=Math.max(0,Number(item.qty_terpakai||0)-Number(editing.jumlah_anggota_regu||1)));}); 
-          db.lombaHadiah=db.lombaHadiah.filter(lh=>lh.lomba_id!==editing.id);} 
         editing.nama=nama; editing.kategori_peserta=kategori_peserta; editing.jumlah_anggota_regu=jumlah_anggota_regu; 
       }
       else{ db.lomba.push({id:uid(),event_id:eid(),nama,kategori_peserta,jumlah_anggota_regu}); }
-      saveDB(); closeModal(); renderContent(); renderTopbarSaldo(); toast('Disimpan');
+      saveDB();
+      // Lomba bertambah/berubah → kebutuhan paket hadiah berubah, sinkronkan stok yang harus dibeli.
+      autoSyncHadiahStok(true);
+      closeModal(); renderContent(); renderTopbarSaldo(); toast('Disimpan');
       notifyTelegram(actionMsg, `Kategori: ${labelPeserta(kategori_peserta)}\nAnggota/regu: ${jumlah_anggota_regu}`);
     }}
   ]);
@@ -1905,9 +1870,10 @@ function hapusLomba(id){
   if (!canEditSection('lomba')) { toast('⛔ Login untuk mengedit data'); return; }
   if(!confirm('Hapus lomba ini?')) return; 
   const l = db.lomba.find(x=>x.id===id);
-  gLombaHadiah(id).forEach(lh=>{const h=db.hadiahKategori.find(x=>x.id===lh.hadiah_kategori_id); if(h) h.items.forEach(item=>item.qty_terpakai=Math.max(0,Number(item.qty_terpakai||0)-Number(l?.jumlah_anggota_regu||1)));}); 
   db.lombaHadiah=db.lombaHadiah.filter(lh=>lh.lomba_id!==id); 
   db.lombaKebutuhan=db.lombaKebutuhan.filter(k=>k.lomba_id!==id); 
+  // Catatan: menghapus lomba TIDAK menurunkan qty_dibeli hadiah secara otomatis —
+  // stok yang sudah disiapkan/dibeli tetap ada, bisa dikurangi manual lewat menu Kebutuhan Hadiah kalau perlu.
   db.lomba=db.lomba.filter(l=>l.id!==id); 
   saveDB(); renderContent(); renderTopbarSaldo();
   if(l) notifyTelegram(`🗑️ Hapus lomba: ${l.nama}`, `Kategori: ${labelPeserta(l.kategori_peserta)}`);
@@ -1971,7 +1937,6 @@ function renderHadiah(){
       const kebutuhan = isPartisipasi ? null : totalKebutuhanPaket;
       const kurangItems = kebutuhan!=null ? h.items.filter(item => Number(item.qty_dibeli||0) < hitungTargetQtyItem(item, kebutuhan)) : [];
       const totalItem = h.items.reduce((s, item) => s + (Number(item.harga_satuan||0) * Number(item.qty_dibeli||0)), 0);
-      const sisaTotal = h.items.reduce((s, item) => s + (Number(item.qty_dibeli||0) - Number(item.qty_terpakai||0)), 0);
       const namaLombaTitle = esc(lombaKategoriList.map(l => Number(l.jumlah_anggota_regu||1)>1 ? `${l.nama} (beregu ×${l.jumlah_anggota_regu})` : l.nama).join(', '));
       const rincianLomba = adaBeregu ? ` = ${lombaKategoriList.map(l=>Number(l.jumlah_anggota_regu||1)).join('+')}` : '';
       const kebutuhanBadge = kebutuhan!=null
@@ -1987,13 +1952,10 @@ function renderHadiah(){
           ? `<span class="lomba-badge warn" style="margin-left:8px;">💸 Lebih ${fmtRp(Math.abs(selisih))} dari budget ${fmtRp(budget)}</span>`
           : `<span class="lomba-badge" style="margin-left:8px;">🎯 Budget ${fmtRp(budget)} · Sisa ${fmtRp(selisih)}</span>`;
       }
-      return `<div class="hadiah-group"><div class="hadiah-group-header" onclick="toggleHadiahGroup('${h.id}')"><div><span class="title">🏆 ${labelJuara(h.juara_ke)}</span><span style="font-size:12px;color:var(--ink-soft);margin-left:8px;">${h.items.length} item · sisa ${sisaTotal}</span>${kebutuhanBadge}${budgetBadge}</div><div style="display:flex;align-items:center;gap:4px;"><span class="total">${fmtRp(totalItem)}</span>${isLoggedIn ? `<button class="icon-btn" onclick="event.stopPropagation();openHadiahModal('${h.id}')" title="Edit paket">✎</button><button class="icon-btn" onclick="event.stopPropagation();hapusHadiah('${h.id}')" title="Hapus paket">🗑</button>` : ''}</div></div>
+      return `<div class="hadiah-group"><div class="hadiah-group-header" onclick="toggleHadiahGroup('${h.id}')"><div><span class="title">🏆 ${labelJuara(h.juara_ke)}</span><span style="font-size:12px;color:var(--ink-soft);margin-left:8px;">${h.items.length} item</span>${kebutuhanBadge}${budgetBadge}</div><div style="display:flex;align-items:center;gap:4px;"><span class="total">${fmtRp(totalItem)}</span>${isLoggedIn ? `<button class="icon-btn" onclick="event.stopPropagation();openHadiahModal('${h.id}')" title="Edit paket">✎</button><button class="icon-btn" onclick="event.stopPropagation();hapusHadiah('${h.id}')" title="Hapus paket">🗑</button>` : ''}</div></div>
         <div class="hadiah-group-body" id="hadiah-group-${h.id}">
-          ${kurangItems.length && isLoggedIn ? `<div class="hint" style="margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
-            <span>Qty sebagian item belum menyesuaikan kebutuhan (${jumlahLomba} lomba kategori ${labelPeserta(kp.v)}${adaBeregu?', termasuk lomba beregu':''} × qty/paket masing-masing item).</span>
-            <button class="btn secondary small" onclick="sesuaikanKebutuhanHadiah('${h.id}')">⚡ Sesuaikan Otomatis</button>
-          </div>` : ''}
-          ${h.items.map((item, idx) => { const perPaket=Math.max(1,Number(item.qty_per_paket||1)); const target = hitungTargetQtyItem(item, kebutuhan); const sisa=Number(item.qty_dibeli||0)-Number(item.qty_terpakai||0); const kurang = target!=null && Number(item.qty_dibeli||0) < target; return `<div class="hadiah-item-row"><span class="item-name">${esc(item.nama)}${perPaket>1?` <span style="color:var(--ink-soft);font-size:11px;">(${perPaket}/paket)</span>`:''}${kurang?` <span style="color:var(--orange);font-size:11px;">(butuh ${target})</span>`:''}</span><span class="item-qty">Dibeli: ${item.qty_dibeli} | Terpakai: ${item.qty_terpakai||0} | Sisa: ${sisa}</span><span class="item-price">${fmtRp(item.harga_satuan)} × ${item.qty_dibeli}</span>
+          ${kurangItems.length ? `<div class="hint" style="margin-bottom:10px;">Sebagian item belum sesuai kebutuhan (${jumlahLomba} lomba kategori ${labelPeserta(kp.v)}${adaBeregu?', termasuk lomba beregu':''} × qty/paket masing-masing item). Qty akan otomatis naik sendiri saat lomba berikutnya ditambahkan, atau edit manual di bawah.</div>` : ''}
+          ${h.items.map((item, idx) => { const perPaket=Math.max(1,Number(item.qty_per_paket||1)); const target = hitungTargetQtyItem(item, kebutuhan); const kurang = target!=null && Number(item.qty_dibeli||0) < target; return `<div class="hadiah-item-row"><span class="item-name">${esc(item.nama)}${perPaket>1?` <span style="color:var(--ink-soft);font-size:11px;">(${perPaket}/paket)</span>`:''}${kurang?` <span style="color:var(--orange);font-size:11px;">(butuh ${target})</span>`:''}</span><span class="item-qty">Dibeli: ${item.qty_dibeli}</span><span class="item-price">${fmtRp(item.harga_satuan)} × ${item.qty_dibeli}</span>
             <button class="icon-btn" onclick="editHadiahItem('${h.id}',${idx})" ${!isLoggedIn ? 'disabled' : ''}>✎</button>
             <button class="icon-btn" onclick="hapusHadiahItem('${h.id}',${idx})" ${!isLoggedIn ? 'disabled' : ''}>🗑</button>
           </div>`;}).join('')}
@@ -2032,33 +1994,34 @@ function hitungTargetQtyItem(item, kebutuhan){
   if(kebutuhan==null) return null;
   return kebutuhan * Math.max(1, Number(item.qty_per_paket||1));
 }
-function sesuaikanKebutuhanHadiah(hadiahId){
-  if (!canEditSection('hadiah')) { toast('⛔ Login untuk mengedit data'); return; }
-  const h = db.hadiahKategori.find(x=>x.id===hadiahId);
-  if(!h){ toast('Paket tidak ditemukan'); return; }
-  const kebutuhan = hitungKebutuhanHadiah(h.kategori_peserta, h.juara_ke);
-  if(kebutuhan==null){ toast('Hadiah partisipasi tidak disesuaikan otomatis'); return; }
-  let diubah = 0; const detailItem = [];
-  h.items.forEach(item => { const target = hitungTargetQtyItem(item, kebutuhan); if(Number(item.qty_dibeli||0) < target){ item.qty_dibeli = target; diubah++; detailItem.push(`${item.nama} → ${target} pcs`); } });
-  if(diubah===0){ toast('Qty sudah sesuai kebutuhan'); return; }
-  saveDB(); renderContent(); renderTopbarSaldo();
-  toast(`⚡ ${diubah} item disesuaikan`);
-  notifyTelegram(`⚡ Qty hadiah disesuaikan otomatis`, `Paket: ${labelPeserta(h.kategori_peserta)} - ${labelJuara(h.juara_ke)}\nKebutuhan: ${kebutuhan} paket (${gLomba().filter(l=>l.kategori_peserta===h.kategori_peserta).length} lomba)\n${detailItem.join('\n')}`);
-}
-function sesuaikanSemuaKebutuhanHadiah(){
-  if (!canEditSection('hadiah')) { toast('⛔ Login untuk mengedit data'); return; }
+// Sinkronisasi otomatis: qty_dibeli tiap item paket hadiah (non-partisipasi) dinaikkan
+// mengikuti kebutuhan (jumlah lomba x qty_per_paket) SETIAP KALI lomba atau paket berubah.
+// Tidak pernah menurunkan otomatis, supaya buffer/qty manual yang sudah diisi user tidak hilang.
+function autoSyncHadiahStok(silent){
   let totalDiubah = 0; const detail = [];
   gHadiahKategori().forEach(h => {
     const kebutuhan = hitungKebutuhanHadiah(h.kategori_peserta, h.juara_ke);
-    if(kebutuhan==null) return;
+    if(kebutuhan==null) return; // partisipasi: tetap manual
     let diubah = 0; const detailItem = [];
     h.items.forEach(item => { const target = hitungTargetQtyItem(item, kebutuhan); if(Number(item.qty_dibeli||0) < target){ item.qty_dibeli = target; diubah++; detailItem.push(`${item.nama}→${target}`); } });
     if(diubah>0){ totalDiubah += diubah; detail.push(`${labelPeserta(h.kategori_peserta)} - ${labelJuara(h.juara_ke)}: ${detailItem.join(', ')}`); }
   });
+  if(totalDiubah>0){
+    saveDB();
+    if(!silent) toast(`⚡ Stok hadiah disinkronkan (${totalDiubah} item)`);
+    notifyTelegram(`⚡ Stok hadiah auto-sync`, detail.join('\n'));
+  }
+  return totalDiubah;
+}
+// Tombol manual "Sinkronkan Ulang" — jaring pengaman kalau ada data lama/impor yang belum sinkron.
+// Pada alur normal ini jarang diperlukan karena autoSyncHadiahStok() otomatis jalan
+// setiap kali lomba ditambah/diedit.
+function sesuaikanSemuaKebutuhanHadiah(){
+  if (!canEditSection('hadiah')) { toast('⛔ Login untuk mengedit data'); return; }
+  const totalDiubah = autoSyncHadiahStok(true);
   if(totalDiubah===0){ toast('Semua qty sudah sesuai kebutuhan'); return; }
-  saveDB(); renderContent(); renderTopbarSaldo();
+  renderContent(); renderTopbarSaldo();
   toast(`⚡ ${totalDiubah} item disesuaikan`);
-  notifyTelegram(`⚡ Qty hadiah disesuaikan otomatis (semua kategori)`, detail.join('\n'));
 }
 
 let openHadiahGroups = new Set();
@@ -2116,10 +2079,14 @@ function openHadiahModal(id){
   if (!canEditSection('hadiah')) { toast('⛔ Login untuk mengedit data'); return; }
   const editing = id ? db.hadiahKategori.find(h=>h.id===id) : null;
   const itemsHtml = editing ? editing.items.map((item, idx) => `<div class="item-fields-row" style="border-bottom:1px solid var(--garis);padding-bottom:10px;margin-bottom:10px;"><div class="field"><label>Nama</label><input type="text" id="edit-item-name-${idx}" value="${esc(item.nama)}" placeholder="Nama hadiah"></div><div class="field"><label>Harga</label><input type="text" id="edit-item-price-${idx}" class="currency-input" value="${formatCurrency(item.harga_satuan)}" placeholder="Harga"></div><div class="field"><label>Qty/paket</label><input type="number" id="edit-item-perpaket-${idx}" value="${item.qty_per_paket||1}" min="1" placeholder="Qty/paket" title="Berapa pcs per 1 paket juara"></div><button class="btn danger-text small" onclick="removeItemRow(${idx})">✕</button></div>`).join('') : '';
-  setModal(editing?'Edit Paket':'Tambah Paket', `<div class="field-row"><div class="field"><label>Kategori</label><select id="f-kp">${KATEGORI_PESERTA.map(k=>`<option value="${k.v}" ${editing&&editing.kategori_peserta===k.v?'selected':''}>${k.l}</option>`).join('')}</select></div><div class="field"><label>Juara</label><select id="f-juara">${JUARA_LIST.map(j=>`<option value="${j.v}" ${editing&&editing.juara_ke===j.v?'selected':''}>${j.l}</option>`).join('')}</select></div></div><div class="field"><label>Item Hadiah</label><div class="hint" style="margin-bottom:10px;">Isi "Qty/paket" saja (mis. 2 pulpen per paket). Total qty dihitung otomatis dari jumlah lomba dan bisa disesuaikan lagi lewat "⚡ Sesuaikan Otomatis" kalau ada lomba susulan.</div><div id="items-container">${itemsHtml}</div><button class="btn secondary small" onclick="addItemRow()" type="button">+ Tambah Item</button></div>`, [
+  setModal(editing?'Edit Paket':'Tambah Paket', `<div class="field-row"><div class="field"><label>Kategori</label><select id="f-kp">${KATEGORI_PESERTA.map(k=>`<option value="${k.v}" ${editing&&editing.kategori_peserta===k.v?'selected':''}>${k.l}</option>`).join('')}</select></div><div class="field"><label>Juara</label><select id="f-juara">${JUARA_LIST.map(j=>`<option value="${j.v}" ${editing&&editing.juara_ke===j.v?'selected':''}>${j.l}</option>`).join('')}</select></div></div><div class="field"><label>Item Hadiah</label><div class="hint" style="margin-bottom:10px;">Isi "Qty/paket" saja (mis. 2 pulpen per paket). Paket ini otomatis berlaku untuk SEMUA lomba dengan kategori & juara yang sama. Total qty yang harus dibeli otomatis dihitung dari jumlah lomba sekarang, dan otomatis naik lagi kalau kamu menambah lomba baru di kategori ini.</div><div id="items-container">${itemsHtml}</div><button class="btn secondary small" onclick="addItemRow()" type="button">+ Tambah Item</button></div>`, [
     {label:'Batal', cls:'secondary', onclick:closeModal},
     {label:editing?'Simpan':'Tambah', cls:'', onclick:()=>{
-      const kategori_peserta=document.getElementById('f-kp').value; const juara_ke=document.getElementById('f-juara').value; const kebutuhan=hitungKebutuhanHadiah(kategori_peserta, juara_ke); const existingItems=editing?(editing.items||[]):[]; const items=[]; const container=document.getElementById('items-container'); const rows=container.querySelectorAll('.item-fields-row'); rows.forEach((row,idx)=>{const nameInput=row.querySelector(`input[id^="edit-item-name-"]`); const priceInput=row.querySelector(`input[id^="edit-item-price-"]`); const perPaketInput=row.querySelector(`input[id^="edit-item-perpaket-"]`); if(nameInput&&priceInput){const nama=nameInput.value.trim(); const harga_satuan=getCurrencyValue(priceInput); const qty_per_paket=Math.max(1,Number((perPaketInput&&perPaketInput.value)||1)); if(!nama) return; const qty_dibeli = idx<existingItems.length ? Number(existingItems[idx].qty_dibeli||0) : (kebutuhan!=null ? kebutuhan*qty_per_paket : qty_per_paket); items.push({nama,harga_satuan,qty_dibeli,qty_terpakai:0,qty_per_paket});}}); if(items.length===0){toast('Minimal 1 item');return;}
+      const kategori_peserta=document.getElementById('f-kp').value; const juara_ke=document.getElementById('f-juara').value;
+      if(!editing && gHadiahKategori().some(h=>h.kategori_peserta===kategori_peserta && h.juara_ke===juara_ke)){
+        if(!confirm(`Paket untuk ${labelPeserta(kategori_peserta)} - ${labelJuara(juara_ke)} sudah ada. Satu kategori+juara idealnya cukup 1 paket (isinya bisa lebih dari 1 item). Tetap buat paket baru (terpisah)?`)) return;
+      }
+      const kebutuhan=hitungKebutuhanHadiah(kategori_peserta, juara_ke); const existingItems=editing?(editing.items||[]):[]; const items=[]; const container=document.getElementById('items-container'); const rows=container.querySelectorAll('.item-fields-row'); rows.forEach((row,idx)=>{const nameInput=row.querySelector(`input[id^="edit-item-name-"]`); const priceInput=row.querySelector(`input[id^="edit-item-price-"]`); const perPaketInput=row.querySelector(`input[id^="edit-item-perpaket-"]`); if(nameInput&&priceInput){const nama=nameInput.value.trim(); const harga_satuan=getCurrencyValue(priceInput); const qty_per_paket=Math.max(1,Number((perPaketInput&&perPaketInput.value)||1)); if(!nama) return; const qty_dibeli = idx<existingItems.length ? Number(existingItems[idx].qty_dibeli||0) : (kebutuhan!=null ? kebutuhan*qty_per_paket : qty_per_paket); items.push({nama,harga_satuan,qty_dibeli,qty_per_paket});}}); if(items.length===0){toast('Minimal 1 item');return;}
       let actionMsg = editing ? `✏️ Edit paket hadiah ${labelPeserta(kategori_peserta)} - ${labelJuara(juara_ke)}` : `➕ Paket hadiah baru ${labelPeserta(kategori_peserta)} - ${labelJuara(juara_ke)}`;
       if(editing){ items.forEach((newItem,idx)=>{if(idx<existingItems.length) newItem.qty_terpakai=existingItems[idx].qty_terpakai||0;}); Object.assign(editing,{kategori_peserta,juara_ke,items});}
       else{ db.hadiahKategori.push({id:uid(),event_id:eid(),kategori_peserta,juara_ke,items}); }
@@ -2140,22 +2107,22 @@ function addItemRow(){ const container=document.getElementById('items-container'
 function removeItemRow(element){ if(typeof element==='number'){const rows=document.querySelectorAll('#items-container .item-fields-row'); if(rows.length>1) rows[element].remove(); else toast('Minimal 1 item'); return;} const rows=document.querySelectorAll('#items-container .item-fields-row'); if(rows.length>1) element.remove(); else toast('Minimal 1 item'); }
 function editHadiahItem(hadiahId,itemIdx){ 
   if (!canEditSection('hadiah')) { toast('⛔ Login untuk mengedit data'); return; }
-  const h=db.hadiahKategori.find(x=>x.id===hadiahId); if(!h||!h.items[itemIdx]) return; const item=h.items[itemIdx]; const newNama=prompt('Nama:',item.nama); if(newNama===null) return; const newHarga=prompt('Harga:',item.harga_satuan); if(newHarga===null) return; const newPerPaket=prompt('Qty per paket (untuk ⚡ Sesuaikan Otomatis):',item.qty_per_paket||1); if(newPerPaket===null) return; const newQty=prompt('Qty total (dibeli):',item.qty_dibeli); if(newQty===null) return; if(!newNama.trim()||Number(newQty)<=0){toast('Nama & qty wajib');return;} if(Number(newQty)<(item.qty_terpakai||0)){toast('Qty tidak boleh kurang dari terpakai');return;} item.nama=newNama.trim(); item.harga_satuan=Number(newHarga)||0; item.qty_per_paket=Math.max(1,Number(newPerPaket)||1); item.qty_dibeli=Number(newQty)||0; saveDB(); renderContent(); toast('Diupdate'); 
+  const h=db.hadiahKategori.find(x=>x.id===hadiahId); if(!h||!h.items[itemIdx]) return; const item=h.items[itemIdx]; const newNama=prompt('Nama:',item.nama); if(newNama===null) return; const newHarga=prompt('Harga:',item.harga_satuan); if(newHarga===null) return; const newPerPaket=prompt('Qty per paket (dasar hitung kebutuhan otomatis):',item.qty_per_paket||1); if(newPerPaket===null) return; const newQty=prompt('Qty total (dibeli) — boleh diisi lebih untuk cadangan:',item.qty_dibeli); if(newQty===null) return; if(!newNama.trim()||Number(newQty)<0){toast('Nama & qty wajib');return;} item.nama=newNama.trim(); item.harga_satuan=Number(newHarga)||0; item.qty_per_paket=Math.max(1,Number(newPerPaket)||1); item.qty_dibeli=Number(newQty)||0; saveDB(); renderContent(); toast('Diupdate'); 
   notifyTelegram(`✏️ Edit item hadiah: ${item.nama}`, `Paket: ${labelPeserta(h.kategori_peserta)} - ${labelJuara(h.juara_ke)}\nHarga: ${fmtRp(item.harga_satuan)}\nQty: ${item.qty_dibeli}${item.qty_per_paket>1?` (${item.qty_per_paket}/paket)`:''}`);
 }
 function hapusHadiahItem(hadiahId,itemIdx){ 
   if (!canEditSection('hadiah')) { toast('⛔ Login untuk mengedit data'); return; }
-  const h=db.hadiahKategori.find(x=>x.id===hadiahId); if(!h||!h.items[itemIdx]) return; if(h.items[itemIdx].qty_terpakai>0){toast('Sudah terpakai');return;} const itemName = h.items[itemIdx].nama; if(!confirm(`Hapus "${itemName}"?`)) return; h.items.splice(itemIdx,1); if(h.items.length===0) db.hadiahKategori=db.hadiahKategori.filter(x=>x.id!==hadiahId); saveDB(); renderContent(); toast('Dihapus'); 
+  const h=db.hadiahKategori.find(x=>x.id===hadiahId); if(!h||!h.items[itemIdx]) return; const itemName = h.items[itemIdx].nama; if(!confirm(`Hapus "${itemName}"?`)) return; h.items.splice(itemIdx,1); if(h.items.length===0) db.hadiahKategori=db.hadiahKategori.filter(x=>x.id!==hadiahId); saveDB(); renderContent(); toast('Dihapus'); 
   notifyTelegram(`🗑️ Hapus item hadiah: ${itemName}`, `Paket: ${labelPeserta(h.kategori_peserta)} - ${labelJuara(h.juara_ke)}`);
 }
 function tambahItemHadiah(hadiahId, kebutuhan){ 
   if (!canEditSection('hadiah')) { toast('⛔ Login untuk mengedit data'); return; }
-  const h=db.hadiahKategori.find(x=>x.id===hadiahId); if(!h) return; const nama=document.getElementById(`add-item-name-${hadiahId}`).value.trim(); const harga=getCurrencyValue(document.getElementById(`add-item-price-${hadiahId}`)); const perPaketEl=document.getElementById(`add-item-perpaket-${hadiahId}`); const qtyPerPaket=Math.max(1,Number((perPaketEl&&perPaketEl.value)||1)); if(!nama){toast('Nama wajib diisi');return;} const qty = (kebutuhan!=null&&kebutuhan!=='null') ? Number(kebutuhan)*qtyPerPaket : qtyPerPaket; h.items.push({nama,harga_satuan:harga,qty_dibeli:qty,qty_terpakai:0,qty_per_paket:qtyPerPaket}); document.getElementById(`add-item-name-${hadiahId}`).value=''; document.getElementById(`add-item-price-${hadiahId}`).value=''; if(perPaketEl) perPaketEl.value='1'; saveDB(); renderContent(); toast('Item ditambahkan'); 
+  const h=db.hadiahKategori.find(x=>x.id===hadiahId); if(!h) return; const nama=document.getElementById(`add-item-name-${hadiahId}`).value.trim(); const harga=getCurrencyValue(document.getElementById(`add-item-price-${hadiahId}`)); const perPaketEl=document.getElementById(`add-item-perpaket-${hadiahId}`); const qtyPerPaket=Math.max(1,Number((perPaketEl&&perPaketEl.value)||1)); if(!nama){toast('Nama wajib diisi');return;} const qty = (kebutuhan!=null&&kebutuhan!=='null') ? Number(kebutuhan)*qtyPerPaket : qtyPerPaket; h.items.push({nama,harga_satuan:harga,qty_dibeli:qty,qty_per_paket:qtyPerPaket}); document.getElementById(`add-item-name-${hadiahId}`).value=''; document.getElementById(`add-item-price-${hadiahId}`).value=''; if(perPaketEl) perPaketEl.value='1'; saveDB(); renderContent(); toast('Item ditambahkan'); 
   notifyTelegram(`➕ Item hadiah baru: ${nama}`, `Paket: ${labelPeserta(h.kategori_peserta)} - ${labelJuara(h.juara_ke)}\nHarga: ${fmtRp(harga)}\nQty: ${qty}${qtyPerPaket>1?` (${qtyPerPaket}/paket)`:''}`);
 }
 function hapusHadiah(id){ 
   if (!canEditSection('hadiah')) { toast('⛔ Login untuk mengedit data'); return; }
-  const h=db.hadiahKategori.find(x=>x.id===id); if(!h) return; const totalTerpakai=h.items.reduce((s,item)=>s+Number(item.qty_terpakai||0),0); if(totalTerpakai>0){toast('Masih dipakai');return;} if(!confirm('Hapus paket?')) return; db.hadiahKategori=db.hadiahKategori.filter(x=>x.id!==id); saveDB(); renderContent(); renderTopbarSaldo(); 
+  const h=db.hadiahKategori.find(x=>x.id===id); if(!h) return; if(!confirm('Hapus paket?')) return; db.hadiahKategori=db.hadiahKategori.filter(x=>x.id!==id); saveDB(); renderContent(); renderTopbarSaldo(); 
   notifyTelegram(`🗑️ Hapus paket hadiah`, `Kategori: ${labelPeserta(h.kategori_peserta)}\nJuara: ${labelJuara(h.juara_ke)}`);
 }
 
@@ -2312,7 +2279,7 @@ function resetSemuaBelanjaHadiah(){
 }
 function editBelanjaHadiah(hadiahId,itemIndex){ 
   if (!canEditSection('belanja-hadiah')) { toast('⛔ Login untuk mengedit data'); return; }
-  const h=db.hadiahKategori.find(x=>x.id===hadiahId); if(!h||!h.items[itemIndex]) return; const item=h.items[itemIndex]; const newNama=prompt('Nama:',item.nama); if(newNama===null)return; const newHarga=prompt('Harga:',item.harga_satuan); if(newHarga===null)return; const newQty=prompt('Qty:',item.qty_dibeli); if(newQty===null)return; if(!newNama.trim()||Number(newQty)<=0){toast('Nama & qty wajib');return;} if(Number(newQty)<(item.qty_terpakai||0)){toast('Qty tidak boleh kurang dari terpakai');return;} item.nama=newNama.trim(); item.harga_satuan=Number(newHarga)||0; item.qty_dibeli=Number(newQty)||0; saveDB(); renderContent(); toast('Diupdate'); 
+  const h=db.hadiahKategori.find(x=>x.id===hadiahId); if(!h||!h.items[itemIndex]) return; const item=h.items[itemIndex]; const newNama=prompt('Nama:',item.nama); if(newNama===null)return; const newHarga=prompt('Harga:',item.harga_satuan); if(newHarga===null)return; const newQty=prompt('Qty:',item.qty_dibeli); if(newQty===null)return; if(!newNama.trim()||Number(newQty)<0){toast('Nama & qty wajib');return;} item.nama=newNama.trim(); item.harga_satuan=Number(newHarga)||0; item.qty_dibeli=Number(newQty)||0; saveDB(); renderContent(); toast('Diupdate'); 
   notifyTelegram(`✏️ Edit item belanja hadiah: ${item.nama}`, `Paket: ${labelPeserta(h.kategori_peserta)} - ${labelJuara(h.juara_ke)}\nHarga: ${fmtRp(item.harga_satuan)}\nQty: ${item.qty_dibeli}`);
 }
 

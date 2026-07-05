@@ -3101,9 +3101,9 @@ function renderLPJ(){
     </table>
 
     <h4>3.3 Hadiah Lomba</h4>
-    <table class="lpj-table lpj-detail">
-      <thead><tr><th>Kategori</th><th>Juara</th><th>Nama Barang</th><th>Qty</th><th class="num">Harga</th><th class="num">Subtotal</th></tr></thead>
-      <tbody>${hadiahRows.map(r=>`<tr><td>${esc(r.kategori)}</td><td>${esc(r.juara)}</td><td>${esc(r.nama)}</td><td>${r.qty}</td><td class="num">${fmtRp(r.harga)}</td><td class="num">${fmtRp(r.subtotal)}</td></tr>`).join('') || emptyRow(6,'Belum ada data hadiah lomba.')}</tbody>
+    <table class="lpj-table lpj-detail lpj-hadiah-table">
+      <thead><tr><th>Kategori</th><th>Juara</th><th>Nama Barang</th><th class="num">Qty</th><th class="num">Harga</th><th class="num">Subtotal</th></tr></thead>
+      <tbody>${hadiahRows.map(r=>`<tr><td>${esc(r.kategori)}</td><td>${esc(r.juara)}</td><td>${esc(r.nama)}</td><td class="num">${r.qty}</td><td class="num">${fmtRp(r.harga)}</td><td class="num">${fmtRp(r.subtotal)}</td></tr>`).join('') || emptyRow(6,'Belum ada data hadiah lomba.')}</tbody>
     </table>
 
     <h4>3.4 Hadiah Jalan Santai</h4>

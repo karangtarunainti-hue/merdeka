@@ -951,7 +951,14 @@
     .sidebar-backdrop.show{display:block;}
     .main{width:100%;}
     #content{padding:18px 12px 50px;}
-    .topbar{padding:14px 16px;}
+    .topbar{padding:14px 16px; flex-wrap:nowrap;}
+    .topbar .left{min-width:0; flex:1 1 auto; gap:8px;}
+    .topbar .left > div{min-width:0; overflow:hidden;}
+    .topbar h2{font-size:16px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+    .topbar .sub{font-size:10.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+    .saldo-chip{flex:0 0 auto; padding:5px 10px; gap:5px;}
+    .saldo-chip .lbl{font-size:9px;}
+    .saldo-chip .val{font-size:12.5px;}
     .field-row{grid-template-columns:1fr;}
     .item-fields-row{grid-template-columns:1fr; gap:8px;}
     .menu-toggle{display:inline-flex !important;}

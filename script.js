@@ -690,7 +690,7 @@ function renderSidebar(){
     btnLogin.style.display = 'none';
     btnLogout.style.display = 'inline-block';
   } else {
-    nameDisplay.textContent = 'Guest';
+    nameDisplay.textContent = 'Anggota';
     userIcon.textContent = '👤';
     btnLogin.style.display = 'inline-block';
     btnLogout.style.display = 'none';
@@ -711,8 +711,8 @@ function renderSidebar(){
       ${s.adminOnly && !isAdminUser ? `<span class="lock-icon">🔒</span>` : ''}
     </div>`).join('');
 
-  // Disable event creation for non-logged-in
-  document.getElementById('btn-new-event').disabled = !isLoggedIn;
+  // Buat event baru: khusus Administrator
+  document.getElementById('btn-new-event').style.display = isAdminUser ? 'inline-block' : 'none';
 }
 
 function goSection(key){

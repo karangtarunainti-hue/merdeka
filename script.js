@@ -3044,15 +3044,9 @@ function renderLPJ(){
   const emptyRow = (n,text)=>`<tr class="empty-row"><td colspan="${n}">${text}</td></tr>`;
 
   return `
-  ${isLoggedIn ? `
-  <div class="lpj-toolbar no-print">
-    <button class="btn" onclick="window.print()">🖨️ Cetak / Simpan sebagai PDF</button>
-    <div class="hint" style="margin-top:8px;">Tips: pada dialog cetak, pilih tujuan "Save as PDF" untuk menyimpan sebagai file PDF.</div>
-  </div>` : ''}
-
   <div class="lpj-print-area">
     <div class="lpj-header">
-      <div class="lpj-eyebrow">Karang Taruna Taruna Inti</div>
+      <div class="lpj-eyebrow">Karang Taruna Inti</div>
       <h2>LAPORAN PERTANGGUNGJAWABAN (LPJ)</h2>
       <div class="lpj-sub">Kegiatan: ${esc(ev.nama)} — Tahun ${esc(String(ev.tahun))}</div>
       <div class="lpj-meta">Dicetak: ${fmtDate(todayISO())}</div>
@@ -3120,20 +3114,12 @@ function renderLPJ(){
 
     <h3>4. Penutup</h3>
     <p class="lpj-penutup">Demikian Laporan Pertanggungjawaban kegiatan <strong>${esc(ev.nama)}</strong> ini kami susun berdasarkan data yang tercatat pada sistem, untuk dipergunakan sebagaimana mestinya.</p>
+  </div>
 
-    <div class="lpj-signature">
-      <div class="sign-block">
-        <div class="sign-label">Mengetahui,<br>Ketua Karang Taruna</div>
-        <div class="sign-space"></div>
-        <div class="sign-name">( .......................... )</div>
-      </div>
-      <div class="sign-block">
-        <div class="sign-label">Bendahara</div>
-        <div class="sign-space"></div>
-        <div class="sign-name">( .......................... )</div>
-      </div>
-    </div>
-  </div>`;
+  ${isLoggedIn ? `
+  <div class="lpj-toolbar no-print">
+    <button class="btn" onclick="window.print()">🖨️ Cetak / Simpan sebagai PDF</button>
+  </div>` : ''}`;
 }
 
 

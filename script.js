@@ -1810,7 +1810,7 @@ function renderHadiahLombaBlock(lomba){
   const rows = JUARA_LIST.map(j=>{
     const opsi = gHadiahKategori().filter(h=> h.kategori_peserta===lomba.kategori_peserta && h.juara_ke===j.v);
     const isiPaket = opsi.length
-      ? opsi.flatMap(h=>h.items.map(item=>`${esc(item.nama)} ×${item.qty_per_paket||1}`)).join(', ')
+      ? opsi.flatMap(h=>h.items.map(item=>`${esc(item.nama)} ${item.qty_per_paket||1} pcs`)).join(', ')
       : `<span class="hint">Belum ada paket</span>`;
     return `<div class="juara-row"><div class="juara-tag">${j.l}</div><div style="flex:1;padding:6px 0;">${isiPaket}</div></div>`;
   }).join('');

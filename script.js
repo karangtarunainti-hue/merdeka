@@ -2049,18 +2049,18 @@ function openHadiahBudgetModal(){
   const bodyHtml = KATEGORI_PESERTA.map(kp => {
     const budgetKp = s.hadiahBudget[kp.v] || {};
     const inputs = JUARA_LIST.map(j => `
-      <div class="field" style="min-width:130px;">
+      <div class="field">
         <label>${j.l}</label>
-        <input type="text" id="budget-${kp.v}-${j.v}" class="currency-input" value="${formatCurrency(budgetKp[j.v]||0)}">
+        <input type="text" id="budget-${kp.v}-${j.v}" class="currency-input" placeholder="Rp 0" value="${formatCurrency(budgetKp[j.v]||0)}">
       </div>`).join('');
-    return `<div style="margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--garis);">
-      <div style="font-weight:700;margin-bottom:8px;">${kp.l}</div>
-      <div class="field-row" style="flex-wrap:wrap;">${inputs}</div>
+    return `<div style="margin-bottom:14px;padding:14px 16px;border-radius:10px;background:var(--cream);border:1px solid var(--garis);">
+      <div style="font-weight:700;margin-bottom:10px;">${kp.l}</div>
+      <div class="field-row" style="grid-template-columns:1fr 1fr;">${inputs}</div>
     </div>`;
   }).join('');
   setModal('Atur Budget Hadiah per Kategori', `
     <div class="hint" style="margin-bottom:12px;">Tentukan target budget hadiah untuk setiap kombinasi Kategori Peserta &amp; Juara. Contoh: Lomba Anak - Juara 1 Rp100.000, Juara 2 Rp75.000, Juara 3 Rp50.000, dst. Angka ini dipakai sebagai acuan (bukan pengurang saldo) dan dibandingkan dengan total belanja hadiah aktual per paket.</div>
-    <div style="max-height:60vh;overflow-y:auto;">${bodyHtml}</div>
+    <div style="max-height:60vh;overflow-y:auto;padding-right:4px;">${bodyHtml}</div>
   `, [
     {label:'Batal', cls:'secondary', onclick:closeModal},
     {label:'Simpan Budget', cls:'', onclick:()=>simpanHadiahBudget()}

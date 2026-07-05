@@ -488,6 +488,17 @@
   table.general-table th:nth-child(4), table.general-table td:nth-child(4) { width:15%; }
   table.general-table th:nth-child(5), table.general-table td:nth-child(5) { width:15%; }
 
+  /* Jadwal & Reminder punya 6 kolom (bukan 5 seperti general-table biasa),
+     jadi lebarnya didefinisikan ulang supaya totalnya pas 100% dan kolom
+     Aksi tidak terdesak/terpotong di layar desktop. */
+  table.jadwal-table th:nth-child(1), table.jadwal-table td:nth-child(1) { width:11%; }
+  table.jadwal-table th:nth-child(2), table.jadwal-table td:nth-child(2) { width:13%; }
+  table.jadwal-table th:nth-child(3), table.jadwal-table td:nth-child(3) { width:13%; }
+  table.jadwal-table th:nth-child(4), table.jadwal-table td:nth-child(4) { width:19%; }
+  table.jadwal-table th:nth-child(5), table.jadwal-table td:nth-child(5) { width:24%; }
+  table.jadwal-table th:nth-child(6), table.jadwal-table td:nth-child(6) { width:20%; }
+  table.jadwal-table td:nth-child(4), table.jadwal-table td:nth-child(5) { white-space:normal; word-break:break-word; }
+
   table.users-table { table-layout:fixed; }
   table.users-table th:nth-child(1), table.users-table td:nth-child(1) { width:16%; }
   table.users-table th:nth-child(2), table.users-table td:nth-child(2) { width:10%; }

@@ -4621,13 +4621,45 @@ function gudangValidateAndConfirmPinjam(){
   }
 
   const pending = {nama, alamat, wa, tglPinjam, tglKembali, finalItems};
-  const lines = [
-    ['Nama', esc(nama)], ['Alamat', esc(alamat)], ['Pencatat', esc(wa)],
-    ['Tgl Pinjam', fmtGudangTanggal(tglPinjam)], ['Rencana Kembali', fmtGudangTanggal(tglKembali)],
-    ...finalItems.map(it=>['Barang', `${it.qty}× ${esc(it.nama)} (${esc(it.gudang)})`]),
+  const nomorNota = 'NP-' + Date.now().toString().slice(-6);
+  const infoItems = [
+    ['Nama Peminjam', esc(nama)],
+    ['Alamat / RT RW', esc(alamat)],
+    ['Pencatat', esc(wa)],
+    ['Tanggal Pinjam', fmtGudangTanggal(tglPinjam)],
+    ['Rencana Kembali', fmtGudangTanggal(tglKembali)],
   ];
-  const body = `<p style="font-size:12.5px; color:var(--ink-soft); margin:0 0 14px;">Setelah dikirim, stok barang langsung berkurang dan data tersimpan di server. Periksa nama barang &amp; jumlah dengan teliti.</p>
-    ${lines.map(([k,v])=>`<div class="filter-row" style="margin-bottom:4px;"><b style="min-width:120px;">${k}</b><span>${v}</span></div>`).join('')}`;
+  const itemRows = finalItems.map((it,i)=>`<tr>
+    <td>${i+1}</td>
+    <td>${esc(it.nama)}</td>
+    <td>${esc(it.gudang)}</td>
+    <td class="num">${it.qty}</td>
+  </tr>`).join('');
+  const body = `
+    <div class="nota-sheet">
+      <div class="nota-header">
+        <img src="icons/logo-kop.png" alt="Logo Karang Taruna Inti" class="nota-logo">
+        <div class="nota-header-text">
+          <div class="nota-org">Karang Taruna Inti</div>
+          <div class="nota-org-sub">Bagian Gudang &amp; Inventaris</div>
+        </div>
+        <div class="nota-title-wrap">
+          <div class="nota-title">Nota Pengajuan Pinjam</div>
+          <div class="nota-no">No. ${nomorNota} · ${fmtGudangTanggal(todayISO())}</div>
+        </div>
+      </div>
+      <div class="nota-body">
+        <div class="nota-info-grid">
+          ${infoItems.map(([l,v])=>`<div class="nota-info-item"><span class="l">${l}</span><span class="v">${v}</span></div>`).join('')}
+        </div>
+        <div class="nota-section-label">Rincian Barang</div>
+        <table class="nota-table">
+          <thead><tr><th style="width:26px;">No</th><th>Nama Barang</th><th>Gudang</th><th class="num">Qty</th></tr></thead>
+          <tbody>${itemRows}</tbody>
+        </table>
+      </div>
+      <div class="nota-footer">⚠️ <span>Setelah dikirim, stok barang langsung berkurang dan data tersimpan di server. Periksa nama barang &amp; jumlah dengan teliti sebelum melanjutkan.</span></div>
+    </div>`;
   setModal('Periksa Sebelum Mengirim', body, [
     {label:'Periksa Lagi', cls:'secondary', onclick: renderGudangPinjamModalBody},
     {label:'Ya, Sudah Benar — Kirim', onclick: ()=>gudangSubmitPinjam(pending)},

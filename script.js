@@ -1349,7 +1349,7 @@ function generateReminders(){
           ${r.items.map(item => `
             <div class="item">
               <span class="label">${item.label}</span>
-              <span class="value ${item.valueClass || ''}">${item.value}</span>
+              <span class="value ${item.valueClass || ''}">${esc(item.value)}</span>
             </div>
           `).join('')}
         </div>

@@ -37,6 +37,11 @@
   }
   *{box-sizing:border-box;}
   html,body{height:100%; overflow-x:hidden; max-width:100%;}
+  /* Sembunyikan scrollbar bawaan browser di semua elemen, konten tetap bisa discroll */
+  html{scrollbar-width:none; -ms-overflow-style:none;}
+  html::-webkit-scrollbar{display:none; width:0; height:0;}
+  *{scrollbar-width:none; -ms-overflow-style:none;}
+  *::-webkit-scrollbar{display:none; width:0; height:0;}
   body{
     margin:0;
     font-family:'Inter',system-ui,sans-serif;

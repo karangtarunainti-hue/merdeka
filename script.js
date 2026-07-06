@@ -4549,6 +4549,37 @@ function gudangComboPositionPanel(trigger, panel){
   const maxLeft = vw - rect.width - 8;
   if(parseFloat(panel.style.left) > maxLeft) panel.style.left = Math.max(8, maxLeft) + 'px';
 }
+function gudangRTComboPanelHtml(selectedValue){
+  const optionsHtml = GUDANG_PINJAM_RT_LIST.map(r=>{
+    const selected = r.v === selectedValue;
+    return `<button type="button" class="combo-option${selected?' selected':''}" onclick="selectGudangRT('${r.v}')">
+      <span class="combo-option-main"><span class="combo-option-name">${esc(r.l)}</span></span>
+      <span class="combo-option-side">${selected ? gudangComboIconCheck() : ''}</span>
+    </button>`;
+  }).join('');
+  return `<div class="combo-list" data-combo-list>${optionsHtml}</div>`;
+}
+function toggleGudangRTCombo(){
+  const trigger = document.getElementById('gp-rt-trigger');
+  if(!trigger) return;
+  if(_gudangComboOpenIdx === 'rt'){ closeAllGudangCombos(); return; }
+  closeAllGudangCombos();
+  const panel = document.createElement('div');
+  panel.className = 'combo-panel combo-panel-floating';
+  panel.id = 'gudang-combo-floating';
+  panel.innerHTML = gudangRTComboPanelHtml(_gudangPinjamHeader.rt);
+  document.body.appendChild(panel);
+  gudangComboPositionPanel(trigger, panel);
+  requestAnimationFrame(()=>panel.classList.add('show'));
+  trigger.classList.add('open');
+  _gudangComboOpenIdx = 'rt';
+  _gudangComboPanelEl = panel;
+}
+function selectGudangRT(v){
+  _gudangPinjamHeader.rt = v;
+  closeAllGudangCombos();
+  renderGudangPinjamModalBody();
+}
 function toggleGudangCombo(idx){
   const trigger = document.getElementById(`gp-combo-trigger-${idx}`);
   if(!trigger) return;
@@ -4617,13 +4648,17 @@ function renderGudangPinjamModalBody(){
 
   const rtValue = _gudangPinjamHeader.rt;
   const isLainnya = rtValue === 'lainnya';
-  const rtOptions = `<option value="">-- Pilih RT --</option>${GUDANG_PINJAM_RT_LIST.map(r=>`<option value="${r.v}" ${rtValue===r.v?'selected':''}>${r.l}</option>`).join('')}`;
+  const rtSelected = GUDANG_PINJAM_RT_LIST.find(r=>r.v===rtValue);
   const body = `
     <div class="field"><label>Nama Peminjam</label><input type="text" id="gp-nama" placeholder="Nama lengkap peminjam" value="${esc(_gudangPinjamHeader.nama)}" oninput="_gudangPinjamHeader.nama=this.value"></div>
-    <div class="field"><label>RT</label>
-      <select id="gp-rt" onchange="_gudangPinjamHeader.rt=this.value; renderGudangPinjamModalBody();">${rtOptions}</select>
+    <div class="field combo" style="margin-bottom:0; position:relative;">
+      <label>RT</label>
+      <button type="button" id="gp-rt-trigger" class="combo-trigger${rtSelected?'':' placeholder'}" onclick="toggleGudangRTCombo()">
+        <span class="combo-trigger-label">${rtSelected ? esc(rtSelected.l) : '-- Pilih RT --'}</span>
+        ${gudangComboIconChevron()}
+      </button>
     </div>
-    ${isLainnya ? `<div class="field"><label>Alamat Lengkap <span class="combo-hint">— untuk peminjam luar desa</span></label><input type="text" id="gp-alamat-custom" placeholder="Contoh: Ds. Sukamaju, Kec. ..." value="${esc(_gudangPinjamHeader.alamatCustom)}" oninput="_gudangPinjamHeader.alamatCustom=this.value"></div>` : ''}
+    ${isLainnya ? `<div class="field" style="margin-top:14px;"><label>Alamat Lengkap <span class="combo-hint">— untuk peminjam luar desa</span></label><input type="text" id="gp-alamat-custom" placeholder="Contoh: Ds. Sukamaju, Kec. ..." value="${esc(_gudangPinjamHeader.alamatCustom)}" oninput="_gudangPinjamHeader.alamatCustom=this.value"></div>` : `<div style="margin-bottom:14px;"></div>`}
     <div class="field"><label>Nama Pencatat</label><input type="text" id="gp-pencatat" placeholder="Nama petugas pencatat" value="${esc(_gudangPinjamHeader.pencatat)}" oninput="_gudangPinjamHeader.pencatat=this.value"></div>
     <div class="filter-row">
       <div class="field" style="flex:1;"><label>Tanggal Pinjam</label><input type="date" id="gp-tgl-pinjam" value="${esc(_gudangPinjamHeader.tglPinjam)}" oninput="_gudangPinjamHeader.tglPinjam=this.value"></div>
@@ -4655,7 +4690,7 @@ function gudangPinjamRemoveRow(idx){
 
 function gudangValidateAndConfirmPinjam(){
   const nama = document.getElementById('gp-nama').value.trim();
-  const rt = document.getElementById('gp-rt').value;
+  const rt = _gudangPinjamHeader.rt;
   if(!rt){ toast('⛔ Pilih RT peminjam.'); return; }
   const rtLabel = (GUDANG_PINJAM_RT_LIST.find(r=>r.v===rt)||{}).l || rt;
   const alamat = rt==='lainnya' ? (document.getElementById('gp-alamat-custom').value.trim()) : rtLabel;

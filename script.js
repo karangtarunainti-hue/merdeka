@@ -1109,6 +1109,7 @@ function toggleBukuCard(key){
 }
 function bukuCardHtml(item){
   const isOpen = openBukuCards.has(item.key);
+  const guestBlocked = !getCurrentUser() && !isGuestVisible(item.key);
   return `<div class="stat-card buku-card ${isOpen?'open':''}" onclick="toggleBukuCard('${item.key}')" style="cursor:pointer;">
     <div class="lbl" style="display:flex;justify-content:space-between;align-items:center;gap:6px;">
       <span>${item.label}</span><span style="font-size:10px;color:var(--ink-soft);">${isOpen?'▲':'▼'}</span>
@@ -1116,7 +1117,9 @@ function bukuCardHtml(item){
     <div class="val">${fmtRp(item.value)}</div>
     ${isOpen ? `<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--garis);font-size:12.5px;color:var(--ink-soft);" onclick="event.stopPropagation();">
       <div style="margin-bottom:8px;">${item.info}</div>
-      <button class="btn secondary small" onclick="goSection('${item.key}')">Lihat Selengkapnya →</button>
+      ${guestBlocked
+        ? `<button class="btn secondary small" disabled title="Hanya bisa dilihat setelah login">🔒 Lihat Selengkapnya</button>`
+        : `<button class="btn secondary small" onclick="goSection('${item.key}')">Lihat Selengkapnya →</button>`}
     </div>` : ''}
   </div>`;
 }
@@ -1352,7 +1355,9 @@ function generateReminders(){
         </div>
         ${r.action ? `
         <div class="card-footer">
-          <button class="btn ${r.type === 'danger' ? 'danger' : r.type === 'warning' ? 'orange' : r.type === 'success' ? 'success' : 'secondary'} small" onclick="goSection('${r.action.link}')">${r.action.label}</button>
+          ${(!getCurrentUser() && !isGuestVisible(r.action.link))
+            ? `<button class="btn secondary small" disabled title="Hanya bisa dilihat setelah login">🔒 ${r.action.label.replace(/\s*→\s*$/, '')}</button>`
+            : `<button class="btn ${r.type === 'danger' ? 'danger' : r.type === 'warning' ? 'orange' : r.type === 'success' ? 'success' : 'secondary'} small" onclick="goSection('${r.action.link}')">${r.action.label}</button>`}
         </div>` : ''}
       </div>
     `).join('')}

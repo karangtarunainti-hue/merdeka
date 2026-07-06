@@ -1,7 +1,10 @@
   :root{
-    --merah:#A32638;
-    --merah-dark:#7A1D2B;
-    --merah-tint:#F4E3E1;
+    --merah:#2F7D5A;
+    --merah-dark:#1D4B36;
+    --merah-tint:#E1EFE7;
+    --bahaya:#A32638;
+    --bahaya-dark:#7A1D2B;
+    --bahaya-tint:#F4E3E1;
     --cream:#FBF6EE;
     --cream-card:#FFFDF8;
     --ink:#2B2320;
@@ -50,11 +53,11 @@
     -webkit-font-smoothing:antialiased;
   }
   h1,h2,h3,.display{
-    font-family:'Source Serif 4',Georgia,serif;
+    font-family:'Sora',sans-serif;
     font-weight:600;
     letter-spacing:-0.01em;
   }
-  .mono{font-family:'Roboto Mono',monospace; font-variant-numeric:tabular-nums;}
+  .mono{font-family:'JetBrains Mono',monospace; font-variant-numeric:tabular-nums;}
   button{font-family:inherit; cursor:pointer;}
   input,select,textarea{font-family:inherit; font-size:14px;}
   a{color:inherit;}
@@ -204,9 +207,9 @@
     display:flex; align-items:center; gap:10px; background:var(--hijau-tint);
     padding:8px 16px; border-radius:30px; border:1px solid #cfe0d3;
   }
-  .saldo-chip.negatif{background:var(--merah-tint); border-color:#e3c3c1;}
+  .saldo-chip.negatif{background:var(--bahaya-tint); border-color:#e3c3c1;}
   .saldo-chip .lbl{font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-soft);}
-  .saldo-chip .val{font-size:16px; font-weight:700; font-family:'Roboto Mono',monospace;}
+  .saldo-chip .val{font-size:16px; font-weight:700; font-family:'JetBrains Mono',monospace;}
 
   #content {
     padding: 26px 32px 60px;
@@ -344,7 +347,7 @@
   .stat-card .lbl{font-size:11.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-soft); margin-bottom:6px;}
   .stat-card .val{
     font-size:clamp(15px, 4.2vw, 21px);
-    font-weight:600; font-family:'Roboto Mono',monospace;
+    font-weight:600; font-family:'JetBrains Mono',monospace;
     overflow-wrap:anywhere; word-break:break-word; white-space:normal; line-height:1.25;
   }
   .stat-card.buku-card{transition:border-color .15s, box-shadow .15s;}
@@ -360,15 +363,15 @@
   .kategori-card .kc-title{font-weight:700; font-size:14px;}
   .kategori-card .kc-stats{display:flex; gap:18px;}
   .kategori-card .kc-stat{display:flex; flex-direction:column; gap:2px;}
-  .kategori-card .kc-stat .n{font-family:'Roboto Mono',monospace; font-weight:600; font-size:16px; line-height:1;}
+  .kategori-card .kc-stat .n{font-family:'JetBrains Mono',monospace; font-weight:600; font-size:16px; line-height:1;}
   .kategori-card .kc-stat .l{font-size:10px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-soft);}
   .kategori-card .kc-stat.lunas .n{color:var(--hijau);}
-  .kategori-card .kc-stat.belum .n{color:var(--merah);}
+  .kategori-card .kc-stat.belum .n{color:var(--bahaya);}
   .kategori-card .kc-progress{display:flex; flex-direction:column; gap:5px; margin-top:auto;}
   .kategori-card .kc-progress-bar{height:6px; border-radius:4px; background:var(--garis); overflow:hidden;}
   .kategori-card .kc-progress-fill{height:100%; background:var(--hijau); border-radius:4px;}
   .kategori-card .kc-money{display:flex; justify-content:space-between; align-items:baseline; font-size:11.5px; color:var(--ink-soft);}
-  .kategori-card .kc-money b{font-family:'Roboto Mono',monospace; font-size:12.5px; color:var(--ink); font-weight:600;}
+  .kategori-card .kc-money b{font-family:'JetBrains Mono',monospace; font-size:12.5px; color:var(--ink); font-weight:600;}
 
   .panel{
     background:var(--cream-card); border:1px solid var(--garis); border-radius:var(--radius);
@@ -400,9 +403,9 @@
   .btn.orange:hover{background:#b06d30;}
   .btn.pink{background:var(--pink); color:#fff;}
   .btn.pink:hover{background:#b03d68;}
-  .btn.danger{background:var(--merah); color:#fff;}
-  .btn.danger:hover{background:var(--merah-dark);}
-  .btn.danger-text{background:transparent; color:var(--merah); border:none; padding:4px 6px; font-size:12px; font-weight:600;}
+  .btn.danger{background:var(--bahaya); color:#fff;}
+  .btn.danger:hover{background:var(--bahaya-dark);}
+  .btn.danger-text{background:transparent; color:var(--bahaya); border:none; padding:4px 6px; font-size:12px; font-weight:600;}
   .btn.danger-text:hover{text-decoration:underline;}
   .btn.telegram{background:var(--telegram); color:#fff;}
   .btn.telegram:hover{background:#006699;}
@@ -444,11 +447,11 @@
   tbody td{padding:11px 18px; border-bottom:1px solid var(--garis); vertical-align:middle;}
   tbody tr:last-child td{border-bottom:none;}
   tbody tr:hover{background:var(--row-hover);}
-  tbody tr.belum-bayar{background:var(--merah-tint);}
+  tbody tr.belum-bayar{background:var(--bahaya-tint);}
   tbody tr.belum-bayar:hover{background:var(--row-hover-belum);}
   tbody tr.dibeli{background:var(--hijau-tint); opacity:.8;}
   tbody tr.dibeli:hover{background:var(--row-hover-dibeli);}
-  td.num, th.num{text-align:right; font-family:'Roboto Mono',monospace;}
+  td.num, th.num{text-align:right; font-family:'JetBrains Mono',monospace;}
   td.center, th.center{text-align:center;}
   .empty-row td{text-align:center; color:var(--abu); padding:28px; font-style:italic;}
   tfoot td{padding:11px 18px; font-weight:700; border-top:2px solid var(--ink); background:var(--table-head);}
@@ -518,13 +521,13 @@
 
   .badge{display:inline-block; padding:3px 10px; border-radius:20px; font-size:11.5px; font-weight:600;}
   .badge.lunas{background:var(--hijau-tint); color:var(--hijau); border:1px solid #bfd8c6;}
-  .badge.belum{background:var(--merah-tint); color:var(--merah); border:1px solid #e3c3c1;}
+  .badge.belum{background:var(--bahaya-tint); color:var(--bahaya); border:1px solid #e3c3c1;}
   .badge.dibeli{background:var(--biru-tint); color:var(--biru); border:1px solid #bfd0e0;}
   .badge.perlengkapan{background:var(--orange-tint); color:var(--orange); border:1px solid #e3d4bf;}
   .badge.khusus{background:var(--ungu-tint); color:var(--ungu); border:1px solid #d4c4dd;}
   .badge.jalan-santai{background:var(--pink-tint); color:var(--pink); border:1px solid #e8c8d4;}
   .badge.stok-menipis{background:var(--orange-tint); color:var(--orange); border:1px solid #e3d4bf;}
-  .badge.stok-habis{background:var(--merah-tint); color:var(--merah); border:1px solid #e3c3c1;}
+  .badge.stok-habis{background:var(--bahaya-tint); color:var(--bahaya); border:1px solid #e3c3c1;}
   .badge.readonly{background:var(--abu); color:#fff; border:1px solid var(--readonly-border);}
   
   .field{margin-bottom:14px;}
@@ -585,7 +588,7 @@
   .combo-option-main{display:flex; flex-direction:column; gap:1px; min-width:0;}
   .combo-option-name{font-size:13.5px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
   .combo-option-side{display:flex; align-items:center; gap:8px; flex:none;}
-  .combo-option-sisa{font-size:11.5px; color:var(--ink-soft); font-family:'Roboto Mono',monospace;}
+  .combo-option-sisa{font-size:11.5px; color:var(--ink-soft); font-family:'JetBrains Mono',monospace;}
   .combo-check{color:var(--gold); flex:none;}
   .combo-empty{padding:18px 10px; text-align:center; font-size:12.5px; color:var(--ink-soft);}
   .combo-hint{font-weight:400; text-transform:none; letter-spacing:0; color:var(--abu); font-size:11.5px;}
@@ -594,7 +597,7 @@
   /* Style untuk input angka dengan format ribuan */
   .currency-input {
     text-align: right;
-    font-family: 'Roboto Mono', monospace;
+    font-family: 'JetBrains Mono', monospace;
     font-size: 14px;
     letter-spacing: 0.5px;
   }
@@ -636,7 +639,7 @@
   .nota-org-sub{font-size:10.5px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.06em; margin-top:1px;}
   .nota-title-wrap{text-align:right; flex-shrink:0;}
   .nota-title{font-size:12.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--ink);}
-  .nota-no{font-size:10.5px; color:var(--ink-soft); font-family:'Roboto Mono',monospace; margin-top:2px;}
+  .nota-no{font-size:10.5px; color:var(--ink-soft); font-family:'JetBrains Mono',monospace; margin-top:2px;}
   .nota-body{padding:16px 18px 4px;}
   .nota-info-grid{
     display:grid; grid-template-columns:1fr 1fr; gap:6px 18px; margin-bottom:6px;
@@ -792,7 +795,7 @@
     background:var(--hijau-tint, #d7f4e2); color:var(--hijau, #2f9e5b);
   }
   .belanja-item .harga{
-    font-family:'Roboto Mono',monospace;
+    font-family:'JetBrains Mono',monospace;
     font-weight:600;
     font-size:14px;
     white-space:nowrap;
@@ -828,7 +831,7 @@
   }
   .consol-qty{color:var(--ink-soft);}
   .consol-harga{
-    font-family:'Roboto Mono',monospace;
+    font-family:'JetBrains Mono',monospace;
     font-weight:700; font-size:13.5px;
   }
   .consol-status{
@@ -852,8 +855,8 @@
     cursor:pointer;
   }
   .belanja-item .btn-small-icon:hover{
-    background:var(--merah-tint);
-    color:var(--merah);
+    background:var(--bahaya-tint);
+    color:var(--bahaya);
   }
   .belanja-item .btn-small-icon:disabled{
     opacity:.3;
@@ -905,7 +908,7 @@
     font-weight:600; font-size:13.5px;
   }
   .hadiah-group-header .total{
-    font-family:'Roboto Mono',monospace;
+    font-family:'JetBrains Mono',monospace;
     font-size:13px;
   }
   .hadiah-group-body{
@@ -919,7 +922,7 @@
   .hadiah-item-row:last-child{border-bottom:none;}
   .hadiah-item-row .item-name{flex:1; font-size:13px;}
   .hadiah-item-row .item-qty{font-size:12px; color:var(--ink-soft);}
-  .hadiah-item-row .item-price{font-family:'Roboto Mono',monospace; font-size:13px; font-weight:600;}
+  .hadiah-item-row .item-price{font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:600;}
 
   .add-item-row{
     display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;
@@ -936,7 +939,7 @@
   .hadiah-jalan-item .info{flex:1;}
   .hadiah-jalan-item .info .nama{font-weight:600; font-size:13px;}
   .hadiah-jalan-item .info .detail{font-size:11px; color:var(--ink-soft);}
-  .hadiah-jalan-item .harga{font-family:'Roboto Mono',monospace; font-weight:600; font-size:13px;}
+  .hadiah-jalan-item .harga{font-family:'JetBrains Mono',monospace; font-weight:600; font-size:13px;}
 
   .search-box{display:flex; gap:8px; align-items:center;}
   .search-box input{flex:1; min-width:200px; padding:8px 12px; border:1px solid var(--garis); border-radius:8px; background:var(--surface);}
@@ -958,7 +961,7 @@
     transition:all .2s ease;
   }
   .reminder-card:hover{box-shadow:0 4px 16px rgba(0,0,0,.08);}
-  .reminder-card.danger{border-top-color:var(--merah);}
+  .reminder-card.danger{border-top-color:var(--bahaya);}
   .reminder-card.warning{border-top-color:var(--orange);}
   .reminder-card.success{border-top-color:var(--hijau);}
   .reminder-card.info{border-top-color:var(--biru);}
@@ -977,7 +980,7 @@
     background:var(--gold-tint);
     flex-shrink:0;
   }
-  .reminder-card.danger .card-header .icon{background:var(--merah-tint);}
+  .reminder-card.danger .card-header .icon{background:var(--bahaya-tint);}
   .reminder-card.warning .card-header .icon{background:var(--orange-tint);}
   .reminder-card.success .card-header .icon{background:var(--hijau-tint);}
   .reminder-card.info .card-header .icon{background:var(--biru-tint);}
@@ -989,12 +992,12 @@
   }
   .reminder-card .card-header .count{
     margin-left:auto;
-    font-family:'Roboto Mono',monospace;
+    font-family:'JetBrains Mono',monospace;
     font-weight:700;
     font-size:18px;
-    color:var(--merah);
+    color:var(--bahaya);
   }
-  .reminder-card.danger .card-header .count{color:var(--merah);}
+  .reminder-card.danger .card-header .count{color:var(--bahaya);}
   .reminder-card.warning .card-header .count{color:var(--orange);}
   .reminder-card.success .card-header .count{color:var(--hijau);}
   .reminder-card.info .card-header .count{color:var(--biru);}
@@ -1017,7 +1020,7 @@
   .reminder-card .card-body .item:last-child{border-bottom:none;}
   .reminder-card .card-body .item .label{flex:1 1 auto; min-width:70px;}
   .reminder-card .card-body .item .value{
-    font-family:'Roboto Mono',monospace;
+    font-family:'JetBrains Mono',monospace;
     font-size:12px;
     font-weight:600;
     text-align:right;
@@ -1025,7 +1028,7 @@
     word-break:break-word;
     max-width:100%;
   }
-  .reminder-card .card-body .item .value.danger{color:var(--merah);}
+  .reminder-card .card-body .item .value.danger{color:var(--bahaya);}
   .reminder-card .card-body .item .value.warning{color:var(--orange);}
   .reminder-card .card-body .item .value.success{color:var(--hijau);}
   
@@ -1209,7 +1212,7 @@
 table.lpj-table{width:100%; border-collapse:collapse; font-size:13.5px; margin-bottom:6px;}
 table.lpj-table td, table.lpj-table th{padding:7px 8px; border-bottom:1px dashed var(--garis); text-align:left;}
 table.lpj-table th{font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-soft); border-bottom:1px solid var(--garis);}
-table.lpj-table td.num, table.lpj-table th.num{text-align:right; font-family:var(--mono, 'Roboto Mono', monospace);}
+table.lpj-table td.num, table.lpj-table th.num{text-align:right; font-family:var(--mono, 'JetBrains Mono', monospace);}
 table.lpj-table td.indent{padding-left:22px; color:var(--ink-soft);}
 table.lpj-table tr.lpj-subtotal td{font-weight:700; border-top:1px solid var(--garis); border-bottom:none;}
 table.lpj-table tr.lpj-total td{font-weight:700; font-size:14.5px; border-top:2px solid var(--ink); border-bottom:none; padding-top:10px;}
@@ -1257,7 +1260,7 @@ table.lpj-kebutuhan-table th:nth-child(4), table.lpj-kebutuhan-table td:nth-chil
    ============================================================ */
 .panitia-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:14px;}
 .panitia-card{background:var(--surface); border:1px solid var(--garis); border-radius:var(--radius); padding:14px; display:flex; flex-direction:column; gap:4px;}
-.panitia-card .pc-title{font-family:'Source Serif 4',serif; font-weight:600; font-size:15px; line-height:1.3;}
+.panitia-card .pc-title{font-family:'Sora',sans-serif; font-weight:600; font-size:15px; line-height:1.3;}
 .panitia-card .pc-meta{font-size:12.5px; color:var(--ink-soft);}
 .panitia-card .pc-count{font-size:11.5px; color:var(--gold); margin-top:2px; font-weight:600;}
 .panitia-card .pc-actions{display:flex; gap:6px; margin-top:10px; flex-wrap:wrap;}
@@ -1268,7 +1271,7 @@ table.lpj-kebutuhan-table th:nth-child(4), table.lpj-kebutuhan-table td:nth-chil
 .panitia-paper{
   background:#fff; color:#2B2320; max-width:820px; margin:0 auto;
   border:1px solid var(--garis); box-shadow:var(--shadow);
-  padding:36px 40px; font-family:'Source Serif 4',Georgia,serif; font-size:13.5px; line-height:1.55;
+  padding:36px 40px; font-family:'Sora',sans-serif; font-size:13.5px; line-height:1.55;
 }
 .panitia-paper .pt-input{
   font-family:inherit; font-size:inherit; color:inherit; background:transparent;
@@ -1356,7 +1359,7 @@ table.panitia-table .pt-input{width:100%;}
 .gudang-item-bar{height:6px; border-radius:4px; background:var(--table-head); overflow:hidden; margin-bottom:8px;}
 .gudang-item-bar-fill{height:100%; background:var(--hijau); border-radius:4px;}
 .gudang-item-bar-fill.stok-menipis{background:var(--orange);}
-.gudang-item-bar-fill.stok-habis{background:var(--merah);}
+.gudang-item-bar-fill.stok-habis{background:var(--bahaya);}
 .gudang-item-meta{font-size:11px; color:var(--ink-soft);}
 @media (max-width:720px){
   .gudang-item-grid{grid-template-columns:repeat(auto-fill, minmax(150px, 1fr));}

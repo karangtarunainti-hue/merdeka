@@ -4439,13 +4439,16 @@ function renderGudangPinjam(){
 // Nota nomor & tampilan dipakai di 2 tempat: modal konfirmasi sebelum kirim,
 // dan tab Riwayat Peminjaman (supaya peminjam bisa lihat ulang nota yang sudah disetujui).
 function buildGudangNotaHtml({resi, nama, alamat, pencatat, tglPinjam, tglKembali, items, tanggalCetak, statusHtml}){
-  const infoItems = [
+  const dataPeminjam = [
     ['Nama Peminjam', esc(nama)],
-    ['Alamat / RT RW', esc(alamat)],
+    ['RT / Alamat', esc(alamat)],
+  ];
+  const dataPeminjaman = [
     ['Pencatat', esc(pencatat)],
     ['Tanggal Pinjam', fmtGudangTanggal(tglPinjam)],
     ['Rencana Kembali', fmtGudangTanggal(tglKembali)],
   ];
+  const totalQty = items.reduce((s,it)=>s+Number(it.qty||0),0);
   const itemRows = items.map((it,i)=>`<tr>
     <td>${i+1}</td>
     <td>${esc(it.nama)}</td>
@@ -4466,13 +4469,19 @@ function buildGudangNotaHtml({resi, nama, alamat, pencatat, tglPinjam, tglKembal
         </div>
       </div>
       <div class="nota-body">
+        <div class="nota-section-label">Data Peminjam</div>
         <div class="nota-info-grid">
-          ${infoItems.map(([l,v])=>`<div class="nota-info-item"><span class="l">${l}</span><span class="v">${v}</span></div>`).join('')}
+          ${dataPeminjam.map(([l,v])=>`<div class="nota-info-item"><span class="l">${l}</span><span class="v">${v}</span></div>`).join('')}
+        </div>
+        <div class="nota-section-label">Detail Peminjaman</div>
+        <div class="nota-info-grid">
+          ${dataPeminjaman.map(([l,v])=>`<div class="nota-info-item"><span class="l">${l}</span><span class="v">${v}</span></div>`).join('')}
         </div>
         <div class="nota-section-label">Rincian Barang</div>
         <table class="nota-table">
           <thead><tr><th style="width:26px;">No</th><th>Nama Barang</th><th>Gudang</th><th class="num">Qty</th></tr></thead>
           <tbody>${itemRows}</tbody>
+          <tfoot><tr class="nota-total-row"><td colspan="3">Total ${items.length} jenis barang</td><td class="num">${totalQty} unit</td></tr></tfoot>
         </table>
       </div>
       ${statusHtml || ''}

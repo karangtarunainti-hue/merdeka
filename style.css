@@ -639,7 +639,7 @@
   .nota-no{font-size:10.5px; color:var(--ink-soft); font-family:'Roboto Mono',monospace; margin-top:2px;}
   .nota-body{padding:16px 18px 4px;}
   .nota-info-grid{
-    display:grid; grid-template-columns:1fr 1fr; gap:6px 18px; margin-bottom:14px;
+    display:grid; grid-template-columns:1fr 1fr; gap:6px 18px; margin-bottom:6px;
     font-size:12.5px;
   }
   .nota-info-item{display:flex; justify-content:space-between; gap:8px; border-bottom:1px dashed var(--garis); padding-bottom:5px;}
@@ -647,8 +647,9 @@
   .nota-info-item .v{font-weight:600; text-align:right; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
   .nota-section-label{
     font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.06em;
-    color:var(--ink-soft); margin:0 0 8px; padding-top:10px; border-top:1px solid var(--garis);
+    color:var(--ink-soft); margin:0 0 8px; padding-top:14px; border-top:1px solid var(--garis);
   }
+  .nota-body > .nota-section-label:first-child{border-top:none; padding-top:0;}
   table.nota-table{width:100%; border-collapse:collapse; font-size:12.5px; margin-bottom:4px;}
   table.nota-table th{
     font-size:10.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-soft);
@@ -656,7 +657,11 @@
   }
   table.nota-table th.num, table.nota-table td.num{text-align:right;}
   table.nota-table td{padding:7px 6px; border-bottom:1px dashed var(--garis); vertical-align:top;}
-  table.nota-table tr:last-child td{border-bottom:none;}
+  table.nota-table tbody tr:last-child td{border-bottom:none;}
+  table.nota-table tfoot .nota-total-row td{
+    padding:8px 6px 2px; border-bottom:none; border-top:1px solid var(--garis);
+    font-weight:700; font-size:12px; color:var(--ink);
+  }
   .nota-footer{
     padding:12px 18px 16px; border-top:1px dashed var(--garis); margin-top:8px;
     font-size:11.5px; color:var(--ink-soft); display:flex; gap:8px; align-items:flex-start;

@@ -4348,7 +4348,6 @@ function renderGudang(){
 
   const tabsHtml = `<div class="gudang-tabs">
     ${tabs.map(t=>`<button class="btn ${gudangSubTab===t.key?'':'secondary'} small" onclick="gudangSwitchTab('${t.key}')">${t.label}</button>`).join('')}
-    <button class="btn secondary small" style="margin-left:auto;" onclick="gudangRefresh()" title="Muat ulang data dari server">🔄 Refresh</button>
   </div>`;
 
   let body = '';
@@ -4504,9 +4503,6 @@ function openGudangPinjamModal(){
   _gudangPinjamRows = [{itemId:'', qty:1}];
   _gudangPinjamHeader = {nama:'', rt:'', alamatCustom:'', pencatat:'', tglPinjam:todayISO(), tglKembali:''};
   renderGudangPinjamModalBody();
-  // Langsung buka daftar barang & stok begitu modal tampil, supaya peminjam
-  // (yang belum tentu hapal nama-nama aset) bisa langsung menelusuri pilihannya.
-  setTimeout(()=>toggleGudangCombo(0), 80);
 }
 function gudangComboIconChevron(){
   return `<svg class="combo-chevron" width="15" height="15" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;

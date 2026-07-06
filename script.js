@@ -4462,11 +4462,9 @@ function gudangComboPanelHtml(idx, selectedId){
         const habis = i.tersedia<=0;
         const selected = i.id===selectedId;
         return `<button type="button" class="combo-option${habis?' disabled':''}${selected?' selected':''}"
-          data-combo-name="${esc(i.nama.toLowerCase())}"
           ${habis?'disabled':`onclick="selectGudangComboItem(${idx}, '${i.id}')"`}>
           <span class="combo-option-main">
             <span class="combo-option-name">${esc(i.nama)}</span>
-            <span class="combo-option-loc">${esc(i.gudang)}</span>
           </span>
           <span class="combo-option-side">
             ${habis ? '<span class="badge stok-habis">Habis</span>' : `<span class="combo-option-sisa">Sisa ${i.tersedia}</span>`}
@@ -4476,9 +4474,6 @@ function gudangComboPanelHtml(idx, selectedId){
       }).join('')}
     </div>`).join('');
   return `
-    <div class="combo-search-wrap">
-      <input type="text" class="combo-search" placeholder="Cari nama barang..." oninput="filterGudangCombo(${idx}, this.value)">
-    </div>
     <div class="combo-list" data-combo-list>${groupsHtml || '<div class="combo-empty">Belum ada aset aktif.</div>'}</div>`;
 }
 let _gudangComboOpenIdx = null;
@@ -4517,8 +4512,6 @@ function toggleGudangCombo(idx){
   trigger.classList.add('open');
   _gudangComboOpenIdx = idx;
   _gudangComboPanelEl = panel;
-  const search = panel.querySelector('.combo-search');
-  if(search) setTimeout(()=>search.focus(), 30);
 }
 function closeAllGudangCombos(){
   if(_gudangComboPanelEl){ _gudangComboPanelEl.remove(); _gudangComboPanelEl = null; }
@@ -4529,31 +4522,6 @@ function selectGudangComboItem(idx, itemId){
   _gudangPinjamRows[idx].itemId = itemId;
   closeAllGudangCombos();
   renderGudangPinjamModalBody();
-}
-function filterGudangCombo(idx, query){
-  const panel = _gudangComboPanelEl;
-  if(!panel) return;
-  const q = query.trim().toLowerCase();
-  let anyVisible = false;
-  panel.querySelectorAll('[data-combo-group]').forEach(group=>{
-    let groupHas = false;
-    group.querySelectorAll('.combo-option').forEach(opt=>{
-      const match = !q || opt.getAttribute('data-combo-name').includes(q);
-      opt.style.display = match ? '' : 'none';
-      if(match) groupHas = true;
-    });
-    group.style.display = groupHas ? '' : 'none';
-    if(groupHas) anyVisible = true;
-  });
-  let emptyEl = panel.querySelector('.combo-empty-search');
-  if(!anyVisible){
-    if(!emptyEl){
-      emptyEl = document.createElement('div');
-      emptyEl.className = 'combo-empty combo-empty-search';
-      emptyEl.textContent = 'Barang tidak ditemukan.';
-      panel.querySelector('[data-combo-list]').appendChild(emptyEl);
-    }
-  } else if(emptyEl){ emptyEl.remove(); }
 }
 document.addEventListener('click', (e)=>{
   if(e.target.closest('.combo-panel-floating') || e.target.closest('.combo-trigger')) return;

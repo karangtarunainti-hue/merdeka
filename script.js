@@ -4952,7 +4952,7 @@ let gudangSearchKelola = '';
 // Lokasi gudang mengikuti penamaan yang sudah dipakai di data lama ("Gudang RT 1" dst),
 // bukan daftar RT umum (RT_LIST) yang dipakai di menu Anggota — supaya aset baru
 // masuk ke grup yang sama dengan data lama, bukan bikin grup terpisah.
-const GUDANG_LOKASI_LIST = ['Gudang RT 1', 'Gudang RT 2', 'Gudang RT 3'];
+const GUDANG_LOKASI_LIST = ['Gudang RT 1', 'Gudang RT 2', 'Gudang RT 3', 'Gudang Karang Taruna'];
 function gudangLokasiOptions(selectedGudang){
   const known = GUDANG_LOKASI_LIST.map(l=>`<option value="${esc(l)}" ${selectedGudang===l?'selected':''}>${esc(l)}</option>`).join('');
   const legacy = (selectedGudang && !GUDANG_LOKASI_LIST.includes(selectedGudang))

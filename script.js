@@ -2470,7 +2470,7 @@ function renderBelanjaHadiah(){
   const totalBelumEstimasi = items.filter(i=>!i.sudahDibeli).reduce((s,i)=>s+(Number(i.itemHarga||0)*Number(i.itemQtyDibeli||0)),0);
   const isLoggedIn = !!getCurrentUser();
 
-  if(!items.length) return `<div class="panel"><div class="panel-head"><h3>🎁 Belanja Hadiah</h3></div><div class="panel-body"><div class="empty-state"><h3>Belum ada hadiah</h3><button class="btn" onclick="goSection('hadiah')">+ Tambah Hadiah</button></div></div></div>`;
+  if(!items.length) return `<div class="panel"><div class="panel-head"><h3>🎁 Belanja Hadiah</h3></div><div class="panel-body"><div class="empty-state"><h3>Belum ada hadiah</h3>${isLoggedIn ? `<button class="btn" onclick="goSection('hadiah')">+ Tambah Hadiah</button>` : ''}</div></div></div>`;
 
   // Kelompokkan per NAMA barang (gabungan lintas kategori peserta & juara) menjadi SATU checklist
   const nameMap = {};
@@ -2680,7 +2680,7 @@ function renderBelanjaPerlengkapan(){
   const totalItem = items.length, totalBelum = items.filter(i=>!i.sudahDibeli).length, totalEstimasi = items.reduce((s,i)=>s+i.hargaTotal,0), totalBelumEstimasi = items.filter(i=>!i.sudahDibeli).reduce((s,i)=>s+i.hargaTotal,0);
   const isLoggedIn = !!getCurrentUser();
   
-  if(!items.length) return `<div class="panel"><div class="panel-head"><h3>📦 Belanja Perlengkapan</h3></div><div class="panel-body"><div class="empty-state"><h3>Belum ada perlengkapan</h3><button class="btn" onclick="goSection('lomba')">+ Tambah Kebutuhan</button></div></div></div>`;
+  if(!items.length) return `<div class="panel"><div class="panel-head"><h3>📦 Belanja Perlengkapan</h3></div><div class="panel-body"><div class="empty-state"><h3>Belum ada perlengkapan</h3>${isLoggedIn ? `<button class="btn" onclick="goSection('lomba')">+ Tambah Kebutuhan</button>` : ''}</div></div></div>`;
 
   // Kelompokkan per NAMA barang (gabungan lintas lomba), total kebutuhan digabung, detail per lomba tetap ada
   const nameMap = {};

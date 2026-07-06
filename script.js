@@ -4436,6 +4436,49 @@ function renderGudangPinjam(){
   </div>`;
 }
 
+// Nota nomor & tampilan dipakai di 2 tempat: modal konfirmasi sebelum kirim,
+// dan tab Riwayat Peminjaman (supaya peminjam bisa lihat ulang nota yang sudah disetujui).
+function buildGudangNotaHtml({resi, nama, alamat, pencatat, tglPinjam, tglKembali, items, tanggalCetak, statusHtml}){
+  const infoItems = [
+    ['Nama Peminjam', esc(nama)],
+    ['Alamat / RT RW', esc(alamat)],
+    ['Pencatat', esc(pencatat)],
+    ['Tanggal Pinjam', fmtGudangTanggal(tglPinjam)],
+    ['Rencana Kembali', fmtGudangTanggal(tglKembali)],
+  ];
+  const itemRows = items.map((it,i)=>`<tr>
+    <td>${i+1}</td>
+    <td>${esc(it.nama)}</td>
+    <td>${esc(it.gudang)}</td>
+    <td class="num">${it.qty}</td>
+  </tr>`).join('');
+  return `
+    <div class="nota-sheet">
+      <div class="nota-header">
+        <img src="icons/logo-kop.png" alt="Logo Karang Taruna Inti" class="nota-logo">
+        <div class="nota-header-text">
+          <div class="nota-org">Karang Taruna Inti</div>
+          <div class="nota-org-sub">Bagian Gudang &amp; Inventaris</div>
+        </div>
+        <div class="nota-title-wrap">
+          <div class="nota-title">Nota Pengajuan Pinjam</div>
+          <div class="nota-no">No. ${esc(resi)} · ${fmtGudangTanggal(tanggalCetak)}</div>
+        </div>
+      </div>
+      <div class="nota-body">
+        <div class="nota-info-grid">
+          ${infoItems.map(([l,v])=>`<div class="nota-info-item"><span class="l">${l}</span><span class="v">${v}</span></div>`).join('')}
+        </div>
+        <div class="nota-section-label">Rincian Barang</div>
+        <table class="nota-table">
+          <thead><tr><th style="width:26px;">No</th><th>Nama Barang</th><th>Gudang</th><th class="num">Qty</th></tr></thead>
+          <tbody>${itemRows}</tbody>
+        </table>
+      </div>
+      ${statusHtml || ''}
+    </div>`;
+}
+
 let _gudangPinjamRows = [];
 let _gudangPinjamHeader = {nama:'', alamat:'', pencatat:'', tglPinjam:'', tglKembali:''};
 function openGudangPinjamModal(){
@@ -4624,45 +4667,12 @@ function gudangValidateAndConfirmPinjam(){
 
   const pending = {nama, alamat, wa, tglPinjam, tglKembali, finalItems};
   const nomorNota = 'NP-' + Date.now().toString().slice(-6);
-  const infoItems = [
-    ['Nama Peminjam', esc(nama)],
-    ['Alamat / RT RW', esc(alamat)],
-    ['Pencatat', esc(wa)],
-    ['Tanggal Pinjam', fmtGudangTanggal(tglPinjam)],
-    ['Rencana Kembali', fmtGudangTanggal(tglKembali)],
-  ];
-  const itemRows = finalItems.map((it,i)=>`<tr>
-    <td>${i+1}</td>
-    <td>${esc(it.nama)}</td>
-    <td>${esc(it.gudang)}</td>
-    <td class="num">${it.qty}</td>
-  </tr>`).join('');
-  const body = `
-    <div class="nota-sheet">
-      <div class="nota-header">
-        <img src="icons/logo-kop.png" alt="Logo Karang Taruna Inti" class="nota-logo">
-        <div class="nota-header-text">
-          <div class="nota-org">Karang Taruna Inti</div>
-          <div class="nota-org-sub">Bagian Gudang &amp; Inventaris</div>
-        </div>
-        <div class="nota-title-wrap">
-          <div class="nota-title">Nota Pengajuan Pinjam</div>
-          <div class="nota-no">No. ${nomorNota} · ${fmtGudangTanggal(todayISO())}</div>
-        </div>
-      </div>
-      <div class="nota-body">
-        <div class="nota-info-grid">
-          ${infoItems.map(([l,v])=>`<div class="nota-info-item"><span class="l">${l}</span><span class="v">${v}</span></div>`).join('')}
-        </div>
-        <div class="nota-section-label">Rincian Barang</div>
-        <table class="nota-table">
-          <thead><tr><th style="width:26px;">No</th><th>Nama Barang</th><th>Gudang</th><th class="num">Qty</th></tr></thead>
-          <tbody>${itemRows}</tbody>
-        </table>
-      </div>
-      <div class="nota-footer">⚠️ <span>Setelah dikirim, stok barang langsung berkurang dan data tersimpan di server. Periksa nama barang &amp; jumlah dengan teliti sebelum melanjutkan.</span></div>
-    </div>`;
-  setModal('Periksa Sebelum Mengirim', body, [
+  const notaHtml = buildGudangNotaHtml({
+    resi: nomorNota, nama, alamat, pencatat: wa, tglPinjam, tglKembali,
+    items: finalItems, tanggalCetak: todayISO(),
+    statusHtml: `<div class="nota-footer">⚠️ <span>Setelah dikirim, stok barang langsung berkurang dan data tersimpan di server. Periksa nama barang &amp; jumlah dengan teliti sebelum melanjutkan.</span></div>`,
+  });
+  setModal('Periksa Sebelum Mengirim', notaHtml, [
     {label:'Periksa Lagi', cls:'secondary', onclick: renderGudangPinjamModalBody},
     {label:'Ya, Sudah Benar — Kirim', onclick: ()=>gudangSubmitPinjam(pending)},
   ]);
@@ -4760,6 +4770,7 @@ function renderGudangHistori(){
       <td>${itemsText}</td>
       <td>${fmtGudangTanggal(t.tglPinjam)} → ${fmtGudangTanggal(t.tglKembali)}</td>
       <td>${statusCell}</td>
+      <td><button type="button" class="btn secondary small" onclick="gudangShowNota('${t.id}')">🧾 Lihat Nota</button></td>
     </tr>`;
   }).join('');
 
@@ -4786,13 +4797,29 @@ function renderGudangHistori(){
       </div>
       <div style="overflow-x:auto;">
       <table class="anggota-table">
-        <thead><tr><th>Resi / Peminjam</th><th>Barang &amp; Gudang</th><th>Tanggal</th><th>Status</th></tr></thead>
-        <tbody>${rows || `<tr class="empty-row"><td colspan="4">Belum ada transaksi peminjaman tercatat.</td></tr>`}</tbody>
+        <thead><tr><th>Resi / Peminjam</th><th>Barang &amp; Gudang</th><th>Tanggal</th><th>Status</th><th></th></tr></thead>
+        <tbody>${rows || `<tr class="empty-row"><td colspan="5">Belum ada transaksi peminjaman tercatat.</td></tr>`}</tbody>
       </table>
       </div>
       ${limitNote}
     </div>
   </div>`;
+}
+
+function gudangShowNota(id){
+  const t = gudangTransactions.find(x=>x.id===id);
+  if(!t) return;
+  const statusLabel = {aktif:'⏳ Aktif — masih di luar gudang', selesai:'✅ Selesai — barang sudah dikembalikan', bermasalah:'⚠️ Bermasalah'};
+  const statusHtml = `<div class="nota-footer"><span>Status saat ini: <b>${statusLabel[t.status]||t.status}</b> · Nota ini sesuai dengan pengajuan yang sudah disetujui &amp; dikirim peminjam.</span></div>`;
+  const notaHtml = buildGudangNotaHtml({
+    resi: t.resi, nama: t.nama, alamat: t.alamat, pencatat: t.wa,
+    tglPinjam: t.tglPinjam, tglKembali: t.tglKembali, items: t.items,
+    tanggalCetak: (t.createdAt||'').slice(0,10) || t.tglPinjam,
+    statusHtml,
+  });
+  setModal('Nota Peminjaman', notaHtml, [
+    {label:'Tutup', cls:'secondary', onclick: closeModal},
+  ]);
 }
 
 async function gudangPruneOldHistory(){

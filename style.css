@@ -1376,23 +1376,42 @@ table.panitia-table .pt-input{width:100%;}
    jalan santai) yang masih memakai class .belanja-item yang sama.
    ============================================================ */
 @media (max-width:820px){
+  .belanja-hadiah-page .panel-body{
+    background:var(--cream-card, #faf7ec);
+    font-family:'JetBrains Mono', monospace;
+    padding-top:6px;
+  }
   .belanja-hadiah-page .belanja-item{
     align-items:flex-start;
     padding:12px 12px;
     gap:10px 12px;
+    border-bottom:1px dashed var(--garis);
+    background:transparent;
+  }
+  .belanja-hadiah-page .belanja-item:hover{
+    background:transparent;
   }
   .belanja-hadiah-page .checkbox-wrapper{
-    width:24px; height:24px;
+    width:22px; height:22px;
     margin-top:1px;
+    border-radius:2px;
+    border-color:var(--ink-soft);
+    background:transparent;
+  }
+  .belanja-hadiah-page .checkbox-wrapper.checked{
+    background:transparent;
+    border-color:var(--ink);
   }
   .belanja-hadiah-page .checkbox-wrapper.checked::after{
-    font-size:16px;
+    content:'✓';
+    color:var(--ink);
+    font-size:15px;
   }
   .belanja-hadiah-page .info{
-    flex:1 1 calc(100% - 36px);
+    flex:1 1 calc(100% - 34px);
   }
   .belanja-hadiah-page .info .nama{
-    font-size:14.5px;
+    font-size:13.5px;
     line-height:1.4;
     display:flex;
     align-items:baseline;
@@ -1406,37 +1425,61 @@ table.panitia-table .pt-input{width:100%;}
     flex-shrink:0;
     white-space:nowrap;
     margin-left:0;
+    color:var(--ink-soft);
   }
   .belanja-hadiah-page .info .detail{
     margin-top:6px;
-    gap:6px 8px;
+    gap:0;
+    row-gap:4px;
   }
   .belanja-hadiah-page .info .detail .tag{
     font-size:11px;
-    padding:2px 9px;
+    font-family:'JetBrains Mono', monospace;
+    font-weight:500;
+    padding:0;
+    border-radius:0;
+    background:transparent;
+    color:var(--ink-soft);
+  }
+  .belanja-hadiah-page .info .detail .tag:not(:last-child)::after{
+    content:' · ';
+    color:var(--abu);
+  }
+  .belanja-hadiah-page .info .detail .tag.pack-tag{
+    background:transparent;
+    color:var(--hijau, #2f9e5b);
+    font-weight:700;
   }
   .belanja-hadiah-page .belanja-item .harga{
     flex:1 1 100%;
     justify-content:space-between;
-    margin-left:36px;
+    margin-left:34px;
     margin-top:8px;
     padding-top:8px;
     border-top:1px dashed var(--garis);
     font-size:15px;
+    font-weight:700;
   }
   .belanja-hadiah-page .belanja-item.dibeli .harga{
     opacity:.6;
   }
   .belanja-hadiah-page .kategori-toko-header{
-    padding:12px 10px 8px;
-    margin-top:10px;
-    background:var(--surface-soft);
-    border-radius:8px;
+    padding:10px 2px 8px;
+    margin-top:14px;
+    background:transparent;
+    border-radius:0;
+    border-top:1px dashed var(--ink-soft);
+    border-bottom:1px dashed var(--ink-soft);
   }
   .belanja-hadiah-page .kategori-toko-header:first-child{
     margin-top:0;
+    border-top:none;
   }
   .belanja-hadiah-page .kategori-toko-label{
-    font-size:13px;
+    font-family:'JetBrains Mono', monospace;
+  }
+  .belanja-hadiah-page .kategori-toko-count{
+    background:transparent;
+    font-family:'JetBrains Mono', monospace;
   }
 }

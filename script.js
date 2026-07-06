@@ -4949,9 +4949,13 @@ function renderGudangKelola(){
 }
 let gudangSearchKelola = '';
 
+// Lokasi gudang mengikuti penamaan yang sudah dipakai di data lama ("Gudang RT 1" dst),
+// bukan daftar RT umum (RT_LIST) yang dipakai di menu Anggota — supaya aset baru
+// masuk ke grup yang sama dengan data lama, bukan bikin grup terpisah.
+const GUDANG_LOKASI_LIST = ['Gudang RT 1', 'Gudang RT 2', 'Gudang RT 3'];
 function gudangLokasiOptions(selectedGudang){
-  const known = RT_LIST.map(rt=>`<option value="${esc(rt.l)}" ${selectedGudang===rt.l?'selected':''}>${esc(rt.l)}</option>`).join('');
-  const legacy = (selectedGudang && !RT_LIST.some(rt=>rt.l===selectedGudang))
+  const known = GUDANG_LOKASI_LIST.map(l=>`<option value="${esc(l)}" ${selectedGudang===l?'selected':''}>${esc(l)}</option>`).join('');
+  const legacy = (selectedGudang && !GUDANG_LOKASI_LIST.includes(selectedGudang))
     ? `<option value="${esc(selectedGudang)}" selected>${esc(selectedGudang)} (lama)</option>` : '';
   return `<option value="">-- Pilih Lokasi --</option>${known}${legacy}`;
 }

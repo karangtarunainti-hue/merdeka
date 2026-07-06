@@ -4437,10 +4437,12 @@ function renderGudangPinjam(){
 }
 
 let _gudangPinjamRows = [];
+let _gudangPinjamHeader = {nama:'', alamat:'', pencatat:'', tglPinjam:'', tglKembali:''};
 function openGudangPinjamModal(){
   const aktif = gudangInventory.filter(i=>i.isActive);
   if(aktif.length===0){ toast('⛔ Belum ada aset aktif yang bisa dipinjam.'); return; }
   _gudangPinjamRows = [{itemId:'', qty:1}];
+  _gudangPinjamHeader = {nama:'', alamat:'', pencatat:'', tglPinjam:todayISO(), tglKembali:''};
   renderGudangPinjamModalBody();
   // Langsung buka daftar barang & stok begitu modal tampil, supaya peminjam
   // (yang belum tentu hapal nama-nama aset) bisa langsung menelusuri pilihannya.
@@ -4563,12 +4565,12 @@ function renderGudangPinjamModalBody(){
   }).join('');
 
   const body = `
-    <div class="field"><label>Nama Peminjam</label><input type="text" id="gp-nama" placeholder="Nama lengkap peminjam"></div>
-    <div class="field"><label>Alamat / RT RW</label><input type="text" id="gp-alamat" placeholder="Alamat peminjam"></div>
-    <div class="field"><label>Nama Pencatat</label><input type="text" id="gp-pencatat" placeholder="Nama petugas pencatat"></div>
+    <div class="field"><label>Nama Peminjam</label><input type="text" id="gp-nama" placeholder="Nama lengkap peminjam" value="${esc(_gudangPinjamHeader.nama)}" oninput="_gudangPinjamHeader.nama=this.value"></div>
+    <div class="field"><label>Alamat / RT RW</label><input type="text" id="gp-alamat" placeholder="Alamat peminjam" value="${esc(_gudangPinjamHeader.alamat)}" oninput="_gudangPinjamHeader.alamat=this.value"></div>
+    <div class="field"><label>Nama Pencatat</label><input type="text" id="gp-pencatat" placeholder="Nama petugas pencatat" value="${esc(_gudangPinjamHeader.pencatat)}" oninput="_gudangPinjamHeader.pencatat=this.value"></div>
     <div class="filter-row">
-      <div class="field" style="flex:1;"><label>Tanggal Pinjam</label><input type="date" id="gp-tgl-pinjam" value="${todayISO()}"></div>
-      <div class="field" style="flex:1;"><label>Rencana Kembali</label><input type="date" id="gp-tgl-kembali"></div>
+      <div class="field" style="flex:1;"><label>Tanggal Pinjam</label><input type="date" id="gp-tgl-pinjam" value="${esc(_gudangPinjamHeader.tglPinjam)}" oninput="_gudangPinjamHeader.tglPinjam=this.value"></div>
+      <div class="field" style="flex:1;"><label>Rencana Kembali</label><input type="date" id="gp-tgl-kembali" value="${esc(_gudangPinjamHeader.tglKembali)}" oninput="_gudangPinjamHeader.tglKembali=this.value"></div>
     </div>
     <div style="border-top:1px solid var(--garis); padding-top:14px; margin-top:6px;">
       <label style="display:block; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-soft); margin-bottom:10px;">Barang yang Dipinjam</label>

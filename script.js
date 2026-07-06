@@ -4539,8 +4539,12 @@ let _gudangComboPanelEl = null;
 function gudangComboPositionPanel(trigger, panel){
   const rect = trigger.getBoundingClientRect();
   const vw = window.innerWidth, vh = window.innerHeight;
+  // Lebar panel dilebarkan minimal 280px (atau lebar trigger kalau memang lebih lebar dari itu),
+  // supaya nama barang yang panjang tidak terpotong di layar sempit/mobile — panel tidak lagi
+  // dibatasi persis selebar tombol combo yang berbagi ruang dengan kolom Jumlah & tombol hapus.
+  const panelWidth = Math.min(vw - 16, Math.max(rect.width, 280));
   panel.style.left = Math.max(8, rect.left) + 'px';
-  panel.style.width = rect.width + 'px';
+  panel.style.width = panelWidth + 'px';
   // Ukur tinggi panel dulu (sudah ada di body tapi belum "show") supaya bisa hitung apakah cukup ruang di bawah.
   const panelH = panel.offsetHeight || 320;
   const spaceBelow = vh - rect.bottom;
@@ -4551,7 +4555,7 @@ function gudangComboPositionPanel(trigger, panel){
     panel.style.top = (rect.bottom + 6) + 'px';
   }
   // Jangan sampai melebar keluar dari layar di kanan
-  const maxLeft = vw - rect.width - 8;
+  const maxLeft = vw - panelWidth - 8;
   if(parseFloat(panel.style.left) > maxLeft) panel.style.left = Math.max(8, maxLeft) + 'px';
 }
 function gudangRTComboPanelHtml(selectedValue){

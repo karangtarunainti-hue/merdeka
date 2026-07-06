@@ -4479,13 +4479,21 @@ function buildGudangNotaHtml({resi, nama, alamat, pencatat, tglPinjam, tglKembal
     </div>`;
 }
 
+// Opsi RT pada form pengajuan pinjam — beda dari RT_LIST menu Anggota, karena di sini
+// perlu opsi "Lainnya" untuk peminjam dari luar desa (input alamat manual).
+const GUDANG_PINJAM_RT_LIST = [
+  {v:'rt1', l:'RT 1'},
+  {v:'rt2', l:'RT 2'},
+  {v:'rt3', l:'RT 3'},
+  {v:'lainnya', l:'Lainnya (Luar Desa)'},
+];
 let _gudangPinjamRows = [];
-let _gudangPinjamHeader = {nama:'', alamat:'', pencatat:'', tglPinjam:'', tglKembali:''};
+let _gudangPinjamHeader = {nama:'', rt:'', alamatCustom:'', pencatat:'', tglPinjam:'', tglKembali:''};
 function openGudangPinjamModal(){
   const aktif = gudangInventory.filter(i=>i.isActive);
   if(aktif.length===0){ toast('⛔ Belum ada aset aktif yang bisa dipinjam.'); return; }
   _gudangPinjamRows = [{itemId:'', qty:1}];
-  _gudangPinjamHeader = {nama:'', alamat:'', pencatat:'', tglPinjam:todayISO(), tglKembali:''};
+  _gudangPinjamHeader = {nama:'', rt:'', alamatCustom:'', pencatat:'', tglPinjam:todayISO(), tglKembali:''};
   renderGudangPinjamModalBody();
   // Langsung buka daftar barang & stok begitu modal tampil, supaya peminjam
   // (yang belum tentu hapal nama-nama aset) bisa langsung menelusuri pilihannya.
@@ -4607,9 +4615,15 @@ function renderGudangPinjamModalBody(){
     </div>`;
   }).join('');
 
+  const rtValue = _gudangPinjamHeader.rt;
+  const isLainnya = rtValue === 'lainnya';
+  const rtOptions = `<option value="">-- Pilih RT --</option>${GUDANG_PINJAM_RT_LIST.map(r=>`<option value="${r.v}" ${rtValue===r.v?'selected':''}>${r.l}</option>`).join('')}`;
   const body = `
     <div class="field"><label>Nama Peminjam</label><input type="text" id="gp-nama" placeholder="Nama lengkap peminjam" value="${esc(_gudangPinjamHeader.nama)}" oninput="_gudangPinjamHeader.nama=this.value"></div>
-    <div class="field"><label>Alamat / RT RW</label><input type="text" id="gp-alamat" placeholder="Alamat peminjam" value="${esc(_gudangPinjamHeader.alamat)}" oninput="_gudangPinjamHeader.alamat=this.value"></div>
+    <div class="field"><label>RT</label>
+      <select id="gp-rt" onchange="_gudangPinjamHeader.rt=this.value; renderGudangPinjamModalBody();">${rtOptions}</select>
+    </div>
+    ${isLainnya ? `<div class="field"><label>Alamat Lengkap <span class="combo-hint">— untuk peminjam luar desa</span></label><input type="text" id="gp-alamat-custom" placeholder="Contoh: Ds. Sukamaju, Kec. ..." value="${esc(_gudangPinjamHeader.alamatCustom)}" oninput="_gudangPinjamHeader.alamatCustom=this.value"></div>` : ''}
     <div class="field"><label>Nama Pencatat</label><input type="text" id="gp-pencatat" placeholder="Nama petugas pencatat" value="${esc(_gudangPinjamHeader.pencatat)}" oninput="_gudangPinjamHeader.pencatat=this.value"></div>
     <div class="filter-row">
       <div class="field" style="flex:1;"><label>Tanggal Pinjam</label><input type="date" id="gp-tgl-pinjam" value="${esc(_gudangPinjamHeader.tglPinjam)}" oninput="_gudangPinjamHeader.tglPinjam=this.value"></div>
@@ -4641,7 +4655,11 @@ function gudangPinjamRemoveRow(idx){
 
 function gudangValidateAndConfirmPinjam(){
   const nama = document.getElementById('gp-nama').value.trim();
-  const alamat = document.getElementById('gp-alamat').value.trim();
+  const rt = document.getElementById('gp-rt').value;
+  if(!rt){ toast('⛔ Pilih RT peminjam.'); return; }
+  const rtLabel = (GUDANG_PINJAM_RT_LIST.find(r=>r.v===rt)||{}).l || rt;
+  const alamat = rt==='lainnya' ? (document.getElementById('gp-alamat-custom').value.trim()) : rtLabel;
+  if(rt==='lainnya' && !alamat){ toast('⛔ Isi alamat lengkap untuk peminjam luar desa.'); return; }
   const wa = document.getElementById('gp-pencatat').value.trim();
   const tglPinjam = document.getElementById('gp-tgl-pinjam').value;
   const tglKembali = document.getElementById('gp-tgl-kembali').value;

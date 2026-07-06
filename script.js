@@ -2161,10 +2161,37 @@ function renderHadiah(){
     return s2 + budgetPerPaket * (keb!=null ? keb : 1);
   },0),0);
 
+  // Card anggaran per kategori peserta — bandingkan belanja aktual vs budget yang
+  // sudah diatur lewat tombol "Atur Budget" (hanya tampil untuk kategori yang budgetnya >0).
+  const budgetKategoriCards = KATEGORI_PESERTA.map(kp => {
+    const budgetKategori = JUARA_LIST.reduce((s2,j)=>{
+      const budgetPerPaket = getHadiahBudget(kp.v, j.v);
+      if(budgetPerPaket<=0) return s2;
+      const keb = hitungKebutuhanHadiah(kp.v, j.v);
+      return s2 + budgetPerPaket * (keb!=null ? keb : 1);
+    },0);
+    if(budgetKategori<=0) return '';
+    const belanjaKategori = list.filter(h => h.kategori_peserta === kp.v)
+      .reduce((s,h)=> s + h.items.reduce((s2,item)=> s2 + (Number(item.harga_satuan||0) * Number(item.qty_dibeli||0)), 0), 0);
+    const pct = Math.min(100, Math.round((belanjaKategori / budgetKategori) * 100));
+    const selisih = budgetKategori - belanjaKategori;
+    const lebih = selisih < 0;
+    return `<div class="kategori-card k-${kp.v}">
+      <div class="kc-title">${kp.l}</div>
+      <div class="kc-progress">
+        <div class="kc-progress-bar"><div class="kc-progress-fill" style="width:${pct}%;${lebih?'background:var(--merah);':''}"></div></div>
+        <div class="kc-money"><span>Belanja <b>${fmtRp(belanjaKategori)}</b></span><span>dari <b>${fmtRp(budgetKategori)}</b></span></div>
+      </div>
+      <div style="font-size:11px;color:${lebih?'var(--merah)':'var(--ink-soft)'};margin-top:6px;">${lebih?`⚠️ Lebih ${fmtRp(Math.abs(selisih))}`:`Sisa ${fmtRp(selisih)}`}</div>
+    </div>`;
+  }).join('');
+
   return `<div class="stat-grid">
     <div class="stat-card pengeluaran"><div class="lbl">Total Belanja Hadiah</div><div class="val">${fmtRp(total)}</div></div>
     ${totalBudget>0 ? `<div class="stat-card ${total>totalBudget?'defisit':'saldo'}"><div class="lbl">Total Budget Hadiah</div><div class="val">${fmtRp(totalBudget)}</div><div style="font-size:11px; color:var(--abu); margin-top:4px;">${total>totalBudget?`⚠️ Sudah lebih ${fmtRp(total-totalBudget)}`:`Sisa ${fmtRp(totalBudget-total)}`}</div></div>` : ''}
   </div>
+  ${budgetKategoriCards ? `<div class="panel"><div class="panel-head"><div><h3>Anggaran Hadiah per Kategori</h3><div class="desc">Belanja aktual dibandingkan budget yang diatur lewat "Atur Budget"</div></div></div>
+  <div class="panel-body"><div class="kategori-grid">${budgetKategoriCards}</div></div></div>` : ''}
   <div class="panel"><div class="panel-head"><div><h3>Kebutuhan Hadiah</h3><div class="desc">Setiap paket bisa berisi multiple item · Kebutuhan Juara 1-3 mengikuti jumlah lomba per kategori</div></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
       ${isLoggedIn ? `<button class="btn secondary" onclick="openHadiahBudgetModal()">🎯 Atur Budget</button>` : ''}

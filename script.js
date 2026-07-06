@@ -4548,14 +4548,14 @@ function renderGudangPinjamModalBody(){
     return `
     <div class="item-fields-row" style="display:flex; gap:8px; align-items:flex-end; margin-bottom:10px;">
       <div class="field combo" style="flex:2; margin-bottom:0; position:relative;">
-        <label>Barang${idx===0?' <span class="combo-hint">— ketuk untuk lihat daftar &amp; stok</span>':''}</label>
+        ${idx===0 ? `<label>Barang <span class="combo-hint">— ketuk untuk lihat daftar &amp; stok</span></label>` : ''}
         <button type="button" id="gp-combo-trigger-${idx}" class="combo-trigger${selectedItem?'':' placeholder'}" onclick="toggleGudangCombo(${idx})">
           <span class="combo-trigger-label">${selectedItem ? esc(gudangComboItemLabel(selectedItem)) : '-- Pilih Barang --'}</span>
           ${gudangComboIconChevron()}
         </button>
       </div>
       <div class="field" style="flex:1; margin-bottom:0;">
-        <label>Jumlah</label>
+        ${idx===0 ? `<label>Jumlah</label>` : ''}
         <input type="number" min="1" value="${r.qty}" oninput="_gudangPinjamRows[${idx}].qty=parseInt(this.value,10)||1">
       </div>
       <button type="button" class="icon-btn" title="Hapus baris" onclick="gudangPinjamRemoveRow(${idx})">🗑</button>

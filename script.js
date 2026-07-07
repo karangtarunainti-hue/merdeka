@@ -3796,9 +3796,23 @@ function openEventModal(id){
   if (!canEdit()) { toast('⛔ Login untuk mengelola event'); return; }
   const editing = id ? db.events.find(e=>e.id===id) : null;
   const fiturAwal = eventFitur(editing);
+  const eventLain = db.events.slice().sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||''));
   setModal(editing?'Edit Event':'Buat Event', `
     <div class="field"><label>Nama Event</label><input id="f-nama" placeholder="HUT RI 82" value="${editing?esc(editing.nama):''}"></div>
     <div class="field"><label>Tahun</label><input id="f-tahun" type="number" value="${editing?esc(editing.tahun):new Date().getFullYear()}"></div>
+
+    ${!editing && eventLain.length ? `
+    <div class="field">
+      <label>Salin Data Anggota (opsional)</label>
+      <select id="f-salin-anggota">
+        <option value="">— Jangan salin, mulai kosong —</option>
+        ${eventLain.map(e=>{
+          const jumlah = db.anggota.filter(a=>a.event_id===e.id).length;
+          return `<option value="${e.id}">${esc(e.nama)} (${esc(e.tahun)}) · ${jumlah} anggota</option>`;
+        }).join('')}
+      </select>
+      <div class="hint">Nama, kategori, RT &amp; jenis kelamin akan disalin. Status iuran diset ulang jadi "Belum Lunas" karena ini event baru.</div>
+    </div>` : ''}
 
     <div class="field" style="margin-top:6px;">
       <label>Fitur yang Dipakai</label>
@@ -3831,9 +3845,18 @@ function openEventModal(id){
         const newId = uid();
         db.events.push({id:newId, nama, tahun, fitur, created_at:new Date().toISOString()});
         db.settings[newId] = {tarif:{sekolah:0,bekerja:0,perantauan:0,khusus:0}, hadiahBudget:{}};
+        const sourceEventId = document.getElementById('f-salin-anggota')?.value || '';
+        let jumlahDisalin = 0;
+        if(sourceEventId){
+          db.anggota.filter(a=>a.event_id===sourceEventId).forEach(a=>{
+            db.anggota.push({id:uid(), event_id:newId, nama:a.nama, kategori:a.kategori, rt:a.rt, gender:a.gender, nominal_wajib:a.nominal_wajib, status:'belum_lunas', tanggal_bayar:null});
+            jumlahDisalin++;
+          });
+        }
         db.activeEventId = newId;
-        saveDB(); closeModal(); renderSidebar(); goSection('pengaturan'); toast('Event dibuat');
-        notifyTelegram(`📂 Event baru: ${nama}`, `Tahun: ${tahun}`);
+        saveDB(); closeModal(); renderSidebar(); goSection('pengaturan');
+        toast(jumlahDisalin ? `Event dibuat, ${jumlahDisalin} anggota disalin` : 'Event dibuat');
+        notifyTelegram(`📂 Event baru: ${nama}`, `Tahun: ${tahun}${jumlahDisalin ? `\nAnggota disalin: ${jumlahDisalin}` : ''}`);
       }
     }}
   ]);

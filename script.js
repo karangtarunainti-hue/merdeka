@@ -4519,7 +4519,7 @@ function buildGudangNotaHtml({resi, nama, alamat, pencatat, tglPinjam, tglKembal
     <td class="num">${it.qty}</td>
   </tr>`).join('');
   return `
-    <div class="nota-sheet">
+    <div class="nota-sheet" id="gudang-nota-sheet">
       <div class="nota-header">
         <img src="icons/logo-kop.png" alt="Logo Karang Taruna Inti" class="nota-logo">
         <div class="nota-header-text">
@@ -4945,7 +4945,29 @@ function gudangShowNota(id){
   });
   setModal('Nota Peminjaman', notaHtml, [
     {label:'Tutup', cls:'secondary', onclick: closeModal},
+    {label:'⬇ Unduh JPEG', cls:'', onclick: ()=>gudangExportNotaJPEG(t.resi)},
   ]);
+}
+
+// Export tampilan nota (di modal Riwayat Peminjaman) jadi file JPEG, dengan pola
+// yang sama seperti panitiaExportJPEG() — pakai html2canvas karena nota-nya
+// murni HTML/CSS (bukan gambar), belum ada elemen input yang perlu disamarkan
+// seperti pada editor panitia, jadi tidak perlu toggle class 'exporting'.
+function gudangExportNotaJPEG(resi){
+  const el = document.getElementById('gudang-nota-sheet');
+  if(!el){ toast('⛔ Gagal menemukan nota'); return; }
+  if(typeof html2canvas === 'undefined'){ toast('⛔ Gagal memuat modul export gambar. Cek koneksi internet lalu muat ulang.'); return; }
+  html2canvas(el, { scale: 2, backgroundColor: '#ffffff', useCORS: true }).then(canvas => {
+    const link = document.createElement('a');
+    const namaFile = (resi || 'nota-peminjaman').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
+    link.download = `${namaFile || 'nota-peminjaman'}.jpg`;
+    link.href = canvas.toDataURL('image/jpeg', 0.95);
+    link.click();
+    toast('⬇ JPEG berhasil diunduh');
+  }).catch(err => {
+    console.error('Gagal export JPEG nota:', err);
+    toast('⛔ Gagal membuat JPEG: ' + (err.message||'error tak dikenal'));
+  });
 }
 
 async function gudangPruneOldHistory(){

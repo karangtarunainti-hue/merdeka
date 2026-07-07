@@ -1209,6 +1209,38 @@
     table.jadwal-table td[data-label="Judul"]{font-weight:700; font-size:14.5px;}
     table.jadwal-table td.jadwal-actions{justify-content:flex-end; gap:8px; padding-top:10px;}
     table.jadwal-table td.jadwal-actions::before{display:none;}
+
+    /* --- Kas Karang Taruna: kartu, bukan tabel geser (kolomnya banyak:
+       No, Tanggal, Keterangan, Debit, Kredit, Saldo, Aksi — kalau dipaksa
+       jadi tabel geser di HP jadi berantakan/kepotong) --- */
+    table.kas-table{table-layout:auto;}
+    table.kas-table thead{display:none;}
+    table.kas-table, table.kas-table tbody{display:block; width:100%;}
+    .panel-body.flush:has(table.kas-table){overflow-x:visible;}
+    table.kas-table tr{
+      display:block; width:100%;
+      padding:12px 14px; margin:0 0 10px; border:1px solid var(--garis); border-radius:var(--radius);
+      background:var(--cream-card);
+    }
+    table.kas-table tr.empty-row{border:none; padding:0; margin:0;}
+    table.kas-table td{
+      display:flex; align-items:flex-start; justify-content:space-between; gap:12px;
+      width:auto; padding:7px 0; border-bottom:1px dashed var(--garis); white-space:normal; text-align:right;
+    }
+    table.kas-table tr.empty-row td{display:block; text-align:center; border-bottom:none; padding:28px;}
+    table.kas-table td:last-child{border-bottom:none;}
+    table.kas-table td::before{
+      content:attr(data-label);
+      font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-soft); font-weight:600;
+      text-align:left; flex:0 0 auto; padding-top:2px;
+    }
+    /* Nomor urut cuma penting di tabel desktop; di kartu HP urutannya sudah
+       kelihatan dari susunan kartu, jadi disembunyikan supaya lebih ringkas. */
+    table.kas-table td[data-label="No"]{display:none;}
+    table.kas-table td[data-label="Keterangan"]{font-weight:700; font-size:14.5px;}
+    table.kas-table td[data-label="Saldo"]{font-weight:700;}
+    table.kas-table td.kas-actions{justify-content:flex-end; gap:8px; padding-top:10px; border-bottom:none;}
+    table.kas-table td.kas-actions::before{display:none;}
     .stat-grid{grid-template-columns:repeat(auto-fit,minmax(140px,1fr));}
     /* Kalau jumlah card ganjil (mis. Total Pemasukan, Pengeluaran, Saldo Akhir),
        card terakhir yang jadi "nyempil sendirian" dibuat memenuhi lebar penuh

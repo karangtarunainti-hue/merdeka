@@ -3573,7 +3573,7 @@ function renderKas(){
       <td data-label="Debit" class="num">${Number(k.debit||0)>0 ? fmtRp(k.debit) : '-'}</td>
       <td data-label="Kredit" class="num">${Number(k.kredit||0)>0 ? fmtRp(k.kredit) : '-'}</td>
       <td data-label="Saldo" class="num">${fmtRp(k._saldo)}</td>
-      ${canKelola ? `<td style="text-align:right;white-space:nowrap;">
+      ${canKelola ? `<td class="kas-actions" style="text-align:right;white-space:nowrap;">
         <button class="icon-btn" onclick="openKasModal('${k.id}')" title="Edit">✎</button>
         <button class="icon-btn" onclick="hapusKas('${k.id}')" title="Hapus">🗑</button>
       </td>` : ''}

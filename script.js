@@ -743,10 +743,10 @@ const SECTIONS = [
   {key:'database-anggota', label:'Database Anggota', sub:'Cek & filter semua anggota', icon:'database', adminOnly: false},
   {key:'users', label:'Manajemen User', sub:'Kelola akun pengguna', icon:'users', adminOnly: true},
   {key:'jadwal', label:'Jadwal & Reminder', sub:'Kelola jadwal dan pengingat', icon:'calendar', adminOnly: false},
-  {key:'agenda', label:'Agenda Kegiatan', sub:'Agenda umum, tidak terikat event', icon:'calendar', adminOnly: true},
+  {key:'agenda', label:'Agenda Kegiatan', sub:'', icon:'calendar', adminOnly: true},
   {key:'gudang', label:'Gudang Aset', sub:'Inventaris & pinjam aset desa', icon:'package', adminOnly: false},
   {key:'dokumen', label:'Surat & Dokumen', sub:'Undangan, proposal & absensi', icon:'clipboard', adminOnly: false},
-  {key:'kas', label:'Kas Karang Taruna', sub:'Buku kas umum organisasi, tidak terikat event', icon:'wallet', adminOnly: false},
+  {key:'kas', label:'Kas Karang Taruna', sub:'', icon:'wallet', adminOnly: false},
 ];
 
 // Menu yang tidak terikat event tertentu (datanya global, bukan per-event).
@@ -3477,7 +3477,6 @@ function renderAgenda(){
   <div class="panel">
     <div class="panel-head">
       <div><h3>📌 Agenda Kegiatan</h3>
-        <div class="desc">Agenda umum organisasi — tidak terikat event 17-an tertentu</div>
       </div>
       ${isLoggedIn ? `<button class="btn" onclick="openAgendaModal()">+ Tambah Agenda</button>` : ''}
     </div>
@@ -3614,9 +3613,7 @@ function renderKas(){
   </div>
   <div class="panel">
     <div class="panel-head">
-      <div><h3>💰 Kas Karang Taruna</h3>
-        <div class="desc">Buku Kas Umum</div>
-      </div>
+      <div></div>
       ${canKelola ? `<button class="btn" onclick="openKasModal()">+ Tambah Transaksi</button>` : ''}
     </div>
     <div class="panel-body flush kas-table-wrap">

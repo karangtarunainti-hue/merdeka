@@ -4509,10 +4509,13 @@ function buildGudangNotaHtml({resi, nama, alamat, pencatat, tglPinjam, tglKembal
     ['Rencana Kembali', fmtGudangTanggal(tglKembali)],
   ];
   const totalQty = items.reduce((s,it)=>s+Number(it.qty||0),0);
+  // Kolom "Gudang" digabung jadi sub-teks di bawah nama barang (bukan kolom
+  // terpisah) supaya tabel cuma 3 kolom — di layar HP yang sempit, 4 kolom
+  // (No/Nama/Gudang/Qty) gampang kepotong di sisi kanan karena kolom Gudang
+  // ikut rebutan lebar dengan kolom lain.
   const itemRows = items.map((it,i)=>`<tr>
-    <td>${i+1}</td>
-    <td>${esc(it.nama)}</td>
-    <td>${esc(it.gudang)}</td>
+    <td class="no">${i+1}</td>
+    <td class="nama-cell"><div class="nb-nama">${esc(it.nama)}</div><div class="nb-gudang">${esc(it.gudang)}</div></td>
     <td class="num">${it.qty}</td>
   </tr>`).join('');
   return `
@@ -4539,9 +4542,9 @@ function buildGudangNotaHtml({resi, nama, alamat, pencatat, tglPinjam, tglKembal
         </div>
         <div class="nota-section-label">Rincian Barang</div>
         <table class="nota-table">
-          <thead><tr><th style="width:26px;">No</th><th>Nama Barang</th><th>Gudang</th><th class="num">Qty</th></tr></thead>
+          <thead><tr><th style="width:24px;">No</th><th>Nama Barang</th><th class="num">Qty</th></tr></thead>
           <tbody>${itemRows}</tbody>
-          <tfoot><tr class="nota-total-row"><td colspan="3">Total ${items.length} jenis barang</td><td class="num">${totalQty} unit</td></tr></tfoot>
+          <tfoot><tr class="nota-total-row"><td colspan="2">Total ${items.length} jenis barang</td><td class="num">${totalQty} unit</td></tr></tfoot>
         </table>
       </div>
       ${statusHtml || ''}

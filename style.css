@@ -660,6 +660,10 @@
   }
   table.nota-table th.num, table.nota-table td.num{text-align:right;}
   table.nota-table td{padding:7px 6px; border-bottom:1px dashed var(--garis); vertical-align:top;}
+  table.nota-table td.no{color:var(--ink-soft);}
+  table.nota-table td.nama-cell{max-width:0; width:100%;}
+  .nb-nama{font-weight:600; color:var(--ink);}
+  .nb-gudang{font-size:10.5px; color:var(--ink-soft); margin-top:2px;}
   table.nota-table tbody tr:last-child td{border-bottom:none;}
   table.nota-table tfoot .nota-total-row td{
     padding:8px 6px 2px; border-bottom:none; border-top:1px solid var(--garis);
@@ -1187,6 +1191,27 @@
        alih-alih cuma ngisi setengah layar dengan ruang kosong di sampingnya. */
     .stat-grid .stat-card:last-child:nth-child(odd){grid-column:1/-1;}
     .reminder-grid{grid-template-columns:1fr;}
+    /* --- Nota gudang (pinjam/kembalikan): rapatkan supaya nota muat 1 layar HP,
+       dan hilangkan potongan kolom kanan yang kepotong seperti keluhan sebelumnya --- */
+    .overlay:has(.nota-sheet){padding:2vh 10px;}
+    .modal:has(.nota-sheet) .modal-head{padding:12px 16px 10px;}
+    .modal:has(.nota-sheet) .modal-head h3{font-size:14px;}
+    .modal:has(.nota-sheet) .modal-body{padding:10px 12px; max-height:80vh;}
+    .modal:has(.nota-sheet) .modal-foot{padding:10px 16px 16px; gap:8px;}
+    .nota-header{padding:12px 14px 10px; gap:10px;}
+    .nota-logo{width:36px; height:36px;}
+    .nota-org{font-size:12px;}
+    .nota-org-sub{font-size:9.5px;}
+    .nota-title{font-size:11px;}
+    .nota-no{font-size:9.5px;}
+    .nota-body{padding:12px 12px 2px;}
+    .nota-info-grid{grid-template-columns:1fr; gap:5px; font-size:12px;}
+    .nota-info-item .v{white-space:normal; overflow:visible; text-overflow:clip;}
+    .nota-section-label{padding-top:10px; margin-bottom:6px;}
+    table.nota-table{font-size:12px;}
+    table.nota-table td{padding:6px 4px;}
+    .nb-gudang{font-size:10px;}
+    .nota-footer{padding:10px 12px 12px; font-size:10.5px;}
     /* Font input minimal 16px di HP supaya Safari iOS tidak auto-zoom saat fokus ke form */
     input,select,textarea{font-size:16px;}
   }

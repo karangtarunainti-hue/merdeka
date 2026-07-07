@@ -3628,12 +3628,11 @@ function renderKas(){
         <tbody>${mobileRows || `<tr class="empty-row"><td colspan="5">Belum ada transaksi kas. ${canKelola ? '' : 'Hanya role tertentu yang bisa menambah transaksi.'}</td></tr>`}</tbody>
       </table>
     </div>
-    <div class="kas-footnote">
-      <strong>Catatan:</strong><br>
-      Dokumen ini merupakan salinan digital (backup).<br>
-      Referensi utama tetap pada buku besar fisik.<br>
-      Apabila terdapat perbedaan, maka buku besar manual menjadi acuan resmi.
-    </div>
+  </div>
+  <div class="kas-footnote">
+    Catatan: Dokumen ini merupakan salinan digital (backup).
+    Referensi utama tetap pada buku besar fisik.
+    Apabila terdapat perbedaan, maka buku besar manual menjadi acuan resmi.
   </div>`;
 }
 

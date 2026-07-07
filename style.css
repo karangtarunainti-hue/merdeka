@@ -1243,15 +1243,6 @@
       table.kas-table-mobile th:nth-child(4), table.kas-table-mobile td:nth-child(4){width:29%; padding-right:12px;}
     }
 
-.kas-footnote{
-  padding:14px 18px;
-  font-size:12.5px;
-  line-height:1.6;
-  color:var(--text-muted, #888);
-  border-top:1px solid var(--border-color, #e5e5e5);
-}
-.kas-footnote strong{color:inherit;}
-
     .stat-grid{grid-template-columns:repeat(auto-fit,minmax(140px,1fr));}
     /* Kalau jumlah card ganjil (mis. Total Pemasukan, Pengeluaran, Saldo Akhir),
        card terakhir yang jadi "nyempil sendirian" dibuat memenuhi lebar penuh
@@ -1283,6 +1274,14 @@
     input,select,textarea{font-size:16px;}
   }
   @media(min-width:1200px){.stat-grid{grid-template-columns:repeat(auto-fit,minmax(200px,1fr));}}
+
+.kas-footnote{
+  margin-top:14px;
+  text-align:center;
+  font-size:11.5px;
+  line-height:1.6;
+  color:var(--text-muted, #888);
+}
 
 /* ============================================================
    LPJ (Laporan Pertanggungjawaban) — tampilan & cetak

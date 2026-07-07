@@ -361,7 +361,7 @@ async function loadDB(){
     result.users = (!usersRes.error && usersRes.data && usersRes.data.length) ? usersRes.data : [...DEFAULT_USERS_FALLBACK];
 
     if(!settingsRes.error){
-      (settingsRes.data || []).forEach(s => { result.settings[s.event_id] = { tarif: s.tarif, hadiahBudget: s.hadiah_budget || {} }; });
+      (settingsRes.data || []).forEach(s => { result.settings[s.event_id] = { tarif: s.tarif, hadiahBudget: s.hadiah_budget || {}, dokumen: s.dokumen || {} }; });
       _lastKnownSettingsIds = new Set((settingsRes.data || []).map(s => s.event_id));
     }
 
@@ -435,7 +435,7 @@ async function syncArrayTable(table, rows){
 let _lastKnownSettingsIds = new Set();
 
 async function syncSettings(){
-  const rows = Object.keys(db.settings).map(eventId => ({ event_id: eventId, tarif: db.settings[eventId].tarif, hadiah_budget: db.settings[eventId].hadiahBudget || {} }));
+  const rows = Object.keys(db.settings).map(eventId => ({ event_id: eventId, tarif: db.settings[eventId].tarif, hadiah_budget: db.settings[eventId].hadiahBudget || {}, dokumen: db.settings[eventId].dokumen || {} }));
   const { data: existing, error: selErr } = await sb.from('kt_settings').select('event_id');
   if(selErr){ console.error('Gagal membaca kt_settings:', selErr); throw new Error(`Gagal membaca kt_settings: ${selErr.message}`); }
   const existingIds = new Set((existing || []).map(r => r.event_id));
@@ -571,9 +571,10 @@ const KATEGORI_JADWAL = [
 function activeEvent(){ return db.events.find(e=>e.id===db.activeEventId) || null; }
 function eid(){ return db.activeEventId; }
 function getSettings(){
-  if(!eid()) return {tarif:{sekolah:0,bekerja:0,perantauan:0,khusus:0}, hadiahBudget:{}};
-  if(!db.settings[eid()]) db.settings[eid()] = {tarif:{sekolah:0,bekerja:0,perantauan:0,khusus:0}, hadiahBudget:{}};
+  if(!eid()) return {tarif:{sekolah:0,bekerja:0,perantauan:0,khusus:0}, hadiahBudget:{}, dokumen:{}};
+  if(!db.settings[eid()]) db.settings[eid()] = {tarif:{sekolah:0,bekerja:0,perantauan:0,khusus:0}, hadiahBudget:{}, dokumen:{}};
   if(!db.settings[eid()].hadiahBudget) db.settings[eid()].hadiahBudget = {};
+  if(!db.settings[eid()].dokumen) db.settings[eid()].dokumen = {};
   return db.settings[eid()];
 }
 
@@ -695,6 +696,7 @@ const SECTIONS = [
   {key:'users', label:'Manajemen User', sub:'Kelola akun pengguna', icon:'users', adminOnly: true},
   {key:'jadwal', label:'Jadwal & Reminder', sub:'Kelola jadwal dan pengingat', icon:'calendar', adminOnly: false},
   {key:'gudang', label:'Gudang Aset', sub:'Inventaris & pinjam aset desa', icon:'package', adminOnly: false},
+  {key:'dokumen', label:'Surat & Dokumen', sub:'Undangan, proposal & absensi', icon:'clipboard', adminOnly: false},
 ];
 
 /* ============================================================
@@ -712,10 +714,11 @@ const FITUR_OPSIONAL = [
   {key:'hadiah', label:'Hadiah Lomba', menus:['hadiah','belanja-hadiah']},
   {key:'jalan_santai', label:'Hadiah Jalan Santai', menus:['hadiah-jalan','belanja-jalan']},
   {key:'jadwal', label:'Jadwal & Reminder', menus:['jadwal']},
+  {key:'dokumen', label:'Surat & Dokumen', menus:['dokumen']},
 ];
 // Preset dipakai di modal event supaya tidak perlu centang satu-satu tiap bikin event baru.
-const FITUR_PRESET_SEDERHANA = {donatur:false, transaksi:false, operasional:false, lomba:false, hadiah:false, jalan_santai:false, jadwal:false};
-const FITUR_PRESET_LENGKAP = {donatur:true, transaksi:true, operasional:true, lomba:true, hadiah:true, jalan_santai:true, jadwal:true};
+const FITUR_PRESET_SEDERHANA = {donatur:false, transaksi:false, operasional:false, lomba:false, hadiah:false, jalan_santai:false, jadwal:false, dokumen:false};
+const FITUR_PRESET_LENGKAP = {donatur:true, transaksi:true, operasional:true, lomba:true, hadiah:true, jalan_santai:true, jadwal:true, dokumen:true};
 
 // Default: fitur dianggap aktif kalau belum pernah diset (backward-compat utk event lama).
 function eventFitur(ev){
@@ -911,6 +914,7 @@ function renderContent(){
     case 'belanja-jalan': el.innerHTML = renderBelanjaJalanSantai(); break;
     case 'jadwal': el.innerHTML = renderJadwal(); break;
     case 'gudang': el.innerHTML = renderGudang(); break;
+    case 'dokumen': el.innerHTML = renderDokumen(); break;
     case 'lpj': el.innerHTML = renderLPJ(); break;
     case 'pengaturan': el.innerHTML = renderPengaturan(); break;
     case 'users': el.innerHTML = renderUsers(); break;
@@ -920,7 +924,7 @@ function renderContent(){
   // Setup currency inputs after content rendered
   setTimeout(setupAllCurrencyInputs, 50);
 
-  if (currentSection === 'lpj') {
+  if (currentSection === 'lpj' || currentSection === 'dokumen') {
     requestAnimationFrame(applyLpjMobileScale);
   }
 
@@ -3303,7 +3307,7 @@ function applyLpjMobileScale(){
   area.style.zoom = scale;
 }
 window.addEventListener('resize', ()=>{
-  if (currentSection === 'lpj') applyLpjMobileScale();
+  if (currentSection === 'lpj' || currentSection === 'dokumen') applyLpjMobileScale();
 });
 
 /* ============================================================
@@ -3449,6 +3453,310 @@ function renderLPJ(){
   </div>` : ''}`;
 }
 
+
+/* ============================================================
+   SURAT & DOKUMEN
+   Kumpulan dokumen siap cetak: Surat Undangan Kegiatan, Proposal
+   Kegiatan, dan Form Absensi (berdasar Database Anggota). Draft
+   teksnya disimpan di db.settings[event].dokumen (kolom jsonb
+   `dokumen` di tabel kt_settings — lihat
+   supabase-dokumen-migration.sql). Pola cetaknya sama seperti LPJ:
+   render di layar, lalu tombol "Cetak / Simpan sebagai PDF" yang
+   memanggil window.print().
+   ============================================================ */
+function nl2br(s){ return esc(s).replace(/\n/g, '<br>'); }
+
+let _dokumenTab = 'undangan';
+function gotoDokumenTab(tab){ _dokumenTab = tab; renderContent(); }
+
+function renderDokumen(){
+  const ev = activeEvent();
+  if (!ev) return `<div class="panel"><div class="panel-body" style="padding:24px;">Tidak ada event aktif.</div></div>`;
+  const tabs = [
+    {key:'undangan', label:'📨 Surat Undangan'},
+    {key:'proposal', label:'📋 Proposal Kegiatan'},
+    {key:'absensi', label:'📝 Form Absensi'},
+  ];
+  const tabNav = `<div class="dokumen-tabs no-print">${tabs.map(t=>`<button type="button" class="dokumen-tab ${_dokumenTab===t.key?'active':''}" onclick="gotoDokumenTab('${t.key}')">${t.label}</button>`).join('')}</div>`;
+  let body = '';
+  if(_dokumenTab==='proposal') body = renderProposalKegiatan(ev);
+  else if(_dokumenTab==='absensi') body = renderFormAbsensi(ev);
+  else body = renderSuratUndangan(ev);
+  return tabNav + body;
+}
+
+/* ---------- 1. Surat Undangan Kegiatan ---------- */
+function renderSuratUndangan(ev){
+  const isLoggedIn = !!getCurrentUser();
+  const d = getSettings().dokumen.undangan || {};
+  const editForm = isLoggedIn ? `
+  <div class="panel no-print">
+    <div class="panel-head"><h3>✏️ Isi Data Surat Undangan</h3></div>
+    <div class="panel-body">
+      <div class="field-row">
+        <div class="field"><label>Nomor Surat</label><input id="doc-und-nomor" value="${esc(d.nomor_surat||'')}" placeholder="001/KT-Inti/VII/2026"></div>
+        <div class="field"><label>Perihal</label><input id="doc-und-perihal" value="${esc(d.perihal||'')}" placeholder="Undangan Rapat Persiapan"></div>
+      </div>
+      <div class="field"><label>Kepada Yth.</label><input id="doc-und-kepada" value="${esc(d.kepada||'')}" placeholder="Seluruh Warga RT 01-03 / Pengurus Karang Taruna"></div>
+      <div class="field-row">
+        <div class="field"><label>Hari, Tanggal</label><input id="doc-und-hari-tanggal" value="${esc(d.hari_tanggal||'')}" placeholder="Minggu, 17 Agustus 2026"></div>
+        <div class="field"><label>Waktu</label><input id="doc-und-waktu" value="${esc(d.waktu||'')}" placeholder="19.30 WIB - selesai"></div>
+      </div>
+      <div class="field"><label>Tempat</label><input id="doc-und-tempat" value="${esc(d.tempat||'')}" placeholder="Balai Desa / Rumah Bapak RT 02"></div>
+      <div class="field"><label>Acara</label><input id="doc-und-acara" value="${esc(d.acara||'')}" placeholder="Rapat persiapan ${esc(ev.nama)}"></div>
+      <div class="field"><label>Catatan Tambahan (opsional)</label><textarea id="doc-und-catatan" rows="3" placeholder="Mohon hadir tepat waktu...">${esc(d.catatan||'')}</textarea></div>
+      <div class="field-row">
+        <div class="field"><label>Jabatan Penandatangan 1</label><input id="doc-und-jab1" value="${esc(d.jabatan1||'Ketua Panitia')}"></div>
+        <div class="field"><label>Nama Penandatangan 1</label><input id="doc-und-nama1" value="${esc(d.nama1||'')}"></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Jabatan Penandatangan 2</label><input id="doc-und-jab2" value="${esc(d.jabatan2||'Sekretaris')}"></div>
+        <div class="field"><label>Nama Penandatangan 2</label><input id="doc-und-nama2" value="${esc(d.nama2||'')}"></div>
+      </div>
+      <button class="btn" onclick="simpanUndangan()">💾 Simpan &amp; Perbarui Pratinjau</button>
+    </div>
+  </div>` : '';
+
+  return editForm + `
+  <div class="lpj-scale-wrap" id="lpj-scale-wrap">
+  <div class="lpj-print-area" id="lpj-print-area">
+    <div class="lpj-header">
+      <div class="lpj-header-inner">
+        <img src="icons/logo-kop.png" alt="Logo Karang Taruna Inti" class="lpj-logo">
+        <div class="lpj-header-text">
+          <div class="lpj-eyebrow">Karang Taruna Inti</div>
+          <h2>SURAT UNDANGAN</h2>
+          <div class="lpj-sub">${d.nomor_surat ? `Nomor: ${esc(d.nomor_surat)}` : 'Nomor: -'}</div>
+        </div>
+        <div class="lpj-header-spacer" aria-hidden="true"></div>
+      </div>
+    </div>
+
+    <p class="surat-body">Perihal: <strong>${esc(d.perihal||'-')}</strong></p>
+    <p class="surat-body">Kepada Yth.<br><strong>${esc(d.kepada||'-')}</strong><br>di Tempat</p>
+    <p class="surat-body">Dengan hormat,</p>
+    <p class="surat-body">Sehubungan dengan pelaksanaan kegiatan <strong>${esc(ev.nama)}</strong>, kami mengundang Bapak/Ibu/Saudara/i untuk hadir pada:</p>
+    <table class="lpj-table surat-detail-table">
+      <tbody>
+        <tr><td class="surat-detail-label">Hari, Tanggal</td><td>: ${esc(d.hari_tanggal||'-')}</td></tr>
+        <tr><td class="surat-detail-label">Waktu</td><td>: ${esc(d.waktu||'-')}</td></tr>
+        <tr><td class="surat-detail-label">Tempat</td><td>: ${esc(d.tempat||'-')}</td></tr>
+        <tr><td class="surat-detail-label">Acara</td><td>: ${esc(d.acara||'-')}</td></tr>
+      </tbody>
+    </table>
+    ${d.catatan ? `<p class="surat-body">${nl2br(d.catatan)}</p>` : ''}
+    <p class="surat-body">Demikian undangan ini kami sampaikan. Atas perhatian dan kehadirannya kami ucapkan terima kasih.</p>
+
+    <div class="lpj-signature">
+      <div class="surat-ttd"><div>${esc(d.jabatan1||'Ketua Panitia')}</div><div class="surat-ttd-space"></div><div><strong>${esc(d.nama1||'(.....................)')}</strong></div></div>
+      <div class="surat-ttd"><div>${esc(d.jabatan2||'Sekretaris')}</div><div class="surat-ttd-space"></div><div><strong>${esc(d.nama2||'(.....................)')}</strong></div></div>
+    </div>
+  </div>
+  </div>
+  ${isLoggedIn ? `<div class="lpj-toolbar no-print"><button class="btn small" onclick="window.print()">🖨️ Cetak / Simpan sebagai PDF</button></div>` : ''}`;
+}
+
+function simpanUndangan(){
+  const s = getSettings();
+  s.dokumen.undangan = {
+    nomor_surat: document.getElementById('doc-und-nomor').value.trim(),
+    perihal: document.getElementById('doc-und-perihal').value.trim(),
+    kepada: document.getElementById('doc-und-kepada').value.trim(),
+    hari_tanggal: document.getElementById('doc-und-hari-tanggal').value.trim(),
+    waktu: document.getElementById('doc-und-waktu').value.trim(),
+    tempat: document.getElementById('doc-und-tempat').value.trim(),
+    acara: document.getElementById('doc-und-acara').value.trim(),
+    catatan: document.getElementById('doc-und-catatan').value.trim(),
+    jabatan1: document.getElementById('doc-und-jab1').value.trim(),
+    nama1: document.getElementById('doc-und-nama1').value.trim(),
+    jabatan2: document.getElementById('doc-und-jab2').value.trim(),
+    nama2: document.getElementById('doc-und-nama2').value.trim(),
+  };
+  saveDB(); renderContent(); toast('💾 Surat undangan disimpan');
+}
+
+/* ---------- 2. Proposal Kegiatan ---------- */
+function renderProposalKegiatan(ev){
+  const isLoggedIn = !!getCurrentUser();
+  const d = getSettings().dokumen.proposal || {};
+  const b = hitungBukuUtama();
+  const showDonatur = isMenuAktif('donatur');
+  const showTransaksi = isMenuAktif('transaksi');
+  const showOperasional = isMenuAktif('operasional');
+  const showLomba = isMenuAktif('lomba');
+  const showHadiah = isMenuAktif('hadiah');
+  const showJalan = isMenuAktif('jalan_santai');
+
+  const editForm = isLoggedIn ? `
+  <div class="panel no-print">
+    <div class="panel-head"><h3>✏️ Isi Data Proposal</h3></div>
+    <div class="panel-body">
+      <div class="field"><label>Tema/Judul Kegiatan</label><input id="doc-prop-tema" value="${esc(d.tema||ev.nama)}"></div>
+      <div class="field"><label>Latar Belakang</label><textarea id="doc-prop-latar" rows="4" placeholder="Uraikan alasan/konteks kegiatan ini diadakan...">${esc(d.latar_belakang||'')}</textarea></div>
+      <div class="field"><label>Maksud &amp; Tujuan</label><textarea id="doc-prop-tujuan" rows="3" placeholder="Satu tujuan per baris">${esc(d.tujuan||'')}</textarea></div>
+      <div class="field"><label>Susunan Acara</label><textarea id="doc-prop-susunan" rows="4" placeholder="Satu kegiatan per baris, mis: 19.30 - Pembukaan">${esc(d.susunan_acara||'')}</textarea></div>
+      <div class="field"><label>Penutup (opsional)</label><textarea id="doc-prop-penutup" rows="2" placeholder="Paragraf penutup, kosongkan untuk pakai kalimat baku">${esc(d.penutup||'')}</textarea></div>
+      <div class="field-row">
+        <div class="field"><label>Jabatan Penandatangan 1</label><input id="doc-prop-jab1" value="${esc(d.jabatan1||'Ketua Panitia')}"></div>
+        <div class="field"><label>Nama Penandatangan 1</label><input id="doc-prop-nama1" value="${esc(d.nama1||'')}"></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Jabatan Penandatangan 2</label><input id="doc-prop-jab2" value="${esc(d.jabatan2||'Ketua Karang Taruna')}"></div>
+        <div class="field"><label>Nama Penandatangan 2</label><input id="doc-prop-nama2" value="${esc(d.nama2||'')}"></div>
+      </div>
+      <button class="btn" onclick="simpanProposal()">💾 Simpan &amp; Perbarui Pratinjau</button>
+    </div>
+  </div>` : '';
+
+  const tujuanItems = (d.tujuan||'').split('\n').map(s=>s.trim()).filter(Boolean);
+  const susunanItems = (d.susunan_acara||'').split('\n').map(s=>s.trim()).filter(Boolean);
+
+  return editForm + `
+  <div class="lpj-scale-wrap" id="lpj-scale-wrap">
+  <div class="lpj-print-area" id="lpj-print-area">
+    <div class="lpj-header">
+      <div class="lpj-header-inner">
+        <img src="icons/logo-kop.png" alt="Logo Karang Taruna Inti" class="lpj-logo">
+        <div class="lpj-header-text">
+          <div class="lpj-eyebrow">Karang Taruna Inti</div>
+          <h2>PROPOSAL KEGIATAN</h2>
+          <div class="lpj-sub">${esc(d.tema||ev.nama)} — Tahun ${esc(String(ev.tahun))}</div>
+        </div>
+        <div class="lpj-header-spacer" aria-hidden="true"></div>
+      </div>
+    </div>
+
+    <h3>1. Latar Belakang</h3>
+    <p class="surat-body">${d.latar_belakang ? nl2br(d.latar_belakang) : '<span class="hint">Belum diisi.</span>'}</p>
+
+    <h3>2. Maksud &amp; Tujuan</h3>
+    ${tujuanItems.length ? `<ul class="proposal-list">${tujuanItems.map(t=>`<li>${esc(t)}</li>`).join('')}</ul>` : '<p class="surat-body"><span class="hint">Belum diisi.</span></p>'}
+
+    <h3>3. Susunan Acara</h3>
+    ${susunanItems.length ? `<ul class="proposal-list">${susunanItems.map(t=>`<li>${esc(t)}</li>`).join('')}</ul>` : '<p class="surat-body"><span class="hint">Belum diisi.</span></p>'}
+
+    <h3>4. Rencana Anggaran</h3>
+    <p class="field-hint" style="color:var(--ink-soft); font-size:12.5px; margin:-4px 0 10px;">Diambil otomatis dari data yang sudah tercatat di sistem saat ini — sesuaikan lewat menu terkait sebelum dicetak bila perlu.</p>
+    <table class="lpj-table">
+      <tbody>
+        <tr class="lpj-subtotal"><td>Rencana Pemasukan</td><td class="num">${fmtRp(b.pemasukan)}</td></tr>
+        <tr><td class="indent">Iuran Anggota</td><td class="num">${fmtRp(b.iuran)}</td></tr>
+        ${showDonatur ? `<tr><td class="indent">Donatur</td><td class="num">${fmtRp(b.donasi)}</td></tr>` : ''}
+        ${showTransaksi ? `<tr><td class="indent">Transaksi Lain</td><td class="num">${fmtRp(b.transaksiLain)}</td></tr>` : ''}
+        <tr class="lpj-subtotal"><td>Rencana Pengeluaran</td><td class="num">${fmtRp(b.pengeluaran)}</td></tr>
+        ${showOperasional ? `<tr><td class="indent">Operasional Kegiatan</td><td class="num">${fmtRp(b.opsional)}</td></tr>` : ''}
+        ${showLomba ? `<tr><td class="indent">Kebutuhan Lomba</td><td class="num">${fmtRp(b.kebutuhanLomba)}</td></tr>` : ''}
+        ${showHadiah ? `<tr><td class="indent">Hadiah Lomba</td><td class="num">${fmtRp(b.hadiahLomba)}</td></tr>` : ''}
+        ${showJalan ? `<tr><td class="indent">Hadiah Jalan Santai</td><td class="num">${fmtRp(b.hadiahJalan)}</td></tr>` : ''}
+        <tr class="lpj-total"><td>Selisih (Saldo)</td><td class="num">${fmtRp(b.saldo)}</td></tr>
+      </tbody>
+    </table>
+
+    <h3>5. Penutup</h3>
+    <p class="surat-body">${d.penutup ? nl2br(d.penutup) : `Demikian proposal kegiatan <strong>${esc(d.tema||ev.nama)}</strong> ini kami susun. Besar harapan kami atas dukungan dan partisipasi semua pihak demi kelancaran acara ini.`}</p>
+
+    <div class="lpj-signature">
+      <div class="surat-ttd"><div>${esc(d.jabatan1||'Ketua Panitia')}</div><div class="surat-ttd-space"></div><div><strong>${esc(d.nama1||'(.....................)')}</strong></div></div>
+      <div class="surat-ttd"><div>${esc(d.jabatan2||'Ketua Karang Taruna')}</div><div class="surat-ttd-space"></div><div><strong>${esc(d.nama2||'(.....................)')}</strong></div></div>
+    </div>
+  </div>
+  </div>
+  ${isLoggedIn ? `<div class="lpj-toolbar no-print"><button class="btn small" onclick="window.print()">🖨️ Cetak / Simpan sebagai PDF</button></div>` : ''}`;
+}
+
+function simpanProposal(){
+  const s = getSettings();
+  s.dokumen.proposal = {
+    tema: document.getElementById('doc-prop-tema').value.trim(),
+    latar_belakang: document.getElementById('doc-prop-latar').value.trim(),
+    tujuan: document.getElementById('doc-prop-tujuan').value,
+    susunan_acara: document.getElementById('doc-prop-susunan').value,
+    penutup: document.getElementById('doc-prop-penutup').value.trim(),
+    jabatan1: document.getElementById('doc-prop-jab1').value.trim(),
+    nama1: document.getElementById('doc-prop-nama1').value.trim(),
+    jabatan2: document.getElementById('doc-prop-jab2').value.trim(),
+    nama2: document.getElementById('doc-prop-nama2').value.trim(),
+  };
+  saveDB(); renderContent(); toast('💾 Proposal disimpan');
+}
+
+/* ---------- 3. Form Absensi (dari Database Anggota) ---------- */
+function renderFormAbsensi(ev){
+  const isLoggedIn = !!getCurrentUser();
+  const d = getSettings().dokumen.absensi || {};
+  const filterKategori = d.filter_kategori || '';
+  const filterRT = d.filter_rt || '';
+  let list = gAnggota().slice().sort((a,b)=>a.nama.localeCompare(b.nama));
+  if(filterKategori) list = list.filter(a=>a.kategori===filterKategori);
+  if(filterRT) list = list.filter(a=>getRT(a)===filterRT);
+
+  const editForm = isLoggedIn ? `
+  <div class="panel no-print">
+    <div class="panel-head"><h3>✏️ Pengaturan Form Absensi</h3></div>
+    <div class="panel-body">
+      <div class="field-row">
+        <div class="field"><label>Judul Acara</label><input id="doc-abs-judul" value="${esc(d.judul||ev.nama)}"></div>
+        <div class="field"><label>Tanggal</label><input id="doc-abs-tanggal" type="date" value="${esc(d.tanggal||todayISO())}"></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Filter Kategori</label>
+          <select id="doc-abs-kategori" onchange="filterAbsensi()">
+            <option value="">Semua Kategori</option>
+            ${KATEGORI_ANGGOTA.map(k=>`<option value="${k.v}" ${filterKategori===k.v?'selected':''}>${esc(k.l)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field"><label>Filter RT</label>
+          <select id="doc-abs-rt" onchange="filterAbsensi()">
+            <option value="">Semua RT</option>
+            ${RT_LIST.map(r=>`<option value="${r.v}" ${filterRT===r.v?'selected':''}>${esc(r.l)}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <button class="btn" onclick="simpanAbsensi()">💾 Simpan Judul &amp; Tanggal</button>
+    </div>
+  </div>` : '';
+
+  return editForm + `
+  <div class="lpj-scale-wrap" id="lpj-scale-wrap">
+  <div class="lpj-print-area" id="lpj-print-area">
+    <div class="lpj-header">
+      <div class="lpj-header-inner">
+        <img src="icons/logo-kop.png" alt="Logo Karang Taruna Inti" class="lpj-logo">
+        <div class="lpj-header-text">
+          <div class="lpj-eyebrow">Karang Taruna Inti</div>
+          <h2>DAFTAR HADIR</h2>
+          <div class="lpj-sub">${esc(d.judul||ev.nama)}</div>
+          <div class="lpj-meta">Tanggal: ${fmtDate(d.tanggal||todayISO())}${filterKategori?` · Kategori: ${esc(labelKategori(filterKategori))}`:''}${filterRT?` · ${esc(labelRT(filterRT))}`:''}</div>
+        </div>
+        <div class="lpj-header-spacer" aria-hidden="true"></div>
+      </div>
+    </div>
+
+    <table class="lpj-table absensi-table">
+      <thead><tr><th style="width:36px;">No</th><th>Nama</th><th>Kategori</th><th>RT</th><th>Tanda Tangan</th></tr></thead>
+      <tbody>
+        ${list.length ? list.map((a,i)=>`<tr><td class="num">${i+1}</td><td>${esc(a.nama)}</td><td>${esc(labelKategori(a.kategori))}</td><td>${esc(labelRT(a.rt))}</td><td class="absensi-ttd-cell"></td></tr>`).join('') : `<tr class="empty-row"><td colspan="5">Belum ada data anggota${filterKategori||filterRT?' yang cocok dengan filter ini':''}.</td></tr>`}
+      </tbody>
+    </table>
+  </div>
+  </div>
+  ${isLoggedIn ? `<div class="lpj-toolbar no-print"><button class="btn small" onclick="window.print()">🖨️ Cetak / Simpan sebagai PDF</button></div>` : ''}`;
+}
+
+function filterAbsensi(){
+  const s = getSettings();
+  s.dokumen.absensi = s.dokumen.absensi || {};
+  s.dokumen.absensi.filter_kategori = document.getElementById('doc-abs-kategori').value;
+  s.dokumen.absensi.filter_rt = document.getElementById('doc-abs-rt').value;
+  saveDB(); renderContent();
+}
+function simpanAbsensi(){
+  const s = getSettings();
+  s.dokumen.absensi = s.dokumen.absensi || {};
+  s.dokumen.absensi.judul = document.getElementById('doc-abs-judul').value.trim();
+  s.dokumen.absensi.tanggal = document.getElementById('doc-abs-tanggal').value;
+  saveDB(); renderContent(); toast('💾 Form absensi diperbarui');
+}
 
 /* ============================================================
    PENGATURAN (Admin only)

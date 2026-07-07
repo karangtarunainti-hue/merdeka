@@ -737,7 +737,7 @@ const SECTIONS = [
   {key:'database-anggota', label:'Database Anggota', sub:'Cek & filter semua anggota', icon:'database', adminOnly: false},
   {key:'users', label:'Manajemen User', sub:'Kelola akun pengguna', icon:'users', adminOnly: true},
   {key:'jadwal', label:'Jadwal & Reminder', sub:'Kelola jadwal dan pengingat', icon:'calendar', adminOnly: false},
-  {key:'agenda', label:'Agenda Kegiatan', sub:'Agenda umum, tidak terikat event', icon:'calendar', adminOnly: false},
+  {key:'agenda', label:'Agenda Kegiatan', sub:'Agenda umum, tidak terikat event', icon:'calendar', adminOnly: true},
   {key:'gudang', label:'Gudang Aset', sub:'Inventaris & pinjam aset desa', icon:'package', adminOnly: false},
   {key:'dokumen', label:'Surat & Dokumen', sub:'Undangan, proposal & absensi', icon:'clipboard', adminOnly: false},
 ];

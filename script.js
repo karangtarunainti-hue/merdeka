@@ -3869,7 +3869,13 @@ function setModal(title, bodyHtml, buttons){
 }
 function closeModal(){ document.getElementById('overlay').classList.remove('show'); if(typeof closeAllGudangCombos==='function') closeAllGudangCombos(); }
 document.getElementById('modal-close').onclick = closeModal;
-document.getElementById('overlay').addEventListener('click', (e)=>{ if(e.target.id==='overlay') closeModal(); });
+// Catatan: tutup overlay HANYA jika mousedown & click sama-sama kena backdrop.
+// Ini mencegah modal tertutup tidak sengaja saat user scroll/geser di dalam modal
+// (jari mulai di dalam modal, geser, lalu lepas di area backdrop) atau saat
+// posisi modal bergeser akibat munculnya keyboard di HP.
+let overlayMouseDownOnBackdrop = false;
+document.getElementById('overlay').addEventListener('mousedown', (e)=>{ overlayMouseDownOnBackdrop = (e.target.id==='overlay'); });
+document.getElementById('overlay').addEventListener('click', (e)=>{ if(e.target.id==='overlay' && overlayMouseDownOnBackdrop) closeModal(); overlayMouseDownOnBackdrop = false; });
 
 let toastTimer;
 function toast(msg){

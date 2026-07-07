@@ -607,17 +607,24 @@
 
   .overlay{
     position:fixed; inset:0; background:rgba(43,35,32,.45); display:none;
-    align-items:flex-start; justify-content:center; padding:6vh 16px; z-index:100; overflow-y:auto;
+    align-items:flex-start; justify-content:center; padding:6vh 16px; z-index:100;
+    /* overflow-y dihapus dari sini sengaja: overlay TIDAK boleh ikut jadi
+       scroll container. Kalau overlay & modal-body sama-sama overflow:auto,
+       saat keyboard HP muncul (fokus ke input) browser bisa menggulirkan
+       overlay itu sendiri, menggeser posisi modal, sehingga ketukan
+       berikutnya jatuh ke area backdrop dan modal tertutup sendiri
+       sebelum user selesai mengisi form. Cukup modal-body yang scroll. */
   }
   .overlay.show{display:flex;}
   .modal{
     background:var(--cream-card); border-radius:14px; width:100%; max-width:720px;
+    max-height:88vh; display:flex; flex-direction:column;
     box-shadow:0 20px 60px rgba(0,0,0,.25); border:1px solid var(--garis);
   }
-  .modal-head{padding:18px 22px 12px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--garis);}
+  .modal-head{padding:18px 22px 12px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--garis); flex-shrink:0;}
   .modal-head h3{margin:0; font-size:17px;}
-  .modal-body{padding:20px 22px; max-height:70vh; overflow-y:auto;}
-  .modal-foot{padding:14px 22px 20px; display:flex; justify-content:flex-end; gap:10px;}
+  .modal-body{padding:20px 22px; overflow-y:auto; flex:1 1 auto; min-height:0;}
+  .modal-foot{padding:14px 22px 20px; display:flex; justify-content:flex-end; gap:10px; flex-shrink:0;}
   .close-x{background:none; border:none; font-size:20px; color:var(--ink-soft); line-height:1;}
 
   .empty-state{

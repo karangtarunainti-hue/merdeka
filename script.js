@@ -742,6 +742,11 @@ const SECTIONS = [
   {key:'dokumen', label:'Surat & Dokumen', sub:'Undangan, proposal & absensi', icon:'clipboard', adminOnly: false},
 ];
 
+// Menu yang tidak terikat event tertentu (datanya global, bukan per-event).
+// Menu ini ditampilkan terpisah di atas, antara info login dan dropdown
+// Kegiatan Aktif, supaya jelas tidak berubah walau event aktif diganti.
+const GLOBAL_MENU_KEYS = ['database-anggota', 'pengaturan', 'users', 'gudang', 'dokumen', 'agenda'];
+
 /* ============================================================
    FITUR OPSIONAL PER EVENT
    Beberapa event (mis. sekadar iuran rutin) tidak butuh semua modul.
@@ -837,6 +842,7 @@ function renderSidebar(){
   }
 
   const nav = document.getElementById('nav');
+  const navGlobal = document.getElementById('nav-global');
   const isPetugasUser = user && user.role === 'petugas';
   const visibleSections = SECTIONS
     .filter(s => !s.adminOnly || isAdminUser)
@@ -846,11 +852,15 @@ function renderSidebar(){
       if (isPetugasUser) return s.key === 'dashboard' || userSections().includes(s.key);
       return true;
     });
-  nav.innerHTML = visibleSections.map(s=>`
+
+  const renderNavItem = s => `
     <div class="nav-item ${s.key===currentSection?'active':''} ${!isLoggedIn && !s.adminOnly ? '' : ''}" data-nav="${s.key}">
       ${icon(s.icon)} <span>${s.label}</span>
       ${s.adminOnly && !isAdminUser ? `<span class="lock-icon">🔒</span>` : ''}
-    </div>`).join('');
+    </div>`;
+
+  navGlobal.innerHTML = visibleSections.filter(s => GLOBAL_MENU_KEYS.includes(s.key)).map(renderNavItem).join('');
+  nav.innerHTML = visibleSections.filter(s => !GLOBAL_MENU_KEYS.includes(s.key)).map(renderNavItem).join('');
 
   // Buat event baru: khusus Administrator
   document.getElementById('btn-new-event').style.display = isAdminUser ? 'inline-block' : 'none';
@@ -5834,6 +5844,10 @@ document.getElementById('event-select').addEventListener('change', (e)=>{
 });
 document.getElementById('btn-new-event').addEventListener('click', openEventModal);
 document.getElementById('nav').addEventListener('click', (e)=>{
+  const item = e.target.closest('[data-nav]');
+  if(item) goSection(item.dataset.nav);
+});
+document.getElementById('nav-global').addEventListener('click', (e)=>{
   const item = e.target.closest('[data-nav]');
   if(item) goSection(item.dataset.nav);
 });

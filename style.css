@@ -158,6 +158,8 @@
   .btn-ghost-light:disabled{opacity:.4; cursor:not-allowed;}
 
   nav.nav{flex:1; padding:10px 12px;}
+  nav.nav-global{flex:none; padding:10px 12px 6px; border-bottom:1px solid rgba(255,255,255,.12);}
+  nav.nav-global:empty{display:none;}
   .nav-item{
     display:flex; align-items:center; gap:10px;
     padding:10px 12px; margin-bottom:3px;

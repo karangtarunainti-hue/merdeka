@@ -2201,7 +2201,7 @@ function renderHadiah(){
     return s2 + budgetPerPaket * (keb!=null ? keb : 1);
   },0),0);
 
-  // Card anggaran per kategori peserta — bandingkan harga 1 PAKET (bukan akumulasi total
+  // Card anggaran per kategori peserta — bandingkan harga PAKET (bukan akumulasi total
   // belanja) dengan budget per paket yang sudah diatur lewat tombol "Atur Budget".
   // Ini sengaja tidak dikalikan jumlah kebutuhan paket, karena budget memang dipatok
   // per satu paket/pemenang, bukan untuk seluruh kebutuhan lomba di kategori itu.
@@ -2209,9 +2209,15 @@ function renderHadiah(){
     const rincianJuara = JUARA_LIST.map(j => {
       const budgetPerPaket = getHadiahBudget(kp.v, j.v);
       if(budgetPerPaket<=0) return null;
-      const h = list.find(x => x.kategori_peserta === kp.v && x.juara_ke === j.v);
-      const totalPerPaket = h ? h.items.reduce((s,item)=> s + (Number(item.harga_satuan||0) * Math.max(1,Number(item.qty_per_paket||1))), 0) : 0;
-      return {label: j.l, budgetPerPaket, totalPerPaket};
+      // Normalnya cuma ada 1 paket per kombinasi kategori+juara, tapi sistem tetap
+      // mengizinkan lebih dari 1 (dengan konfirmasi peringatan saat dibuat). Kalau
+      // itu terjadi, jumlahkan SEMUA paket yang cocok (bukan cuma yang pertama
+      // ketemu) dan kalikan budget acuan dengan jumlah paketnya juga, supaya
+      // perbandingan tetap adil (mis. 2 paket @ budget 100rb = acuan 200rb).
+      const hs = list.filter(x => x.kategori_peserta === kp.v && x.juara_ke === j.v);
+      const totalPerPaket = hs.reduce((s,h)=> s + h.items.reduce((s2,item)=> s2 + (Number(item.harga_satuan||0) * Math.max(1,Number(item.qty_per_paket||1))), 0), 0);
+      const budgetAcuan = budgetPerPaket * Math.max(1, hs.length);
+      return {label: j.l, budgetPerPaket: budgetAcuan, totalPerPaket};
     }).filter(Boolean);
     if(!rincianJuara.length) return '';
     const budgetTotal = rincianJuara.reduce((s,r)=>s+r.budgetPerPaket,0);

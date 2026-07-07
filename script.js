@@ -371,6 +371,10 @@ async function loadDB(){
       // syncArrayTable() supaya delete-diff tidak menghapus data yang ditambahkan
       // client lain setelah kita load (lihat penjelasan di syncArrayTable).
       _lastKnownIds[table] = new Set(result[key].map(r => r.id));
+      // Catat juga `updated_at` tiap baris SAAT KITA MELIHATNYA. Dipakai syncArrayTable()
+      // untuk mendeteksi kalau baris yang sama sudah diubah akun/device lain setelah kita
+      // load (lihat penjelasan lengkap di syncArrayTable) — supaya tidak ditimpa diam-diam.
+      _lastKnownUpdatedAt[table] = new Map(result[key].map(r => [r.id, r.updated_at || null]));
     });
     if(failedTables.length){
       toast(`⚠️ Gagal memuat data: ${failedTables.join(', ')} — cek koneksi lalu muat ulang halaman`);
@@ -435,17 +439,49 @@ async function loadDB(){
 // kenal sebelumnya dibiarkan saja — itu punya device lain, bukan urusan sync ini.
 const _lastKnownIds = {};
 
-async function syncArrayTable(table, rows){
-  const { data: existing, error: selErr } = await sb.from(table).select('id');
+// PENTING — soal konflik simpan bersamaan (concurrent edit) di baris yang SAMA:
+// `rows` adalah snapshot PENUH tabel ini di memori tab kita, bukan diff per-field.
+// Kalau device/akun lain juga sedang mengedit baris yang sama, dan mereka menyimpan
+// setelah kita terakhir kali load/sync tapi SEBELUM kita menyimpan sekarang, maka
+// upsert kita bisa menimpa perubahan mereka tanpa siapa pun sadar.
+// Untuk mendeteksi ini: setiap tabel punya kolom `updated_at` yang di-refresh OTOMATIS
+// oleh trigger Postgres (lihat supabase-conflict-detection-migration.sql) setiap kali
+// baris di-UPDATE. Kita simpan `updated_at` terakhir yang KITA TAHU untuk tiap ID
+// (_lastKnownUpdatedAt, diisi saat load). Sebelum upsert, kita select ulang
+// `id, updated_at` dari server: kalau untuk suatu ID nilai itu SUDAH BEDA dari yang
+// terakhir kita tahu, berarti ada pihak lain yang mengubahnya sejak kita load —
+// baris itu kita LEWATI (tidak ditimpa), bukan langsung dipaksa overwrite.
+const _lastKnownUpdatedAt = {};
+
+async function syncArrayTable(table, rows, key){
+  const { data: existing, error: selErr } = await sb.from(table).select('id, updated_at');
   if(selErr){ console.error(`Gagal membaca ${table}:`, selErr); throw new Error(`Gagal membaca ${table}: ${selErr.message}`); }
-  const existingIds = new Set((existing || []).map(r => r.id));
+  const existingMap = new Map((existing || []).map(r => [r.id, r.updated_at]));
+  const existingIds = new Set(existingMap.keys());
   const currentIds = new Set(rows.map(r => r.id));
   const knownIds = _lastKnownIds[table] || new Set();
+  const knownUpdatedAt = _lastKnownUpdatedAt[table] || new Map();
   const toDelete = [...existingIds].filter(id => knownIds.has(id) && !currentIds.has(id));
 
-  if(rows.length){
-    const { error: upErr } = await sb.from(table).upsert(rows, { onConflict: 'id' });
+  // Pisahkan baris yang aman disimpan vs yang konflik (sudah diubah pihak lain
+  // sejak kita load, dan berbeda dari versi server saat ini).
+  const conflicts = [];
+  const rowsToUpsert = rows.filter(r => {
+    if(!existingMap.has(r.id)) return true; // baris baru, pasti aman
+    const serverUpdatedAt = existingMap.get(r.id);
+    const lastKnown = knownUpdatedAt.get(r.id);
+    if(lastKnown && serverUpdatedAt && lastKnown !== serverUpdatedAt){
+      conflicts.push({ key, table, id: r.id, label: r.keterangan || r.judul || r.nama || r.namaLengkap || r.id });
+      return false;
+    }
+    return true;
+  });
+
+  let savedRows = [];
+  if(rowsToUpsert.length){
+    const { data: upData, error: upErr } = await sb.from(table).upsert(rowsToUpsert, { onConflict: 'id' }).select('id, updated_at');
     if(upErr){ console.error(`Gagal menyimpan ${table}:`, upErr); throw new Error(`Gagal menyimpan ${table}: ${upErr.message}`); }
+    savedRows = upData || [];
   }
   if(toDelete.length){
     const { error: delErr } = await sb.from(table).delete().in('id', toDelete);
@@ -456,6 +492,17 @@ async function syncArrayTable(table, rows){
   // dan ID milik device lain yang masih hidup di server dan tidak kita sentuh.
   const survivedRemote = [...existingIds].filter(id => !toDelete.includes(id));
   _lastKnownIds[table] = new Set([...survivedRemote, ...currentIds]);
+
+  // Update memori `updated_at`: pakai nilai terbaru dari server untuk baris yang barusan
+  // kita simpan (savedRows), dan untuk baris yang tidak kita sentuh tapi masih hidup di
+  // server (termasuk baris konflik — kita catat versi server TERBARU supaya tidak terus
+  // dianggap konflik kalau user cuma reload tanpa mengedit lagi).
+  const newMap = new Map();
+  existingMap.forEach((updatedAt, id) => newMap.set(id, updatedAt));
+  savedRows.forEach(r => newMap.set(r.id, r.updated_at));
+  _lastKnownUpdatedAt[table] = newMap;
+
+  return conflicts;
 }
 
 // Sama seperti _lastKnownIds di syncArrayTable — mencegah setting event milik device
@@ -537,13 +584,21 @@ async function _flushSaveDB(){
   // sebelum dikirim, kalau tidak Postgres akan menolak (22007).
   db.panitiaSinoman.forEach(d => { if(d.tanggal === '') d.tanggal = null; });
   try{
-    await Promise.all([
-      ...Object.entries(ARRAY_TABLE_MAP).map(([key, table]) => syncArrayTable(table, db[key])),
+    const arrayEntries = Object.entries(ARRAY_TABLE_MAP);
+    const arrayResults = await Promise.all([
+      ...arrayEntries.map(([key, table]) => syncArrayTable(table, db[key], key)),
       syncSettings(),
       syncTelegram(),
       syncGuestMenu(),
       syncDokumenGlobal(),
     ]);
+    // Hanya arrayEntries.length hasil pertama yang berasal dari syncArrayTable
+    // (yang lain — syncSettings dkk — tidak mengembalikan daftar konflik).
+    const conflicts = arrayResults.slice(0, arrayEntries.length).flat().filter(Boolean);
+    if(conflicts.length){
+      const contoh = conflicts.slice(0, 2).map(c => `"${c.label}"`).join(', ');
+      toast(`⚠️ ${conflicts.length} perubahan (${contoh}${conflicts.length>2?', ...':''}) TIDAK disimpan karena sudah diubah pengguna lain. Muat ulang halaman untuk lihat versi terbaru.`, 7000);
+    }
   }catch(e){
     console.error('Gagal menyimpan ke Supabase', e);
     toast(`⚠️ ${e.message || 'Gagal menyimpan ke Supabase'} — coba simpan ulang`);
@@ -4622,12 +4677,12 @@ document.getElementById('overlay').addEventListener('mousedown', (e)=>{ overlayM
 document.getElementById('overlay').addEventListener('click', (e)=>{ if(e.target.id==='overlay' && overlayMouseDownOnBackdrop) closeModal(); overlayMouseDownOnBackdrop = false; });
 
 let toastTimer;
-function toast(msg){
+function toast(msg, durationMs = 2400){
   const t = document.getElementById('toast');
   t.textContent = msg;
   t.classList.add('show');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(()=>t.classList.remove('show'), 2400);
+  toastTimer = setTimeout(()=>t.classList.remove('show'), durationMs);
 }
 
 /* ============================================================

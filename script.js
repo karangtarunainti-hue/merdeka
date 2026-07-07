@@ -3615,7 +3615,7 @@ function renderKas(){
   <div class="panel">
     <div class="panel-head">
       <div><h3>💰 Kas Karang Taruna</h3>
-        <div class="desc">Buku kas umum organisasi — tidak terikat event tertentu</div>
+        <div class="desc">Buku Kas Umum</div>
       </div>
       ${canKelola ? `<button class="btn" onclick="openKasModal()">+ Tambah Transaksi</button>` : ''}
     </div>

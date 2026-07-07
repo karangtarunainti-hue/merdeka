@@ -524,23 +524,10 @@
   table.kas-table th:nth-child(6), table.kas-table td:nth-child(6) { width:14%; }
   table.kas-table th:nth-child(7), table.kas-table td:nth-child(7) { width:9%; }
 
-  /* Kartu Kas khusus HP (lihat .kas-card-list di script.js) — disembunyikan
-     di desktop secara default, baru dimunculkan lewat media query di bawah. */
-  .kas-card-list{display:none;}
-  .kas-card{
-    background:var(--cream-card); border:1px solid var(--garis); border-radius:var(--radius);
-    padding:12px 14px; margin-bottom:10px;
-  }
-  .kas-card:last-child{margin-bottom:0;}
-  .kas-card-top{display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;}
-  .kas-card-date{font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-soft); font-weight:600;}
-  .kas-card-actions{display:flex; gap:6px;}
-  .kas-card-ket{font-size:14.5px; font-weight:700; color:var(--ink); margin-bottom:10px; word-break:break-word;}
-  .kas-card-bottom{display:flex; justify-content:space-between; align-items:baseline; gap:10px; padding-top:9px; border-top:1px dashed var(--garis);}
-  .kas-card-jumlah{font-size:15px; font-weight:700; white-space:nowrap;}
-  .kas-card-jumlah.pemasukan{color:var(--hijau);}
-  .kas-card-jumlah.pengeluaran{color:var(--bahaya);}
-  .kas-card-saldo{font-size:12px; color:var(--ink-soft); white-space:nowrap;}
+  /* Tabel ringkas Kas khusus HP (lihat .kas-mobile-wrap di script.js) —
+     disembunyikan di desktop secara default, baru dimunculkan lewat
+     media query di bawah. */
+  .kas-mobile-wrap{display:none;}
 
   table.users-table { table-layout:fixed; }
   table.users-table th:nth-child(1), table.users-table td:nth-child(1) { width:16%; }
@@ -1228,11 +1215,34 @@
     table.jadwal-table td.jadwal-actions{justify-content:flex-end; gap:8px; padding-top:10px;}
     table.jadwal-table td.jadwal-actions::before{display:none;}
 
-    /* --- Kas Karang Taruna: di HP tabelnya disembunyikan, diganti kartu
-       khusus (.kas-card-list) yang sudah disiapkan terpisah di script.js
-       supaya layoutnya rapi (bukan tabel dipaksa jadi kartu). --- */
+    /* --- Kas Karang Taruna: di HP, tabel desktop (kas-table, 7 kolom
+       termasuk Tanggal & Aksi) disembunyikan, diganti tabel ringkas
+       (.kas-mobile-wrap) yang tetap TABEL UTUH — No, Keterangan, Debit,
+       Kredit, Saldo — bukan kartu. Baris bisa diketuk untuk Edit (lihat
+       tr.row-clickable di script.js), jadi kolom Aksi tidak perlu dan
+       5 kolom inti muat tanpa geser layar. --- */
     .kas-table-wrap{display:none;}
-    .kas-card-list{display:block;}
+    .kas-mobile-wrap{display:block;}
+    table.kas-table-mobile{table-layout:fixed; font-size:12.5px;}
+    table.kas-table-mobile th, table.kas-table-mobile td{padding:9px 6px; white-space:nowrap;}
+    table.kas-table-mobile td[data-label="Keterangan"]{white-space:normal; word-break:break-word; line-height:1.3;}
+    table.kas-table-mobile th:nth-child(1), table.kas-table-mobile td:nth-child(1){width:8%; padding-left:12px;}
+    table.kas-table-mobile th:nth-child(2), table.kas-table-mobile td:nth-child(2){width:32%; text-align:left;}
+    table.kas-table-mobile th:nth-child(3), table.kas-table-mobile td:nth-child(3){width:19%;}
+    table.kas-table-mobile th:nth-child(4), table.kas-table-mobile td:nth-child(4){width:19%;}
+    table.kas-table-mobile th:nth-child(5), table.kas-table-mobile td:nth-child(5){width:22%; padding-right:12px;}
+    table.kas-table-mobile td.num{font-size:11.5px;}
+
+    /* Layar HP sangat sempit: kolom Saldo disembunyikan supaya No,
+       Keterangan, Debit, Kredit tetap utuh tanpa perlu geser horizontal.
+       Saldo terakhir tetap terlihat di kartu ringkasan "Saldo Kas" di atas. */
+    @media(max-width:400px){
+      table.kas-table-mobile th:nth-child(5), table.kas-table-mobile td:nth-child(5){display:none;}
+      table.kas-table-mobile th:nth-child(2), table.kas-table-mobile td:nth-child(2){width:40%;}
+      table.kas-table-mobile th:nth-child(3), table.kas-table-mobile td:nth-child(3){width:26%;}
+      table.kas-table-mobile th:nth-child(4), table.kas-table-mobile td:nth-child(4){width:26%;}
+    }
+
     .stat-grid{grid-template-columns:repeat(auto-fit,minmax(140px,1fr));}
     /* Kalau jumlah card ganjil (mis. Total Pemasukan, Pengeluaran, Saldo Akhir),
        card terakhir yang jadi "nyempil sendirian" dibuat memenuhi lebar penuh

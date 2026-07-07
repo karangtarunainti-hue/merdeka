@@ -3581,31 +3581,21 @@ function renderKas(){
       </td>` : ''}
     </tr>`).join('');
 
-  // Kartu khusus HP — bukan tabel yang "dipaksa" jadi kartu, tapi layout
-  // sendiri (tanggal + aksi di atas, keterangan tebal, lalu satu baris
-  // jumlah bertanda +/- dengan saldo di sampingnya) supaya ringkas dan
-  // tidak ada teks yang kepotong/wrap aneh seperti sebelumnya.
-  const cards = displayList.map(k => {
-    const isMasuk = Number(k.debit||0) > 0;
-    const jumlah = isMasuk ? k.debit : k.kredit;
-    return `
-    <div class="kas-card">
-      <div class="kas-card-top">
-        <span class="kas-card-date">${fmtDateShort(k.tanggal)}</span>
-        ${canKelola ? `<span class="kas-card-actions">
-          <button class="icon-btn" onclick="openKasModal('${k.id}')" title="Edit">✎</button>
-          <button class="icon-btn" onclick="hapusKas('${k.id}')" title="Hapus">🗑</button>
-        </span>` : ''}
-      </div>
-      <div class="kas-card-ket">${esc(k.keterangan||'-')}</div>
-      <div class="kas-card-bottom">
-        <span class="kas-card-jumlah ${isMasuk?'pemasukan':'pengeluaran'}">${isMasuk?'+':'−'} ${fmtRp(jumlah)}</span>
-        <span class="kas-card-saldo">Saldo ${fmtRp(k._saldo)}</span>
-      </div>
-    </div>`;
-  }).join('');
-
-  const empty = `<div class="empty-state" style="padding:28px;"><p>Belum ada transaksi kas. ${canKelola ? '' : 'Hanya role tertentu yang bisa menambah transaksi.'}</p></div>`;
+  // Tabel ringkas khusus HP — tetap berupa TABEL utuh (bukan kartu):
+  // No, Keterangan, Debit, Kredit, Saldo. Kolom Tanggal & Aksi disembunyikan
+  // supaya 5 kolom inti muat tanpa geser; baris bisa diketuk langsung untuk
+  // Edit (tombol Hapus dipindah ke dalam modal edit, lihat openKasModal).
+  // Kalau layar HP sangat sempit, kolom Saldo ikut disembunyikan lewat CSS
+  // (lihat media query .kas-table-mobile di style.css) sehingga tampilan
+  // jadi No, Keterangan, Debit, Kredit saja.
+  const mobileRows = displayList.map((k, idx) => `
+    <tr${canKelola ? ` class="row-clickable" onclick="openKasModal('${k.id}')"` : ''}>
+      <td data-label="No">${idx + 1}</td>
+      <td data-label="Keterangan">${esc(k.keterangan||'-')}</td>
+      <td data-label="Debit" class="num">${Number(k.debit||0)>0 ? fmtRp(k.debit) : '-'}</td>
+      <td data-label="Kredit" class="num">${Number(k.kredit||0)>0 ? fmtRp(k.kredit) : '-'}</td>
+      <td data-label="Saldo" class="num">${fmtRp(k._saldo)}</td>
+    </tr>`).join('');
 
   return `
   <div class="stat-grid">
@@ -3626,8 +3616,11 @@ function renderKas(){
         <tbody>${rows || `<tr class="empty-row"><td colspan="${canKelola?7:6}">Belum ada transaksi kas. ${canKelola ? '' : 'Hanya role tertentu yang bisa menambah transaksi.'}</td></tr>`}</tbody>
       </table>
     </div>
-    <div class="panel-body kas-card-list">
-      ${cards || empty}
+    <div class="panel-body flush kas-mobile-wrap">
+      <table class="general-table kas-table-mobile">
+        <thead><tr><th>No</th><th>Keterangan</th><th class="num">Debit</th><th class="num">Kredit</th><th class="num">Saldo</th></tr></thead>
+        <tbody>${mobileRows || `<tr class="empty-row"><td colspan="5">Belum ada transaksi kas. ${canKelola ? '' : 'Hanya role tertentu yang bisa menambah transaksi.'}</td></tr>`}</tbody>
+      </table>
     </div>
   </div>`;
 }
@@ -3651,6 +3644,7 @@ function openKasModal(id){
     </div>
   `, [
     {label:'Batal', cls:'secondary', onclick:closeModal},
+    ...(editing ? [{label:'Hapus', cls:'danger', onclick:()=>{ closeModal(); hapusKas(editing.id); }}] : []),
     {label: editing?'Simpan':'Tambah', cls:'', onclick:()=>{
       const keterangan = document.getElementById('f-kas-ket').value.trim();
       const jenis = document.getElementById('f-kas-jenis').value;

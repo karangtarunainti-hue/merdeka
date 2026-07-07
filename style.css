@@ -501,6 +501,16 @@
   table.general-table th:nth-child(4), table.general-table td:nth-child(4) { width:15%; }
   table.general-table th:nth-child(5), table.general-table td:nth-child(5) { width:15%; }
 
+  /* Biaya Operasional: No, Keterangan, Satuan, QTY, Jumlah (+Aksi).
+     Keterangan dapat porsi terbesar; No/Satuan/QTY dibuat ramping supaya
+     Jumlah & Aksi tidak terdesak keluar di layar lebar. */
+  table.operasional-table th:nth-child(1), table.operasional-table td:nth-child(1) { width:6%; }
+  table.operasional-table th:nth-child(2), table.operasional-table td:nth-child(2) { width:38%; white-space:normal; word-break:break-word; }
+  table.operasional-table th:nth-child(3), table.operasional-table td:nth-child(3) { width:16%; }
+  table.operasional-table th:nth-child(4), table.operasional-table td:nth-child(4) { width:12%; }
+  table.operasional-table th:nth-child(5), table.operasional-table td:nth-child(5) { width:20%; }
+  table.operasional-table th:nth-child(6), table.operasional-table td:nth-child(6) { width:8%; }
+
   /* Jadwal & Reminder punya 6 kolom (bukan 5 seperti general-table biasa),
      jadi lebarnya didefinisikan ulang supaya totalnya pas 100% dan kolom
      Aksi tidak terdesak/terpotong di layar desktop. */
@@ -1149,7 +1159,9 @@
     .lpj-scale-wrap{overflow-x:hidden;}
     #lpj-print-area{width:820px; max-width:none;}
 
-    /* --- Operasional Kegiatan: format lebih ringkas agar fit tanpa scroll --- */
+    /* --- Donatur & Transaksi Lain: format lebih ringkas agar fit tanpa scroll
+       (Operasional Kegiatan sudah punya tabel/kartu sendiri, lihat
+       table.operasional-table di bawah) --- */
     table.tanggal-nominal-table{table-layout:fixed;}
     table.tanggal-nominal-table th, table.tanggal-nominal-table td{white-space:normal; word-break:break-word;}
     table.tanggal-nominal-table th:nth-child(1), table.tanggal-nominal-table td:nth-child(1){ width:66px; min-width:0; white-space:nowrap; padding:8px 4px 8px 14px; }
@@ -1208,6 +1220,32 @@
     table.jadwal-table td[data-label="Judul"]{font-weight:700; font-size:14.5px;}
     table.jadwal-table td.jadwal-actions{justify-content:flex-end; gap:8px; padding-top:10px;}
     table.jadwal-table td.jadwal-actions::before{display:none;}
+
+    /* --- Biaya Operasional: kartu, bukan tabel geser --- */
+    table.operasional-table{table-layout:auto;}
+    table.operasional-table thead{display:none;}
+    table.operasional-table, table.operasional-table tbody{display:block; width:100%;}
+    .panel-body.flush:has(table.operasional-table){overflow-x:visible;}
+    table.operasional-table tr{
+      display:block; width:100%;
+      padding:12px 14px; margin:0 0 10px; border:1px solid var(--garis); border-radius:var(--radius);
+      background:var(--cream-card);
+    }
+    table.operasional-table tr.empty-row{border:none; padding:0; margin:0;}
+    table.operasional-table td{
+      display:flex; align-items:flex-start; justify-content:space-between; gap:12px;
+      width:auto; padding:7px 0; border-bottom:1px dashed var(--garis); white-space:normal; text-align:right;
+    }
+    table.operasional-table tr.empty-row td{display:block; text-align:center; border-bottom:none; padding:28px;}
+    table.operasional-table td:last-child{border-bottom:none;}
+    table.operasional-table td::before{
+      content:attr(data-label);
+      font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-soft); font-weight:600;
+      text-align:left; flex:0 0 auto; padding-top:2px;
+    }
+    table.operasional-table td[data-label="Keterangan"]{font-weight:700; font-size:14.5px;}
+    table.operasional-table td.operasional-actions{justify-content:flex-end; gap:8px; padding-top:10px;}
+    table.operasional-table td.operasional-actions::before{display:none;}
 
     /* --- Kas Karang Taruna: di HP, tabel desktop (kas-table, 7 kolom
        termasuk Tanggal & Aksi) disembunyikan, diganti tabel ringkas

@@ -458,9 +458,26 @@ async function syncArrayTable(table, rows, key){
   if(selErr){ console.error(`Gagal membaca ${table}:`, selErr); throw new Error(`Gagal membaca ${table}: ${selErr.message}`); }
   const existingMap = new Map((existing || []).map(r => [r.id, r.updated_at]));
   const existingIds = new Set(existingMap.keys());
-  const currentIds = new Set(rows.map(r => r.id));
   const knownIds = _lastKnownIds[table] || new Set();
   const knownUpdatedAt = _lastKnownUpdatedAt[table] || new Map();
+
+  // BUG LAMA (penyebab "data terhapus muncul lagi"): tab ini dimuat sekali di awal dan
+  // menyimpan snapshot penuh `rows` (=db[key]) di memori. Kalau device/tab LAIN menghapus
+  // salah satu baris itu di server, tab kita tidak pernah tahu — baris itu masih ada di
+  // memori kita. Begitu tab ini menyimpan (saveDB) untuk alasan APA PUN, baris itu dikirim
+  // ulang oleh upsert di bawah karena kode lama mengira "tidak ada di server = baris baru".
+  // Fix: kalau suatu id PERNAH kita kenal (ada di knownIds) tapi sekarang sudah hilang dari
+  // server, itu bukan baris baru — itu baris "hantu" sisa sebelum kita reload, dan harus
+  // dibuang dari memori kita, BUKAN dikirim ulang ke server.
+  const ghostIds = new Set(rows.filter(r => knownIds.has(r.id) && !existingMap.has(r.id)).map(r => r.id));
+  const ghostRows = ghostIds.size ? rows.filter(r => ghostIds.has(r.id)) : [];
+  if(ghostIds.size){
+    for(let i = rows.length - 1; i >= 0; i--){
+      if(ghostIds.has(rows[i].id)) rows.splice(i, 1);
+    }
+  }
+
+  const currentIds = new Set(rows.map(r => r.id));
   const toDelete = [...existingIds].filter(id => knownIds.has(id) && !currentIds.has(id));
 
   // Pisahkan baris yang aman disimpan vs yang konflik (sudah diubah pihak lain
@@ -502,6 +519,9 @@ async function syncArrayTable(table, rows, key){
   savedRows.forEach(r => newMap.set(r.id, r.updated_at));
   _lastKnownUpdatedAt[table] = newMap;
 
+  if(ghostRows.length){
+    conflicts.push({ ghost: true, key, table, count: ghostRows.length, labels: ghostRows.map(r => r.keterangan || r.judul || r.nama || r.namaLengkap || r.id) });
+  }
   return conflicts;
 }
 
@@ -594,10 +614,20 @@ async function _flushSaveDB(){
     ]);
     // Hanya arrayEntries.length hasil pertama yang berasal dari syncArrayTable
     // (yang lain — syncSettings dkk — tidak mengembalikan daftar konflik).
-    const conflicts = arrayResults.slice(0, arrayEntries.length).flat().filter(Boolean);
+    const allResults = arrayResults.slice(0, arrayEntries.length).flat().filter(Boolean);
+    const ghosts = allResults.filter(c => c.ghost);
+    const conflicts = allResults.filter(c => !c.ghost);
     if(conflicts.length){
       const contoh = conflicts.slice(0, 2).map(c => `"${c.label}"`).join(', ');
       toast(`⚠️ ${conflicts.length} perubahan (${contoh}${conflicts.length>2?', ...':''}) TIDAK disimpan karena sudah diubah pengguna lain. Muat ulang halaman untuk lihat versi terbaru.`, 7000);
+    }
+    if(ghosts.length){
+      // Baris yang sudah dihapus di device/tab lain, dan barusan kita buang dari memori
+      // tab ini juga (lihat catatan "BUG LAMA" di syncArrayTable) — bukan error, cuma info.
+      const totalGhost = ghosts.reduce((s,g) => s + g.count, 0);
+      const contoh = ghosts.flatMap(g => g.labels).slice(0, 2).map(l => `"${l}"`).join(', ');
+      toast(`ℹ️ ${totalGhost} data (${contoh}${totalGhost>2?', ...':''}) sudah dihapus di perangkat lain, tampilan disegarkan.`, 6000);
+      renderContent(); renderTopbarSaldo();
     }
   }catch(e){
     console.error('Gagal menyimpan ke Supabase', e);

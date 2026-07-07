@@ -745,7 +745,7 @@ const SECTIONS = [
 // Menu yang tidak terikat event tertentu (datanya global, bukan per-event).
 // Menu ini ditampilkan terpisah di atas, antara info login dan dropdown
 // Kegiatan Aktif, supaya jelas tidak berubah walau event aktif diganti.
-const GLOBAL_MENU_KEYS = ['database-anggota', 'pengaturan', 'users', 'gudang', 'dokumen', 'agenda'];
+const GLOBAL_MENU_KEYS = ['agenda', 'dokumen', 'database-anggota', 'gudang', 'users', 'pengaturan'];
 
 /* ============================================================
    FITUR OPSIONAL PER EVENT
@@ -859,7 +859,10 @@ function renderSidebar(){
       ${s.adminOnly && !isAdminUser ? `<span class="lock-icon">🔒</span>` : ''}
     </div>`;
 
-  navGlobal.innerHTML = visibleSections.filter(s => GLOBAL_MENU_KEYS.includes(s.key)).map(renderNavItem).join('');
+  navGlobal.innerHTML = visibleSections
+    .filter(s => GLOBAL_MENU_KEYS.includes(s.key))
+    .sort((a, b) => GLOBAL_MENU_KEYS.indexOf(a.key) - GLOBAL_MENU_KEYS.indexOf(b.key))
+    .map(renderNavItem).join('');
   nav.innerHTML = visibleSections.filter(s => !GLOBAL_MENU_KEYS.includes(s.key)).map(renderNavItem).join('');
 
   // Buat event baru: khusus Administrator

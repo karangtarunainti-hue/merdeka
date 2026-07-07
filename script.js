@@ -304,6 +304,33 @@ const ARRAY_TABLE_MAP = {
   panitiaSinoman: 'kt_panitia_sinoman',
 };
 
+// Migrasi satu-kali: dulu status "dibeli" di daftarBelanjaHadiah dilacak pakai
+// `item_index` (posisi item dalam array `items` milik satu paket hadiah). Itu rapuh
+// karena kalau item dihapus/direorder, index bergeser dan status "dibeli" nyasar ke
+// item lain. Sekarang tiap item hadiah punya `id` sendiri (lihat tambahItemHadiah,
+// openHadiahModal, addItemRow). Fungsi ini menjalankan migrasi SEKALI saat load:
+// untuk tiap item lama yang belum punya `id`, generate id baru, lalu cocokkan ke
+// record daftarBelanjaHadiah yang match hadiah_kategori_id+item_index PADA SAAT INI
+// (sebelum ada hapus/reorder lagi) dan tempelkan `item_id` itu ke record tsb supaya
+// status "dibeli" yang sudah ada tidak hilang/salah sasaran. Item yang sudah punya
+// id (dibuat setelah fitur ini ada) dilewati.
+function migrasiItemIdHadiah(result){
+  let changed = false;
+  (result.hadiahKategori||[]).forEach(h=>{
+    (h.items||[]).forEach((item, idx)=>{
+      if(item.id) return;
+      item.id = uid();
+      changed = true;
+      (result.daftarBelanjaHadiah||[]).forEach(b=>{
+        if(b.hadiah_kategori_id===h.id && b.item_index===idx && !b.item_id){
+          b.item_id = item.id;
+        }
+      });
+    });
+  });
+  return changed;
+}
+
 async function loadDB(){
   const result = defaultDB();
   try{
@@ -355,6 +382,14 @@ async function loadDB(){
   }catch(e){
     console.error('Gagal memuat data dari Supabase', e);
     toast('⚠️ Gagal terhubung ke Supabase. Cek konfigurasi & koneksi internet.');
+  }
+  if(migrasiItemIdHadiah(result)){
+    // Ada item hadiah lama yang baru saja diberi `id` + record belanja yang baru
+    // ditautkan via `item_id` — simpan sekarang juga supaya migrasi ini benar-benar
+    // jalan sekali dan tidak hilang kalau user langsung hapus/reorder item sebelum
+    // ada perubahan lain yang memicu saveDB().
+    db = result;
+    saveDB();
   }
   return result;
 }
@@ -1212,9 +1247,9 @@ function generateReminders(){
 
   const hadiahItems = [];
   if (isMenuAktif('hadiah')) gHadiahKategori().forEach(h => {
-    h.items.forEach((item, idx) => {
+    h.items.forEach((item) => {
       if (Number(item.qty_dibeli||0) <= 0) return;
-      const belanja = db.daftarBelanjaHadiah.find(b => b.hadiah_kategori_id === h.id && b.item_index === idx && b.event_id === eid());
+      const belanja = db.daftarBelanjaHadiah.find(b => b.hadiah_kategori_id === h.id && b.item_id === item.id && b.event_id === eid());
       if (!belanja || belanja.status !== 'dibeli') {
         hadiahItems.push({nama: item.nama, qty: item.qty_dibeli, kategori: labelPeserta(h.kategori_peserta)});
       }
@@ -2308,7 +2343,7 @@ function simpanHadiahBudget(){
 function openHadiahModal(id){
   if (!canEditSection('hadiah')) { toast('⛔ Login untuk mengedit data'); return; }
   const editing = id ? db.hadiahKategori.find(h=>h.id===id) : null;
-  const itemsHtml = editing ? editing.items.map((item, idx) => `<div class="item-fields-row" style="border-bottom:1px solid var(--garis);padding-bottom:10px;margin-bottom:10px;"><div class="field"><label>Nama</label><input type="text" id="edit-item-name-${idx}" value="${esc(item.nama)}" placeholder="Nama hadiah" onblur="autofillHargaHadiah(this)"></div><div class="field"><label>Harga</label><input type="text" id="edit-item-price-${idx}" class="currency-input" value="${formatCurrency(item.harga_satuan)}" placeholder="Harga"></div><div class="field"><label>Qty/paket</label><input type="number" id="edit-item-perpaket-${idx}" value="${item.qty_per_paket||1}" min="1" placeholder="Qty/paket" title="Berapa pcs per 1 paket juara"></div><button class="btn danger-text small" onclick="removeItemRow(${idx})">✕</button></div>`).join('') : '';
+  const itemsHtml = editing ? editing.items.map((item, idx) => { if(!item.id) item.id = uid(); return `<div class="item-fields-row" data-item-id="${item.id}" style="border-bottom:1px solid var(--garis);padding-bottom:10px;margin-bottom:10px;"><div class="field"><label>Nama</label><input type="text" id="edit-item-name-${idx}" value="${esc(item.nama)}" placeholder="Nama hadiah" onblur="autofillHargaHadiah(this)"></div><div class="field"><label>Harga</label><input type="text" id="edit-item-price-${idx}" class="currency-input" value="${formatCurrency(item.harga_satuan)}" placeholder="Harga"></div><div class="field"><label>Qty/paket</label><input type="number" id="edit-item-perpaket-${idx}" value="${item.qty_per_paket||1}" min="1" placeholder="Qty/paket" title="Berapa pcs per 1 paket juara"></div><button class="btn danger-text small" onclick="removeItemRow(${idx})">✕</button></div>`; }).join('') : '';
   setModal(editing?'Edit Paket':'Tambah Paket', `<div class="field-row"><div class="field"><label>Kategori</label><select id="f-kp">${KATEGORI_PESERTA.map(k=>`<option value="${k.v}" ${editing&&editing.kategori_peserta===k.v?'selected':''}>${k.l}</option>`).join('')}</select></div><div class="field"><label>Juara</label><select id="f-juara">${JUARA_LIST.map(j=>`<option value="${j.v}" ${editing&&editing.juara_ke===j.v?'selected':''}>${j.l}</option>`).join('')}</select></div></div><div class="field"><label>Item Hadiah</label><div class="hint" style="margin-bottom:10px;">Isi "Qty/paket" saja (mis. 2 pulpen per paket). Paket ini otomatis berlaku untuk SEMUA lomba dengan kategori & juara yang sama. Total qty yang harus dibeli otomatis dihitung dari jumlah lomba sekarang, dan otomatis naik lagi kalau kamu menambah lomba baru di kategori ini.</div><div id="items-container">${itemsHtml}</div><button class="btn secondary small" onclick="addItemRow()" type="button">+ Tambah Item</button></div>`, [
     {label:'Batal', cls:'secondary', onclick:closeModal},
     {label:editing?'Simpan':'Tambah', cls:'', onclick:()=>{
@@ -2316,14 +2351,25 @@ function openHadiahModal(id){
       if(!editing && gHadiahKategori().some(h=>h.kategori_peserta===kategori_peserta && h.juara_ke===juara_ke)){
         if(!confirm(`Paket untuk ${labelPeserta(kategori_peserta)} - ${labelJuara(juara_ke)} sudah ada. Satu kategori+juara idealnya cukup 1 paket (isinya bisa lebih dari 1 item). Tetap buat paket baru (terpisah)?`)) return;
       }
-      const kebutuhan=hitungKebutuhanHadiah(kategori_peserta, juara_ke); const existingItems=editing?(editing.items||[]):[]; const items=[]; const container=document.getElementById('items-container'); const rows=container.querySelectorAll('.item-fields-row'); rows.forEach((row,idx)=>{const nameInput=row.querySelector(`input[id^="edit-item-name-"]`); const priceInput=row.querySelector(`input[id^="edit-item-price-"]`); const perPaketInput=row.querySelector(`input[id^="edit-item-perpaket-"]`); if(nameInput&&priceInput){const nama=nameInput.value.trim(); const harga_satuan=getCurrencyValue(priceInput); const qty_per_paket=Math.max(1,Number((perPaketInput&&perPaketInput.value)||1)); if(!nama) return; const qty_dibeli = idx<existingItems.length ? Number(existingItems[idx].qty_dibeli||0) : (kebutuhan!=null ? kebutuhan*qty_per_paket : qty_per_paket); items.push({nama,harga_satuan,qty_dibeli,qty_per_paket});}}); if(items.length===0){toast('Minimal 1 item');return;}
+      const kebutuhan=hitungKebutuhanHadiah(kategori_peserta, juara_ke); const existingItems=editing?(editing.items||[]):[]; const items=[]; const container=document.getElementById('items-container'); const rows=container.querySelectorAll('.item-fields-row'); rows.forEach((row)=>{const nameInput=row.querySelector(`input[id^="edit-item-name-"]`); const priceInput=row.querySelector(`input[id^="edit-item-price-"]`); const perPaketInput=row.querySelector(`input[id^="edit-item-perpaket-"]`); if(nameInput&&priceInput){const nama=nameInput.value.trim(); const harga_satuan=getCurrencyValue(priceInput); const qty_per_paket=Math.max(1,Number((perPaketInput&&perPaketInput.value)||1)); if(!nama) return;
+        // Cocokkan baris form dengan item lama via data-item-id (BUKAN index urutan baris),
+        // karena urutan bisa berubah (item dihapus/ditambah di tengah). Baris hasil render
+        // item lama selalu punya data-item-id (lihat itemsHtml di atas). Baris baru dari
+        // addItemRow() sengaja TIDAK diberi data-item-id -> dataset.itemId undefined ->
+        // dianggap item baru, id barunya baru di-generate di sini (uid()).
+        const existingId = row.dataset.itemId || null;
+        const matched = existingId ? existingItems.find(x=>x.id===existingId) : null;
+        const qty_dibeli = matched ? Number(matched.qty_dibeli||0) : (kebutuhan!=null ? kebutuhan*qty_per_paket : qty_per_paket);
+        const qty_terpakai = matched ? (matched.qty_terpakai||0) : 0;
+        const id = matched ? matched.id : uid();
+        items.push({id,nama,harga_satuan,qty_dibeli,qty_per_paket,qty_terpakai});}}); if(items.length===0){toast('Minimal 1 item');return;}
       let actionMsg = editing ? `✏️ Edit paket hadiah ${labelPeserta(kategori_peserta)} - ${labelJuara(juara_ke)}` : `➕ Paket hadiah baru ${labelPeserta(kategori_peserta)} - ${labelJuara(juara_ke)}`;
-      if(editing){ items.forEach((newItem,idx)=>{if(idx<existingItems.length) newItem.qty_terpakai=existingItems[idx].qty_terpakai||0;}); Object.assign(editing,{kategori_peserta,juara_ke,items});}
+      if(editing){ Object.assign(editing,{kategori_peserta,juara_ke,items});}
       else{ db.hadiahKategori.push({id:uid(),event_id:eid(),kategori_peserta,juara_ke,items}); }
       const currentHadiahId = editing ? editing.id : db.hadiahKategori[db.hadiahKategori.length-1].id;
       openHadiahGroups.add(currentHadiahId);
       let totalSama = 0;
-      items.forEach((it,idx)=>{ totalSama += samakanHargaItemSejenis(it.nama, it.harga_satuan, currentHadiahId, idx); });
+      items.forEach((it)=>{ totalSama += samakanHargaItemSejenis(it.nama, it.harga_satuan, it.id); });
       saveDB(); closeModal(); renderContent(); renderTopbarSaldo(); toast(totalSama>0?`Disimpan, harga disamakan ke ${totalSama} item lain`:'Disimpan');
       const detail = items.map(i => `${i.nama} (${i.qty_dibeli} × ${fmtRp(i.harga_satuan)})`).join('\n');
       notifyTelegram(actionMsg, detail);
@@ -2332,7 +2378,7 @@ function openHadiahModal(id){
   if(editing) openHadiahGroups.add(id);
   setTimeout(setupAllCurrencyInputs, 50);
 }
-function addItemRow(){ const container=document.getElementById('items-container'); if(!container) return; const idx=Math.floor(Math.random()*10000); const row=document.createElement('div'); row.className='item-fields-row'; row.style.cssText='border-bottom:1px solid var(--garis);padding-bottom:10px;margin-bottom:10px;'; row.innerHTML=`<div class="field"><label>Nama</label><input type="text" id="edit-item-name-${idx}" placeholder="Nama hadiah" onblur="autofillHargaHadiah(this)"></div><div class="field"><label>Harga</label><input type="text" id="edit-item-price-${idx}" class="currency-input" placeholder="Harga"></div><div class="field"><label>Qty/paket</label><input type="number" id="edit-item-perpaket-${idx}" placeholder="Qty/paket" value="1" min="1" title="Berapa pcs per 1 paket juara"></div><button class="btn danger-text small" onclick="removeItemRow(this.closest('.item-fields-row'))">✕</button>`; container.appendChild(row);
+function addItemRow(){ const container=document.getElementById('items-container'); if(!container) return; const idx=Math.floor(Math.random()*10000); const row=document.createElement('div'); row.className='item-fields-row'; /* sengaja TIDAK diberi data-item-id: baris baru = item baru, id di-generate saat submit */ row.style.cssText='border-bottom:1px solid var(--garis);padding-bottom:10px;margin-bottom:10px;'; row.innerHTML=`<div class="field"><label>Nama</label><input type="text" id="edit-item-name-${idx}" placeholder="Nama hadiah" onblur="autofillHargaHadiah(this)"></div><div class="field"><label>Harga</label><input type="text" id="edit-item-price-${idx}" class="currency-input" placeholder="Harga"></div><div class="field"><label>Qty/paket</label><input type="number" id="edit-item-perpaket-${idx}" placeholder="Qty/paket" value="1" min="1" title="Berapa pcs per 1 paket juara"></div><button class="btn danger-text small" onclick="removeItemRow(this.closest('.item-fields-row'))">✕</button>`; container.appendChild(row);
   // Hanya setup input currency milik baris BARU ini — jangan panggil setupAllCurrencyInputs()
   // karena itu akan menempelkan listener kedua/ketiga/dst ke input yang sudah ada sebelumnya
   // (setiap listener dibuat sebagai fungsi anonim baru sehingga browser tidak men-dedupe-nya).
@@ -2343,15 +2389,18 @@ function removeItemRow(element){ if(typeof element==='number'){const rows=docume
 // dalam event yang sama) yang namanya SAMA (dibandingkan tanpa peduli besar/kecil
 // huruf & spasi berlebih) dengan harga yang baru saja diisi/diedit user di satu
 // tempat. Jadi cukup ketik harga sekali, item dengan nama sama di paket lain ikut
-// terisi otomatis. excludeHadiahId+excludeIdx dipakai supaya item yang baru saja
-// diedit manual tidak dihitung ulang sebagai "item lain yang ikut disamakan".
-function samakanHargaItemSejenis(nama, harga, excludeHadiahId, excludeIdx){
+// terisi otomatis. excludeItemId dipakai supaya item yang baru saja diedit
+// manual tidak dihitung ulang sebagai "item lain yang ikut disamakan". Exclude
+// by item.id (bukan hadiahId+idx) karena id tidak berubah walau urutan/array
+// bergeser, sedangkan index bisa nyasar ke item lain kalau ada penghapusan
+// atau reorder di antaranya.
+function samakanHargaItemSejenis(nama, harga, excludeItemId){
   const key = String(nama||'').trim().toLowerCase();
   if(!key || !(Number(harga) > 0)) return 0;
   let count = 0;
   gHadiahKategori().forEach(h=>{
-    (h.items||[]).forEach((it, idx)=>{
-      if(h.id===excludeHadiahId && idx===excludeIdx) return;
+    (h.items||[]).forEach(it=>{
+      if(it.id===excludeItemId) return;
       if(String(it.nama||'').trim().toLowerCase()===key && Number(it.harga_satuan||0)!==Number(harga)){
         it.harga_satuan = Number(harga)||0;
         count++;
@@ -2387,7 +2436,7 @@ function autofillHargaHadiah(nameInput){
 function editHadiahItem(hadiahId,itemIdx){ 
   if (!canEditSection('hadiah')) { toast('⛔ Login untuk mengedit data'); return; }
   const h=db.hadiahKategori.find(x=>x.id===hadiahId); if(!h||!h.items[itemIdx]) return; const item=h.items[itemIdx]; const newNama=prompt('Nama:',item.nama); if(newNama===null) return; const newHarga=prompt('Harga:',item.harga_satuan); if(newHarga===null) return; const newPerPaket=prompt('Qty per paket (dasar hitung kebutuhan otomatis):',item.qty_per_paket||1); if(newPerPaket===null) return; const newQty=prompt('Qty total (dibeli) — boleh diisi lebih untuk cadangan:',item.qty_dibeli); if(newQty===null) return; if(!newNama.trim()||Number(newQty)<0){toast('Nama & qty wajib');return;} item.nama=newNama.trim(); item.harga_satuan=Number(newHarga)||0; item.qty_per_paket=Math.max(1,Number(newPerPaket)||1); item.qty_dibeli=Number(newQty)||0;
-  const samaCount = samakanHargaItemSejenis(item.nama, item.harga_satuan, hadiahId, itemIdx);
+  const samaCount = samakanHargaItemSejenis(item.nama, item.harga_satuan, item.id);
   saveDB(); renderContent(); toast(samaCount>0?`Diupdate, harga disamakan ke ${samaCount} item "${item.nama}" lainnya`:'Diupdate'); 
   notifyTelegram(`✏️ Edit item hadiah: ${item.nama}`, `Paket: ${labelPeserta(h.kategori_peserta)} - ${labelJuara(h.juara_ke)}\nHarga: ${fmtRp(item.harga_satuan)}\nQty: ${item.qty_dibeli}${item.qty_per_paket>1?` (${item.qty_per_paket} buah per paket)`:''}`);
 }
@@ -2398,8 +2447,8 @@ function hapusHadiahItem(hadiahId,itemIdx){
 }
 function tambahItemHadiah(hadiahId, kebutuhan){ 
   if (!canEditSection('hadiah')) { toast('⛔ Login untuk mengedit data'); return; }
-  const h=db.hadiahKategori.find(x=>x.id===hadiahId); if(!h) return; const nama=document.getElementById(`add-item-name-${hadiahId}`).value.trim(); const harga=getCurrencyValue(document.getElementById(`add-item-price-${hadiahId}`)); const perPaketEl=document.getElementById(`add-item-perpaket-${hadiahId}`); const qtyPerPaket=Math.max(1,Number((perPaketEl&&perPaketEl.value)||1)); if(!nama){toast('Nama wajib diisi');return;} const qty = (kebutuhan!=null&&kebutuhan!=='null') ? Number(kebutuhan)*qtyPerPaket : qtyPerPaket; h.items.push({nama,harga_satuan:harga,qty_dibeli:qty,qty_per_paket:qtyPerPaket});
-  const samaCount = samakanHargaItemSejenis(nama, harga, h.id, h.items.length-1);
+  const h=db.hadiahKategori.find(x=>x.id===hadiahId); if(!h) return; const nama=document.getElementById(`add-item-name-${hadiahId}`).value.trim(); const harga=getCurrencyValue(document.getElementById(`add-item-price-${hadiahId}`)); const perPaketEl=document.getElementById(`add-item-perpaket-${hadiahId}`); const qtyPerPaket=Math.max(1,Number((perPaketEl&&perPaketEl.value)||1)); if(!nama){toast('Nama wajib diisi');return;} const qty = (kebutuhan!=null&&kebutuhan!=='null') ? Number(kebutuhan)*qtyPerPaket : qtyPerPaket; const newItem = {id:uid(),nama,harga_satuan:harga,qty_dibeli:qty,qty_per_paket:qtyPerPaket}; h.items.push(newItem);
+  const samaCount = samakanHargaItemSejenis(nama, harga, newItem.id);
   document.getElementById(`add-item-name-${hadiahId}`).value=''; document.getElementById(`add-item-price-${hadiahId}`).value=''; if(perPaketEl) perPaketEl.value='1'; saveDB(); renderContent(); toast(samaCount>0?`Item ditambahkan, harga disamakan ke ${samaCount} item "${nama}" lainnya`:'Item ditambahkan'); 
   notifyTelegram(`➕ Item hadiah baru: ${nama}`, `Paket: ${labelPeserta(h.kategori_peserta)} - ${labelJuara(h.juara_ke)}\nHarga: ${fmtRp(harga)}\nQty: ${qty}${qtyPerPaket>1?` (${qtyPerPaket} buah per paket)`:''}`);
 }
@@ -2444,17 +2493,17 @@ function renderBelanjaHadiah(){
   const semuaHadiah = gHadiahKategori();
   const daftar = gDaftarBelanjaHadiah();
   const statusMap = {};
-  daftar.forEach(b => { const key = `${b.hadiah_kategori_id}_${b.item_index}`; statusMap[key] = b; });
+  daftar.forEach(b => { const key = `${b.hadiah_kategori_id}_${b.item_id}`; statusMap[key] = b; });
 
   const items = [];
   semuaHadiah.forEach(h => {
     h.items.forEach((item, idx) => {
       if (Number(item.qty_dibeli||0) <= 0) return;
-      const key = `${h.id}_${idx}`;
+      const key = `${h.id}_${item.id}`;
       const belanja = statusMap[key] || null;
       const status = belanja ? belanja.status : 'belum_dibeli';
       const tanggalBeli = belanja ? belanja.tanggal_beli : null;
-      items.push({...h, itemIndex: idx, itemNama: item.nama, itemHarga: item.harga_satuan, itemQtyDibeli: item.qty_dibeli, isi_per_pack: item.isi_per_pack||1, status, tanggalBeli, sudahDibeli: status==='dibeli', key});
+      items.push({...h, itemIndex: idx, itemId: item.id, itemNama: item.nama, itemHarga: item.harga_satuan, itemQtyDibeli: item.qty_dibeli, isi_per_pack: item.isi_per_pack||1, status, tanggalBeli, sudahDibeli: status==='dibeli', key});
     });
   });
 
@@ -2498,7 +2547,7 @@ function renderBelanjaHadiah(){
       if(a.kategori_peserta !== b.kategori_peserta) return a.kategori_peserta.localeCompare(b.kategori_peserta);
       return a.juara_ke.localeCompare(b.juara_ke);
     });
-    window._belanjaHadiahGroups[gi] = {nama: g.nama, refs: list.map(i=>({hadiahId:i.id, itemIndex:i.itemIndex}))};
+    window._belanjaHadiahGroups[gi] = {nama: g.nama, refs: list.map(i=>({hadiahId:i.id, itemId:i.itemId}))};
 
     const totalQty = list.reduce((s,i)=>s+Number(i.itemQtyDibeli||0),0);
     const totalHarga = list.reduce((s,i)=>s+(Number(i.itemHarga||0)*Number(i.itemQtyDibeli||0)),0);
@@ -2542,12 +2591,12 @@ function renderBelanjaHadiah(){
   <div class="panel-body">${groups}</div></div></div>`;
 }
 
-function toggleBelanjaHadiah(hadiahId, itemIndex, belanjaId){
+function toggleBelanjaHadiah(hadiahId, itemId){
   if (!canEditSection('belanja-hadiah')) { toast('⛔ Login untuk mengedit data'); return; }
   const h = db.hadiahKategori.find(x=>x.id===hadiahId);
-  if(!h || !h.items[itemIndex]) { toast('Item tidak ditemukan'); return; }
-  const item = h.items[itemIndex];
-  let existing = db.daftarBelanjaHadiah.find(b => b.hadiah_kategori_id === hadiahId && b.item_index === itemIndex && b.event_id === eid());
+  const item = h && h.items.find(it=>it.id===itemId);
+  if(!item) { toast('Item tidak ditemukan'); return; }
+  let existing = db.daftarBelanjaHadiah.find(b => b.hadiah_kategori_id === hadiahId && b.item_id === itemId && b.event_id === eid());
   let actionMsg = '';
   if (existing) {
     if (existing.status === 'dibeli') { 
@@ -2561,7 +2610,7 @@ function toggleBelanjaHadiah(hadiahId, itemIndex, belanjaId){
       toast(`✓ "${item.nama}" dibeli`); 
     }
   } else {
-    db.daftarBelanjaHadiah.push({id:uid(), event_id:eid(), hadiah_kategori_id:hadiahId, item_index:itemIndex, status:'dibeli', tanggal_beli:todayISO()});
+    db.daftarBelanjaHadiah.push({id:uid(), event_id:eid(), hadiah_kategori_id:hadiahId, item_id:itemId, status:'dibeli', tanggal_beli:todayISO()});
     actionMsg = `✅ Belanja hadiah DIBELI: ${item.nama}`;
     toast(`✓ "${item.nama}" dibeli`);
   }
@@ -2573,7 +2622,7 @@ function toggleBelanjaHadiahGroup(gi){
   const group = (window._belanjaHadiahGroups||{})[gi];
   if(!group || !group.refs.length){ toast('Item tidak ditemukan'); return; }
   const semuaDibeli = group.refs.every(r => {
-    const existing = db.daftarBelanjaHadiah.find(b=>b.hadiah_kategori_id===r.hadiahId && b.item_index===r.itemIndex && b.event_id===eid());
+    const existing = db.daftarBelanjaHadiah.find(b=>b.hadiah_kategori_id===r.hadiahId && b.item_id===r.itemId && b.event_id===eid());
     return existing && existing.status === 'dibeli';
   });
   const newStatus = semuaDibeli ? 'belum_dibeli' : 'dibeli';
@@ -2581,10 +2630,10 @@ function toggleBelanjaHadiahGroup(gi){
   const detail = [];
   group.refs.forEach(r => {
     const h = db.hadiahKategori.find(x=>x.id===r.hadiahId);
-    if(!h || !h.items[r.itemIndex]) return;
-    let existing = db.daftarBelanjaHadiah.find(b=>b.hadiah_kategori_id===r.hadiahId && b.item_index===r.itemIndex && b.event_id===eid());
+    if(!h || !h.items.find(it=>it.id===r.itemId)) return;
+    let existing = db.daftarBelanjaHadiah.find(b=>b.hadiah_kategori_id===r.hadiahId && b.item_id===r.itemId && b.event_id===eid());
     if(existing){ existing.status = newStatus; existing.tanggal_beli = tgl; }
-    else { db.daftarBelanjaHadiah.push({id:uid(), event_id:eid(), hadiah_kategori_id:r.hadiahId, item_index:r.itemIndex, status:newStatus, tanggal_beli:tgl}); }
+    else { db.daftarBelanjaHadiah.push({id:uid(), event_id:eid(), hadiah_kategori_id:r.hadiahId, item_id:r.itemId, status:newStatus, tanggal_beli:tgl}); }
     detail.push(`${labelPeserta(h.kategori_peserta)} - ${labelJuara(h.juara_ke)}`);
   });
   saveDB(); renderContent(); renderTopbarSaldo();
@@ -2602,7 +2651,7 @@ function editHargaBelanjaHadiahGroup(gi){
   if(!group || !group.refs.length){ toast('Item tidak ditemukan'); return; }
   const firstRef = group.refs[0];
   const firstH = db.hadiahKategori.find(x=>x.id===firstRef.hadiahId);
-  const firstItem = firstH ? firstH.items[firstRef.itemIndex] : null;
+  const firstItem = firstH ? firstH.items.find(it=>it.id===firstRef.itemId) : null;
   if(!firstItem){ toast('Item tidak ditemukan'); return; }
 
   const isiSekarang = Math.max(1, Number(firstItem.isi_per_pack||1));
@@ -2623,10 +2672,11 @@ function editHargaBelanjaHadiahGroup(gi){
   let count = 0, totalQty = 0;
   group.refs.forEach(r => {
     const h = db.hadiahKategori.find(x=>x.id===r.hadiahId);
-    if(h && h.items[r.itemIndex]){
-      h.items[r.itemIndex].harga_satuan = hargaSatuanBaru;
-      h.items[r.itemIndex].isi_per_pack = isiPerPack;
-      totalQty += Number(h.items[r.itemIndex].qty_dibeli||0);
+    const item = h && h.items.find(it=>it.id===r.itemId);
+    if(item){
+      item.harga_satuan = hargaSatuanBaru;
+      item.isi_per_pack = isiPerPack;
+      totalQty += Number(item.qty_dibeli||0);
       count++;
     }
   });
@@ -2644,7 +2694,7 @@ function editHargaBelanjaHadiahGroup(gi){
 function tandaiSemuaBelanjaHadiah(){ 
   if (!canEditSection('belanja-hadiah')) { toast('⛔ Login untuk mengedit data'); return; }
   const hadiahList=gHadiahKategori(); let count=0; let detail = [];
-  hadiahList.forEach(h=>{h.items.forEach((item,idx)=>{if(Number(item.qty_dibeli||0)<=0)return; const existing=db.daftarBelanjaHadiah.find(b=>b.hadiah_kategori_id===h.id&&b.item_index===idx&&b.event_id===eid()); if(!existing||existing.status!=='dibeli'){if(existing){existing.status='dibeli';existing.tanggal_beli=todayISO();}else{db.daftarBelanjaHadiah.push({id:uid(),event_id:eid(),hadiah_kategori_id:h.id,item_index:idx,status:'dibeli',tanggal_beli:todayISO()});}count++;detail.push(`${item.nama} (${labelPeserta(h.kategori_peserta)})`);}});}); 
+  hadiahList.forEach(h=>{h.items.forEach((item)=>{if(Number(item.qty_dibeli||0)<=0)return; const existing=db.daftarBelanjaHadiah.find(b=>b.hadiah_kategori_id===h.id&&b.item_id===item.id&&b.event_id===eid()); if(!existing||existing.status!=='dibeli'){if(existing){existing.status='dibeli';existing.tanggal_beli=todayISO();}else{db.daftarBelanjaHadiah.push({id:uid(),event_id:eid(),hadiah_kategori_id:h.id,item_id:item.id,status:'dibeli',tanggal_beli:todayISO()});}count++;detail.push(`${item.nama} (${labelPeserta(h.kategori_peserta)})`);}});}); 
   if(count===0){toast('Semua sudah dibeli');}else{saveDB();renderContent();renderTopbarSaldo();toast(`✓ ${count} item dibeli`);
   notifyTelegram(`✅ ${count} item hadiah lomba DIBELI`, detail.join('\n'));} }
 function resetSemuaBelanjaHadiah(){ 
@@ -2658,7 +2708,7 @@ function resetSemuaBelanjaHadiah(){
 function editBelanjaHadiah(hadiahId,itemIndex){ 
   if (!canEditSection('belanja-hadiah')) { toast('⛔ Login untuk mengedit data'); return; }
   const h=db.hadiahKategori.find(x=>x.id===hadiahId); if(!h||!h.items[itemIndex]) return; const item=h.items[itemIndex]; const newNama=prompt('Nama:',item.nama); if(newNama===null)return; const newHarga=prompt('Harga:',item.harga_satuan); if(newHarga===null)return; const newQty=prompt('Qty:',item.qty_dibeli); if(newQty===null)return; if(!newNama.trim()||Number(newQty)<0){toast('Nama & qty wajib');return;} item.nama=newNama.trim(); item.harga_satuan=Number(newHarga)||0; item.qty_dibeli=Number(newQty)||0;
-  const samaCount = samakanHargaItemSejenis(item.nama, item.harga_satuan, hadiahId, itemIndex);
+  const samaCount = samakanHargaItemSejenis(item.nama, item.harga_satuan, item.id);
   saveDB(); renderContent(); toast(samaCount>0?`Diupdate, harga disamakan ke ${samaCount} item "${item.nama}" lainnya`:'Diupdate'); 
   notifyTelegram(`✏️ Edit item belanja hadiah: ${item.nama}`, `Paket: ${labelPeserta(h.kategori_peserta)} - ${labelJuara(h.juara_ke)}\nHarga: ${fmtRp(item.harga_satuan)}\nQty: ${item.qty_dibeli}`);
 }

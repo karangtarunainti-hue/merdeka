@@ -3557,22 +3557,28 @@ function renderKas(){
   const totalDebit = list.reduce((s,k)=>s+Number(k.debit||0),0);
   const totalKredit = list.reduce((s,k)=>s+Number(k.kredit||0),0);
 
+  // Hitung saldo berjalan urut kronologis (lama -> baru) dulu,
+  // baru ditampilkan terbalik (baru -> lama) supaya transaksi
+  // terakhir tetap muncul paling atas tapi saldo tetap benar.
   let saldo = 0;
-  const rows = list.map((k, idx) => {
+  const withSaldo = list.map(k => {
     saldo += Number(k.debit||0) - Number(k.kredit||0);
-    return `
+    return {...k, _saldo: saldo};
+  });
+  const totalRows = withSaldo.length;
+  const rows = withSaldo.slice().reverse().map((k, idx) => `
     <tr>
-      <td data-label="No">${idx+1}</td>
-      <td data-label="Keterangan">${esc(k.keterangan||'-')}<div style="font-size:11px;color:var(--ink-soft);margin-top:2px;">${fmtDateShort(k.tanggal)}</div></td>
+      <td data-label="No">${totalRows - idx}</td>
+      <td data-label="Tanggal">${fmtDateShort(k.tanggal)}</td>
+      <td data-label="Keterangan">${esc(k.keterangan||'-')}</td>
       <td data-label="Debit" class="num">${Number(k.debit||0)>0 ? fmtRp(k.debit) : '-'}</td>
       <td data-label="Kredit" class="num">${Number(k.kredit||0)>0 ? fmtRp(k.kredit) : '-'}</td>
-      <td data-label="Saldo" class="num">${fmtRp(saldo)}</td>
+      <td data-label="Saldo" class="num">${fmtRp(k._saldo)}</td>
       ${canKelola ? `<td style="text-align:right;white-space:nowrap;">
         <button class="icon-btn" onclick="openKasModal('${k.id}')" title="Edit">✎</button>
         <button class="icon-btn" onclick="hapusKas('${k.id}')" title="Hapus">🗑</button>
       </td>` : ''}
-    </tr>`;
-  }).join('');
+    </tr>`).join('');
 
   return `
   <div class="stat-grid">
@@ -3589,8 +3595,8 @@ function renderKas(){
     </div>
     <div class="panel-body flush">
       <table class="general-table kas-table">
-        <thead><tr><th>No</th><th>Keterangan</th><th class="num">Debit</th><th class="num">Kredit</th><th class="num">Saldo</th>${canKelola?'<th></th>':''}</tr></thead>
-        <tbody>${rows || `<tr class="empty-row"><td colspan="${canKelola?6:5}">Belum ada transaksi kas. ${canKelola ? '' : 'Hanya role tertentu yang bisa menambah transaksi.'}</td></tr>`}</tbody>
+        <thead><tr><th>No</th><th>Tanggal</th><th>Keterangan</th><th class="num">Debit</th><th class="num">Kredit</th><th class="num">Saldo</th>${canKelola?'<th></th>':''}</tr></thead>
+        <tbody>${rows || `<tr class="empty-row"><td colspan="${canKelola?7:6}">Belum ada transaksi kas. ${canKelola ? '' : 'Hanya role tertentu yang bisa menambah transaksi.'}</td></tr>`}</tbody>
       </table>
     </div>
   </div>`;

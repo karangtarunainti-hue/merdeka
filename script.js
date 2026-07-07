@@ -263,6 +263,12 @@ function defaultDB(){
     daftarBelanjaJalanSantai: [],
     jadwal: [],
     panitiaSinoman: [],
+    // Agenda Kegiatan — TIDAK terikat event sama sekali (beda dari
+    // `jadwal` yang per event_id). Untuk agenda umum organisasi yang
+    // tetap mau muncul sebagai reminder di Buku Kegiatan walau belum
+    // ada event 17-an yang aktif/dibuat. Disimpan di tabel kt_agenda
+    // (tanpa kolom event_id) — lihat supabase-agenda-migration.sql.
+    agenda: [],
     users: [...DEFAULT_USERS_FALLBACK],
     telegram: {
       botToken: '',
@@ -307,6 +313,7 @@ const ARRAY_TABLE_MAP = {
   daftarBelanjaJalanSantai: 'kt_daftar_belanja_jalan_santai',
   jadwal: 'kt_jadwal',
   panitiaSinoman: 'kt_panitia_sinoman',
+  agenda: 'kt_agenda',
 };
 
 // Migrasi satu-kali: dulu status "dibeli" di daftarBelanjaHadiah dilacak pakai
@@ -730,6 +737,7 @@ const SECTIONS = [
   {key:'database-anggota', label:'Database Anggota', sub:'Cek & filter semua anggota', icon:'database', adminOnly: false},
   {key:'users', label:'Manajemen User', sub:'Kelola akun pengguna', icon:'users', adminOnly: true},
   {key:'jadwal', label:'Jadwal & Reminder', sub:'Kelola jadwal dan pengingat', icon:'calendar', adminOnly: false},
+  {key:'agenda', label:'Agenda Kegiatan', sub:'Agenda umum, tidak terikat event', icon:'calendar', adminOnly: false},
   {key:'gudang', label:'Gudang Aset', sub:'Inventaris & pinjam aset desa', icon:'package', adminOnly: false},
   {key:'dokumen', label:'Surat & Dokumen', sub:'Undangan, proposal & absensi', icon:'clipboard', adminOnly: false},
 ];
@@ -900,9 +908,11 @@ function renderContent(){
     focusInfo = { id: activeEl.id, selStart: activeEl.selectionStart, selEnd: activeEl.selectionEnd };
   }
   
-  // Menu yang tidak terikat event tetap bisa diakses
-  // walau belum ada event 17-an yang dibuat/dipilih.
-  const EVENTLESS_SECTIONS = ['gudang', 'dokumen'];
+  // Menu yang tidak terikat event tetap bisa diakses walau belum ada
+  // event 17-an yang dibuat/dipilih. Dashboard ikut dimasukkan supaya
+  // Agenda Kegiatan (yang juga tidak terikat event) tetap tampil sebagai
+  // reminder di layar utama walau organisasi belum punya event sama sekali.
+  const EVENTLESS_SECTIONS = ['gudang', 'dokumen', 'agenda', 'dashboard'];
   if(!activeEvent() && !EVENTLESS_SECTIONS.includes(currentSection)){
     el.innerHTML = `<div class="empty-state"><h3>Belum ada event aktif</h3><p>${isLoggedIn ? 'Buat event tahunan dulu.' : 'Login untuk membuat atau mengelola event.'}</p>
       ${isLoggedIn ? `<button class="btn" onclick="openEventModal()">+ Buat Event Pertama</button>` : `<button class="btn" onclick="openLoginModal()">🔑 Login untuk Mengelola</button>`}
@@ -949,6 +959,7 @@ function renderContent(){
     case 'hadiah-jalan': el.innerHTML = renderHadiahJalanSantai(); break;
     case 'belanja-jalan': el.innerHTML = renderBelanjaJalanSantai(); break;
     case 'jadwal': el.innerHTML = renderJadwal(); break;
+    case 'agenda': el.innerHTML = renderAgenda(); break;
     case 'gudang': el.innerHTML = renderGudang(); break;
     case 'dokumen': el.innerHTML = renderDokumen(); break;
     case 'lpj': el.innerHTML = renderLPJ(); break;
@@ -1243,6 +1254,49 @@ function generateReminders(){
   const reminders = [];
   const today = new Date();
   const isLoggedIn = !!getCurrentUser();
+
+  // Agenda Kegiatan — tidak terikat event, jadi selalu dicek terlepas
+  // dari ada/tidaknya event aktif.
+  const agendaList = gAgenda().filter(a => a.status !== 'selesai');
+  const upcomingAgenda = agendaList.filter(a => {
+    const aDate = new Date(a.tanggal + 'T00:00:00');
+    const diffDays = Math.ceil((aDate - today) / (1000 * 60 * 60 * 24));
+    return diffDays >= 0 && diffDays <= 7;
+  }).sort((a,b) => new Date(a.tanggal) - new Date(b.tanggal));
+
+  if (upcomingAgenda.length > 0) {
+    const todayAgenda = upcomingAgenda.filter(a => {
+      const aDate = new Date(a.tanggal + 'T00:00:00');
+      return aDate.toDateString() === today.toDateString();
+    });
+    const soonAgenda = upcomingAgenda.filter(a => {
+      const aDate = new Date(a.tanggal + 'T00:00:00');
+      return aDate.toDateString() !== today.toDateString();
+    });
+
+    let items = [];
+    if (todayAgenda.length > 0) {
+      items.push({label: '📌 Hari ini:', value: todayAgenda.map(a => `${a.judul} (${labelKategoriJadwal(a.kategori)})`).join(', ')});
+    }
+    if (soonAgenda.length > 0) {
+      const soonText = soonAgenda.map(a => {
+        const aDate = new Date(a.tanggal + 'T00:00:00');
+        const diffDays = Math.ceil((aDate - today) / (1000 * 60 * 60 * 24));
+        const dayLabel = diffDays === 1 ? 'Besok' : `${diffDays} hari lagi`;
+        return `${a.judul} (${dayLabel})`;
+      }).join(', ');
+      items.push({label: '📅 Mendatang:', value: soonText});
+    }
+
+    reminders.push({
+      type: 'info',
+      icon: '📌',
+      title: 'Agenda Kegiatan',
+      count: upcomingAgenda.length,
+      items: items,
+      action: {label: 'Lihat Semua →', link: 'agenda'}
+    });
+  }
 
   const jadwalList = isMenuAktif('jadwal') ? gJadwal().filter(j => j.status !== 'selesai') : [];
   const upcomingJadwal = jadwalList.filter(j => {
@@ -3321,6 +3375,146 @@ function hapusJadwal(id){
   db.jadwal = db.jadwal.filter(j=>j.id!==id);
   saveDB(); renderContent(); toast('Jadwal dihapus');
   if(j) notifyTelegram(`🗑️ Hapus jadwal: ${j.judul}`, `Tanggal: ${fmtDate(j.tanggal)}`);
+}
+
+/* ============================================================
+   AGENDA KEGIATAN
+   Sama seperti Jadwal & Reminder, tapi TIDAK terikat event sama
+   sekali (tidak ada event_id) — untuk agenda umum organisasi yang
+   tetap harus muncul jadi reminder di Buku Kegiatan walau belum ada
+   event 17-an yang dibuat/aktif. Lihat gAgenda()/generateReminders().
+   ============================================================ */
+function gAgenda(){ return db.agenda; }
+
+function renderAgenda(){
+  const list = gAgenda().slice().sort((a,b) => new Date(a.tanggal) - new Date(b.tanggal));
+  const isLoggedIn = !!getCurrentUser();
+
+  const today = new Date();
+  const rows = list.map(a => {
+    const aDate = new Date(a.tanggal + 'T00:00:00');
+    const diffDays = Math.ceil((aDate - today) / (1000 * 60 * 60 * 24));
+    let statusLabel = '';
+    let statusClass = '';
+    if (a.status === 'selesai') {
+      statusLabel = 'Selesai';
+      statusClass = 'lunas';
+    } else if (diffDays < 0) {
+      statusLabel = 'Terlewat';
+      statusClass = 'belum';
+    } else if (diffDays === 0) {
+      statusLabel = 'Hari Ini!';
+      statusClass = 'dibeli';
+    } else if (diffDays <= 3) {
+      statusLabel = `${diffDays} hari lagi`;
+      statusClass = 'dibeli';
+    } else {
+      statusLabel = `${diffDays} hari lagi`;
+      statusClass = 'perlengkapan';
+    }
+
+    return `
+    <tr class="${a.status === 'selesai' ? '' : (diffDays < 0 ? 'belum-bayar' : '')}">
+      <td data-label="Tanggal">${fmtDate(a.tanggal)}</td>
+      <td data-label="Status"><span class="badge ${statusClass}">${statusLabel}</span></td>
+      <td data-label="Kategori"><span class="kategori-pill">${labelKategoriJadwal(a.kategori)}</span></td>
+      <td data-label="Judul">${esc(a.judul)}</td>
+      <td data-label="Deskripsi">${esc(a.deskripsi||'-')}</td>
+      <td data-label="Aksi" class="jadwal-actions" style="text-align:right; white-space:nowrap;">
+        <button class="btn secondary small" onclick="toggleAgendaStatus('${a.id}')" ${!isLoggedIn ? 'disabled' : ''}>${a.status === 'selesai' ? 'Buka' : 'Selesai'}</button>
+        <button class="icon-btn" onclick="openAgendaModal('${a.id}')" ${!isLoggedIn ? 'disabled' : ''} title="Edit">✎</button>
+        <button class="icon-btn" onclick="hapusAgenda('${a.id}')" ${!isLoggedIn ? 'disabled' : ''} title="Hapus">🗑</button>
+      </td>
+    </tr>`;
+  }).join('');
+
+  const total = list.length;
+  const totalSelesai = list.filter(a => a.status === 'selesai').length;
+  const totalActive = total - totalSelesai;
+  const totalHariIni = list.filter(a => {
+    const aDate = new Date(a.tanggal + 'T00:00:00');
+    return aDate.toDateString() === today.toDateString() && a.status !== 'selesai';
+  }).length;
+
+  return `
+  <div class="stat-grid">
+    <div class="stat-card info"><div class="lbl">Total Agenda</div><div class="val">${total}</div></div>
+    <div class="stat-card pemasukan"><div class="lbl">Aktif</div><div class="val">${totalActive}</div></div>
+    <div class="stat-card warning"><div class="lbl">Hari Ini</div><div class="val">${totalHariIni}</div></div>
+    <div class="stat-card"><div class="lbl">Selesai</div><div class="val">${totalSelesai}</div></div>
+  </div>
+  <div class="panel">
+    <div class="panel-head">
+      <div><h3>📌 Agenda Kegiatan</h3>
+        <div class="desc">Agenda umum organisasi — tidak terikat event 17-an tertentu</div>
+      </div>
+      ${isLoggedIn ? `<button class="btn" onclick="openAgendaModal()">+ Tambah Agenda</button>` : ''}
+    </div>
+    <div class="panel-body flush">
+      <table class="general-table jadwal-table">
+        <thead><tr><th>Tanggal</th><th>Status</th><th>Kategori</th><th>Judul</th><th>Deskripsi</th><th></th></tr></thead>
+        <tbody>${rows || `<tr class="empty-row"><td colspan="6">Belum ada agenda. ${isLoggedIn ? 'Tambahkan agenda untuk mendapatkan pengingat.' : 'Login untuk menambah agenda.'}</td></tr>`}</tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+function openAgendaModal(id){
+  if (!canEditSection('agenda')) { toast('⛔ Login untuk mengedit data'); return; }
+  const editing = id ? db.agenda.find(a=>a.id===id) : null;
+  setModal(editing?'Edit Agenda':'Tambah Agenda', `
+    <div class="field"><label>Judul</label><input id="f-agenda-judul" value="${editing?esc(editing.judul):''}" placeholder="mis. Rapat Rutin Bulanan"></div>
+    <div class="field-row">
+      <div class="field"><label>Tanggal</label><input id="f-agenda-tanggal" type="date" value="${editing?editing.tanggal:todayISO()}"></div>
+      <div class="field"><label>Kategori</label>
+        <select id="f-agenda-kategori">${KATEGORI_JADWAL.map(k=>`<option value="${k.v}" ${editing&&editing.kategori===k.v?'selected':''}>${k.l}</option>`).join('')}</select>
+      </div>
+    </div>
+    <div class="field"><label>Deskripsi (opsional)</label>
+      <textarea id="f-agenda-deskripsi" rows="3" placeholder="Detail agenda...">${editing?esc(editing.deskripsi||''):''}</textarea>
+    </div>
+    <div class="field"><label>Status</label>
+      <select id="f-agenda-status">
+        <option value="aktif" ${editing&&editing.status==='aktif'?'selected':''}>Aktif</option>
+        <option value="selesai" ${editing&&editing.status==='selesai'?'selected':''}>Selesai</option>
+      </select>
+    </div>
+  `, [
+    {label:'Batal', cls:'secondary', onclick:closeModal},
+    {label:editing?'Simpan':'Tambah', cls:'', onclick:()=>{
+      const judul = document.getElementById('f-agenda-judul').value.trim();
+      const tanggal = document.getElementById('f-agenda-tanggal').value;
+      const kategori = document.getElementById('f-agenda-kategori').value;
+      const deskripsi = document.getElementById('f-agenda-deskripsi').value.trim();
+      const status = document.getElementById('f-agenda-status').value;
+      if(!judul || !tanggal){ toast('Judul & tanggal wajib diisi'); return; }
+      let actionMsg = editing ? `✏️ Edit agenda: ${editing.judul} → ${judul}` : `➕ Agenda baru: ${judul}`;
+      if(editing){ Object.assign(editing, {judul, tanggal, kategori, deskripsi, status}); }
+      else{ db.agenda.push({id:uid(), judul, tanggal, kategori, deskripsi, status}); }
+      saveDB(); closeModal(); renderContent(); toast('Agenda disimpan');
+      notifyTelegram(actionMsg, `Tanggal: ${fmtDate(tanggal)}\nKategori: ${labelKategoriJadwal(kategori)}\nDeskripsi: ${deskripsi || '-'}`);
+    }}
+  ]);
+}
+
+function toggleAgendaStatus(id){
+  if (!canEditSection('agenda')) { toast('⛔ Login untuk mengedit data'); return; }
+  const a = db.agenda.find(x=>x.id===id);
+  if(!a) return;
+  a.status = a.status === 'selesai' ? 'aktif' : 'selesai';
+  saveDB(); renderContent();
+  const action = a.status === 'selesai' ? '✅ Selesai' : '↩️ Dibuka kembali';
+  toast(`Agenda "${a.judul}" ${a.status === 'selesai' ? 'selesai' : 'diaktifkan kembali'}`);
+  notifyTelegram(`${action}: ${a.judul}`, `Tanggal: ${fmtDate(a.tanggal)}`);
+}
+
+function hapusAgenda(id){
+  if (!canEditSection('agenda')) { toast('⛔ Login untuk mengedit data'); return; }
+  if(!confirm('Hapus agenda ini?')) return;
+  const a = db.agenda.find(x=>x.id===id);
+  db.agenda = db.agenda.filter(x=>x.id!==id);
+  saveDB(); renderContent(); toast('Agenda dihapus');
+  if(a) notifyTelegram(`🗑️ Hapus agenda: ${a.judul}`, `Tanggal: ${fmtDate(a.tanggal)}`);
 }
 
 /* ============================================================

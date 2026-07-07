@@ -3565,7 +3565,9 @@ function renderKas(){
     saldo += Number(k.debit||0) - Number(k.kredit||0);
     return {...k, _saldo: saldo};
   });
-  const rows = withSaldo.slice().reverse().map((k, idx) => `
+  const displayList = withSaldo.slice().reverse();
+
+  const rows = displayList.map((k, idx) => `
     <tr>
       <td data-label="No">${idx + 1}</td>
       <td data-label="Tanggal">${fmtDateShort(k.tanggal)}</td>
@@ -3578,6 +3580,32 @@ function renderKas(){
         <button class="icon-btn" onclick="hapusKas('${k.id}')" title="Hapus">🗑</button>
       </td>` : ''}
     </tr>`).join('');
+
+  // Kartu khusus HP — bukan tabel yang "dipaksa" jadi kartu, tapi layout
+  // sendiri (tanggal + aksi di atas, keterangan tebal, lalu satu baris
+  // jumlah bertanda +/- dengan saldo di sampingnya) supaya ringkas dan
+  // tidak ada teks yang kepotong/wrap aneh seperti sebelumnya.
+  const cards = displayList.map(k => {
+    const isMasuk = Number(k.debit||0) > 0;
+    const jumlah = isMasuk ? k.debit : k.kredit;
+    return `
+    <div class="kas-card">
+      <div class="kas-card-top">
+        <span class="kas-card-date">${fmtDateShort(k.tanggal)}</span>
+        ${canKelola ? `<span class="kas-card-actions">
+          <button class="icon-btn" onclick="openKasModal('${k.id}')" title="Edit">✎</button>
+          <button class="icon-btn" onclick="hapusKas('${k.id}')" title="Hapus">🗑</button>
+        </span>` : ''}
+      </div>
+      <div class="kas-card-ket">${esc(k.keterangan||'-')}</div>
+      <div class="kas-card-bottom">
+        <span class="kas-card-jumlah ${isMasuk?'pemasukan':'pengeluaran'}">${isMasuk?'+':'−'} ${fmtRp(jumlah)}</span>
+        <span class="kas-card-saldo">Saldo ${fmtRp(k._saldo)}</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  const empty = `<div class="empty-state" style="padding:28px;"><p>Belum ada transaksi kas. ${canKelola ? '' : 'Hanya role tertentu yang bisa menambah transaksi.'}</p></div>`;
 
   return `
   <div class="stat-grid">
@@ -3592,11 +3620,14 @@ function renderKas(){
       </div>
       ${canKelola ? `<button class="btn" onclick="openKasModal()">+ Tambah Transaksi</button>` : ''}
     </div>
-    <div class="panel-body flush">
+    <div class="panel-body flush kas-table-wrap">
       <table class="general-table kas-table">
         <thead><tr><th>No</th><th>Tanggal</th><th>Keterangan</th><th class="num">Debit</th><th class="num">Kredit</th><th class="num">Saldo</th>${canKelola?'<th></th>':''}</tr></thead>
         <tbody>${rows || `<tr class="empty-row"><td colspan="${canKelola?7:6}">Belum ada transaksi kas. ${canKelola ? '' : 'Hanya role tertentu yang bisa menambah transaksi.'}</td></tr>`}</tbody>
       </table>
+    </div>
+    <div class="panel-body kas-card-list">
+      ${cards || empty}
     </div>
   </div>`;
 }

@@ -914,7 +914,7 @@ function goSection(key){
 // saldo proyeksi kegiatan/event tidak ikut nongol di menu yang memang tidak
 // terikat event tersebut — chip itu punya arti khusus untuk event aktif,
 // jadi kalau ditampilkan di menu eventless malah bikin salah paham).
-const EVENTLESS_SECTIONS = ['gudang', 'dokumen', 'agenda', 'kas', 'dashboard'];
+const EVENTLESS_SECTIONS = ['gudang', 'dokumen', 'agenda', 'kas', 'dashboard', 'pengaturan', 'users'];
 
 function renderTopbarSaldo(){
   const chip = document.getElementById('saldo-chip');

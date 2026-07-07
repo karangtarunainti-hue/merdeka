@@ -512,6 +512,18 @@
   table.jadwal-table th:nth-child(6), table.jadwal-table td:nth-child(6) { width:20%; }
   table.jadwal-table td:nth-child(4), table.jadwal-table td:nth-child(5) { white-space:normal; word-break:break-word; }
 
+  /* Kas Karang Taruna: No, Tanggal, Keterangan, Debit, Kredit, Saldo (+Aksi).
+     Didefinisikan ulang (bukan pakai lebar general-table bawaan) supaya total
+     tetap 100% dan kolom Saldo/Aksi tidak terdesak keluar layar di desktop.
+     Keterangan sengaja dapat porsi terbesar, No & Tanggal dibuat ramping. */
+  table.kas-table th:nth-child(1), table.kas-table td:nth-child(1) { width:5%; }
+  table.kas-table th:nth-child(2), table.kas-table td:nth-child(2) { width:10%; }
+  table.kas-table th:nth-child(3), table.kas-table td:nth-child(3) { width:34%; white-space:normal; word-break:break-word; }
+  table.kas-table th:nth-child(4), table.kas-table td:nth-child(4) { width:14%; }
+  table.kas-table th:nth-child(5), table.kas-table td:nth-child(5) { width:14%; }
+  table.kas-table th:nth-child(6), table.kas-table td:nth-child(6) { width:14%; }
+  table.kas-table th:nth-child(7), table.kas-table td:nth-child(7) { width:9%; }
+
   table.users-table { table-layout:fixed; }
   table.users-table th:nth-child(1), table.users-table td:nth-child(1) { width:16%; }
   table.users-table th:nth-child(2), table.users-table td:nth-child(2) { width:10%; }

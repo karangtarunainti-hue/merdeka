@@ -908,9 +908,21 @@ function goSection(key){
   window.scrollTo({top:0, behavior:'instant'});
 }
 
+// Menu yang tidak terikat event (bisa diakses walau belum ada event 17-an
+// yang dibuat/dipilih). Dipakai di renderContent (supaya halaman tidak
+// nampilin "Belum ada event aktif") dan di renderTopbarSaldo (supaya chip
+// saldo proyeksi kegiatan/event tidak ikut nongol di menu yang memang tidak
+// terikat event tersebut — chip itu punya arti khusus untuk event aktif,
+// jadi kalau ditampilkan di menu eventless malah bikin salah paham).
+const EVENTLESS_SECTIONS = ['gudang', 'dokumen', 'agenda', 'kas', 'dashboard'];
+
 function renderTopbarSaldo(){
   const chip = document.getElementById('saldo-chip');
-  if(!activeEvent()){ chip.style.visibility='hidden'; return; }
+  // Chip ini menampilkan proyeksi anggaran EVENT/kegiatan khusus yang aktif
+  // (dari hitungBukuUtama). Di menu yang tidak terikat event (lihat
+  // EVENTLESS_SECTIONS) angka ini tidak relevan dan gampang disalahpahami
+  // sebagai saldo milik menu tersebut, jadi disembunyikan di menu-menu itu.
+  if(!activeEvent() || EVENTLESS_SECTIONS.includes(currentSection)){ chip.style.visibility='hidden'; return; }
   chip.style.visibility='visible';
   const {saldo} = hitungBukuUtama();
   chip.classList.toggle('negatif', saldo < 0);
@@ -930,10 +942,7 @@ function renderContent(){
   }
   
   // Menu yang tidak terikat event tetap bisa diakses walau belum ada
-  // event 17-an yang dibuat/dipilih. Dashboard ikut dimasukkan supaya
-  // Agenda Kegiatan (yang juga tidak terikat event) tetap tampil sebagai
-  // reminder di layar utama walau organisasi belum punya event sama sekali.
-  const EVENTLESS_SECTIONS = ['gudang', 'dokumen', 'agenda', 'kas', 'dashboard'];
+  // event 17-an yang dibuat/dipilih (lihat EVENTLESS_SECTIONS di atas).
   if(!activeEvent() && !EVENTLESS_SECTIONS.includes(currentSection)){
     el.innerHTML = `<div class="empty-state"><h3>Belum ada event aktif</h3><p>${isLoggedIn ? 'Buat event tahunan dulu.' : 'Login untuk membuat atau mengelola event.'}</p>
       ${isLoggedIn ? `<button class="btn" onclick="openEventModal()">+ Buat Event Pertama</button>` : `<button class="btn" onclick="openLoginModal()">🔑 Login untuk Mengelola</button>`}

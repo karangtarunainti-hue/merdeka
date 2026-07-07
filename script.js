@@ -269,6 +269,11 @@ function defaultDB(){
     // ada event 17-an yang aktif/dibuat. Disimpan di tabel kt_agenda
     // (tanpa kolom event_id) — lihat supabase-agenda-migration.sql.
     agenda: [],
+    // Kas Karang Taruna — buku kas umum organisasi, TIDAK terikat event
+    // (sama seperti Agenda/Gudang/Dokumen). Setiap baris punya debit/kredit,
+    // saldo dihitung berjalan (running balance) saat render, tidak disimpan
+    // di DB. Disimpan di tabel kt_kas (lihat supabase-kas-migration.sql).
+    kas: [],
     users: [...DEFAULT_USERS_FALLBACK],
     telegram: {
       botToken: '',
@@ -314,6 +319,7 @@ const ARRAY_TABLE_MAP = {
   jadwal: 'kt_jadwal',
   panitiaSinoman: 'kt_panitia_sinoman',
   agenda: 'kt_agenda',
+  kas: 'kt_kas',
 };
 
 // Migrasi satu-kali: dulu status "dibeli" di daftarBelanjaHadiah dilacak pakai
@@ -740,12 +746,13 @@ const SECTIONS = [
   {key:'agenda', label:'Agenda Kegiatan', sub:'Agenda umum, tidak terikat event', icon:'calendar', adminOnly: true},
   {key:'gudang', label:'Gudang Aset', sub:'Inventaris & pinjam aset desa', icon:'package', adminOnly: false},
   {key:'dokumen', label:'Surat & Dokumen', sub:'Undangan, proposal & absensi', icon:'clipboard', adminOnly: false},
+  {key:'kas', label:'Kas Karang Taruna', sub:'Buku kas umum organisasi, tidak terikat event', icon:'wallet', adminOnly: false},
 ];
 
 // Menu yang tidak terikat event tertentu (datanya global, bukan per-event).
 // Menu ini ditampilkan terpisah di atas, antara info login dan dropdown
 // Kegiatan Aktif, supaya jelas tidak berubah walau event aktif diganti.
-const GLOBAL_MENU_KEYS = ['agenda', 'dokumen', 'database-anggota', 'gudang', 'users', 'pengaturan'];
+const GLOBAL_MENU_KEYS = ['kas', 'agenda', 'dokumen', 'database-anggota', 'gudang', 'users', 'pengaturan'];
 
 /* ============================================================
    FITUR OPSIONAL PER EVENT
@@ -807,7 +814,8 @@ const ICONS = {
   bath:'<path d="M12 3c3 4 5 6.6 5 9.5A5 5 0 0 1 7 12.5C7 9.6 9 7 12 3z" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linejoin="round"/>',
   tag:'<path d="M12 3h6a2 2 0 0 1 2 2v6L11 20l-8-8L12 3z" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linejoin="round"/><circle cx="16" cy="7" r="1.3" fill="currentColor"/>',
   report:'<path d="M6 3h9l3 3v15H6V3z" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linejoin="round"/><path d="M15 3v3h3" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linejoin="round"/><path d="M9 12h6M9 15h6M9 9h3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
-  clipboard:'<rect x="5" y="4" width="14" height="17" rx="2" stroke="currentColor" stroke-width="1.6" fill="none"/><rect x="8.5" y="2.5" width="7" height="3.5" rx="1" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M8.5 11h7M8.5 14.5h7M8.5 18h4.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>'
+  clipboard:'<rect x="5" y="4" width="14" height="17" rx="2" stroke="currentColor" stroke-width="1.6" fill="none"/><rect x="8.5" y="2.5" width="7" height="3.5" rx="1" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M8.5 11h7M8.5 14.5h7M8.5 18h4.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
+  wallet:'<path d="M3 7a2 2 0 0 1 2-2h13a1 1 0 0 1 1 1v3H5" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linejoin="round"/><path d="M3 7v11a2 2 0 0 0 2 2h14a1 1 0 0 0 1-1V9a1 1 0 0 0-1-1H4a1 1 0 0 1-1-1z" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linejoin="round"/><circle cx="16.5" cy="14" r="1.4" fill="currentColor"/>'
 };
 function icon(name){ return `<svg viewBox="0 0 24 24">${ICONS[name]||''}</svg>`; }
 
@@ -925,7 +933,7 @@ function renderContent(){
   // event 17-an yang dibuat/dipilih. Dashboard ikut dimasukkan supaya
   // Agenda Kegiatan (yang juga tidak terikat event) tetap tampil sebagai
   // reminder di layar utama walau organisasi belum punya event sama sekali.
-  const EVENTLESS_SECTIONS = ['gudang', 'dokumen', 'agenda', 'dashboard'];
+  const EVENTLESS_SECTIONS = ['gudang', 'dokumen', 'agenda', 'kas', 'dashboard'];
   if(!activeEvent() && !EVENTLESS_SECTIONS.includes(currentSection)){
     el.innerHTML = `<div class="empty-state"><h3>Belum ada event aktif</h3><p>${isLoggedIn ? 'Buat event tahunan dulu.' : 'Login untuk membuat atau mengelola event.'}</p>
       ${isLoggedIn ? `<button class="btn" onclick="openEventModal()">+ Buat Event Pertama</button>` : `<button class="btn" onclick="openLoginModal()">🔑 Login untuk Mengelola</button>`}
@@ -975,6 +983,7 @@ function renderContent(){
     case 'agenda': el.innerHTML = renderAgenda(); break;
     case 'gudang': el.innerHTML = renderGudang(); break;
     case 'dokumen': el.innerHTML = renderDokumen(); break;
+    case 'kas': el.innerHTML = renderKas(); break;
     case 'lpj': el.innerHTML = renderLPJ(); break;
     case 'pengaturan': el.innerHTML = renderPengaturan(); break;
     case 'users': el.innerHTML = renderUsers(); break;
@@ -3528,6 +3537,106 @@ function hapusAgenda(id){
   db.agenda = db.agenda.filter(x=>x.id!==id);
   saveDB(); renderContent(); toast('Agenda dihapus');
   if(a) notifyTelegram(`🗑️ Hapus agenda: ${a.judul}`, `Tanggal: ${fmtDate(a.tanggal)}`);
+}
+
+/* ============================================================
+   KAS KARANG TARUNA
+   Buku kas umum organisasi — TIDAK terikat event 17-an tertentu,
+   sama seperti Agenda/Gudang/Dokumen. Semua orang (termasuk guest)
+   bisa melihat, tapi hanya role yang diizinkan (Admin, User, atau
+   Petugas yang ditugaskan ke bidang "Kas Karang Taruna" lewat
+   Manajemen User) yang bisa menambah/mengedit/menghapus baris.
+   Saldo dihitung berjalan (running balance) saat render:
+   saldo = saldo sebelumnya + debit - kredit.
+   ============================================================ */
+function gKas(){ return db.kas; }
+
+function renderKas(){
+  const list = gKas().slice().sort((a,b) => (a.tanggal||'').localeCompare(b.tanggal||'') || (a.created_at||'').localeCompare(b.created_at||''));
+  const canKelola = canEditSection('kas');
+  const totalDebit = list.reduce((s,k)=>s+Number(k.debit||0),0);
+  const totalKredit = list.reduce((s,k)=>s+Number(k.kredit||0),0);
+
+  let saldo = 0;
+  const rows = list.map((k, idx) => {
+    saldo += Number(k.debit||0) - Number(k.kredit||0);
+    return `
+    <tr>
+      <td data-label="No">${idx+1}</td>
+      <td data-label="Keterangan">${esc(k.keterangan||'-')}<div style="font-size:11px;color:var(--ink-soft);margin-top:2px;">${fmtDateShort(k.tanggal)}</div></td>
+      <td data-label="Debit" class="num">${Number(k.debit||0)>0 ? fmtRp(k.debit) : '-'}</td>
+      <td data-label="Kredit" class="num">${Number(k.kredit||0)>0 ? fmtRp(k.kredit) : '-'}</td>
+      <td data-label="Saldo" class="num">${fmtRp(saldo)}</td>
+      ${canKelola ? `<td style="text-align:right;white-space:nowrap;">
+        <button class="icon-btn" onclick="openKasModal('${k.id}')" title="Edit">✎</button>
+        <button class="icon-btn" onclick="hapusKas('${k.id}')" title="Hapus">🗑</button>
+      </td>` : ''}
+    </tr>`;
+  }).join('');
+
+  return `
+  <div class="stat-grid">
+    <div class="stat-card pemasukan"><div class="lbl">Total Debit</div><div class="val">${fmtRp(totalDebit)}</div></div>
+    <div class="stat-card pengeluaran"><div class="lbl">Total Kredit</div><div class="val">${fmtRp(totalKredit)}</div></div>
+    <div class="stat-card ${saldo<0?'defisit':'saldo'}"><div class="lbl">Saldo Kas</div><div class="val">${fmtRp(saldo)}</div></div>
+  </div>
+  <div class="panel">
+    <div class="panel-head">
+      <div><h3>💰 Kas Karang Taruna</h3>
+        <div class="desc">Buku kas umum organisasi — tidak terikat event tertentu</div>
+      </div>
+      ${canKelola ? `<button class="btn" onclick="openKasModal()">+ Tambah Transaksi</button>` : ''}
+    </div>
+    <div class="panel-body flush">
+      <table class="general-table kas-table">
+        <thead><tr><th>No</th><th>Keterangan</th><th class="num">Debit</th><th class="num">Kredit</th><th class="num">Saldo</th>${canKelola?'<th></th>':''}</tr></thead>
+        <tbody>${rows || `<tr class="empty-row"><td colspan="${canKelola?6:5}">Belum ada transaksi kas. ${canKelola ? '' : 'Hanya role tertentu yang bisa menambah transaksi.'}</td></tr>`}</tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+function openKasModal(id){
+  if (!canEditSection('kas')) { toast('⛔ Anda tidak memiliki akses untuk mengedit Kas Karang Taruna'); return; }
+  const editing = id ? db.kas.find(k=>k.id===id) : null;
+  setModal(editing?'Edit Transaksi Kas':'Tambah Transaksi Kas', `
+    <div class="field"><label>Keterangan</label><input id="f-kas-ket" value="${editing?esc(editing.keterangan||''):''}" placeholder="mis. Iuran bulanan anggota"></div>
+    <div class="field-row">
+      <div class="field"><label>Debit (uang masuk)</label><input id="f-kas-debit" class="currency-input" type="text" value="${editing?formatCurrency(editing.debit||0):''}"></div>
+      <div class="field"><label>Kredit (uang keluar)</label><input id="f-kas-kredit" class="currency-input" type="text" value="${editing?formatCurrency(editing.kredit||0):''}"></div>
+    </div>
+    <div class="field"><label>Tanggal</label><input id="f-kas-tanggal" type="date" value="${editing?editing.tanggal:todayISO()}"></div>
+  `, [
+    {label:'Batal', cls:'secondary', onclick:closeModal},
+    {label: editing?'Simpan':'Tambah', cls:'', onclick:()=>{
+      const keterangan = document.getElementById('f-kas-ket').value.trim();
+      const debit = getCurrencyValue(document.getElementById('f-kas-debit'));
+      const kredit = getCurrencyValue(document.getElementById('f-kas-kredit'));
+      const tanggal = document.getElementById('f-kas-tanggal').value || todayISO();
+      if(!keterangan){ toast('Keterangan wajib diisi'); return; }
+      if(debit<=0 && kredit<=0){ toast('Isi salah satu: Debit atau Kredit'); return; }
+      let actionMsg = '';
+      if(editing){
+        actionMsg = `✏️ Edit kas: ${keterangan}`;
+        Object.assign(editing, {keterangan, debit, kredit, tanggal});
+      } else {
+        actionMsg = `➕ Kas baru: ${keterangan}`;
+        db.kas.push({id:uid(), keterangan, debit, kredit, tanggal, created_at:new Date().toISOString()});
+      }
+      saveDB(); closeModal(); renderContent(); toast('Disimpan');
+      notifyTelegram(actionMsg, `Debit: ${fmtRp(debit)}\nKredit: ${fmtRp(kredit)}\nTanggal: ${fmtDate(tanggal)}`);
+    }}
+  ]);
+  setTimeout(setupAllCurrencyInputs, 50);
+}
+
+function hapusKas(id){
+  if (!canEditSection('kas')) { toast('⛔ Anda tidak memiliki akses untuk mengedit Kas Karang Taruna'); return; }
+  if(!confirm('Hapus transaksi kas ini?')) return;
+  const k = db.kas.find(x=>x.id===id);
+  db.kas = db.kas.filter(x=>x.id!==id);
+  saveDB(); renderContent();
+  if(k) notifyTelegram(`🗑️ Hapus kas: ${k.keterangan}`);
 }
 
 /* ============================================================

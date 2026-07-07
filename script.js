@@ -2378,7 +2378,11 @@ function renderHadiah(){
     const budgetPerPaket = getHadiahBudget(kp.v, j.v);
     if(budgetPerPaket<=0) return s2;
     const keb = hitungKebutuhanHadiah(kp.v, j.v);
-    return s2 + budgetPerPaket * (keb!=null ? keb : 1);
+    // keb bisa null (juara partisipasi, memang tidak ada target) ATAU 0 (belum ada
+    // lomba dibuat untuk kategori ini). Keduanya sama-sama "belum diketahui jumlah
+    // paket yang dibutuhkan", jadi budget tetap dihitung penuh (×1) — bukan ditiadakan
+    // (×0) — supaya Total Budget tetap masuk akal sebelum data lomba diinput.
+    return s2 + budgetPerPaket * (keb || 1);
   },0),0);
 
   // Card anggaran per kategori peserta — bandingkan harga PAKET (bukan akumulasi total

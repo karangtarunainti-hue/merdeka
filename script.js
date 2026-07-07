@@ -3565,10 +3565,9 @@ function renderKas(){
     saldo += Number(k.debit||0) - Number(k.kredit||0);
     return {...k, _saldo: saldo};
   });
-  const totalRows = withSaldo.length;
   const rows = withSaldo.slice().reverse().map((k, idx) => `
     <tr>
-      <td data-label="No">${totalRows - idx}</td>
+      <td data-label="No">${idx + 1}</td>
       <td data-label="Tanggal">${fmtDateShort(k.tanggal)}</td>
       <td data-label="Keterangan">${esc(k.keterangan||'-')}</td>
       <td data-label="Debit" class="num">${Number(k.debit||0)>0 ? fmtRp(k.debit) : '-'}</td>
@@ -3605,22 +3604,31 @@ function renderKas(){
 function openKasModal(id){
   if (!canEditSection('kas')) { toast('⛔ Anda tidak memiliki akses untuk mengedit Kas Karang Taruna'); return; }
   const editing = id ? db.kas.find(k=>k.id===id) : null;
+  const editingJenis = editing ? (Number(editing.kredit||0) > 0 ? 'keluar' : 'masuk') : 'masuk';
+  const editingJumlah = editing ? (editingJenis === 'masuk' ? editing.debit : editing.kredit) : 0;
   setModal(editing?'Edit Transaksi Kas':'Tambah Transaksi Kas', `
     <div class="field"><label>Keterangan</label><input id="f-kas-ket" value="${editing?esc(editing.keterangan||''):''}" placeholder="mis. Iuran bulanan anggota"></div>
-    <div class="field-row">
-      <div class="field"><label>Debit (uang masuk)</label><input id="f-kas-debit" class="currency-input" type="text" value="${editing?formatCurrency(editing.debit||0):''}"></div>
-      <div class="field"><label>Kredit (uang keluar)</label><input id="f-kas-kredit" class="currency-input" type="text" value="${editing?formatCurrency(editing.kredit||0):''}"></div>
+    <div class="field"><label>Jenis Transaksi</label>
+      <select id="f-kas-jenis">
+        <option value="masuk" ${editingJenis==='masuk'?'selected':''}>💰 Pemasukan (uang masuk)</option>
+        <option value="keluar" ${editingJenis==='keluar'?'selected':''}>📤 Pengeluaran (uang keluar)</option>
+      </select>
     </div>
-    <div class="field"><label>Tanggal</label><input id="f-kas-tanggal" type="date" value="${editing?editing.tanggal:todayISO()}"></div>
+    <div class="field-row">
+      <div class="field"><label>Jumlah (Rp)</label><input id="f-kas-jumlah" class="currency-input" type="text" value="${editing?formatCurrency(editingJumlah||0):''}"></div>
+      <div class="field"><label>Tanggal</label><input id="f-kas-tanggal" type="date" value="${editing?editing.tanggal:todayISO()}"></div>
+    </div>
   `, [
     {label:'Batal', cls:'secondary', onclick:closeModal},
     {label: editing?'Simpan':'Tambah', cls:'', onclick:()=>{
       const keterangan = document.getElementById('f-kas-ket').value.trim();
-      const debit = getCurrencyValue(document.getElementById('f-kas-debit'));
-      const kredit = getCurrencyValue(document.getElementById('f-kas-kredit'));
+      const jenis = document.getElementById('f-kas-jenis').value;
+      const jumlah = getCurrencyValue(document.getElementById('f-kas-jumlah'));
       const tanggal = document.getElementById('f-kas-tanggal').value || todayISO();
       if(!keterangan){ toast('Keterangan wajib diisi'); return; }
-      if(debit<=0 && kredit<=0){ toast('Isi salah satu: Debit atau Kredit'); return; }
+      if(jumlah<=0){ toast('Jumlah wajib diisi'); return; }
+      const debit = jenis === 'masuk' ? jumlah : 0;
+      const kredit = jenis === 'keluar' ? jumlah : 0;
       let actionMsg = '';
       if(editing){
         actionMsg = `✏️ Edit kas: ${keterangan}`;
@@ -3630,7 +3638,7 @@ function openKasModal(id){
         db.kas.push({id:uid(), keterangan, debit, kredit, tanggal, created_at:new Date().toISOString()});
       }
       saveDB(); closeModal(); renderContent(); toast('Disimpan');
-      notifyTelegram(actionMsg, `Debit: ${fmtRp(debit)}\nKredit: ${fmtRp(kredit)}\nTanggal: ${fmtDate(tanggal)}`);
+      notifyTelegram(actionMsg, `${jenis==='masuk'?'Pemasukan':'Pengeluaran'}: ${fmtRp(jumlah)}\nTanggal: ${fmtDate(tanggal)}`);
     }}
   ]);
   setTimeout(setupAllCurrencyInputs, 50);

@@ -275,7 +275,12 @@ function defaultDB(){
     guestMenu: {
       'database-anggota': false,
       'jadwal': false
-    }
+    },
+    // Draft Surat & Dokumen (Undangan, Proposal, Absensi) — TIDAK terikat
+    // event, sama seperti Gudang. Disimpan satu set global di tabel
+    // kt_dokumen_global (lihat supabase-dokumen-global-migration.sql),
+    // bukan lagi per event_id di kt_settings.dokumen.
+    dokumenGlobal: { undangan:{}, proposal:{}, absensi:{} }
   };
 }
 
@@ -335,12 +340,13 @@ async function loadDB(){
   const result = defaultDB();
   try{
     const entries = Object.entries(ARRAY_TABLE_MAP);
-    const [arrayResults, settingsRes, telegramRes, usersRes, guestMenuRes] = await Promise.all([
+    const [arrayResults, settingsRes, telegramRes, usersRes, guestMenuRes, dokumenGlobalRes] = await Promise.all([
       Promise.all(entries.map(([, table]) => sb.from(table).select('*'))),
       sb.from('kt_settings').select('*'),
       sb.from('kt_telegram_settings').select('*').eq('id', 'main').maybeSingle(),
       sb.rpc('rpc_list_users'),
       sb.from('kt_guest_menu_settings').select('*').eq('id', 'main').maybeSingle(),
+      sb.from('kt_dokumen_global').select('*').eq('id', 'main').maybeSingle(),
     ]);
 
     const failedTables = [];
@@ -376,6 +382,15 @@ async function loadDB(){
     if(!guestMenuRes.error && guestMenuRes.data && guestMenuRes.data.hidden_sections){
       result.guestMenu = {};
       (guestMenuRes.data.hidden_sections || []).forEach(key => { result.guestMenu[key] = false; });
+    }
+
+    if(dokumenGlobalRes.error){ console.error('Gagal memuat kt_dokumen_global:', dokumenGlobalRes.error); }
+    else if(dokumenGlobalRes.data && dokumenGlobalRes.data.dokumen){
+      result.dokumenGlobal = {
+        undangan: dokumenGlobalRes.data.dokumen.undangan || {},
+        proposal: dokumenGlobalRes.data.dokumen.proposal || {},
+        absensi: dokumenGlobalRes.data.dokumen.absensi || {},
+      };
     }
 
     result.activeEventId = localStorage.getItem('kt_active_event') || (result.events[0] ? result.events[0].id : null);
@@ -474,6 +489,16 @@ async function syncGuestMenu(){
   if(error){ console.error('Gagal menyimpan kt_guest_menu_settings:', error); throw new Error(`Gagal menyimpan pengaturan menu guest: ${error.message}`); }
 }
 
+// Surat & Dokumen — satu set draft global, tidak terikat event_id (lihat
+// catatan di defaultDB()). Disimpan di tabel kt_dokumen_global (1 baris, id='main').
+async function syncDokumenGlobal(){
+  const { error } = await sb.from('kt_dokumen_global').upsert({
+    id: 'main',
+    dokumen: db.dokumenGlobal || { undangan:{}, proposal:{}, absensi:{} },
+  }, { onConflict: 'id' });
+  if(error){ console.error('Gagal menyimpan kt_dokumen_global:', error); throw new Error(`Gagal menyimpan Surat & Dokumen: ${error.message}`); }
+}
+
 // saveDB() dipanggil di puluhan tempat setiap ada perubahan kecil. Sebelumnya setiap panggilan
 // langsung melakukan sync PENUH (select+upsert+delete-diff) ke 15+ tabel sekaligus, dan bisa
 // berjalan paralel tanpa lock kalau dipanggil beruntun cepat (race condition antar sync).
@@ -504,6 +529,7 @@ async function _flushSaveDB(){
       syncSettings(),
       syncTelegram(),
       syncGuestMenu(),
+      syncDokumenGlobal(),
     ]);
   }catch(e){
     console.error('Gagal menyimpan ke Supabase', e);
@@ -576,6 +602,15 @@ function getSettings(){
   if(!db.settings[eid()].hadiahBudget) db.settings[eid()].hadiahBudget = {};
   if(!db.settings[eid()].dokumen) db.settings[eid()].dokumen = {};
   return db.settings[eid()];
+}
+// Surat & Dokumen tidak terikat event — satu set draft global untuk seluruh
+// organisasi, sama seperti Gudang. Lihat syncDokumenGlobal()/kt_dokumen_global.
+function getDokumenGlobal(){
+  if(!db.dokumenGlobal) db.dokumenGlobal = {};
+  if(!db.dokumenGlobal.undangan) db.dokumenGlobal.undangan = {};
+  if(!db.dokumenGlobal.proposal) db.dokumenGlobal.proposal = {};
+  if(!db.dokumenGlobal.absensi) db.dokumenGlobal.absensi = {};
+  return db.dokumenGlobal;
 }
 
 // Budget hadiah diatur per kombinasi Kategori Peserta (anak/ibu/dst) x Juara (1/2/3/partisipasi).
@@ -679,7 +714,7 @@ async function notifyTelegram(action, data = ''){
    NAV / ROUTING
    ============================================================ */
 const SECTIONS = [
-  {key:'dashboard', label:'Buku Utama', sub:'Rekap & Reminder', icon:'grid', adminOnly: false},
+  {key:'dashboard', label:'Buku Kegiatan', sub:'Rekap & Reminder', icon:'grid', adminOnly: false},
   {key:'anggota', label:'Iuran Anggota', sub:'Kelola iuran anggota', icon:'users', adminOnly: false},
   {key:'donatur', label:'Donatur', sub:'Sumbangan tunai dari donatur', icon:'heart', adminOnly: false},
   {key:'transaksi', label:'Transaksi Lain', sub:'Pemasukan di luar iuran & donasi', icon:'swap', adminOnly: false},
@@ -703,7 +738,7 @@ const SECTIONS = [
    FITUR OPSIONAL PER EVENT
    Beberapa event (mis. sekadar iuran rutin) tidak butuh semua modul.
    Fitur di bawah ini bisa dimatikan per-event lewat modal Buat/Edit
-   Event. Menu inti (Buku Utama, Iuran, Database Anggota, LPJ,
+   Event. Menu inti (Buku Kegiatan, Iuran, Database Anggota, LPJ,
    Pengaturan, Manajemen User) selalu aktif dan tidak bisa dimatikan.
    ============================================================ */
 const FITUR_OPSIONAL = [
@@ -714,11 +749,12 @@ const FITUR_OPSIONAL = [
   {key:'hadiah', label:'Hadiah Lomba', menus:['hadiah','belanja-hadiah']},
   {key:'jalan_santai', label:'Hadiah Jalan Santai', menus:['hadiah-jalan','belanja-jalan']},
   {key:'jadwal', label:'Jadwal & Reminder', menus:['jadwal']},
-  {key:'dokumen', label:'Surat & Dokumen', menus:['dokumen']},
 ];
 // Preset dipakai di modal event supaya tidak perlu centang satu-satu tiap bikin event baru.
-const FITUR_PRESET_SEDERHANA = {donatur:false, transaksi:false, operasional:false, lomba:false, hadiah:false, jalan_santai:false, jadwal:false, dokumen:false};
-const FITUR_PRESET_LENGKAP = {donatur:true, transaksi:true, operasional:true, lomba:true, hadiah:true, jalan_santai:true, jadwal:true, dokumen:true};
+// Catatan: "dokumen" (Surat & Dokumen) sengaja TIDAK ada di sini lagi — sejak
+// menu ini berdiri sendiri seperti Gudang, tidak bisa dimatikan per event.
+const FITUR_PRESET_SEDERHANA = {donatur:false, transaksi:false, operasional:false, lomba:false, hadiah:false, jalan_santai:false, jadwal:false};
+const FITUR_PRESET_LENGKAP = {donatur:true, transaksi:true, operasional:true, lomba:true, hadiah:true, jalan_santai:true, jadwal:true};
 
 // Default: fitur dianggap aktif kalau belum pernah diset (backward-compat utk event lama).
 function eventFitur(ev){
@@ -866,7 +902,7 @@ function renderContent(){
   
   // Menu yang tidak terikat event tetap bisa diakses
   // walau belum ada event 17-an yang dibuat/dipilih.
-  const EVENTLESS_SECTIONS = ['gudang'];
+  const EVENTLESS_SECTIONS = ['gudang', 'dokumen'];
   if(!activeEvent() && !EVENTLESS_SECTIONS.includes(currentSection)){
     el.innerHTML = `<div class="empty-state"><h3>Belum ada event aktif</h3><p>${isLoggedIn ? 'Buat event tahunan dulu.' : 'Login untuk membuat atau mengelola event.'}</p>
       ${isLoggedIn ? `<button class="btn" onclick="openEventModal()">+ Buat Event Pertama</button>` : `<button class="btn" onclick="openLoginModal()">🔑 Login untuk Mengelola</button>`}
@@ -3470,8 +3506,10 @@ let _dokumenTab = 'undangan';
 function gotoDokumenTab(tab){ _dokumenTab = tab; renderContent(); }
 
 function renderDokumen(){
+  // Berdiri sendiri seperti Gudang — tetap bisa dibuka walau belum ada
+  // event aktif. `ev` di bawah cuma dipakai sebagai bantuan pra-isi teks
+  // (nama kegiatan, rincian anggaran) kalau kebetulan ada event aktif.
   const ev = activeEvent();
-  if (!ev) return `<div class="panel"><div class="panel-body" style="padding:24px;">Tidak ada event aktif.</div></div>`;
   const tabs = [
     {key:'undangan', label:'📨 Surat Undangan'},
     {key:'proposal', label:'📋 Proposal Kegiatan'},
@@ -3488,7 +3526,8 @@ function renderDokumen(){
 /* ---------- 1. Surat Undangan Kegiatan ---------- */
 function renderSuratUndangan(ev){
   const isLoggedIn = !!getCurrentUser();
-  const d = getSettings().dokumen.undangan || {};
+  const d = getDokumenGlobal().undangan || {};
+  const namaKegiatanDefault = d.nama_kegiatan || (ev ? ev.nama : '');
   const editForm = isLoggedIn ? `
   <div class="panel no-print">
     <div class="panel-head"><h3>✏️ Isi Data Surat Undangan</h3></div>
@@ -3497,13 +3536,14 @@ function renderSuratUndangan(ev){
         <div class="field"><label>Nomor Surat</label><input id="doc-und-nomor" value="${esc(d.nomor_surat||'')}" placeholder="001/KT-Inti/VII/2026"></div>
         <div class="field"><label>Perihal</label><input id="doc-und-perihal" value="${esc(d.perihal||'')}" placeholder="Undangan Rapat Persiapan"></div>
       </div>
+      <div class="field"><label>Nama Kegiatan</label><input id="doc-und-nama-kegiatan" value="${esc(namaKegiatanDefault)}" placeholder="Contoh: 17-an Tahun 2026"></div>
       <div class="field"><label>Kepada Yth.</label><input id="doc-und-kepada" value="${esc(d.kepada||'')}" placeholder="Seluruh Warga RT 01-03 / Pengurus Karang Taruna"></div>
       <div class="field-row">
         <div class="field"><label>Hari, Tanggal</label><input id="doc-und-hari-tanggal" value="${esc(d.hari_tanggal||'')}" placeholder="Minggu, 17 Agustus 2026"></div>
         <div class="field"><label>Waktu</label><input id="doc-und-waktu" value="${esc(d.waktu||'')}" placeholder="19.30 WIB - selesai"></div>
       </div>
       <div class="field"><label>Tempat</label><input id="doc-und-tempat" value="${esc(d.tempat||'')}" placeholder="Balai Desa / Rumah Bapak RT 02"></div>
-      <div class="field"><label>Acara</label><input id="doc-und-acara" value="${esc(d.acara||'')}" placeholder="Rapat persiapan ${esc(ev.nama)}"></div>
+      <div class="field"><label>Acara</label><input id="doc-und-acara" value="${esc(d.acara||'')}" placeholder="Rapat persiapan ${esc(namaKegiatanDefault||'kegiatan')}"></div>
       <div class="field"><label>Catatan Tambahan (opsional)</label><textarea id="doc-und-catatan" rows="3" placeholder="Mohon hadir tepat waktu...">${esc(d.catatan||'')}</textarea></div>
       <div class="field-row">
         <div class="field"><label>Jabatan Penandatangan 1</label><input id="doc-und-jab1" value="${esc(d.jabatan1||'Ketua Panitia')}"></div>
@@ -3535,7 +3575,7 @@ function renderSuratUndangan(ev){
     <p class="surat-body">Perihal: <strong>${esc(d.perihal||'-')}</strong></p>
     <p class="surat-body">Kepada Yth.<br><strong>${esc(d.kepada||'-')}</strong><br>di Tempat</p>
     <p class="surat-body">Dengan hormat,</p>
-    <p class="surat-body">Sehubungan dengan pelaksanaan kegiatan <strong>${esc(ev.nama)}</strong>, kami mengundang Bapak/Ibu/Saudara/i untuk hadir pada:</p>
+    <p class="surat-body">Sehubungan dengan pelaksanaan kegiatan <strong>${esc(d.nama_kegiatan||'-')}</strong>, kami mengundang Bapak/Ibu/Saudara/i untuk hadir pada:</p>
     <table class="lpj-table surat-detail-table">
       <tbody>
         <tr><td class="surat-detail-label">Hari, Tanggal</td><td>: ${esc(d.hari_tanggal||'-')}</td></tr>
@@ -3557,10 +3597,11 @@ function renderSuratUndangan(ev){
 }
 
 function simpanUndangan(){
-  const s = getSettings();
-  s.dokumen.undangan = {
+  const s = getDokumenGlobal();
+  s.undangan = {
     nomor_surat: document.getElementById('doc-und-nomor').value.trim(),
     perihal: document.getElementById('doc-und-perihal').value.trim(),
+    nama_kegiatan: document.getElementById('doc-und-nama-kegiatan').value.trim(),
     kepada: document.getElementById('doc-und-kepada').value.trim(),
     hari_tanggal: document.getElementById('doc-und-hari-tanggal').value.trim(),
     waktu: document.getElementById('doc-und-waktu').value.trim(),
@@ -3578,8 +3619,9 @@ function simpanUndangan(){
 /* ---------- 2. Proposal Kegiatan ---------- */
 function renderProposalKegiatan(ev){
   const isLoggedIn = !!getCurrentUser();
-  const d = getSettings().dokumen.proposal || {};
+  const d = getDokumenGlobal().proposal || {};
   const b = hitungBukuUtama();
+  const temaDefault = d.tema || (ev ? ev.nama : '');
   const showDonatur = isMenuAktif('donatur');
   const showTransaksi = isMenuAktif('transaksi');
   const showOperasional = isMenuAktif('operasional');
@@ -3591,7 +3633,7 @@ function renderProposalKegiatan(ev){
   <div class="panel no-print">
     <div class="panel-head"><h3>✏️ Isi Data Proposal</h3></div>
     <div class="panel-body">
-      <div class="field"><label>Tema/Judul Kegiatan</label><input id="doc-prop-tema" value="${esc(d.tema||ev.nama)}"></div>
+      <div class="field"><label>Tema/Judul Kegiatan</label><input id="doc-prop-tema" value="${esc(temaDefault)}" placeholder="Contoh: 17-an Tahun 2026"></div>
       <div class="field"><label>Latar Belakang</label><textarea id="doc-prop-latar" rows="4" placeholder="Uraikan alasan/konteks kegiatan ini diadakan...">${esc(d.latar_belakang||'')}</textarea></div>
       <div class="field"><label>Maksud &amp; Tujuan</label><textarea id="doc-prop-tujuan" rows="3" placeholder="Satu tujuan per baris">${esc(d.tujuan||'')}</textarea></div>
       <div class="field"><label>Susunan Acara</label><textarea id="doc-prop-susunan" rows="4" placeholder="Satu kegiatan per baris, mis: 19.30 - Pembukaan">${esc(d.susunan_acara||'')}</textarea></div>
@@ -3620,7 +3662,7 @@ function renderProposalKegiatan(ev){
         <div class="lpj-header-text">
           <div class="lpj-eyebrow">Karang Taruna Inti</div>
           <h2>PROPOSAL KEGIATAN</h2>
-          <div class="lpj-sub">${esc(d.tema||ev.nama)} — Tahun ${esc(String(ev.tahun))}</div>
+          <div class="lpj-sub">${esc(temaDefault||'-')}${ev ? ` — Tahun ${esc(String(ev.tahun))}` : ''}</div>
         </div>
         <div class="lpj-header-spacer" aria-hidden="true"></div>
       </div>
@@ -3636,7 +3678,7 @@ function renderProposalKegiatan(ev){
     ${susunanItems.length ? `<ul class="proposal-list">${susunanItems.map(t=>`<li>${esc(t)}</li>`).join('')}</ul>` : '<p class="surat-body"><span class="hint">Belum diisi.</span></p>'}
 
     <h3>4. Rencana Anggaran</h3>
-    <p class="field-hint" style="color:var(--ink-soft); font-size:12.5px; margin:-4px 0 10px;">Diambil otomatis dari data yang sudah tercatat di sistem saat ini — sesuaikan lewat menu terkait sebelum dicetak bila perlu.</p>
+    <p class="field-hint" style="color:var(--ink-soft); font-size:12.5px; margin:-4px 0 10px;">${ev ? 'Diambil otomatis dari data yang sudah tercatat di sistem saat ini — sesuaikan lewat menu terkait sebelum dicetak bila perlu.' : 'Belum ada event aktif dipilih di sidebar, jadi rincian di bawah masih menunjukkan Rp 0. Pilih event aktif dulu kalau ingin rincian anggaran terisi otomatis.'}</p>
     <table class="lpj-table">
       <tbody>
         <tr class="lpj-subtotal"><td>Rencana Pemasukan</td><td class="num">${fmtRp(b.pemasukan)}</td></tr>
@@ -3653,7 +3695,7 @@ function renderProposalKegiatan(ev){
     </table>
 
     <h3>5. Penutup</h3>
-    <p class="surat-body">${d.penutup ? nl2br(d.penutup) : `Demikian proposal kegiatan <strong>${esc(d.tema||ev.nama)}</strong> ini kami susun. Besar harapan kami atas dukungan dan partisipasi semua pihak demi kelancaran acara ini.`}</p>
+    <p class="surat-body">${d.penutup ? nl2br(d.penutup) : `Demikian proposal kegiatan <strong>${esc(temaDefault||'ini')}</strong> ini kami susun. Besar harapan kami atas dukungan dan partisipasi semua pihak demi kelancaran acara ini.`}</p>
 
     <div class="lpj-signature">
       <div class="surat-ttd"><div>${esc(d.jabatan1||'Ketua Panitia')}</div><div class="surat-ttd-space"></div><div><strong>${esc(d.nama1||'(.....................)')}</strong></div></div>
@@ -3665,8 +3707,8 @@ function renderProposalKegiatan(ev){
 }
 
 function simpanProposal(){
-  const s = getSettings();
-  s.dokumen.proposal = {
+  const s = getDokumenGlobal();
+  s.proposal = {
     tema: document.getElementById('doc-prop-tema').value.trim(),
     latar_belakang: document.getElementById('doc-prop-latar').value.trim(),
     tujuan: document.getElementById('doc-prop-tujuan').value,
@@ -3683,10 +3725,14 @@ function simpanProposal(){
 /* ---------- 3. Form Absensi (dari Database Anggota) ---------- */
 function renderFormAbsensi(ev){
   const isLoggedIn = !!getCurrentUser();
-  const d = getSettings().dokumen.absensi || {};
+  const d = getDokumenGlobal().absensi || {};
+  const judulDefault = d.judul || (ev ? ev.nama : '');
   const filterKategori = d.filter_kategori || '';
   const filterRT = d.filter_rt || '';
-  let list = gAnggota().slice().sort((a,b)=>a.nama.localeCompare(b.nama));
+  // Kalau ada event aktif, tampilkan anggota event itu saja (roster tahunan).
+  // Kalau tidak ada event aktif (menu ini kini berdiri sendiri), tampilkan
+  // seluruh anggota dari semua event supaya form absensi tetap bisa dipakai.
+  let list = (ev ? gAnggota() : db.anggota).slice().sort((a,b)=>a.nama.localeCompare(b.nama));
   if(filterKategori) list = list.filter(a=>a.kategori===filterKategori);
   if(filterRT) list = list.filter(a=>getRT(a)===filterRT);
 
@@ -3694,8 +3740,9 @@ function renderFormAbsensi(ev){
   <div class="panel no-print">
     <div class="panel-head"><h3>✏️ Pengaturan Form Absensi</h3></div>
     <div class="panel-body">
+      ${!ev ? `<div class="field-hint" style="color:var(--ink-soft); font-size:12.5px; margin:-2px 0 8px;">Belum ada event aktif dipilih di sidebar, jadi daftar di bawah menampilkan anggota dari semua event. Pilih event aktif dulu kalau ingin daftar dipersempit ke roster tahun itu saja.</div>` : ''}
       <div class="field-row">
-        <div class="field"><label>Judul Acara</label><input id="doc-abs-judul" value="${esc(d.judul||ev.nama)}"></div>
+        <div class="field"><label>Judul Acara</label><input id="doc-abs-judul" value="${esc(judulDefault)}" placeholder="Contoh: 17-an Tahun 2026"></div>
         <div class="field"><label>Tanggal</label><input id="doc-abs-tanggal" type="date" value="${esc(d.tanggal||todayISO())}"></div>
       </div>
       <div class="field-row">
@@ -3725,7 +3772,7 @@ function renderFormAbsensi(ev){
         <div class="lpj-header-text">
           <div class="lpj-eyebrow">Karang Taruna Inti</div>
           <h2>DAFTAR HADIR</h2>
-          <div class="lpj-sub">${esc(d.judul||ev.nama)}</div>
+          <div class="lpj-sub">${esc(judulDefault||'-')}</div>
           <div class="lpj-meta">Tanggal: ${fmtDate(d.tanggal||todayISO())}${filterKategori?` · Kategori: ${esc(labelKategori(filterKategori))}`:''}${filterRT?` · ${esc(labelRT(filterRT))}`:''}</div>
         </div>
         <div class="lpj-header-spacer" aria-hidden="true"></div>
@@ -3744,17 +3791,17 @@ function renderFormAbsensi(ev){
 }
 
 function filterAbsensi(){
-  const s = getSettings();
-  s.dokumen.absensi = s.dokumen.absensi || {};
-  s.dokumen.absensi.filter_kategori = document.getElementById('doc-abs-kategori').value;
-  s.dokumen.absensi.filter_rt = document.getElementById('doc-abs-rt').value;
+  const s = getDokumenGlobal();
+  s.absensi = s.absensi || {};
+  s.absensi.filter_kategori = document.getElementById('doc-abs-kategori').value;
+  s.absensi.filter_rt = document.getElementById('doc-abs-rt').value;
   saveDB(); renderContent();
 }
 function simpanAbsensi(){
-  const s = getSettings();
-  s.dokumen.absensi = s.dokumen.absensi || {};
-  s.dokumen.absensi.judul = document.getElementById('doc-abs-judul').value.trim();
-  s.dokumen.absensi.tanggal = document.getElementById('doc-abs-tanggal').value;
+  const s = getDokumenGlobal();
+  s.absensi = s.absensi || {};
+  s.absensi.judul = document.getElementById('doc-abs-judul').value.trim();
+  s.absensi.tanggal = document.getElementById('doc-abs-tanggal').value;
   saveDB(); renderContent(); toast('💾 Form absensi diperbarui');
 }
 
@@ -4124,7 +4171,7 @@ function openEventModal(id){
 
     <div class="field" style="margin-top:6px;">
       <label>Fitur yang Dipakai</label>
-      <div class="field-hint" style="margin:-2px 0 8px; color:var(--ink-soft); font-size:12.5px;">Nonaktifkan modul yang tidak dipakai supaya menu lebih ringkas. Iuran, Buku Utama & LPJ selalu aktif.</div>
+      <div class="field-hint" style="margin:-2px 0 8px; color:var(--ink-soft); font-size:12.5px;">Nonaktifkan modul yang tidak dipakai supaya menu lebih ringkas. Iuran, Buku Kegiatan & LPJ selalu aktif.</div>
       <div style="display:flex; gap:8px; margin-bottom:10px;">
         <button type="button" class="btn secondary small" onclick="setFiturModalPreset('lengkap')">Pilih Semua (Lengkap)</button>
         <button type="button" class="btn secondary small" onclick="setFiturModalPreset('sederhana')">Hanya Iuran & LPJ</button>

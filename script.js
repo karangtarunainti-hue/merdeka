@@ -595,8 +595,15 @@ let _saveDBTimer = null;
 let _saveDBRunning = false;
 let _saveDBQueued = false;
 
+// Dipakai oleh refreshFromServer() (lihat bagian AUTO-REFRESH di bawah) supaya
+// auto-refresh tidak pernah menimpa perubahan lokal yang belum sempat terkirim
+// ke server. Selama ada perubahan yang masih menunggu disimpan (true), auto-refresh
+// akan melewati siklusnya dan coba lagi nanti.
+let _hasPendingLocalChange = false;
+
 function saveDB(){
   if(db.activeEventId) localStorage.setItem('kt_active_event', db.activeEventId);
+  _hasPendingLocalChange = true;
   clearTimeout(_saveDBTimer);
   _saveDBTimer = setTimeout(_flushSaveDB, 400);
 }
@@ -604,6 +611,12 @@ function saveDB(){
 async function _flushSaveDB(){
   if(_saveDBRunning){ _saveDBQueued = true; return; }
   _saveDBRunning = true;
+  // Snapshot yang akan dikirim sudah "dipegang" di bawah ini, jadi tandai tidak ada
+  // lagi perubahan lokal yang menunggu — kalau ada saveDB() baru dipanggil SELAMA
+  // proses simpan ini berjalan (user masih mengedit), flag akan otomatis jadi true
+  // lagi lewat panggilan saveDB() tersebut.
+  _hasPendingLocalChange = false;
+  
   // Perbaikan mandiri: dokumen Panitia/Sinoman yang sempat dibuat sebelum
   // fix tanggal-null bisa masih menyimpan tanggal:'' di memori. Kolom
   // `tanggal` di Supabase bertipe date, jadi '' harus jadi null dulu
@@ -6114,6 +6127,40 @@ function gDaftarBelanjaJalanSantai(){ return db.daftarBelanjaJalanSantai.filter(
 function gJadwal(){ return db.jadwal.filter(j=>j.event_id===eid()); }
 
 /* ============================================================
+   AUTO-REFRESH
+   ============================================================ */
+let _refreshInFlight = false;
+
+function _refreshGuardOk(){
+  if(_saveDBRunning || _hasPendingLocalChange) return false;
+  if(document.hidden) return false;
+  if(!navigator.onLine) return false;
+  const overlay = document.getElementById('overlay');
+  if(overlay && overlay.classList.contains('show')) return false;
+  return true;
+}
+
+async function refreshFromServer(){
+  if(_refreshInFlight) return;
+  if(!_refreshGuardOk()) return;
+  _refreshInFlight = true;
+  try{
+    const fresh = await loadDB();
+    if(!_refreshGuardOk()) return;
+    db = fresh;
+    renderSidebar();
+    renderTopbarSaldo();
+    renderContent();
+  }catch(e){
+    console.error('Auto-refresh gagal, akan dicoba lagi:', e);
+  }finally{
+    _refreshInFlight = false;
+  }
+}
+
+const AUTO_REFRESH_INTERVAL_MS = 20000;
+
+/* ============================================================
    INIT
    ============================================================ */
 document.getElementById('event-select').addEventListener('change', (e)=>{ 
@@ -6149,4 +6196,14 @@ function closeSidebar(){
   // Muat data Gudang di belakang layar (tidak memblokir tampilan awal) supaya
   // saat pertama kali buka menu Gudang, datanya sudah siap tanpa jeda loading.
   loadGudangData();
+
+  // Auto-refresh: tarik ulang data tiap 20 detik supaya perubahan dari
+  // device/akun lain terlihat tanpa perlu reload manual (lihat bagian
+  // AUTO-REFRESH di atas untuk pengaman-pengamannya).
+  setInterval(refreshFromServer, AUTO_REFRESH_INTERVAL_MS);
+  // Juga refresh langsung begitu user kembali ke tab ini (mis. habis pindah
+  // app lain di HP terus balik lagi) — biar tidak perlu nunggu interval jalan.
+  document.addEventListener('visibilitychange', () => {
+    if(document.visibilityState === 'visible') refreshFromServer();
+  });
 })();

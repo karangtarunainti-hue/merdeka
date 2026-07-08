@@ -3900,8 +3900,8 @@ function renderLPJ(){
   const pengeluaranSubs = [];
   if (showOperasional) pengeluaranSubs.push({ title:'Operasional Kegiatan', html:`
     <div class="lpj-table-scroll"><table class="lpj-table lpj-detail">
-      <thead><tr><th>Tanggal</th><th>Nama</th><th>Catatan</th><th class="num">Jumlah</th></tr></thead>
-      <tbody>${operasionalList.map(o=>`<tr><td>${fmtDate(o.tanggal)}</td><td>${esc(o.keterangan)}</td><td>${esc(o.catatan_bukti||'-')}</td><td class="num">${fmtRp(o.jumlah)}</td></tr>`).join('') || emptyRow(4,'Belum ada biaya operasional.')}</tbody>
+      <thead><tr><th>Tanggal</th><th>Nama</th><th>Catatan</th><th class="num">Qty</th><th class="num">Harga Satuan</th><th class="num">Jumlah</th></tr></thead>
+      <tbody>${operasionalList.map(o=>`<tr><td>${fmtDate(o.tanggal)}</td><td>${esc(o.keterangan)}</td><td>${esc(o.catatan_bukti||'-')}</td><td class="num">${o.qty||1}</td><td class="num">${fmtRp(o.satuan||0)}</td><td class="num">${fmtRp(o.jumlah)}</td></tr>`).join('') || emptyRow(6,'Belum ada biaya operasional.')}</tbody>
     </table></div>` });
   if (showLomba) pengeluaranSubs.push({ title:'Kebutuhan Lomba', html:`
     <div class="lpj-table-scroll"><table class="lpj-table lpj-detail lpj-kebutuhan-table">

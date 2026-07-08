@@ -6127,13 +6127,25 @@ async function gudangSaveStok(id){
   const now = todayISO();
   try{
     if(id){
+      // PENTING (race condition): perhitungan `tersedia` TIDAK dilakukan di sini
+      // lagi. Kalau dihitung di JS pakai data gudangInventory yang mungkin sudah
+      // basi (device ini belum tentu baru saja refresh), lalu ditimpakan mentah-
+      // mentah ke server, perubahan stok dari device lain (mis. ada yang baru
+      // saja pinjam/kembalikan barang ini) bisa hilang tertimpa tanpa peringatan.
+      // Sebagai gantinya, seluruh baca-hitung-tulis dilakukan ATOMIK di server
+      // lewat RPC kt_gudang_update_asset (lock baris + hitung ulang "dipinjam"
+      // dari data TERKINI di server, bukan dari data di layar kita).
+      const r = await sb.rpc('kt_gudang_update_asset', {p_item_id: id, p_nama: nama, p_gudang: gudang, p_new_total: total});
+      if(r.error) throw new Error(r.error.message);
+      if(!r.data || !r.data.length){
+        toast('⛔ Gagal menyimpan: Total Unit lebih kecil dari jumlah yang SAAT INI sedang dipinjam (mungkin baru saja ada peminjaman lain), atau aset sudah dihapus. Data disegarkan, silakan cek ulang.');
+        await loadGudangData();
+        renderContent();
+        return;
+      }
+      const row = r.data[0];
       const existing = gudangInventory.find(i=>i.id===id);
-      const dipinjam = existing.total - existing.tersedia;
-      if(dipinjam > total){ toast(`⛔ Total unit (${total}) tidak boleh kurang dari jumlah yang sedang dipinjam (${dipinjam}).`); return; }
-      const tersedia = total - dipinjam;
-      const upd = await sb.from('kt_gudang_inventory').update({nama, gudang, total, tersedia, last_updated: now}).eq('id', id);
-      if(upd.error) throw new Error(upd.error.message);
-      Object.assign(existing, {nama, gudang, total, tersedia, lastUpdated: now});
+      if(existing) Object.assign(existing, {nama: row.nama, gudang: row.gudang, total: row.total, tersedia: row.tersedia, lastUpdated: row.last_updated});
       toast('✅ Data aset tersimpan.');
     } else {
       const newId = uid();
@@ -6270,6 +6282,14 @@ async function refreshFromServer(){
     if(fresh._loadFailed) return;
     if(!_refreshGuardOk()) return;
     db = fresh;
+    // Gudang punya penyimpanan/muat data sendiri (di luar db/loadDB, lihat
+    // loadGudangData) karena awalnya modul terpisah. Sebelumnya modul ini TIDAK
+    // ikut auto-refresh sama sekali — datanya cuma dimuat sekali di awal + lewat
+    // tombol "Segarkan" manual, jadi stok yang tampil ke user bisa basi berjam-
+    // jam kalau dipakai banyak orang sekaligus. Disertakan di sini (guard yang
+    // sama: dilewati kalau ada modal terbuka/sedang menyimpan/offline) supaya
+    // ikut ter-refresh tiap 20 detik seperti data lainnya.
+    if(gudangLoaded) await loadGudangData();
     renderSidebar();
     renderTopbarSaldo();
     renderContent();

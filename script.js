@@ -5977,6 +5977,17 @@ function _refreshGuardOk(){
   if(!navigator.onLine) return false;
   const overlay = document.getElementById('overlay');
   if(overlay && overlay.classList.contains('show')) return false;
+  // Jangan refresh selagi user sedang fokus mengetik di field mana pun (input/
+  // textarea/select) yang belum disimpan — banyak form di app ini (Surat
+  // Undangan, Proposal, Jadwal Sinoman, dll) baru menulis ke `db` saat tombol
+  // "Simpan" diklik, bukan per-keystroke. renderContent() yang dipicu
+  // auto-refresh menggambar ulang field itu dari data TERAKHIR TERSIMPAN, jadi
+  // ketikan yang belum disimpan bisa hilang kalau siklus 20 detik ini kebetulan
+  // jalan di tengah-tengah user mengetik. Mekanisme focusInfo di renderContent()
+  // cuma menjaga POSISI KURSOR, bukan ISI yang belum tersimpan, jadi guard ini
+  // perlu dicek terpisah di sini.
+  const activeEl = document.activeElement;
+  if(activeEl && ['INPUT','TEXTAREA','SELECT'].includes(activeEl.tagName) && !activeEl.disabled) return false;
   return true;
 }
 

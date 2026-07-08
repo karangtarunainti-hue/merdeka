@@ -4127,6 +4127,17 @@ function renderDokumen(){
 }
 
 /* ---------- 1. Surat Undangan Kegiatan ---------- */
+// Membungkus form-isi (kiri) & pratinjau (kanan) supaya di layar lebar
+// keduanya tampil berdampingan (lihat .dokumen-layout di style.css) — jadi
+// tidak perlu scroll ke bawah untuk lihat hasil saat mengisi form. Di layar
+// sempit/HP, CSS otomatis menumpuk keduanya secara vertikal seperti biasa.
+// Kalau editForm kosong (guest, tidak login), pratinjau ditampilkan sendiri
+// tanpa pembungkus grid, supaya tetap center seperti tampilan guest sebelumnya.
+function wrapDokumenLayout(editFormHtml, previewHtml){
+  if(!editFormHtml) return previewHtml;
+  return `<div class="dokumen-layout">${editFormHtml}<div class="dokumen-preview-col">${previewHtml}</div></div>`;
+}
+
 function renderSuratUndangan(ev){
   const isLoggedIn = !!getCurrentUser();
   const d = getDokumenGlobal().undangan || {};
@@ -4160,7 +4171,7 @@ function renderSuratUndangan(ev){
     </div>
   </div>` : '';
 
-  return editForm + `
+  return wrapDokumenLayout(editForm, `
   <div class="lpj-scale-wrap" id="lpj-scale-wrap">
   <div class="lpj-print-area surat-print-area" id="lpj-print-area">
     <div class="lpj-header">
@@ -4196,7 +4207,7 @@ function renderSuratUndangan(ev){
     </div>
   </div>
   </div>
-  ${isLoggedIn ? `<div class="lpj-toolbar no-print"><button class="btn small" onclick="window.print()">🖨️ Cetak / Simpan sebagai PDF</button></div>` : ''}`;
+  ${isLoggedIn ? `<div class="lpj-toolbar no-print"><button class="btn small" onclick="window.print()">🖨️ Cetak / Simpan sebagai PDF</button></div>` : ''}`);
 }
 
 function setPrevText(id, text){ const el = document.getElementById(id); if(el) el.textContent = text; }
@@ -4270,7 +4281,7 @@ function renderProposalKegiatan(ev){
   const tujuanItems = (d.tujuan||'').split('\n').map(s=>s.trim()).filter(Boolean);
   const susunanItems = (d.susunan_acara||'').split('\n').map(s=>s.trim()).filter(Boolean);
 
-  return editForm + `
+  return wrapDokumenLayout(editForm, `
   <div class="lpj-scale-wrap" id="lpj-scale-wrap">
   <div class="lpj-print-area surat-print-area" id="lpj-print-area">
     <div class="lpj-header">
@@ -4320,7 +4331,7 @@ function renderProposalKegiatan(ev){
     </div>
   </div>
   </div>
-  ${isLoggedIn ? `<div class="lpj-toolbar no-print"><button class="btn small" onclick="window.print()">🖨️ Cetak / Simpan sebagai PDF</button></div>` : ''}`;
+  ${isLoggedIn ? `<div class="lpj-toolbar no-print"><button class="btn small" onclick="window.print()">🖨️ Cetak / Simpan sebagai PDF</button></div>` : ''}`);
 }
 
 // Autosave: sama seperti liveUndangan — simpan ke db + Supabase (debounced)
@@ -4407,7 +4418,7 @@ function renderFormAbsensi(ev){
     </div>
   </div>` : '';
 
-  return editForm + `
+  return wrapDokumenLayout(editForm, `
   <div class="lpj-scale-wrap" id="lpj-scale-wrap">
   <div class="lpj-print-area surat-print-area" id="lpj-print-area">
     <div class="lpj-header">
@@ -4431,7 +4442,7 @@ function renderFormAbsensi(ev){
     </table>
   </div>
   </div>
-  ${isLoggedIn ? `<div class="lpj-toolbar no-print"><button class="btn small" onclick="window.print()">🖨️ Cetak / Simpan sebagai PDF</button></div>` : ''}`;
+  ${isLoggedIn ? `<div class="lpj-toolbar no-print"><button class="btn small" onclick="window.print()">🖨️ Cetak / Simpan sebagai PDF</button></div>` : ''}`);
 }
 
 function filterAbsensi(){
@@ -4486,7 +4497,7 @@ function renderJadwalSinoman(ev){
 
   const rowsPrint = d.rows.map((r,idx)=>`<tr><td class="num">${idx+1}</td><td>${esc(r.pagi)||'-'}</td><td>${esc(r.siang)||'-'}</td><td>${esc(r.sore)||'-'}</td></tr>`).join('');
 
-  return editForm + `
+  return wrapDokumenLayout(editForm, `
   <div class="lpj-scale-wrap" id="lpj-scale-wrap">
   <div class="lpj-print-area surat-print-area" id="lpj-print-area">
     <div class="lpj-header">
@@ -4508,7 +4519,7 @@ function renderJadwalSinoman(ev){
     </table>
   </div>
   </div>
-  ${isLoggedIn ? `<div class="lpj-toolbar no-print"><button class="btn small" onclick="window.print()">🖨️ Cetak / Simpan sebagai PDF</button></div>` : ''}`;
+  ${isLoggedIn ? `<div class="lpj-toolbar no-print"><button class="btn small" onclick="window.print()">🖨️ Cetak / Simpan sebagai PDF</button></div>` : ''}`);
 }
 
 function liveJadwalSinoman(field, value){

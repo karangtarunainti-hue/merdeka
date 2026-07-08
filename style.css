@@ -1377,6 +1377,22 @@ table.lpj-kebutuhan-table th:nth-child(4), table.lpj-kebutuhan-table td:nth-chil
 
 /* Surat & Dokumen: tab nav + surat/proposal/absensi specifics (pakai kop & tabel yang sama seperti LPJ) */
 .dokumen-tabs{display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap;}
+
+/* Layout form-isi + pratinjau untuk generator Surat & Dokumen. Default (HP/tablet):
+   tetap menumpuk vertikal seperti sebelumnya. Di layar lebar (>=1200px), berubah
+   jadi 2 kolom berdampingan: form di kiri, pratinjau di kanan — supaya tidak perlu
+   scroll ke bawah untuk lihat hasilnya sambil mengisi form. */
+.dokumen-layout{display:block;}
+@media (min-width:1200px){
+  .dokumen-layout{
+    display:grid;
+    grid-template-columns:minmax(380px, 460px) 1fr;
+    align-items:start;
+    gap:28px;
+  }
+  .dokumen-preview-col{position:sticky; top:20px;}
+}
+
 .dokumen-tab{padding:9px 16px; border-radius:8px; border:1px solid var(--garis); background:var(--surface); color:var(--ink-soft); font-size:13.5px; font-weight:600; cursor:pointer;}
 .dokumen-tab.active{background:var(--ink); color:#fff; border-color:var(--ink);}
 .surat-body{font-size:13.5px; line-height:1.7; margin:10px 0;}

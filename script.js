@@ -2208,35 +2208,33 @@ function renderTransaksi(){
   const list = gTransaksiLain().slice().sort((a,b)=>(b.tanggal||'').localeCompare(a.tanggal||''));
   const total = list.reduce((s,t)=>s+Number(t.jumlah||0),0);
   const isLoggedIn = !!getCurrentUser();
-  const rows = list.map(t=>`<tr${isLoggedIn ? ` class="row-clickable" onclick="openTransaksiModal('${t.id}')"` : ''}><td>${fmtDateShort(t.tanggal)}</td><td>${esc(t.jenis)}</td><td>${esc(t.keterangan||'-')}</td><td class="num">${fmtRp(t.jumlah)}</td>${isLoggedIn ? `<td style="text-align:right;">
+  const rows = list.map((t,idx)=>`<tr${isLoggedIn ? ` class="row-clickable" onclick="openTransaksiModal('${t.id}')"` : ''}><td>${idx+1}</td><td>${fmtDateShort(t.tanggal)}</td><td>${esc(t.keterangan||'-')}</td><td class="num">${fmtRp(t.jumlah)}</td>${isLoggedIn ? `<td style="text-align:right;">
     <button class="icon-btn" onclick="event.stopPropagation();hapusTransaksi('${t.id}')">🗑</button>
   </td>` : ''}</tr>`).join('');
   return `<div class="stat-grid"><div class="stat-card pemasukan"><div class="lbl">Total Transaksi Lain</div><div class="val">${fmtRp(total)}</div></div></div>
   <div class="panel"><div class="panel-head"><h3>Transaksi Lain</h3>${isLoggedIn ? `<button class="btn" onclick="openTransaksiModal()">+ Tambah</button>` : ''}</div>
-  <div class="panel-body flush"><table class="general-table tanggal-nominal-table"><thead><tr><th>Tanggal</th><th>Nama</th><th>Keterangan</th><th class="num">Jumlah</th>${isLoggedIn ? '<th></th>' : ''}</tr></thead>
+  <div class="panel-body flush"><table class="general-table tanggal-nominal-table transaksi-lain-table"><thead><tr><th>No</th><th>Tanggal</th><th>Keterangan</th><th class="num">Jumlah</th>${isLoggedIn ? '<th></th>' : ''}</tr></thead>
   <tbody>${rows||`<tr class="empty-row"><td colspan="${isLoggedIn?5:4}">Belum ada transaksi.</td></tr>`}</tbody></table></div></div>`;
 }
 function openTransaksiModal(id){
   if (!canEditSection('transaksi')) { toast('⛔ Login untuk mengedit data'); return; }
   const editing = id ? db.transaksiLain.find(t=>t.id===id) : null;
   setModal(editing?'Edit Transaksi':'Tambah Transaksi', `
-    <div class="field"><label>Nama</label><input id="f-jenis" value="${editing?esc(editing.jenis):''}"></div>
     <div class="field-row"><div class="field"><label>Jumlah (Rp)</label><input id="f-jumlah" class="currency-input" type="text" value="${editing?formatCurrency(editing.jumlah):''}"></div>
     <div class="field"><label>Tanggal</label><input id="f-tanggal" type="date" value="${editing?editing.tanggal:todayISO()}"></div></div>
     <div class="field"><label>Keterangan</label><input id="f-ket" value="${editing?esc(editing.keterangan||''):''}"></div>
   `, [
     {label:'Batal', cls:'secondary', onclick:closeModal},
     {label:editing?'Simpan':'Tambah', cls:'', onclick:()=>{
-      const jenis = document.getElementById('f-jenis').value.trim();
       const jumlah = getCurrencyValue(document.getElementById('f-jumlah'));
       const tanggal = document.getElementById('f-tanggal').value||todayISO();
       const ket = document.getElementById('f-ket').value.trim();
-      if(!jenis||jumlah<=0){ toast('Nama & jumlah wajib'); return; }
+      if(!ket||jumlah<=0){ toast('Keterangan & jumlah wajib'); return; }
       let actionMsg = '';
-      if(editing){ actionMsg = `✏️ Edit transaksi: ${editing.jenis} → ${jenis}`; Object.assign(editing,{jenis,jumlah,tanggal,keterangan:ket}); }
-      else{ actionMsg = `➕ Transaksi baru: ${jenis}`; db.transaksiLain.push({id:uid(),event_id:eid(),jenis,jumlah,tanggal,keterangan:ket}); }
+      if(editing){ actionMsg = `✏️ Edit transaksi: ${ket}`; Object.assign(editing,{jumlah,tanggal,keterangan:ket}); }
+      else{ actionMsg = `➕ Transaksi baru: ${ket}`; db.transaksiLain.push({id:uid(),event_id:eid(),jumlah,tanggal,keterangan:ket}); }
       saveDB(); closeModal(); renderContent(); renderTopbarSaldo(); toast('Disimpan');
-      notifyTelegram(actionMsg, `Nama: ${jenis}\nJumlah: ${fmtRp(jumlah)}\nTanggal: ${fmtDate(tanggal)}\nKeterangan: ${ket || '-'}`);
+      notifyTelegram(actionMsg, `Jumlah: ${fmtRp(jumlah)}\nTanggal: ${fmtDate(tanggal)}\nKeterangan: ${ket || '-'}`);
     }}
   ]);
   setTimeout(setupAllCurrencyInputs, 50);
@@ -2247,7 +2245,7 @@ function hapusTransaksi(id){
   const t = db.transaksiLain.find(x=>x.id===id);
   db.transaksiLain=db.transaksiLain.filter(t=>t.id!==id); 
   saveDB(); renderContent(); renderTopbarSaldo();
-  if(t) notifyTelegram(`🗑️ Hapus transaksi: ${t.jenis}`, `Jumlah: ${fmtRp(t.jumlah)}`);
+  if(t) notifyTelegram(`🗑️ Hapus transaksi: ${t.keterangan||'-'}`, `Jumlah: ${fmtRp(t.jumlah)}`);
 }
 
 function renderOperasional(){
@@ -3994,8 +3992,8 @@ function renderLPJ(){
     </table></div>` });
   if (showTransaksi) pemasukanSubs.push({ title:'Transaksi Lain', html:`
     <div class="lpj-table-scroll"><table class="lpj-table lpj-detail">
-      <thead><tr><th>Tanggal</th><th>Nama</th><th>Keterangan</th><th class="num">Jumlah</th></tr></thead>
-      <tbody>${transaksiList.map(t=>`<tr><td>${fmtDate(t.tanggal)}</td><td>${esc(t.jenis)}</td><td>${esc(t.keterangan||'-')}</td><td class="num">${fmtRp(t.jumlah)}</td></tr>`).join('') || emptyRow(4,'Belum ada transaksi.')}</tbody>
+      <thead><tr><th>No</th><th>Tanggal</th><th>Keterangan</th><th class="num">Jumlah</th></tr></thead>
+      <tbody>${transaksiList.map((t,idx)=>`<tr><td>${idx+1}</td><td>${fmtDate(t.tanggal)}</td><td>${esc(t.keterangan||'-')}</td><td class="num">${fmtRp(t.jumlah)}</td></tr>`).join('') || emptyRow(4,'Belum ada transaksi.')}</tbody>
     </table></div>` });
 
   // 3. Rincian Pengeluaran — semua sub-bagian opsional, tergantung fitur event

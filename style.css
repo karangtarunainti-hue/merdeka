@@ -1172,6 +1172,11 @@
     table.tanggal-nominal-table th:nth-child(5), table.tanggal-nominal-table td:nth-child(5){ width:28px; padding:6px 10px 6px 2px; text-align:center; }
     table.tanggal-nominal-table tbody tr:not(.empty-row) td:last-child:nth-child(4){ padding-right:10px; }
     .panel-body.flush:has(table.tanggal-nominal-table){overflow-x:visible;}
+    /* Transaksi Lain punya susunan kolom beda dari Donatur (No, Tanggal,
+       Keterangan, Jumlah — bukan Tanggal, Nama, Keterangan, Jumlah), jadi
+       kolom 1 & 2 perlu lebar sendiri di atas aturan tanggal-nominal-table umum. */
+    table.transaksi-lain-table th:nth-child(1), table.transaksi-lain-table td:nth-child(1){ width:24px; min-width:0; white-space:nowrap; padding:8px 4px 8px 14px; text-align:center; }
+    table.transaksi-lain-table th:nth-child(2), table.transaksi-lain-table td:nth-child(2){ width:58px; min-width:0; white-space:nowrap; padding:8px 4px; }
 
     /* --- Manajemen User: kartu, bukan tabel geser --- */
     table.users-table{table-layout:auto;}

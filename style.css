@@ -1326,6 +1326,14 @@
 /* Preview generator Surat & Dokumen (Undangan/Proposal/Absensi/Jadwal Sinoman):
    margin kiri-kanan teks 2x lipat dari LPJ (64px vs 32px), atas-bawah tetap sama. */
 .lpj-print-area.surat-print-area{padding-left:64px; padding-right:64px;}
+/* Kotak preview dibuat berproporsi kertas A4 (210 x 297mm) secara default,
+   supaya terlihat seperti selembar kertas walau isinya sedikit. Kalau isi
+   dokumen lebih panjang dari 1 halaman, tinggi kotak otomatis mengikuti
+   (aspect-ratio hanya jadi tinggi minimum, bukan pembatas/pemotong konten). */
+.lpj-print-area.surat-print-area{aspect-ratio:210/297;}
+@media print{
+  .lpj-print-area.surat-print-area{aspect-ratio:auto !important;}
+}
 .lpj-header{text-align:center; border-bottom:2px solid var(--ink); padding-bottom:16px; margin-bottom:24px;}
 .lpj-header-inner{display:flex; align-items:center; gap:16px;}
 .lpj-logo{width:72px; height:72px; object-fit:contain; flex-shrink:0;}

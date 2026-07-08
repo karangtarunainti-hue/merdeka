@@ -3218,7 +3218,7 @@ function renderHadiahJalanSantai(){
     const sudahDibeli = belanja && belanja.status === 'dibeli';
     return `
     <tr class="${sudahDibeli?'dibeli':''}">
-      <td class="num">${idx+1}</td>
+      <td>${idx+1}</td>
       <td>${esc(h.nama_hadiah)}</td>
       <td class="num">${fmtRp(h.harga_satuan)}</td>
       <td class="num">${h.qty}</td>
@@ -3246,7 +3246,7 @@ function renderHadiahJalanSantai(){
     </div>
     <div class="panel-body flush">
       <table class="jalan-table">
-        <thead><tr><th class="num">No</th><th>Nama Hadiah</th><th class="num">Harga Satuan</th><th class="num">Qty</th><th class="num">Total</th><th></th></tr></thead>
+        <thead><tr><th>No</th><th>Nama Hadiah</th><th class="num">Harga Satuan</th><th class="num">Qty</th><th class="num">Total</th><th></th></tr></thead>
         <tbody>${rows || `<tr class="empty-row"><td colspan="6">Belum ada hadiah jalan santai.</td></tr>`}</tbody>
         ${list.length > 0 ? `<tfoot><tr><td colspan="4">Total</td><td class="num">${fmtRp(total)}</td><td></td></tr></tfoot>` : ''}
       </table>

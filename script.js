@@ -5,7 +5,23 @@
    ============================================================ */
 const SUPABASE_URL = 'https://tykahltxzlpctfqdylno.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR5a2FobHR4emxwY3RmcWR5bG5vIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIxMTgxNzQsImV4cCI6MjA5NzY5NDE3NH0.QVu9Y6lPr42MITzPM5SvNczbQ8_X0usPH78e4Nj2Epc';
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// PENTING: paksa SEMUA request Supabase (select/insert/update/rpc, dll) untuk
+// tidak pernah diam-diam dijawab dari cache manapun (browser, WebView Android,
+// atau proxy jaringan operator seluler). Tanpa ini, `cache:'no-store'` di sw.js
+// TIDAK berlaku karena Supabase beda origin dari app (sw.js cuma pegang
+// request same-origin) — jadi request ke Supabase murni ikut aturan HTTP
+// cache bawaan browser/jaringan. Dengan override fetch ini, Supabase selalu
+// jadi SATU-SATUNYA sumber kebenaran data setiap kali dipanggil, tidak ada
+// kemungkinan data lama "nyangkut" dan bikin konflik antar device.
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  global: {
+    fetch: (url, options = {}) => fetch(url, {
+      ...options,
+      cache: 'no-store',
+      headers: { ...(options.headers || {}), 'Cache-Control': 'no-cache' },
+    }),
+  },
+});
 
 /* ============================================================
    GLOBAL ERROR HANDLER

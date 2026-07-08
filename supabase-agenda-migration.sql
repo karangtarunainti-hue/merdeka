@@ -2,7 +2,7 @@
 -- MIGRASI: tabel kt_agenda
 -- Untuk fitur baru "Agenda Kegiatan" — agenda umum organisasi yang
 -- TIDAK terikat event tahunan (17-an) sama sekali, beda dari
--- kt_jadwal yang per event_id. Polanya mengikuti kt_panitia_sinoman
+-- kt_jadwal yang per event_id. Polanya serupa kt_kas
 -- (tidak ada kolom event_id), supaya reminder-nya tetap muncul di
 -- Buku Kegiatan walau belum ada event aktif dipilih/dibuat.
 --

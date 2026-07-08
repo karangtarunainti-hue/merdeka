@@ -309,7 +309,6 @@ function defaultDB(){
     hadiahJalanSantai: [],
     daftarBelanjaJalanSantai: [],
     jadwal: [],
-    panitiaSinoman: [],
     // Agenda Kegiatan — TIDAK terikat event sama sekali (beda dari
     // `jadwal` yang per event_id). Untuk agenda umum organisasi yang
     // tetap mau muncul sebagai reminder di Buku Kegiatan walau belum
@@ -364,7 +363,6 @@ const ARRAY_TABLE_MAP = {
   hadiahJalanSantai: 'kt_hadiah_jalan_santai',
   daftarBelanjaJalanSantai: 'kt_daftar_belanja_jalan_santai',
   jadwal: 'kt_jadwal',
-  panitiaSinoman: 'kt_panitia_sinoman',
   agenda: 'kt_agenda',
   kas: 'kt_kas',
 };
@@ -670,11 +668,6 @@ async function _flushSaveDB(){
   // lagi lewat panggilan saveDB() tersebut.
   _hasPendingLocalChange = false;
   
-  // Perbaikan mandiri: dokumen Panitia/Sinoman yang sempat dibuat sebelum
-  // fix tanggal-null bisa masih menyimpan tanggal:'' di memori. Kolom
-  // `tanggal` di Supabase bertipe date, jadi '' harus jadi null dulu
-  // sebelum dikirim, kalau tidak Postgres akan menolak (22007).
-  db.panitiaSinoman.forEach(d => { if(d.tanggal === '') d.tanggal = null; });
   try{
     const arrayEntries = Object.entries(ARRAY_TABLE_MAP);
     // 'events' WAJIB disimpan & ditunggu selesai LEBIH DULU, terpisah dari
@@ -946,14 +939,13 @@ const SECTIONS = [
   {key:'agenda', label:'Agenda Kegiatan', sub:'', icon:'calendar', adminOnly: true},
   {key:'gudang', label:'Gudang Aset', sub:'Inventaris & pinjam aset desa', icon:'package', adminOnly: false},
   {key:'dokumen', label:'Surat & Dokumen', sub:'Undangan, proposal & absensi', icon:'clipboard', adminOnly: false},
-  {key:'panitia', label:'Panitia / Sinoman', sub:'Susunan panitia acara warga', icon:'tag', adminOnly: false},
   {key:'kas', label:'Kas Karang Taruna', sub:'', icon:'wallet', adminOnly: false},
 ];
 
 // Menu yang tidak terikat event tertentu (datanya global, bukan per-event).
 // Menu ini ditampilkan terpisah di atas, antara info login dan dropdown
 // Kegiatan Aktif, supaya jelas tidak berubah walau event aktif diganti.
-const GLOBAL_MENU_KEYS = ['kas', 'agenda', 'dokumen', 'panitia', 'database-anggota', 'gudang', 'users', 'pengaturan'];
+const GLOBAL_MENU_KEYS = ['kas', 'agenda', 'dokumen', 'database-anggota', 'gudang', 'users', 'pengaturan'];
 
 /* ============================================================
    FITUR OPSIONAL PER EVENT
@@ -1115,7 +1107,7 @@ function goSection(key){
 // saldo proyeksi kegiatan/event tidak ikut nongol di menu yang memang tidak
 // terikat event tersebut — chip itu punya arti khusus untuk event aktif,
 // jadi kalau ditampilkan di menu eventless malah bikin salah paham).
-const EVENTLESS_SECTIONS = ['gudang', 'dokumen', 'panitia', 'agenda', 'kas', 'dashboard', 'pengaturan', 'users'];
+const EVENTLESS_SECTIONS = ['gudang', 'dokumen', 'agenda', 'kas', 'dashboard', 'pengaturan', 'users'];
 
 function renderTopbarSaldo(){
   const chip = document.getElementById('saldo-chip');
@@ -1193,7 +1185,6 @@ function renderContent(){
     case 'agenda': el.innerHTML = renderAgenda(); break;
     case 'gudang': el.innerHTML = renderGudang(); break;
     case 'dokumen': el.innerHTML = renderDokumen(); break;
-    case 'panitia': el.innerHTML = renderPanitiaSinoman(); break;
     case 'kas': el.innerHTML = renderKas(); break;
     case 'lpj': el.innerHTML = renderLPJ(); break;
     case 'pengaturan': el.innerHTML = renderPengaturan(); break;
@@ -4922,411 +4913,6 @@ function hitungBukuUtama(){
 }
 
 /* ============================================================
-   PANITIA / SINOMAN
-   Generator "Susunan Panitia" WYSIWYG untuk acara warga di luar
-   event 17-an (hajatan, sinoman, dll). Tidak terikat event_id —
-   makanya array-nya (db.panitiaSinoman) tidak difilter pakai eid()
-   seperti modul lain, dan section-nya masuk EVENTLESS_SECTIONS di
-   renderContent() supaya tetap bisa dibuka walau belum ada event
-   17-an yang aktif.
-   ============================================================ */
-
-// view state lokal (tidak disimpan ke DB): 'list' = daftar semua susunan
-// panitia tersimpan, 'edit' = lagi buka/isi satu susunan.
-let panitiaView = { mode: 'list', editingId: null };
-
-// Ambil semua nama anggota yang sudah pernah diinput di modul Iuran Anggota,
-// dari SEMUA event (bukan cuma event aktif) — dipakai sebagai sumber
-// autocomplete. Ganti bagian ini kalau nanti nama diambil dari tabel lain.
-function panitiaDaftarNama(){
-  const set = new Set();
-  db.anggota.forEach(a => { if(a.nama && a.nama.trim()) set.add(a.nama.trim()); });
-  return [...set].sort((a,b)=>a.localeCompare(b));
-}
-
-function panitiaGetDoc(id){ return db.panitiaSinoman.find(d=>d.id===id); }
-
-function panitiaTouch(doc){ doc.updated_at = new Date().toISOString(); }
-
-function panitiaBuatBaru(){
-  if(!canEdit()){ toast('⛔ Login untuk membuat susunan panitia'); return; }
-  const now = new Date().toISOString();
-  // Baris kosong siap isi — jumlah di bawah cuma titik awal yang wajar (sesuai
-  // kebiasaan sinoman/hajatan warga), admin tetap bebas tambah/kurangi baris
-  // atau kelompok lewat tombol "+ Baris" / "+ Kelompok Baru" / ikon hapus (✕),
-  // sama seperti seksi lain di editor ini.
-  const buatRows = (n) => Array.from({length:n}, () => ({ id: uid(), nama:'', isLabel:false }));
-  const doc = {
-    id: uid(),
-    judul: 'Susunan Panitia Sinoman',
-    organisasi: 'Karang Taruna Inti',
-    dusun: '', desa: '', kecamatan: '', kabupaten: '',
-    empunya_hajat: '',
-    hari: '', tanggal: null, tempat: '',
-    jadwal_piket: Array.from({length:12}, () => ({ pagi:'', siang:'', sore:'' })),
-    kelompok_utama: [
-      { id: uid(), judul: 'Tim Undur-Undur', koor: '', rows: buatRows(10) },
-      { id: uid(), judul: 'Sie Tenong', koor: '', rows: buatRows(10) },
-      { id: uid(), judul: 'Sie Walimahan Putra', koor: '', rows: buatRows(10) },
-      { id: uid(), judul: 'Sie Walimahan Putri', koor: '', rows: buatRows(10) },
-      { id: uid(), judul: 'Koordinator Prasmanan Meja 1', koor: '', rows: buatRows(1) },
-      { id: uid(), judul: 'Koordinator Prasmanan Meja 2', koor: '', rows: buatRows(1) },
-      { id: uid(), judul: 'Sie Dapur (koordinasi dengan Meja 1 & 2)', koor: '', rows: buatRows(1) },
-      { id: uid(), judul: 'Juru Kunci', koor: '', rows: buatRows(2) },
-      { id: uid(), judul: 'Juru Rokok', koor: '', rows: buatRows(1) },
-      { id: uid(), judul: 'Sie Konsumsi', koor: '', rows: buatRows(1) },
-      { id: uid(), judul: 'Sie Keamanan', koor: '', rows: buatRows(4) },
-      { id: uid(), judul: 'Sie Parkir', koor: '', rows: buatRows(4) },
-    ],
-    kelompok_samping: [],
-    ketua_nama: '', ketua_jabatan: 'Ketua Karang Taruna',
-    ttd_url: '',
-    created_at: now, updated_at: now,
-  };
-  db.panitiaSinoman.push(doc);
-  saveDB();
-  panitiaView = { mode: 'edit', editingId: doc.id };
-  renderContent();
-}
-
-function panitiaBuka(id){ panitiaView = { mode: 'edit', editingId: id }; renderContent(); window.scrollTo({top:0, behavior:'instant'}); }
-function panitiaKembali(){ panitiaView = { mode: 'list', editingId: null }; renderContent(); }
-
-function panitiaDuplikat(id){
-  if(!canEdit()){ toast('⛔ Login untuk menduplikat'); return; }
-  const src = panitiaGetDoc(id); if(!src) return;
-  const copy = JSON.parse(JSON.stringify(src));
-  copy.id = uid();
-  copy.judul = (src.judul || 'Susunan Panitia') + ' (Salinan)';
-  const now = new Date().toISOString();
-  copy.created_at = now; copy.updated_at = now;
-  copy.kelompok_utama.forEach(g => { g.id = uid(); g.rows.forEach(r => r.id = uid()); });
-  copy.kelompok_samping.forEach(s => { s.id = uid(); });
-  db.panitiaSinoman.push(copy);
-  saveDB();
-  toast('✓ Disalin');
-  renderContent();
-}
-
-function panitiaHapus(id){
-  if(!canEdit()){ toast('⛔ Login untuk menghapus'); return; }
-  const doc = panitiaGetDoc(id); if(!doc) return;
-  if(!confirm(`Hapus susunan panitia "${doc.judul || '(Tanpa judul)'}"? Tindakan ini tidak bisa dibatalkan.`)) return;
-  db.panitiaSinoman = db.panitiaSinoman.filter(d=>d.id!==id);
-  saveDB();
-  toast('🗑 Dihapus');
-  if(panitiaView.editingId === id) panitiaView = { mode: 'list', editingId: null };
-  renderContent();
-}
-
-// ---- Update field-field sederhana (tanpa re-render, supaya kursor tidak lompat) ----
-function panitiaSetTop(docId, field, value){
-  const doc = panitiaGetDoc(docId); if(!doc) return;
-  // Kolom `tanggal` di Supabase bertipe date — kirim null kalau kosong,
-  // karena string kosong '' ditolak Postgres untuk tipe date.
-  if(field === 'tanggal' && value === '') value = null;
-  doc[field] = value; panitiaTouch(doc); saveDB();
-}
-function panitiaSetJadwal(docId, idx, field, value){
-  const doc = panitiaGetDoc(docId); if(!doc) return;
-  doc.jadwal_piket[idx][field] = value; panitiaTouch(doc); saveDB();
-}
-function panitiaSetKelompokJudul(docId, gIdx, value){
-  const doc = panitiaGetDoc(docId); if(!doc) return;
-  doc.kelompok_utama[gIdx].judul = value; panitiaTouch(doc); saveDB();
-}
-function panitiaSetKelompokKoor(docId, gIdx, value){
-  const doc = panitiaGetDoc(docId); if(!doc) return;
-  doc.kelompok_utama[gIdx].koor = value; panitiaTouch(doc); saveDB();
-}
-function panitiaSetRowNama(docId, gIdx, rIdx, value){
-  const doc = panitiaGetDoc(docId); if(!doc) return;
-  doc.kelompok_utama[gIdx].rows[rIdx].nama = value; panitiaTouch(doc); saveDB();
-}
-function panitiaSetSampingLabel(docId, idx, value){
-  const doc = panitiaGetDoc(docId); if(!doc) return;
-  doc.kelompok_samping[idx].label = value; panitiaTouch(doc); saveDB();
-}
-function panitiaSetSampingNama(docId, idx, value){
-  const doc = panitiaGetDoc(docId); if(!doc) return;
-  doc.kelompok_samping[idx].nama = value; panitiaTouch(doc); saveDB();
-}
-
-// ---- Perubahan struktur (jumlah baris/kelompok) — perlu re-render ----
-function panitiaAddJadwalRow(docId){
-  const doc = panitiaGetDoc(docId); if(!doc) return;
-  doc.jadwal_piket.push({ pagi:'', siang:'', sore:'' });
-  panitiaTouch(doc); saveDB(); renderContent();
-}
-function panitiaRemoveJadwalRow(docId, idx){
-  const doc = panitiaGetDoc(docId); if(!doc) return;
-  if(doc.jadwal_piket.length<=1) return;
-  doc.jadwal_piket.splice(idx,1);
-  panitiaTouch(doc); saveDB(); renderContent();
-}
-function panitiaAddRow(docId, gIdx){
-  const doc = panitiaGetDoc(docId); if(!doc) return;
-  doc.kelompok_utama[gIdx].rows.push({ id: uid(), nama:'', isLabel:false });
-  panitiaTouch(doc); saveDB(); renderContent();
-}
-function panitiaRemoveRow(docId, gIdx, rIdx){
-  const doc = panitiaGetDoc(docId); if(!doc) return;
-  doc.kelompok_utama[gIdx].rows.splice(rIdx,1);
-  panitiaTouch(doc); saveDB(); renderContent();
-}
-function panitiaToggleRowLabel(docId, gIdx, rIdx){
-  const doc = panitiaGetDoc(docId); if(!doc) return;
-  const row = doc.kelompok_utama[gIdx].rows[rIdx];
-  row.isLabel = !row.isLabel;
-  panitiaTouch(doc); saveDB(); renderContent();
-}
-function panitiaAddKelompok(docId){
-  const doc = panitiaGetDoc(docId); if(!doc) return;
-  doc.kelompok_utama.push({ id: uid(), judul: 'Kelompok Baru', koor:'', rows: [] });
-  panitiaTouch(doc); saveDB(); renderContent();
-}
-function panitiaRemoveKelompok(docId, gIdx){
-  const doc = panitiaGetDoc(docId); if(!doc) return;
-  if(!confirm('Hapus kelompok ini beserta semua isinya?')) return;
-  doc.kelompok_utama.splice(gIdx,1);
-  panitiaTouch(doc); saveDB(); renderContent();
-}
-function panitiaAddSamping(docId){
-  const doc = panitiaGetDoc(docId); if(!doc) return;
-  doc.kelompok_samping.push({ id: uid(), label: 'Kelompok Baru', nama:'' });
-  panitiaTouch(doc); saveDB(); renderContent();
-}
-function panitiaRemoveSamping(docId, idx){
-  const doc = panitiaGetDoc(docId); if(!doc) return;
-  doc.kelompok_samping.splice(idx,1);
-  panitiaTouch(doc); saveDB(); renderContent();
-}
-
-// ---- Tanda tangan ----
-function panitiaUploadTTDTrigger(docId){
-  const input = document.getElementById('ttd-input-'+docId);
-  if(input) input.click();
-}
-function panitiaUploadTTD(docId, inputEl){
-  const file = inputEl.files && inputEl.files[0];
-  if(!file) return;
-  if(file.size > 2*1024*1024){ toast('⛔ Ukuran gambar maksimal 2MB'); return; }
-  const reader = new FileReader();
-  reader.onload = () => {
-    const doc = panitiaGetDoc(docId); if(!doc) return;
-    doc.ttd_url = reader.result;
-    panitiaTouch(doc); saveDB(); renderContent();
-  };
-  reader.readAsDataURL(file);
-}
-function panitiaRemoveTTD(docId){
-  const doc = panitiaGetDoc(docId); if(!doc) return;
-  doc.ttd_url = '';
-  panitiaTouch(doc); saveDB(); renderContent();
-}
-
-// ---- Simpan manual & export JPEG ----
-function panitiaSimpanManual(docId){
-  saveDB();
-  toast('💾 Tersimpan');
-}
-function panitiaExportJPEG(docId){
-  const doc = panitiaGetDoc(docId); if(!doc) return;
-  const el = document.getElementById('panitia-capture-'+docId);
-  if(!el){ toast('⛔ Gagal menemukan template'); return; }
-  if(typeof html2canvas === 'undefined'){ toast('⛔ Gagal memuat modul export gambar. Cek koneksi internet lalu muat ulang.'); return; }
-  el.classList.add('exporting');
-  html2canvas(el, { scale: 2, backgroundColor: '#ffffff', useCORS: true }).then(canvas => {
-    el.classList.remove('exporting');
-    const link = document.createElement('a');
-    const namaFile = (doc.judul || 'susunan-panitia').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
-    link.download = `${namaFile || 'susunan-panitia'}.jpg`;
-    link.href = canvas.toDataURL('image/jpeg', 0.95);
-    link.click();
-    toast('⬇ JPEG berhasil diunduh');
-  }).catch(err => {
-    el.classList.remove('exporting');
-    console.error('Gagal export JPEG:', err);
-    toast('⛔ Gagal membuat JPEG: ' + (err.message||'error tak dikenal'));
-  });
-}
-
-/* ---------------- RENDER ---------------- */
-function renderPanitiaSinoman(){
-  return panitiaView.mode === 'edit' && panitiaGetDoc(panitiaView.editingId)
-    ? renderPanitiaEditor(panitiaGetDoc(panitiaView.editingId))
-    : renderPanitiaList();
-}
-
-function renderPanitiaList(){
-  const isLoggedIn = !!getCurrentUser();
-  const list = [...db.panitiaSinoman].sort((a,b)=> (b.updated_at||'').localeCompare(a.updated_at||''));
-  const cards = list.map(d => {
-    const jumlahOrang = (d.kelompok_utama||[]).reduce((s,g)=> s + g.rows.filter(r=>!r.isLabel && r.nama.trim()).length, 0)
-      + (d.kelompok_samping||[]).filter(s=>s.nama && s.nama.trim()).length;
-    return `<div class="panitia-card">
-      <div class="pc-title">${esc(d.judul || '(Tanpa judul)')}</div>
-      <div class="pc-meta">${[d.hari, d.tanggal?fmtDate(d.tanggal):''].filter(Boolean).join(', ') || 'Belum ada tanggal'}</div>
-      <div class="pc-meta">${esc(d.tempat || '-')}</div>
-      <div class="pc-count">${jumlahOrang} orang tercatat</div>
-      <div class="pc-actions">
-        <button class="btn small" onclick="panitiaBuka('${d.id}')">Buka</button>
-        <button class="btn secondary small" onclick="panitiaDuplikat('${d.id}')" ${!isLoggedIn?'disabled':''}>Duplikat</button>
-        <button class="icon-btn" onclick="panitiaHapus('${d.id}')" ${!isLoggedIn?'disabled':''} title="Hapus">🗑</button>
-      </div>
-    </div>`;
-  }).join('');
-
-  return `<div class="panel">
-    <div class="panel-head">
-      <div><h3>🗂️ Panitia / Sinoman</h3><div class="desc">Susunan panitia acara warga (hajatan, sinoman, dll) — tidak terikat event 17-an yang aktif.</div></div>
-      ${isLoggedIn ? `<button class="btn" onclick="panitiaBuatBaru()">+ Susunan Baru</button>` : ''}
-    </div>
-    <div class="panel-body">
-      ${list.length ? `<div class="panitia-grid">${cards}</div>` : `
-        <div class="empty-state">
-          <h3>Belum ada susunan panitia</h3>
-          <p>${isLoggedIn ? 'Buat susunan panitia pertama untuk acara warga, misalnya resepsi pernikahan.' : 'Login untuk membuat susunan panitia.'}</p>
-          ${isLoggedIn ? `<button class="btn" onclick="panitiaBuatBaru()">+ Susunan Baru</button>` : `<button class="btn" onclick="openLoginModal()">🔑 Login</button>`}
-        </div>`}
-    </div>
-  </div>`;
-}
-
-function renderPanitiaEditor(doc){
-  const isLoggedIn = !!getCurrentUser();
-  const dis = isLoggedIn ? '' : 'disabled';
-  const namaListId = 'panitia-nama-list';
-  const namaOptions = panitiaDaftarNama().map(n=>`<option value="${esc(n)}">`).join('');
-
-  const jadwalRows = doc.jadwal_piket.map((r,idx)=>`
-    <tr>
-      <td class="pt-no" data-label="Hari">${idx+1}</td>
-      <td data-label="Pagi"><input class="pt-input" list="${namaListId}" value="${esc(r.pagi)}" ${dis} oninput="panitiaSetJadwal('${doc.id}',${idx},'pagi',this.value)"></td>
-      <td data-label="Siang"><input class="pt-input" list="${namaListId}" value="${esc(r.siang)}" ${dis} oninput="panitiaSetJadwal('${doc.id}',${idx},'siang',this.value)"></td>
-      <td data-label="Sore"><input class="pt-input" list="${namaListId}" value="${esc(r.sore)}" ${dis} oninput="panitiaSetJadwal('${doc.id}',${idx},'sore',this.value)"></td>
-      <td class="editor-controls pt-row-tools" data-label="">${isLoggedIn?`<button class="icon-btn" onclick="panitiaRemoveJadwalRow('${doc.id}',${idx})" title="Hapus baris">✕</button>`:''}</td>
-    </tr>`).join('');
-
-  const kelompokHtml = doc.kelompok_utama.map((g, gIdx) => {
-    const rows = g.rows.map((r, rIdx) => r.isLabel ? `
-      <tr class="pt-label-row">
-        <td colspan="2">
-          <input class="pt-input pt-label-input" value="${esc(r.nama)}" ${dis} placeholder="Label (mis. Prasmanan)" oninput="panitiaSetRowNama('${doc.id}',${gIdx},${rIdx},this.value)">
-        </td>
-        <td class="editor-controls pt-row-tools" data-label="">
-          ${isLoggedIn?`<button class="icon-btn" onclick="panitiaToggleRowLabel('${doc.id}',${gIdx},${rIdx})" title="Jadikan baris nama biasa">🏷</button><button class="icon-btn" onclick="panitiaRemoveRow('${doc.id}',${gIdx},${rIdx})" title="Hapus baris">✕</button>`:''}
-        </td>
-      </tr>` : `
-      <tr>
-        <td class="pt-no" data-label="No">${rIdx+1}</td>
-        <td data-label="Nama"><input class="pt-input" list="${namaListId}" value="${esc(r.nama)}" ${dis} placeholder="Nama" oninput="panitiaSetRowNama('${doc.id}',${gIdx},${rIdx},this.value)"></td>
-        <td class="editor-controls pt-row-tools" data-label="">
-          ${isLoggedIn?`<button class="icon-btn" onclick="panitiaToggleRowLabel('${doc.id}',${gIdx},${rIdx})" title="Jadikan label (mis. Prasmanan)">🏷</button><button class="icon-btn" onclick="panitiaRemoveRow('${doc.id}',${gIdx},${rIdx})" title="Hapus baris">✕</button>`:''}
-        </td>
-      </tr>`).join('');
-
-    return `<div class="pt-group">
-      <div class="pt-group-head">
-        <input class="pt-input pt-group-title" value="${esc(g.judul)}" ${dis} oninput="panitiaSetKelompokJudul('${doc.id}',${gIdx},this.value)">
-        ${isLoggedIn?`<button class="icon-btn editor-controls" onclick="panitiaRemoveKelompok('${doc.id}',${gIdx})" title="Hapus kelompok">🗑</button>`:''}
-      </div>
-      <div class="pt-koor-row">
-        <span class="pt-koor-label">Koor:</span>
-        <input class="pt-input" list="${namaListId}" value="${esc(g.koor)}" ${dis} placeholder="(opsional)" oninput="panitiaSetKelompokKoor('${doc.id}',${gIdx},this.value)">
-      </div>
-      <table class="panitia-table">
-        <tbody>${rows || `<tr><td colspan="3" class="pt-empty-row">Belum ada anggota</td></tr>`}</tbody>
-      </table>
-      ${isLoggedIn?`<button class="btn secondary small editor-controls" onclick="panitiaAddRow('${doc.id}',${gIdx})">+ Baris</button>`:''}
-    </div>`;
-  }).join('');
-
-  const sampingHtml = doc.kelompok_samping.map((s, idx) => `
-    <div class="pt-side-row">
-      <input class="pt-input pt-side-label" value="${esc(s.label)}" ${dis} oninput="panitiaSetSampingLabel('${doc.id}',${idx},this.value)">
-      <span class="pt-colon">:</span>
-      <input class="pt-input pt-side-nama" list="${namaListId}" value="${esc(s.nama)}" ${dis} placeholder="Nama" oninput="panitiaSetSampingNama('${doc.id}',${idx},this.value)">
-      ${isLoggedIn?`<button class="icon-btn editor-controls" onclick="panitiaRemoveSamping('${doc.id}',${idx})" title="Hapus">✕</button>`:''}
-    </div>`).join('');
-
-  return `<datalist id="${namaListId}">${namaOptions}</datalist>
-  <input type="file" id="ttd-input-${doc.id}" accept="image/*" style="display:none" onchange="panitiaUploadTTD('${doc.id}', this)">
-
-  <div class="panitia-toolbar">
-    <button class="btn secondary small" onclick="panitiaKembali()">← Daftar</button>
-    <div class="spacer"></div>
-    ${isLoggedIn?`<button class="btn secondary small" onclick="panitiaUploadTTDTrigger('${doc.id}')">📌 Upload TTD</button>`:''}
-    ${isLoggedIn?`<button class="btn secondary small" onclick="panitiaSimpanManual('${doc.id}')">💾 Simpan</button>`:''}
-    <button class="btn small" onclick="panitiaExportJPEG('${doc.id}')">⬇ Unduh JPEG</button>
-  </div>
-
-  <div class="panitia-paper" id="panitia-capture-${doc.id}">
-    <div class="pt-head">
-      <input class="pt-input pt-title" value="${esc(doc.judul)}" ${dis} oninput="panitiaSetTop('${doc.id}','judul',this.value)">
-      <div class="pt-org-row">
-        <input class="pt-input pt-org" value="${esc(doc.organisasi)}" ${dis} oninput="panitiaSetTop('${doc.id}','organisasi',this.value)">
-      </div>
-      <div class="pt-org-detail">
-        (Dk. <input class="pt-input pt-inline" value="${esc(doc.dusun)}" placeholder="dusun" ${dis} oninput="panitiaSetTop('${doc.id}','dusun',this.value)">,
-        Ds. <input class="pt-input pt-inline" value="${esc(doc.desa)}" placeholder="desa" ${dis} oninput="panitiaSetTop('${doc.id}','desa',this.value)">,
-        Kec. <input class="pt-input pt-inline" value="${esc(doc.kecamatan)}" placeholder="kecamatan" ${dis} oninput="panitiaSetTop('${doc.id}','kecamatan',this.value)">,
-        <input class="pt-input pt-inline" value="${esc(doc.kabupaten)}" placeholder="kabupaten" ${dis} oninput="panitiaSetTop('${doc.id}','kabupaten',this.value)">)
-      </div>
-      <div class="pt-meta-row">
-        <span>Yang Punya Hajat:</span>
-        <input class="pt-input pt-inline pt-tempat" value="${esc(doc.empunya_hajat||'')}" placeholder="mis. Kel. Bpk Tamin" ${dis} oninput="panitiaSetTop('${doc.id}','empunya_hajat',this.value)">
-      </div>
-      <div class="pt-meta-row">
-        <span>Hari/Tanggal:</span>
-        <input class="pt-input pt-inline" value="${esc(doc.hari)}" placeholder="Hari" ${dis} oninput="panitiaSetTop('${doc.id}','hari',this.value)">,
-        <input class="pt-input pt-inline pt-date" type="date" value="${esc(doc.tanggal)}" ${dis} oninput="panitiaSetTop('${doc.id}','tanggal',this.value)">
-      </div>
-      <div class="pt-meta-row">
-        <span>Tempat:</span>
-        <input class="pt-input pt-inline pt-tempat" value="${esc(doc.tempat)}" placeholder="mis. Bpk Tamin, RT 02" ${dis} oninput="panitiaSetTop('${doc.id}','tempat',this.value)">
-      </div>
-    </div>
-
-    <div class="pt-body">
-      <div class="pt-main">
-        <div class="pt-section-title">Jadwal Piket</div>
-        <table class="panitia-table pt-jadwal-table">
-          <thead><tr><th></th><th>Pagi</th><th>Siang</th><th>Sore</th><th class="editor-controls"></th></tr></thead>
-          <tbody>${jadwalRows}</tbody>
-        </table>
-        ${isLoggedIn?`<button class="btn secondary small editor-controls" onclick="panitiaAddJadwalRow('${doc.id}')">+ Baris</button>`:''}
-
-        ${kelompokHtml}
-        ${isLoggedIn?`<button class="btn secondary small editor-controls" onclick="panitiaAddKelompok('${doc.id}')">+ Kelompok Baru</button>`:''}
-      </div>
-
-      <div class="pt-side">
-        <div class="pt-section-title">Lain-lain</div>
-        ${sampingHtml}
-        ${isLoggedIn?`<button class="btn secondary small editor-controls" onclick="panitiaAddSamping('${doc.id}')">+ Kelompok Baru</button>`:''}
-      </div>
-    </div>
-
-    <div class="pt-penutup">
-      Ditandatangani di ${esc(doc.dusun || '________')}, ${doc.tanggal ? fmtDate(doc.tanggal) : '________'}
-    </div>
-    <div class="pt-signature">
-      <div class="sign-block">
-        <div class="sign-label">
-          <div class="pt-mengetahui">Mengetahui,</div>
-          <input class="pt-input pt-inline pt-center" value="${esc(doc.ketua_jabatan)}" ${dis} oninput="panitiaSetTop('${doc.id}','ketua_jabatan',this.value)">,
-        </div>
-        <div class="pt-ttd-area">
-          ${doc.ttd_url ? `<img src="${doc.ttd_url}" class="pt-ttd-img">${isLoggedIn?`<button class="icon-btn editor-controls pt-ttd-remove" onclick="panitiaRemoveTTD('${doc.id}')" title="Hapus TTD">✕</button>`:''}` : `<div class="sign-space"></div>`}
-        </div>
-        <input class="pt-input pt-inline pt-center sign-name" list="${namaListId}" value="${esc(doc.ketua_nama)}" placeholder="Nama Ketua" ${dis} oninput="panitiaSetTop('${doc.id}','ketua_nama',this.value)">
-      </div>
-    </div>
-  </div>`;
-}
-
-/* ============================================================
    GUDANG ASET DESA
    Modul hasil merger dari aplikasi "Sedesa" (buku pinjam aset desa).
    Tidak terikat event 17-an (aset desa bersifat permanen), makanya
@@ -5960,10 +5546,9 @@ function gudangShowNota(id){
   ]);
 }
 
-// Export tampilan nota (di modal Riwayat Peminjaman) jadi file JPEG, dengan pola
-// yang sama seperti panitiaExportJPEG() — pakai html2canvas karena nota-nya
-// murni HTML/CSS (bukan gambar), belum ada elemen input yang perlu disamarkan
-// seperti pada editor panitia, jadi tidak perlu toggle class 'exporting'.
+// Export tampilan nota (di modal Riwayat Peminjaman) jadi file JPEG —
+// pakai html2canvas karena nota-nya murni HTML/CSS (bukan gambar), belum
+// ada elemen input yang perlu disamarkan, jadi tidak perlu toggle class 'exporting'.
 function gudangExportNotaJPEG(resi){
   const el = document.getElementById('gudang-nota-sheet');
   if(!el){ toast('⛔ Gagal menemukan nota'); return; }

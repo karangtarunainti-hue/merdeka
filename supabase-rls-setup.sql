@@ -19,38 +19,6 @@
 create extension if not exists pgcrypto;
 
 -- ============================================================
--- BAGIAN 0: kt_panitia_sinoman — generator "Susunan Panitia" untuk
--- acara warga di luar event 17-an (hajatan, sinoman, dll). TIDAK
--- ada event_id sama sekali karena memang tidak terikat event.
--- Kolom jadwal_piket/kelompok_utama/kelompok_samping disimpan sebagai
--- jsonb karena strukturnya nested (baris/kelompok dinamis).
--- Dibuat di sini (SEBELUM Bagian 1) supaya sudah ada waktu loop RLS
--- di Bagian 1 jalan — tabel ini sudah didaftarkan ke array `tables`
--- di bawah jadi otomatis kena policy anon_full_access.
--- ============================================================
-create table if not exists kt_panitia_sinoman (
-  id uuid primary key default gen_random_uuid(),
-  judul text default '',
-  organisasi text default '',
-  dusun text default '',
-  desa text default '',
-  kecamatan text default '',
-  kabupaten text default '',
-  empunya_hajat text default '',
-  hari text default '',
-  tanggal date,
-  tempat text default '',
-  jadwal_piket jsonb not null default '[]'::jsonb,
-  kelompok_utama jsonb not null default '[]'::jsonb,
-  kelompok_samping jsonb not null default '[]'::jsonb,
-  ketua_nama text default '',
-  ketua_jabatan text default '',
-  ttd_url text default '',
-  created_at timestamptz default now(),
-  updated_at timestamptz default now()
-);
-
--- ============================================================
 -- BAGIAN 1: Tabel data umum — RLS aktif, akses penuh untuk anon
 -- (perilaku sama seperti sekarang, cuma diformalkan supaya tabel
 -- baru yang lupa dikasih policy otomatis TERTUTUP, bukan otomatis
@@ -64,7 +32,7 @@ declare
     'kt_lomba','kt_lomba_kebutuhan','kt_hadiah_kategori','kt_lomba_hadiah',
     'kt_daftar_belanja_hadiah','kt_daftar_belanja_perlengkapan',
     'kt_hadiah_jalan_santai','kt_daftar_belanja_jalan_santai','kt_jadwal',
-    'kt_settings','kt_telegram_settings','kt_panitia_sinoman'
+    'kt_settings','kt_telegram_settings'
   ];
 begin
   foreach t in array tables loop

@@ -38,12 +38,12 @@ declare
     'kt_lomba','kt_lomba_kebutuhan','kt_hadiah_kategori','kt_lomba_hadiah',
     'kt_daftar_belanja_hadiah','kt_daftar_belanja_perlengkapan',
     'kt_hadiah_jalan_santai','kt_daftar_belanja_jalan_santai','kt_jadwal',
-    'kt_panitia_sinoman','kt_agenda','kt_kas'
+    'kt_agenda','kt_kas'
   ];
 begin
   foreach t in array tables loop
-    -- Tambah kolom kalau belum ada (tabel kt_panitia_sinoman sudah punya
-    -- kolom ini sebelumnya, jadi cukup dilewati oleh "if not exists").
+    -- Tambah kolom kalau belum ada (tabel yang sudah punya kolom ini
+    -- sebelumnya cukup dilewati oleh "if not exists").
     execute format('alter table %I add column if not exists updated_at timestamptz default now();', t);
     -- Isi baris lama yang masih null.
     execute format('update %I set updated_at = now() where updated_at is null;', t);

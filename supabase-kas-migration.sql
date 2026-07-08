@@ -2,7 +2,7 @@
 -- MIGRASI: tabel kt_kas
 -- Untuk fitur baru "Kas Karang Taruna" — buku kas umum organisasi
 -- yang TIDAK terikat event tahunan (17-an) sama sekali, mengikuti
--- pola kt_agenda/kt_panitia_sinoman (tidak ada kolom event_id).
+-- pola kt_agenda (tidak ada kolom event_id).
 --
 -- Kolom debit/kredit dipakai untuk menghitung saldo berjalan
 -- (running balance) di sisi aplikasi — saldo TIDAK disimpan di

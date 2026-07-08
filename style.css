@@ -1508,48 +1508,48 @@ table.panitia-table .pt-input{width:100%;}
 }
 
 /* ============================================================
-   BELANJA HADIAH — perapian khusus tampilan hape (dipakai sbg
-   catatan belanja saat di toko). Sengaja discope ke
-   .belanja-hadiah-page supaya TIDAK mempengaruhi tampilan
-   layar lebar/komputer maupun daftar belanja lain (perlengkapan,
-   jalan santai) yang masih memakai class .belanja-item yang sama.
+   DAFTAR BELANJA (Hadiah, Perlengkapan, Jalan Santai) — perapian
+   khusus tampilan hape (dipakai sbg catatan belanja saat di toko).
+   Dishare lewat class .belanja-toko-page supaya ketiga daftar
+   belanja punya tampilan mobile yang konsisten, sekaligus TIDAK
+   mempengaruhi tampilan layar lebar/komputer.
    ============================================================ */
 @media (max-width:820px){
-  .belanja-hadiah-page .panel-body{
+  .belanja-toko-page .panel-body{
     background:var(--cream-card, #faf7ec);
     font-family:'JetBrains Mono', monospace;
     padding-top:6px;
   }
-  .belanja-hadiah-page .belanja-item{
+  .belanja-toko-page .belanja-item{
     align-items:flex-start;
     padding:12px 12px;
     gap:10px 12px;
     border-bottom:1px dashed var(--garis);
     background:transparent;
   }
-  .belanja-hadiah-page .belanja-item:hover{
+  .belanja-toko-page .belanja-item:hover{
     background:transparent;
   }
-  .belanja-hadiah-page .checkbox-wrapper{
+  .belanja-toko-page .checkbox-wrapper{
     width:22px; height:22px;
     margin-top:1px;
     border-radius:2px;
     border-color:var(--ink-soft);
     background:transparent;
   }
-  .belanja-hadiah-page .checkbox-wrapper.checked{
+  .belanja-toko-page .checkbox-wrapper.checked{
     background:transparent;
     border-color:var(--ink);
   }
-  .belanja-hadiah-page .checkbox-wrapper.checked::after{
+  .belanja-toko-page .checkbox-wrapper.checked::after{
     content:'✓';
     color:var(--ink);
     font-size:15px;
   }
-  .belanja-hadiah-page .info{
+  .belanja-toko-page .info{
     flex:1 1 calc(100% - 34px);
   }
-  .belanja-hadiah-page .info .nama{
+  .belanja-toko-page .info .nama{
     font-size:13.5px;
     line-height:1.4;
     display:flex;
@@ -1557,21 +1557,21 @@ table.panitia-table .pt-input{width:100%;}
     justify-content:space-between;
     gap:8px;
   }
-  .belanja-hadiah-page .info .nama .nama-text{
+  .belanja-toko-page .info .nama .nama-text{
     min-width:0;
   }
-  .belanja-hadiah-page .info .nama .qty-total{
+  .belanja-toko-page .info .nama .qty-total{
     flex-shrink:0;
     white-space:nowrap;
     margin-left:0;
     color:var(--ink-soft);
   }
-  .belanja-hadiah-page .info .detail{
+  .belanja-toko-page .info .detail{
     margin-top:6px;
     gap:0;
     row-gap:4px;
   }
-  .belanja-hadiah-page .info .detail .tag{
+  .belanja-toko-page .info .detail .tag{
     font-size:11px;
     font-family:'JetBrains Mono', monospace;
     font-weight:500;
@@ -1580,16 +1580,16 @@ table.panitia-table .pt-input{width:100%;}
     background:transparent;
     color:var(--ink-soft);
   }
-  .belanja-hadiah-page .info .detail .tag:not(:last-child)::after{
+  .belanja-toko-page .info .detail .tag:not(:last-child)::after{
     content:' · ';
     color:var(--abu);
   }
-  .belanja-hadiah-page .info .detail .tag.pack-tag{
+  .belanja-toko-page .info .detail .tag.pack-tag{
     background:transparent;
     color:var(--hijau, #2f9e5b);
     font-weight:700;
   }
-  .belanja-hadiah-page .belanja-item .harga{
+  .belanja-toko-page .belanja-item .harga{
     flex:1 1 100%;
     justify-content:space-between;
     margin-left:34px;
@@ -1599,10 +1599,10 @@ table.panitia-table .pt-input{width:100%;}
     font-size:15px;
     font-weight:700;
   }
-  .belanja-hadiah-page .belanja-item.dibeli .harga{
+  .belanja-toko-page .belanja-item.dibeli .harga{
     opacity:.6;
   }
-  .belanja-hadiah-page .kategori-toko-header{
+  .belanja-toko-page .kategori-toko-header{
     padding:10px 2px 8px;
     margin-top:14px;
     background:transparent;
@@ -1610,14 +1610,14 @@ table.panitia-table .pt-input{width:100%;}
     border-top:1px dashed var(--ink-soft);
     border-bottom:1px dashed var(--ink-soft);
   }
-  .belanja-hadiah-page .kategori-toko-header:first-child{
+  .belanja-toko-page .kategori-toko-header:first-child{
     margin-top:0;
     border-top:none;
   }
-  .belanja-hadiah-page .kategori-toko-label{
+  .belanja-toko-page .kategori-toko-label{
     font-family:'JetBrains Mono', monospace;
   }
-  .belanja-hadiah-page .kategori-toko-count{
+  .belanja-toko-page .kategori-toko-count{
     background:transparent;
     font-family:'JetBrains Mono', monospace;
   }

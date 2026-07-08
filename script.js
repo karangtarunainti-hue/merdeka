@@ -2743,7 +2743,7 @@ function renderBelanjaHadiah(){
   const totalBelumEstimasi = items.filter(i=>!i.sudahDibeli).reduce((s,i)=>s+(Number(i.itemHarga||0)*Number(i.itemQtyDibeli||0)),0);
   const isLoggedIn = !!getCurrentUser();
 
-  if(!items.length) return `<div class="belanja-hadiah-page"><div class="panel"><div class="panel-head"><h3>🎁 Belanja Hadiah</h3></div><div class="panel-body"><div class="empty-state"><h3>Belum ada hadiah</h3>${isLoggedIn ? `<button class="btn" onclick="goSection('hadiah')">+ Tambah Hadiah</button>` : ''}</div></div></div></div>`;
+  if(!items.length) return `<div class="belanja-toko-page"><div class="panel"><div class="panel-head"><h3>🎁 Belanja Hadiah</h3></div><div class="panel-body"><div class="empty-state"><h3>Belum ada hadiah</h3>${isLoggedIn ? `<button class="btn" onclick="goSection('hadiah')">+ Tambah Hadiah</button>` : ''}</div></div></div></div>`;
 
   // Kelompokkan per NAMA barang (gabungan lintas kategori peserta & juara) menjadi SATU checklist
   const nameMap = {};
@@ -2806,7 +2806,7 @@ function renderBelanjaHadiah(){
     </div>`;
   }).join('');
 
-  return `<div class="belanja-hadiah-page"><div class="stat-grid"><div class="stat-card belanja-hadiah"><div class="lbl">Total Item</div><div class="val">${totalItem}</div></div><div class="stat-card pemasukan"><div class="lbl">Belum Dibeli</div><div class="val">${totalBelum}</div></div><div class="stat-card saldo"><div class="lbl">Estimasi Total</div><div class="val">${fmtRp(totalEstimasi)}</div></div></div>
+  return `<div class="belanja-toko-page"><div class="stat-grid"><div class="stat-card belanja-hadiah"><div class="lbl">Total Item</div><div class="val">${totalItem}</div></div><div class="stat-card pemasukan"><div class="lbl">Belum Dibeli</div><div class="val">${totalBelum}</div></div><div class="stat-card saldo"><div class="lbl">Estimasi Total</div><div class="val">${fmtRp(totalEstimasi)}</div></div></div>
   <div class="panel"><div class="panel-head"><div><h3>🎁 Daftar Belanja Hadiah</h3><div class="desc">Belum dibeli: <strong>${fmtRp(totalBelumEstimasi)}</strong></div></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
       <button class="btn success small" onclick="tandaiSemuaBelanjaHadiah()" ${!isLoggedIn ? 'disabled' : ''}>✓ Semua Dibeli</button>
@@ -2946,7 +2946,7 @@ function renderBelanjaPerlengkapan(){
   const totalItem = items.length, totalBelum = items.filter(i=>!i.sudahDibeli).length, totalEstimasi = items.reduce((s,i)=>s+i.hargaTotal,0), totalBelumEstimasi = items.filter(i=>!i.sudahDibeli).reduce((s,i)=>s+i.hargaTotal,0);
   const isLoggedIn = !!getCurrentUser();
   
-  if(!items.length) return `<div class="panel"><div class="panel-head"><h3>📦 Belanja Perlengkapan</h3></div><div class="panel-body"><div class="empty-state"><h3>Belum ada perlengkapan</h3>${isLoggedIn ? `<button class="btn" onclick="goSection('lomba')">+ Tambah Kebutuhan</button>` : ''}</div></div></div>`;
+  if(!items.length) return `<div class="belanja-toko-page"><div class="panel"><div class="panel-head"><h3>📦 Belanja Perlengkapan</h3></div><div class="panel-body"><div class="empty-state"><h3>Belum ada perlengkapan</h3>${isLoggedIn ? `<button class="btn" onclick="goSection('lomba')">+ Tambah Kebutuhan</button>` : ''}</div></div></div></div>`;
 
   // Kelompokkan per NAMA barang (gabungan lintas lomba), total kebutuhan digabung, detail per lomba tetap ada
   const nameMap = {};
@@ -2977,20 +2977,20 @@ function renderBelanjaPerlengkapan(){
     return `<div class="belanja-item ${semuaDibeli?'dibeli':''}">
       <div class="checkbox-wrapper ${semuaDibeli?'checked':''} ${!isLoggedIn ? 'disabled' : ''}" onclick="${isLoggedIn ? `toggleBelanjaPerlengkapanGroup(${gi})` : 'toast(\'⛔ Login untuk mengedit\')'}"></div>
       <div class="info">
-        <div class="nama">${esc(g.nama)} <span style="font-weight:600; color:var(--ink-soft); font-size:12px;">(Total: ${totalQty})</span></div>
+        <div class="nama"><span class="nama-text">${esc(g.nama)}</span><span class="qty-total">(Total: ${totalQty})</span></div>
         <div class="detail">${tagHtml}${semuaDibeli&&tglTerbaru?`<span>✓ Dibeli: ${fmtDate(tglTerbaru)}</span>`:(groupBelum.length && groupBelum.length<groupItems.length ? `<span style="color:var(--orange);">Sebagian belum (${groupBelum.length}/${groupItems.length})</span>` : '')}</div>
       </div>
       <div class="harga">${fmtRp(totalHarga)}</div>
     </div>`;
   }).join('');
 
-  return `<div class="stat-grid"><div class="stat-card belanja-perlengkapan"><div class="lbl">Total Item</div><div class="val">${totalItem}</div></div><div class="stat-card pemasukan"><div class="lbl">Belum Dibeli</div><div class="val">${totalBelum}</div></div><div class="stat-card saldo"><div class="lbl">Estimasi Total</div><div class="val">${fmtRp(totalEstimasi)}</div></div></div>
+  return `<div class="belanja-toko-page"><div class="stat-grid"><div class="stat-card belanja-perlengkapan"><div class="lbl">Total Item</div><div class="val">${totalItem}</div></div><div class="stat-card pemasukan"><div class="lbl">Belum Dibeli</div><div class="val">${totalBelum}</div></div><div class="stat-card saldo"><div class="lbl">Estimasi Total</div><div class="val">${fmtRp(totalEstimasi)}</div></div></div>
   <div class="panel"><div class="panel-head"><div><h3>📦 Daftar Belanja Perlengkapan</h3><div class="desc">Belum dibeli: <strong>${fmtRp(totalBelumEstimasi)}</strong></div></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
       <button class="btn success small" onclick="tandaiSemuaBelanjaPerlengkapan()" ${!isLoggedIn ? 'disabled' : ''}>✓ Semua Dibeli</button>
       <button class="btn secondary small" onclick="resetSemuaBelanjaPerlengkapan()" ${!isLoggedIn ? 'disabled' : ''}>↺ Reset</button>
     </div></div>
-  <div class="panel-body">${groupHtml}</div></div>`;
+  <div class="panel-body">${groupHtml}</div></div></div>`;
 }
 
 function toggleBelanjaPerlengkapan(kebutuhanId, belanjaId){
@@ -3258,6 +3258,7 @@ function renderBelanjaJalanSantai(){
 
   if (!items.length) {
     return `
+    <div class="belanja-toko-page">
     <div class="panel">
       <div class="panel-head"><h3>🛍️ Belanja Jalan Santai</h3></div>
       <div class="panel-body">
@@ -3265,6 +3266,7 @@ function renderBelanjaJalanSantai(){
           ${isLoggedIn ? `<button class="btn pink" onclick="goSection('hadiah-jalan')">+ Tambah Hadiah</button>` : ''}
         </div>
       </div>
+    </div>
     </div>`;
   }
 
@@ -3299,7 +3301,7 @@ function renderBelanjaJalanSantai(){
            onclick="${isLoggedIn ? `toggleBelanjaJalanGroup(${gi})` : 'toast(\'⛔ Login untuk mengedit\')'}">
       </div>
       <div class="info">
-        <div class="nama">${esc(g.nama)} <span style="font-weight:600; color:var(--ink-soft); font-size:12px;">(Total: ${totalQty})</span></div>
+        <div class="nama"><span class="nama-text">${esc(g.nama)}</span><span class="qty-total">(Total: ${totalQty})</span></div>
         <div class="detail">${tagHtml}${semuaDibeli&&tglTerbaru?`<span>✓ Dibeli: ${fmtDate(tglTerbaru)}</span>`:(groupBelum.length && groupBelum.length<groupItems.length ? `<span style="color:var(--orange);">Sebagian belum (${groupBelum.length}/${groupItems.length})</span>` : '')}</div>
       </div>
       <div class="harga">${fmtRp(totalHarga)}</div>
@@ -3307,6 +3309,7 @@ function renderBelanjaJalanSantai(){
   }).join('');
 
   return `
+  <div class="belanja-toko-page">
   <div class="stat-grid">
     <div class="stat-card jalan-santai"><div class="lbl">Total Item</div><div class="val">${totalItem}</div></div>
     <div class="stat-card pemasukan"><div class="lbl">Belum Dibeli</div><div class="val">${totalBelum}</div></div>
@@ -3326,6 +3329,7 @@ function renderBelanjaJalanSantai(){
     <div class="panel-body">
       ${groups}
     </div>
+  </div>
   </div>`;
 }
 

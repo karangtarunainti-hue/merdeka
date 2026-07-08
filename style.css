@@ -1226,11 +1226,15 @@
     table.operasional-table{table-layout:fixed; font-size:12px;}
     table.operasional-table th, table.operasional-table td{white-space:normal; word-break:break-word; padding:8px 6px;}
     .panel-body.flush:has(table.operasional-table){overflow-x:visible;}
-    table.operasional-table th:nth-child(1), table.operasional-table td:nth-child(1){width:9%; white-space:nowrap; padding:8px 4px 8px 14px;}
-    table.operasional-table th:nth-child(2), table.operasional-table td:nth-child(2){width:33%; text-align:left;}
+    /* Kolom "Jumlah" (No.5) dilebarkan dari 20% -> 30% karena angka hasil
+       kali (Harga Satuan × QTY) paling sering jadi angka terpanjang di
+       baris — sebelumnya suka kepotong/keluar dari kartu di layar sempit.
+       Ruangnya diambil dari kolom No/Keterangan/QTY yang lebih longgar. */
+    table.operasional-table th:nth-child(1), table.operasional-table td:nth-child(1){width:8%; white-space:nowrap; padding:8px 4px 8px 14px;}
+    table.operasional-table th:nth-child(2), table.operasional-table td:nth-child(2){width:29%; text-align:left;}
     table.operasional-table th:nth-child(3), table.operasional-table td:nth-child(3){width:20%; white-space:nowrap;}
-    table.operasional-table th:nth-child(4), table.operasional-table td:nth-child(4){width:13%; white-space:nowrap;}
-    table.operasional-table th:nth-child(5), table.operasional-table td:nth-child(5){width:20%; white-space:nowrap; padding-right:14px;}
+    table.operasional-table th:nth-child(4), table.operasional-table td:nth-child(4){width:8%; white-space:nowrap;}
+    table.operasional-table th:nth-child(5), table.operasional-table td:nth-child(5){width:30%; white-space:nowrap; padding-right:6px; font-size:11px;}
     table.operasional-table th:nth-child(6), table.operasional-table td:nth-child(6){width:5%; padding-right:8px;}
     table.operasional-table td.operasional-actions{text-align:right;}
 

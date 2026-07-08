@@ -13,6 +13,21 @@
 - Tampilan mengikuti gaya desain Merdeka yang sudah ada (kartu, panel, badge,
   modal) — bukan tampilan lama Sedesa (warna navy/kertas/copper).
 
+## Update — perbaikan multi-user (6+ orang, device/waktu berbeda-beda)
+
+Ditemukan satu celah race condition: saat admin mengedit **Total Unit** aset
+di "Kelola Inventaris", perhitungan stok tersedia sebelumnya dilakukan di
+browser pakai data yang bisa basi — kalau ada orang lain meminjam/
+mengembalikan barang yang sama persis di saat itu, perubahan stoknya bisa
+tertimpa diam-diam. Sudah diperbaiki jadi 1 transaksi atomik di server
+(RPC `kt_gudang_update_asset`, lihat komentar di file migrasinya untuk
+detail skenarionya). Modul Gudang juga sekarang ikut auto-refresh 20 detik
+seperti menu lain (sebelumnya cuma dimuat sekali + tombol refresh manual).
+
+**Langkah tambahan**: jalankan juga `supabase-gudang-race-fix-migration.sql`
+di SQL Editor (project Merdeka), sekali saja, setelah migrasi Gudang utama.
+Aman dijalankan berkali-kali kalau perlu.
+
 ## Langkah deploy
 
 1. **Jalankan migrasi SQL** — buka Supabase Dashboard project **Merdeka**

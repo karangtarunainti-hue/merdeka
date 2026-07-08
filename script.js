@@ -1640,7 +1640,7 @@ function generateReminders(){
         {label: 'Anggota:', value: belumBayar.length > 3 ? `${labels} +${belumBayar.length-3} lagi` : labels},
         {label: 'Total Tunggakan:', value: fmtRp(totalTunggakan), valueClass: 'danger'}
       ],
-      action: {label: `Tagih ${belumBayar.length} Anggota →`, link: 'database-anggota'}
+      action: {label: `Lihat ${belumBayar.length} Anggota →`, link: 'anggota'}
     });
   }
 

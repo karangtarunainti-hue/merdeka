@@ -2639,7 +2639,6 @@ function openHadiahBudgetModal(){
     </div>`;
   }).join('');
   setModal('Atur Budget Hadiah per Kategori', `
-    <div class="hint" style="margin-bottom:12px;">Tentukan target budget hadiah untuk setiap kombinasi Kategori Peserta &amp; Juara. Contoh: Lomba Anak - Juara 1 Rp100.000, Juara 2 Rp75.000, Juara 3 Rp50.000, dst. Angka ini dipakai sebagai acuan (bukan pengurang saldo) dan dibandingkan dengan total belanja hadiah aktual per paket.</div>
     <div style="max-height:60vh;overflow-y:auto;padding-right:4px;">${bodyHtml}</div>
   `, [
     {label:'Batal', cls:'secondary', onclick:closeModal},

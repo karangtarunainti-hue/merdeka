@@ -15,11 +15,24 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // kemungkinan data lama "nyangkut" dan bikin konflik antar device.
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   global: {
-    fetch: (url, options = {}) => fetch(url, {
-      ...options,
-      cache: 'no-store',
-      headers: { ...(options.headers || {}), 'Cache-Control': 'no-cache' },
-    }),
+    fetch: (url, options = {}) => {
+      // PENTING: options.headers yang dikirim Supabase internal berupa objek
+      // `Headers`, BUKAN plain object. Spread `{ ...options.headers }` tidak
+      // bisa membaca isi `Headers` (datanya disimpan secara internal, bukan
+      // enumerable property biasa), sehingga hasilnya jadi `{}` kosong dan
+      // header `apikey` + `Authorization` yang sudah disiapkan Supabase malah
+      // KEBUANG sebelum request dikirim -> semua request jadi 401 Unauthorized
+      // "No apikey request header found". Pakai constructor `Headers` di sini
+      // supaya isi header (dari instance Headers, plain object, atau array
+      // pairs manapun) benar-benar ter-copy.
+      const mergedHeaders = new Headers(options.headers || {});
+      mergedHeaders.set('Cache-Control', 'no-cache');
+      return fetch(url, {
+        ...options,
+        cache: 'no-store',
+        headers: mergedHeaders,
+      });
+    },
   },
 });
 

@@ -2257,12 +2257,12 @@ function renderOperasional(){
   const list = gOperasional().slice().sort((a,b)=>(b.created_at||b.tanggal||'').localeCompare(a.created_at||a.tanggal||''));
   const total = list.reduce((s,o)=>s+Number(o.jumlah||0),0);
   const isLoggedIn = !!getCurrentUser();
-  const rows = list.map((o,idx)=>`<tr${isLoggedIn ? ` class="row-clickable" onclick="openOperasionalModal('${o.id}')"` : ''}><td data-label="No">${idx+1}</td><td data-label="Keterangan">${esc(o.keterangan)}</td><td data-label="Harga Satuan" class="num">${fmtRp(o.satuan||0)}</td><td data-label="QTY" class="num">${o.qty||1}</td><td data-label="Jumlah" class="num">${fmtRp(o.jumlah)}</td>${isLoggedIn ? `<td class="operasional-actions" data-label="" style="text-align:right;">
+  const rows = list.map((o,idx)=>`<tr${isLoggedIn ? ` class="row-clickable" onclick="openOperasionalModal('${o.id}')"` : ''}><td data-label="No">${idx+1}</td><td data-label="Keterangan">${esc(o.keterangan)}</td><td data-label="Harga" class="num">${fmtRp(o.satuan||0)}</td><td data-label="QTY" class="num">${o.qty||1}</td><td data-label="Jumlah" class="num">${fmtRp(o.jumlah)}</td>${isLoggedIn ? `<td class="operasional-actions" data-label="" style="text-align:right;">
     <button class="icon-btn" onclick="event.stopPropagation();hapusOperasional('${o.id}')">🗑</button>
   </td>` : ''}</tr>`).join('');
   return `<div class="stat-grid"><div class="stat-card pengeluaran"><div class="lbl">Total Operasional</div><div class="val">${fmtRp(total)}</div></div></div>
   <div class="panel"><div class="panel-head"><h3>Biaya Operasional</h3>${isLoggedIn ? `<button class="btn" onclick="openOperasionalModal()">+ Tambah</button>` : ''}</div>
-  <div class="panel-body flush"><table class="general-table operasional-table"><thead><tr><th>No</th><th>Keterangan</th><th class="num">Harga Satuan</th><th class="num">QTY</th><th class="num">Jumlah</th>${isLoggedIn ? '<th></th>' : ''}</tr></thead>
+  <div class="panel-body flush"><table class="general-table operasional-table"><thead><tr><th>No</th><th>Keterangan</th><th class="num">Harga</th><th class="num">QTY</th><th class="num">Jumlah</th>${isLoggedIn ? '<th></th>' : ''}</tr></thead>
   <tbody>${rows||`<tr class="empty-row"><td colspan="${isLoggedIn?6:5}">Belum ada biaya.</td></tr>`}</tbody></table></div></div>`;
 }
 function hitungJumlahOperasionalModal(){

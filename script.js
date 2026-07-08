@@ -707,19 +707,55 @@ async function _flushSaveDB(){
     // request kt_events selesai committed, sehingga foreign key constraint gagal
     // (error 409 "violates foreign key constraint kt_settings_event_id_fkey" dkk).
     const eventsTable = ARRAY_TABLE_MAP.events;
-    const otherEntries = arrayEntries.filter(([key]) => key !== 'events');
     const eventsConflicts = await syncArrayTable(eventsTable, db.events, 'events');
-    const arrayResults = await Promise.all([
-      ...otherEntries.map(([key, table]) => syncArrayTable(table, db[key], key)),
+
+    // Sama seperti alasan 'events' di atas: beberapa tabel lain SALING punya foreign
+    // key satu sama lain (bukan cuma ke kt_events), jadi tidak semuanya aman disinkron
+    // bersamaan dalam satu Promise.all. Rantai dependensinya:
+    //   lomba ──> lombaKebutuhan ──> daftarBelanjaPerlengkapan
+    //   lomba, hadiahKategori ──> lombaHadiah
+    //   hadiahKategori ──> daftarBelanjaHadiah
+    //   hadiahJalanSantai ──> daftarBelanjaJalanSantai
+    // Kalau baris BARU di tabel induk (mis. lombaKebutuhan) disinkron paralel dengan
+    // baris BARU di tabel anak yang mereferensikannya (daftarBelanjaPerlengkapan),
+    // request anak bisa sampai & dieksekusi server SEBELUM request induk selesai
+    // committed → error 409 "violates foreign key constraint ..._fkey". Makanya
+    // tabel-tabel ini disinkron bertahap per "level" (menunggu level sebelumnya
+    // selesai), bukan semua sekaligus. Di dalam satu level tetap paralel karena
+    // tidak saling bergantung.
+    const LEVEL_1_KEYS = ['anggota','donatur','transaksiLain','operasional','lomba','hadiahKategori','hadiahJalanSantai','jadwal','agenda','kas'];
+    const LEVEL_2_KEYS = ['lombaKebutuhan','lombaHadiah','daftarBelanjaHadiah','daftarBelanjaJalanSantai'];
+    const LEVEL_3_KEYS = ['daftarBelanjaPerlengkapan'];
+    const otherEntries = arrayEntries.filter(([key]) => key !== 'events');
+    const byKey = key => otherEntries.find(([k]) => k === key);
+    const level1Entries = LEVEL_1_KEYS.map(byKey).filter(Boolean);
+    const level2Entries = LEVEL_2_KEYS.map(byKey).filter(Boolean);
+    const level3Entries = LEVEL_3_KEYS.map(byKey).filter(Boolean);
+    // Jaga-jaga kalau ada key baru di ARRAY_TABLE_MAP yang belum dimasukkan ke daftar
+    // level manapun di atas — tetap disinkron di level 1 (paralel dengan yang lain)
+    // supaya tidak diam-diam terlewat.
+    const categorizedKeys = new Set([...LEVEL_1_KEYS, ...LEVEL_2_KEYS, ...LEVEL_3_KEYS]);
+    const uncategorizedEntries = otherEntries.filter(([key]) => !categorizedKeys.has(key));
+
+    const level1Results = await Promise.all([
+      ...level1Entries.map(([key, table]) => syncArrayTable(table, db[key], key)),
+      ...uncategorizedEntries.map(([key, table]) => syncArrayTable(table, db[key], key)),
       syncSettings(),
       syncTelegram(),
       syncGuestMenu(),
       syncDokumenGlobal(),
     ]);
-    // Hasil konflik dari 'events' (disimpan terpisah di atas) digabung dengan
-    // hasil dari otherEntries (yang lain — syncSettings dkk — tidak mengembalikan
-    // daftar konflik).
-    const allResults = [eventsConflicts, ...arrayResults.slice(0, otherEntries.length)].flat().filter(Boolean);
+    const level2Results = await Promise.all(level2Entries.map(([key, table]) => syncArrayTable(table, db[key], key)));
+    const level3Results = await Promise.all(level3Entries.map(([key, table]) => syncArrayTable(table, db[key], key)));
+
+    // Hasil konflik dari 'events' (disimpan terpisah di atas) digabung dengan hasil
+    // dari semua level lainnya (syncSettings dkk tidak mengembalikan daftar konflik).
+    const arrayConflictResults = [
+      ...level1Results.slice(0, level1Entries.length + uncategorizedEntries.length),
+      ...level2Results,
+      ...level3Results,
+    ];
+    const allResults = [eventsConflicts, ...arrayConflictResults].flat().filter(Boolean);
     const ghosts = allResults.filter(c => c.ghost);
     const conflicts = allResults.filter(c => !c.ghost);
     if(conflicts.length){

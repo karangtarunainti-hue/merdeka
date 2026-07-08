@@ -473,13 +473,12 @@
   table.database-table th:nth-child(7), table.database-table td:nth-child(7) { width:12%; }
   table.database-table th:nth-child(8), table.database-table td:nth-child(8) { width:15%; }
 
-  table.jalan-table th:nth-child(1), table.jalan-table td:nth-child(1) { width:18%; }
-  table.jalan-table th:nth-child(2), table.jalan-table td:nth-child(2) { width:14%; }
-  table.jalan-table th:nth-child(3), table.jalan-table td:nth-child(3) { width:14%; }
-  table.jalan-table th:nth-child(4), table.jalan-table td:nth-child(4) { width:10%; }
-  table.jalan-table th:nth-child(5), table.jalan-table td:nth-child(5) { width:16%; }
-  table.jalan-table th:nth-child(6), table.jalan-table td:nth-child(6) { width:18%; }
-  table.jalan-table th:nth-child(7), table.jalan-table td:nth-child(7) { width:10%; }
+  table.jalan-table th:nth-child(1), table.jalan-table td:nth-child(1) { width:8%; }
+  table.jalan-table th:nth-child(2), table.jalan-table td:nth-child(2) { width:32%; }
+  table.jalan-table th:nth-child(3), table.jalan-table td:nth-child(3) { width:20%; }
+  table.jalan-table th:nth-child(4), table.jalan-table td:nth-child(4) { width:12%; }
+  table.jalan-table th:nth-child(5), table.jalan-table td:nth-child(5) { width:18%; }
+  table.jalan-table th:nth-child(6), table.jalan-table td:nth-child(6) { width:10%; }
 
   table.lomba-table th:nth-child(1), table.lomba-table td:nth-child(1) { width:32%; }
   table.lomba-table th:nth-child(2), table.lomba-table td:nth-child(2) { width:22%; }
@@ -1149,10 +1148,11 @@
     .panel-body.flush{overflow-x:auto; -webkit-overflow-scrolling:touch;}
     table.anggota-table th:nth-child(1), table.anggota-table td:nth-child(1),
     table.database-table th:nth-child(1), table.database-table td:nth-child(1),
-    table.jalan-table th:nth-child(1), table.jalan-table td:nth-child(1),
+    table.jalan-table th:nth-child(2), table.jalan-table td:nth-child(2),
     table.lomba-table th:nth-child(1), table.lomba-table td:nth-child(1),
     table.hadiah-table th:nth-child(1), table.hadiah-table td:nth-child(1),
     table.general-table th:nth-child(1), table.general-table td:nth-child(1) { width:auto; min-width:100px; }
+    table.jalan-table th:nth-child(1), table.jalan-table td:nth-child(1) { width:auto; min-width:32px; }
 
     /* Tampilan LPJ di HP: di-scale utuh (lihat applyLpjMobileScale di script.js)
        supaya persis sama seperti desktop, hanya diperkecil proporsional. */

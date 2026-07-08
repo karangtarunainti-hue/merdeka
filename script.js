@@ -762,11 +762,6 @@ const JUARA_LIST = [
   {v:'3', l:'Juara 3'},
   {v:'partisipasi', l:'Partisipasi'},
 ];
-const KATEGORI_JALAN_SANTAI = [
-  {v:'umum', l:'Hadiah Umum'},
-  {v:'khusus', l:'Hadiah Khusus'},
-  {v:'doorprize', l:'Doorprize'},
-];
 const KATEGORI_JADWAL = [
   {v:'belanja', l:'🛒 Belanja'},
   {v:'rapat', l:'📋 Rapat'},
@@ -3184,17 +3179,16 @@ function renderHadiahJalanSantai(){
   const totalItems = list.reduce((s,h) => s + Number(h.qty||0), 0);
   const isLoggedIn = !!getCurrentUser();
 
-  const rows = list.map(h => {
+  const rows = list.map((h, idx) => {
     const belanja = db.daftarBelanjaJalanSantai.find(b => b.hadiah_jalan_id === h.id && b.event_id === eid());
     const sudahDibeli = belanja && belanja.status === 'dibeli';
     return `
     <tr class="${sudahDibeli?'dibeli':''}">
+      <td class="num">${idx+1}</td>
       <td>${esc(h.nama_hadiah)}</td>
-      <td><span class="kategori-pill jalan-santai">${labelKategoriJalan(h.kategori)}</span></td>
       <td class="num">${fmtRp(h.harga_satuan)}</td>
       <td class="num">${h.qty}</td>
       <td class="num">${fmtRp(Number(h.harga_satuan||0) * Number(h.qty||0))}</td>
-      <td>${esc(h.keterangan||'-')}</td>
       <td style="text-align:right; white-space:nowrap;">
         <button class="btn secondary small" onclick="toggleBelanjaJalan('${h.id}')" ${!isLoggedIn ? 'disabled' : ''}>${sudahDibeli?'✓ Dibeli':'Belum'}</button>
         <button class="icon-btn" onclick="openHadiahJalanModal('${h.id}')" ${!isLoggedIn ? 'disabled' : ''} title="Edit">✎</button>
@@ -3218,15 +3212,13 @@ function renderHadiahJalanSantai(){
     </div>
     <div class="panel-body flush">
       <table class="jalan-table">
-        <thead><tr><th>Nama Hadiah</th><th>Kategori</th><th class="num">Harga Satuan</th><th class="num">Qty</th><th class="num">Total</th><th>Keterangan</th><th></th></tr></thead>
-        <tbody>${rows || `<tr class="empty-row"><td colspan="7">Belum ada hadiah jalan santai.</td></tr>`}</tbody>
-        ${list.length > 0 ? `<tfoot><tr><td colspan="4">Total</td><td class="num">${fmtRp(total)}</td><td colspan="2"></td></tr></tfoot>` : ''}
+        <thead><tr><th class="num">No</th><th>Nama Hadiah</th><th class="num">Harga Satuan</th><th class="num">Qty</th><th class="num">Total</th><th></th></tr></thead>
+        <tbody>${rows || `<tr class="empty-row"><td colspan="6">Belum ada hadiah jalan santai.</td></tr>`}</tbody>
+        ${list.length > 0 ? `<tfoot><tr><td colspan="4">Total</td><td class="num">${fmtRp(total)}</td><td></td></tr></tfoot>` : ''}
       </table>
     </div>
   </div>`;
 }
-
-function labelKategoriJalan(v){ return (KATEGORI_JALAN_SANTAI.find(k=>k.v===v)||{}).l || v; }
 
 function openHadiahJalanModal(id){
   if (!canEditSection('hadiah-jalan')) { toast('⛔ Login untuk mengedit data'); return; }
@@ -3234,27 +3226,21 @@ function openHadiahJalanModal(id){
   setModal(editing?'Edit Hadiah Jalan Santai':'Tambah Hadiah Jalan Santai', `
     <div class="field"><label>Nama Hadiah</label><input id="f-nama" value="${editing?esc(editing.nama_hadiah):''}" placeholder="mis. Baju, Topi, Snack Pack"></div>
     <div class="field-row">
-      <div class="field"><label>Kategori</label>
-        <select id="f-kategori">${KATEGORI_JALAN_SANTAI.map(k=>`<option value="${k.v}" ${editing&&editing.kategori===k.v?'selected':''}>${k.l}</option>`).join('')}</select>
-      </div>
+      <div class="field"><label>Harga Satuan (Rp)</label><input id="f-harga" class="currency-input" type="text" value="${editing?formatCurrency(editing.harga_satuan):''}"></div>
       <div class="field"><label>Qty</label><input id="f-qty" type="number" min="1" value="${editing?editing.qty:1}"></div>
     </div>
-    <div class="field"><label>Harga Satuan (Rp)</label><input id="f-harga" class="currency-input" type="text" value="${editing?formatCurrency(editing.harga_satuan):''}"></div>
-    <div class="field"><label>Keterangan (opsional)</label><input id="f-ket" value="${editing?esc(editing.keterangan||''):''}" placeholder="mis. Sponsor dari Toko ABC"></div>
   `, [
     {label:'Batal', cls:'secondary', onclick:closeModal},
     {label:editing?'Simpan':'Tambah', cls:'pink', onclick:()=>{
       const nama_hadiah = document.getElementById('f-nama').value.trim();
-      const kategori = document.getElementById('f-kategori').value;
       const qty = Number(document.getElementById('f-qty').value||0);
       const harga_satuan = getCurrencyValue(document.getElementById('f-harga'));
-      const keterangan = document.getElementById('f-ket').value.trim();
       if(!nama_hadiah || qty <= 0 || harga_satuan <= 0){ toast('Nama, qty & harga wajib diisi'); return; }
       let actionMsg = editing ? `✏️ Edit hadiah jalan santai: ${editing.nama_hadiah} → ${nama_hadiah}` : `➕ Hadiah jalan santai baru: ${nama_hadiah}`;
-      if(editing){ Object.assign(editing, {nama_hadiah, kategori, qty, harga_satuan, keterangan}); }
-      else{ db.hadiahJalanSantai.push({id:uid(), event_id:eid(), nama_hadiah, kategori, qty, harga_satuan, keterangan}); }
+      if(editing){ Object.assign(editing, {nama_hadiah, qty, harga_satuan}); }
+      else{ db.hadiahJalanSantai.push({id:uid(), event_id:eid(), nama_hadiah, qty, harga_satuan}); }
       saveDB(); closeModal(); renderContent(); renderTopbarSaldo(); toast('Hadiah jalan santai disimpan');
-      notifyTelegram(actionMsg, `Kategori: ${labelKategoriJalan(kategori)}\nQty: ${qty}\nHarga: ${fmtRp(harga_satuan)}\nTotal: ${fmtRp(harga_satuan * qty)}\nKeterangan: ${keterangan || '-'}`);
+      notifyTelegram(actionMsg, `Qty: ${qty}\nHarga: ${fmtRp(harga_satuan)}\nTotal: ${fmtRp(harga_satuan * qty)}`);
     }}
   ]);
   setTimeout(setupAllCurrencyInputs, 50);
@@ -3266,7 +3252,7 @@ function hapusHadiahJalan(id){
   const h = db.hadiahJalanSantai.find(x=>x.id===id);
   db.hadiahJalanSantai = db.hadiahJalanSantai.filter(h=>h.id!==id);
   saveDB(); renderContent(); renderTopbarSaldo();
-  if(h) notifyTelegram(`🗑️ Hapus hadiah jalan santai: ${h.nama_hadiah}`, `Kategori: ${labelKategoriJalan(h.kategori)}`);
+  if(h) notifyTelegram(`🗑️ Hapus hadiah jalan santai: ${h.nama_hadiah}`, `Qty: ${h.qty}\nHarga: ${fmtRp(h.harga_satuan)}`);
 }
 
 function toggleBelanjaJalan(hadiahId){
@@ -3301,7 +3287,7 @@ function toggleBelanjaJalan(hadiahId){
     toast(`✓ "${h.nama_hadiah}" dibeli`);
   }
   saveDB(); renderContent(); renderTopbarSaldo();
-  if(actionMsg) notifyTelegram(actionMsg, `Kategori: ${labelKategoriJalan(h.kategori)}\nQty: ${h.qty}\nHarga: ${fmtRp(h.harga_satuan)}`);
+  if(actionMsg) notifyTelegram(actionMsg, `Qty: ${h.qty}\nHarga: ${fmtRp(h.harga_satuan)}`);
 }
 function toggleBelanjaJalanGroup(gi){
   if (!canEditSection('hadiah-jalan') && !canEditSection('belanja-jalan')) { toast('⛔ Login untuk mengedit data'); return; }
@@ -3320,11 +3306,11 @@ function toggleBelanjaJalanGroup(gi){
     let existing = db.daftarBelanjaJalanSantai.find(b=>b.hadiah_jalan_id===hid && b.event_id===eid());
     if(existing){ existing.status = newStatus; existing.tanggal_beli = tgl; }
     else { db.daftarBelanjaJalanSantai.push({id:uid(), event_id:eid(), hadiah_jalan_id:hid, status:newStatus, tanggal_beli:tgl}); }
-    detail.push(labelKategoriJalan(h.kategori));
+    detail.push(`Qty ${h.qty} × ${fmtRp(h.harga_satuan)}`);
   });
   saveDB(); renderContent(); renderTopbarSaldo();
   if(newStatus==='dibeli'){
-    toast(`✓ "${group.nama}" dibeli (semua kategori)`);
+    toast(`✓ "${group.nama}" dibeli`);
     notifyTelegram(`✅ Belanja jalan santai DIBELI: ${group.nama}`, detail.join('\n'));
   } else {
     toast(`"${group.nama}" → belum dibeli`);
@@ -3379,7 +3365,7 @@ function renderBelanjaJalanSantai(){
     </div>`;
   }
 
-  // Kelompokkan per NAMA hadiah (gabungan lintas kategori jalan santai), total kebutuhan digabung, detail per kategori tetap ada
+  // Kelompokkan per NAMA hadiah (kalau ada beberapa entri dengan nama sama), total digabung
   const nameMap = {};
   items.forEach(item => {
     const key = item.nama_hadiah.trim().toLowerCase();
@@ -3394,7 +3380,7 @@ function renderBelanjaJalanSantai(){
 
   window._belanjaJalanGroups = {};
   const groups = nameGroups.map((g, gi) => {
-    const groupItems = g.list.slice().sort((a,b) => a.kategori.localeCompare(b.kategori));
+    const groupItems = g.list;
     window._belanjaJalanGroups[gi] = {nama: g.nama, refs: groupItems.map(i=>i.id)};
 
     const totalQty = groupItems.reduce((s,i)=>s+Number(i.qty||0),0);
@@ -3403,7 +3389,7 @@ function renderBelanjaJalanSantai(){
     const groupBelum = groupItems.filter(i => !i.sudahDibeli);
     const tglTerbaru = groupItems.filter(i=>i.tanggalBeli).map(i=>i.tanggalBeli).sort().pop();
 
-    const tagHtml = groupItems.map(item => `<span class="tag tag-pink">${labelKategoriJalan(item.kategori)} · ${item.qty} @${fmtRp(item.harga_satuan)}${item.keterangan?` · ${esc(item.keterangan)}`:''}</span>`).join('');
+    const tagHtml = groupItems.map(item => `<span class="tag tag-pink">${item.qty} @${fmtRp(item.harga_satuan)}</span>`).join('');
 
     return `<div class="belanja-item ${semuaDibeli ? 'dibeli' : ''}">
       <div class="checkbox-wrapper ${semuaDibeli ? 'checked' : ''} ${!isLoggedIn ? 'disabled' : ''}" 
@@ -3453,7 +3439,7 @@ function tandaiSemuaBelanjaJalan(){
       if (existing) { existing.status = 'dibeli'; existing.tanggal_beli = todayISO(); }
       else { db.daftarBelanjaJalanSantai.push({id:uid(), event_id:eid(), hadiah_jalan_id:h.id, status:'dibeli', tanggal_beli:todayISO()}); }
       count++;
-      detail.push(`${h.nama_hadiah} (${labelKategoriJalan(h.kategori)})`);
+      detail.push(`${h.nama_hadiah}`);
     }
   });
   if(count===0){ toast('Semua sudah dibeli'); }

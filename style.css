@@ -1507,9 +1507,77 @@ table.panitia-table .pt-input{width:100%;}
 .panitia-paper.exporting .pt-label-input{background:var(--ink) !important; color:#fff !important;}
 
 @media (max-width:720px){
-  .pt-body{grid-template-columns:1fr;}
+  .pt-body{grid-template-columns:1fr; gap:20px;}
   .pt-side{border-left:none; padding-left:0; border-top:1px dashed var(--garis); padding-top:14px;}
   .panitia-paper{padding:20px;}
+}
+
+/* --- Panitia/Sinoman: penyesuaian khusus layar HP (mis. 1080x1920 ≈ 360-412px
+   CSS width). Fokus: toolbar jangan bertumpuk aneh, field kop surat jangan
+   memaksa lebar minimum yang bikin konten kepotong/perlu digeser, dan tabel
+   Jadwal Piket (3 kolom Pagi/Siang/Sore) diubah jadi kartu bertumpuk supaya
+   tiap input cukup lega untuk diketik nama. --- */
+@media (max-width:480px){
+  #content{padding:14px 8px 40px;}
+
+  /* Toolbar: tombol "← Daftar" full-width sendiri di baris atas, sisanya
+     (Upload TTD / Simpan / Unduh JPEG) berbagi baris di bawahnya supaya
+     tidak numpuk tak beraturan saat wrap. */
+  .panitia-toolbar{gap:6px; padding:8px 2px;}
+  .panitia-toolbar .spacer{flex:0 0 100%; height:0;}
+  .panitia-toolbar > .btn:first-child{flex:1 1 100%;}
+  .panitia-toolbar > .btn{flex:1 1 auto; min-width:0; white-space:nowrap;}
+
+  .panitia-paper{padding:14px 10px; font-size:12.5px; border-left:none; border-right:none;}
+
+  .pt-title{font-size:16px;}
+  .pt-org{font-size:13px;}
+  .pt-org-detail{font-size:10.5px; line-height:1.8; padding:0 2px;}
+  .pt-head{padding-bottom:10px; margin-bottom:14px;}
+
+  /* Baris meta (Yang Punya Hajat / Hari,Tanggal / Tempat): dibuat flex-wrap
+     supaya kalau tak muat, input pindah ke baris baru alih-alih memaksa
+     lebar minimum lama (pt-tempat 220px, pt-date 130px) yang bikin overflow. */
+  .pt-meta-row{display:flex; flex-wrap:wrap; align-items:center; gap:3px 6px;}
+  .pt-inline{min-width:40px;}
+  .pt-date{min-width:0; flex:0 1 auto;}
+  .pt-tempat{min-width:0; width:100%; margin-top:2px;}
+
+  .pt-section-title{font-size:11px; margin-bottom:8px;}
+
+  /* Tabel Jadwal Piket -> kartu per baris (label di kiri, input mengisi
+     sisa lebar) supaya 3 kolom (Pagi/Siang/Sore) tidak berdesakan. */
+  table.pt-jadwal-table thead{display:none;}
+  table.pt-jadwal-table, table.pt-jadwal-table tbody, table.pt-jadwal-table tr, table.pt-jadwal-table td{display:block; width:100%;}
+  table.pt-jadwal-table tr{
+    position:relative; border:1px solid var(--garis); border-radius:8px;
+    padding:20px 34px 6px 10px; margin-bottom:8px; background:var(--cream-card);
+  }
+  table.pt-jadwal-table td{border-bottom:none; padding:3px 0;}
+  table.pt-jadwal-table td.pt-no{
+    position:absolute; top:6px; left:10px; width:auto; font-size:10.5px;
+    font-weight:700; color:var(--gold); text-transform:uppercase; letter-spacing:.03em;
+  }
+  table.pt-jadwal-table td.pt-no::before{content:"Hari ke-";}
+  table.pt-jadwal-table td[data-label]:not(.pt-no):not(.pt-row-tools){display:flex; align-items:center; gap:8px;}
+  table.pt-jadwal-table td[data-label]:not(.pt-no):not(.pt-row-tools)::before{
+    content:attr(data-label); flex:0 0 46px; font-size:10.5px; font-weight:600;
+    text-transform:uppercase; letter-spacing:.03em; color:var(--ink-soft);
+  }
+  table.pt-jadwal-table td[data-label]:not(.pt-no):not(.pt-row-tools) .pt-input{flex:1; min-width:0; width:100%;}
+  table.pt-jadwal-table .pt-row-tools{position:absolute; top:2px; right:2px; width:auto; padding:0;}
+
+  /* Tabel per-kelompok (satu kolom Nama): cukup dirapikan, tak perlu jadi kartu. */
+  table.panitia-table td, table.panitia-table th{padding:6px 4px;}
+  .pt-group-title{font-size:13px;}
+
+  /* Kelompok "Lain-lain" di sisi kanan: kalau label+input tak muat sebaris,
+     input pindah ke baris baru sendiri alih-alih terjepit sempit. */
+  .pt-side-row{flex-wrap:wrap;}
+  .pt-side-label{min-width:0;}
+  .pt-side-nama{flex:1 1 140px;}
+
+  .pt-signature .sign-block{width:190px;}
 }
 
 /* ============================================================

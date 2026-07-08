@@ -5201,11 +5201,11 @@ function renderPanitiaEditor(doc){
 
   const jadwalRows = doc.jadwal_piket.map((r,idx)=>`
     <tr>
-      <td class="pt-no">${idx+1}</td>
-      <td><input class="pt-input" list="${namaListId}" value="${esc(r.pagi)}" ${dis} oninput="panitiaSetJadwal('${doc.id}',${idx},'pagi',this.value)"></td>
-      <td><input class="pt-input" list="${namaListId}" value="${esc(r.siang)}" ${dis} oninput="panitiaSetJadwal('${doc.id}',${idx},'siang',this.value)"></td>
-      <td><input class="pt-input" list="${namaListId}" value="${esc(r.sore)}" ${dis} oninput="panitiaSetJadwal('${doc.id}',${idx},'sore',this.value)"></td>
-      <td class="editor-controls pt-row-tools">${isLoggedIn?`<button class="icon-btn" onclick="panitiaRemoveJadwalRow('${doc.id}',${idx})" title="Hapus baris">✕</button>`:''}</td>
+      <td class="pt-no" data-label="Hari">${idx+1}</td>
+      <td data-label="Pagi"><input class="pt-input" list="${namaListId}" value="${esc(r.pagi)}" ${dis} oninput="panitiaSetJadwal('${doc.id}',${idx},'pagi',this.value)"></td>
+      <td data-label="Siang"><input class="pt-input" list="${namaListId}" value="${esc(r.siang)}" ${dis} oninput="panitiaSetJadwal('${doc.id}',${idx},'siang',this.value)"></td>
+      <td data-label="Sore"><input class="pt-input" list="${namaListId}" value="${esc(r.sore)}" ${dis} oninput="panitiaSetJadwal('${doc.id}',${idx},'sore',this.value)"></td>
+      <td class="editor-controls pt-row-tools" data-label="">${isLoggedIn?`<button class="icon-btn" onclick="panitiaRemoveJadwalRow('${doc.id}',${idx})" title="Hapus baris">✕</button>`:''}</td>
     </tr>`).join('');
 
   const kelompokHtml = doc.kelompok_utama.map((g, gIdx) => {
@@ -5214,14 +5214,14 @@ function renderPanitiaEditor(doc){
         <td colspan="2">
           <input class="pt-input pt-label-input" value="${esc(r.nama)}" ${dis} placeholder="Label (mis. Prasmanan)" oninput="panitiaSetRowNama('${doc.id}',${gIdx},${rIdx},this.value)">
         </td>
-        <td class="editor-controls pt-row-tools">
+        <td class="editor-controls pt-row-tools" data-label="">
           ${isLoggedIn?`<button class="icon-btn" onclick="panitiaToggleRowLabel('${doc.id}',${gIdx},${rIdx})" title="Jadikan baris nama biasa">🏷</button><button class="icon-btn" onclick="panitiaRemoveRow('${doc.id}',${gIdx},${rIdx})" title="Hapus baris">✕</button>`:''}
         </td>
       </tr>` : `
       <tr>
-        <td class="pt-no">${rIdx+1}</td>
-        <td><input class="pt-input" list="${namaListId}" value="${esc(r.nama)}" ${dis} placeholder="Nama" oninput="panitiaSetRowNama('${doc.id}',${gIdx},${rIdx},this.value)"></td>
-        <td class="editor-controls pt-row-tools">
+        <td class="pt-no" data-label="No">${rIdx+1}</td>
+        <td data-label="Nama"><input class="pt-input" list="${namaListId}" value="${esc(r.nama)}" ${dis} placeholder="Nama" oninput="panitiaSetRowNama('${doc.id}',${gIdx},${rIdx},this.value)"></td>
+        <td class="editor-controls pt-row-tools" data-label="">
           ${isLoggedIn?`<button class="icon-btn" onclick="panitiaToggleRowLabel('${doc.id}',${gIdx},${rIdx})" title="Jadikan label (mis. Prasmanan)">🏷</button><button class="icon-btn" onclick="panitiaRemoveRow('${doc.id}',${gIdx},${rIdx})" title="Hapus baris">✕</button>`:''}
         </td>
       </tr>`).join('');

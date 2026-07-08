@@ -4949,26 +4949,34 @@ function panitiaTouch(doc){ doc.updated_at = new Date().toISOString(); }
 function panitiaBuatBaru(){
   if(!canEdit()){ toast('⛔ Login untuk membuat susunan panitia'); return; }
   const now = new Date().toISOString();
+  // Baris kosong siap isi — jumlah di bawah cuma titik awal yang wajar (sesuai
+  // kebiasaan sinoman/hajatan warga), admin tetap bebas tambah/kurangi baris
+  // atau kelompok lewat tombol "+ Baris" / "+ Kelompok Baru" / ikon hapus (✕),
+  // sama seperti seksi lain di editor ini.
+  const buatRows = (n) => Array.from({length:n}, () => ({ id: uid(), nama:'', isLabel:false }));
   const doc = {
     id: uid(),
-    judul: 'Susunan Panitia',
+    judul: 'Susunan Panitia Sinoman',
     organisasi: 'Karang Taruna Inti',
     dusun: '', desa: '', kecamatan: '', kabupaten: '',
+    empunya_hajat: '',
     hari: '', tanggal: null, tempat: '',
-    jadwal_piket: Array.from({length:9}, () => ({ pagi:'', siang:'', sore:'' })),
+    jadwal_piket: Array.from({length:12}, () => ({ pagi:'', siang:'', sore:'' })),
     kelompok_utama: [
-      { id: uid(), judul: 'Undur-Undur Walimahan (Among Tamu)', koor: '', rows: [] },
-      { id: uid(), judul: 'Tenong (Among Hantaran)', koor: '', rows: [] },
-      { id: uid(), judul: 'Sie Walimahan', koor: '', rows: [] },
-      { id: uid(), judul: 'Konsumsi Putri', koor: '', rows: [] },
+      { id: uid(), judul: 'Tim Undur-Undur', koor: '', rows: buatRows(10) },
+      { id: uid(), judul: 'Sie Tenong', koor: '', rows: buatRows(10) },
+      { id: uid(), judul: 'Sie Walimahan Putra', koor: '', rows: buatRows(10) },
+      { id: uid(), judul: 'Sie Walimahan Putri', koor: '', rows: buatRows(10) },
+      { id: uid(), judul: 'Koordinator Prasmanan Meja 1', koor: '', rows: buatRows(1) },
+      { id: uid(), judul: 'Koordinator Prasmanan Meja 2', koor: '', rows: buatRows(1) },
+      { id: uid(), judul: 'Sie Dapur (koordinasi dengan Meja 1 & 2)', koor: '', rows: buatRows(1) },
+      { id: uid(), judul: 'Juru Kunci', koor: '', rows: buatRows(2) },
+      { id: uid(), judul: 'Juru Rokok', koor: '', rows: buatRows(1) },
+      { id: uid(), judul: 'Sie Konsumsi', koor: '', rows: buatRows(1) },
+      { id: uid(), judul: 'Sie Keamanan', koor: '', rows: buatRows(4) },
+      { id: uid(), judul: 'Sie Parkir', koor: '', rows: buatRows(4) },
     ],
-    kelompok_samping: [
-      { id: uid(), label: 'Juru Kunci', nama: '' },
-      { id: uid(), label: 'Rokok', nama: '' },
-      { id: uid(), label: 'Sie Konsumsi', nama: '' },
-      { id: uid(), label: 'Sie Keamanan', nama: '' },
-      { id: uid(), label: 'Sie Parkir', nama: '' },
-    ],
+    kelompok_samping: [],
     ketua_nama: '', ketua_jabatan: 'Ketua Karang Taruna',
     ttd_url: '',
     created_at: now, updated_at: now,
@@ -5264,6 +5272,10 @@ function renderPanitiaEditor(doc){
         <input class="pt-input pt-inline" value="${esc(doc.kabupaten)}" placeholder="kabupaten" ${dis} oninput="panitiaSetTop('${doc.id}','kabupaten',this.value)">)
       </div>
       <div class="pt-meta-row">
+        <span>Yang Punya Hajat:</span>
+        <input class="pt-input pt-inline pt-tempat" value="${esc(doc.empunya_hajat||'')}" placeholder="mis. Kel. Bpk Tamin" ${dis} oninput="panitiaSetTop('${doc.id}','empunya_hajat',this.value)">
+      </div>
+      <div class="pt-meta-row">
         <span>Hari/Tanggal:</span>
         <input class="pt-input pt-inline" value="${esc(doc.hari)}" placeholder="Hari" ${dis} oninput="panitiaSetTop('${doc.id}','hari',this.value)">,
         <input class="pt-input pt-inline pt-date" type="date" value="${esc(doc.tanggal)}" ${dis} oninput="panitiaSetTop('${doc.id}','tanggal',this.value)">
@@ -5300,6 +5312,7 @@ function renderPanitiaEditor(doc){
     <div class="pt-signature">
       <div class="sign-block">
         <div class="sign-label">
+          <div class="pt-mengetahui">Mengetahui,</div>
           <input class="pt-input pt-inline pt-center" value="${esc(doc.ketua_jabatan)}" ${dis} oninput="panitiaSetTop('${doc.id}','ketua_jabatan',this.value)">,
         </div>
         <div class="pt-ttd-area">

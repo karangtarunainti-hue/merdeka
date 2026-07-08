@@ -1381,6 +1381,7 @@ table.absensi-table th:nth-child(1), table.absensi-table td:nth-child(1){text-al
 @media print{ .absensi-ttd-cell{border-bottom:1px solid var(--garis);} }
 .sign-block{text-align:center; flex:1; font-size:13.5px;}
 .sign-label{margin-bottom:4px;}
+.pt-mengetahui{margin-bottom:2px;}
 .sign-space{height:64px;}
 .sign-name{font-weight:700; text-decoration:underline; text-decoration-style:dotted;}
 

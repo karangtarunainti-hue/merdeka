@@ -461,6 +461,12 @@ async function loadDB(){
   }catch(e){
     console.error('Gagal memuat data dari Supabase', e);
     toast('⚠️ Gagal terhubung ke Supabase. Cek konfigurasi & koneksi internet.');
+    // Ditandai supaya PEMANGGIL (initApp, refreshFromServer) tahu ini gagal total,
+    // bukan sekadar "organisasi ini memang belum punya data" — soalnya `result`
+    // di titik ini masih persis defaultDB() yang kosong melompong. Tanpa penanda
+    // ini, auto-refresh yang gagal di tengah jalan (mis. sinyal putus sebentar)
+    // bisa menimpa data yang sudah ada di layar dengan tampilan KOSONG.
+    result._loadFailed = true;
   }
   if(migrasiItemIdHadiah(result)){
     // Ada item hadiah lama yang baru saja diberi `id` + record belanja yang baru
@@ -1191,7 +1197,7 @@ function openLoginModal() {
       <div class="field"><label>Password</label><input id="login-password" type="password" placeholder="******"></div>
     </div>
     <div style="display:flex; gap:8px; margin-top:8px;">
-      <button class="btn" onclick="manualLogin()">Login</button>
+      <button class="btn" id="login-submit-btn" onclick="manualLogin()">Login</button>
       <button class="btn secondary" onclick="closeModal()">Batal</button>
     </div>
   `, []);
@@ -1210,17 +1216,33 @@ async function manualLogin() {
     toast('⚠️ Isi username dan password');
     return;
   }
-  const user = await login(username, password);
-  if (user) {
-    closeModal();
-    renderSidebar();
-    renderTopbarSaldo();
-    renderContent();
-    const roleLabel = {admin:'Admin', user:'User', petugas:'Petugas'}[user.role] || user.role;
-    toast(`✅ Login sebagai ${user.name} (${roleLabel})`);
-    notifyTelegram(`🔑 User login: ${user.name}`, `Role: ${roleLabel}`);
-  } else {
-    toast('❌ Login gagal');
+  // Sebelumnya tombol Login tetap bisa di-tap berkali-kali selama menunggu
+  // respons server, tanpa keterangan apa pun kalau koneksi lambat — user bisa
+  // ngetap ulang beberapa kali mengira tap pertama tidak kena. Sekarang tombol
+  // dikunci + teksnya berubah selama proses berlangsung, dan dikembalikan lagi
+  // kalau gagal supaya user bisa coba ulang.
+  const btn = document.getElementById('login-submit-btn');
+  const originalLabel = btn ? btn.textContent : 'Login';
+  if(btn){ btn.disabled = true; btn.textContent = 'Memproses...'; }
+  try{
+    const user = await login(username, password);
+    if (user) {
+      closeModal();
+      renderSidebar();
+      renderTopbarSaldo();
+      renderContent();
+      const roleLabel = {admin:'Admin', user:'User', petugas:'Petugas'}[user.role] || user.role;
+      toast(`✅ Login sebagai ${user.name} (${roleLabel})`);
+      notifyTelegram(`🔑 User login: ${user.name}`, `Role: ${roleLabel}`);
+    } else {
+      toast('❌ Login gagal');
+    }
+  } finally {
+    // Kalau berhasil, modal sudah ditutup duluan jadi elemen ini sudah tidak
+    // ada lagi (aman, getElementById tinggal balikin null). Kalau gagal/modal
+    // masih terbuka, tombol dikembalikan seperti semula supaya bisa dicoba lagi.
+    const btnAfter = document.getElementById('login-submit-btn');
+    if(btnAfter){ btnAfter.disabled = false; btnAfter.textContent = originalLabel; }
   }
 }
 
@@ -6193,6 +6215,11 @@ async function refreshFromServer(){
   _refreshInFlight = true;
   try{
     const fresh = await loadDB();
+    // Kalau loadDB() gagal total (mis. sinyal putus sebentar di tengah siklus
+    // refresh ini), `fresh` isinya database KOSONG (lihat _loadFailed di loadDB()).
+    // JANGAN diterapkan — biarkan data yang sudah ada di layar tetap seperti
+    // semula, dan biarkan siklus refresh berikutnya yang coba lagi.
+    if(fresh._loadFailed) return;
     if(!_refreshGuardOk()) return;
     db = fresh;
     renderSidebar();
@@ -6235,8 +6262,39 @@ function closeSidebar(){
 }
 
 (async function initApp(){
-  toast('⏳ Mengunduh data dari pusat...');
+  // Sebelumnya cuma ada toast() yang otomatis hilang dalam 2.4 detik — kalau
+  // koneksi lambat (lumrah di lapangan/lokasi acara), setelah toast hilang
+  // user tinggal menatap layar #content yang KOSONG MELOMPONG tanpa keterangan
+  // apa pun, kelihatan persis seperti aplikasi hang. Sekarang dipasang layar
+  // loading yang tetap ada SELAMA proses berlangsung, bukan cuma sekilas.
+  const contentEl = document.getElementById('content');
+  contentEl.innerHTML = `
+    <div class="initial-loading" id="initial-loading">
+      <div class="spinner"></div>
+      <div class="msg" id="initial-loading-msg">⏳ Mengunduh data dari pusat...</div>
+      <button type="button" class="btn secondary small retry-btn" id="initial-loading-retry" onclick="location.reload()">🔄 Muat Ulang Halaman</button>
+    </div>`;
+  // Kalau lebih dari 6 detik belum selesai, kasih tahu ini soal sinyal lambat
+  // (bukan aplikasi macet) — supaya user tidak buru-buru nutup app.
+  const slowTimer = setTimeout(() => {
+    const msgEl = document.getElementById('initial-loading-msg');
+    if(msgEl){ msgEl.textContent = '📶 Koneksi lambat, mohon tunggu sebentar...'; msgEl.classList.add('slow'); }
+  }, 6000);
+
   db = await loadDB();
+  clearTimeout(slowTimer);
+
+  if(db._loadFailed){
+    // Gagal total (server tidak terjangkau dkk) — jangan lanjut menampilkan
+    // dashboard dengan data kosong seolah-olah organisasi ini memang belum
+    // punya data apa pun. Kasih tombol coba lagi yang jelas.
+    const msgEl = document.getElementById('initial-loading-msg');
+    const retryBtn = document.getElementById('initial-loading-retry');
+    if(msgEl){ msgEl.textContent = '⚠️ Gagal memuat data. Cek koneksi internet, lalu coba lagi.'; msgEl.classList.remove('slow'); }
+    if(retryBtn) retryBtn.style.display = 'inline-flex';
+    return;
+  }
+
   renderSidebar();
   renderTopbarSaldo();
   goSection('dashboard');

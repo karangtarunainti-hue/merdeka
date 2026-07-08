@@ -8,7 +8,7 @@
    NAIKKAN CACHE_VERSION setiap kali index.html/style.css/script.js
    diupdate, supaya HP pengguna otomatis ambil versi baru.
    ============================================================ */
-const CACHE_VERSION = 'v17';
+const CACHE_VERSION = 'v18';
 const CACHE_NAME = `kt-shell-${CACHE_VERSION}`;
 
 const APP_SHELL = [
@@ -64,11 +64,18 @@ self.addEventListener('fetch', (event) => {
   // saat kalau layer cache HTTP itu belum kadaluarsa. `cache:'no-store'`
   // memaksa permintaan ini betul-betul ke jaringan, tidak boleh dijawab
   // dari cache manapun selain Cache Storage kita sendiri sebagai fallback.
+  // FALLBACK TERAKHIR: Response buatan tangan, dipakai kalau semua upaya
+  // lain (fetch jaringan MAUPUN baca dari Cache Storage) gagal total.
+  const fallbackResponse = () => new Response(
+    '<h1>Sedang offline</h1><p>Tidak bisa memuat halaman ini dan belum ada salinan tersimpan. Coba lagi setelah koneksi kembali.</p>',
+    { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8' } }
+  );
+
   event.respondWith(
     fetch(req.url, { cache: 'no-store' })
       .then((res) => {
         const resClone = res.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(req, resClone));
+        caches.open(CACHE_NAME).then((cache) => cache.put(req, resClone)).catch(() => {});
         return res;
       })
       .catch(() =>
@@ -81,12 +88,22 @@ self.addEventListener('fetch', (event) => {
         // buatan tangan di baris terakhir ini mencegah itu: dalam skenario
         // terburuk sekalipun, user tetap dapat pesan yang jelas, bukan
         // error jaringan yang bikin bingung.
+        //
+        // CATATAN TAMBAHAN (penting!): caches.match() DI BAWAH INI JUGA BISA
+        // REJECT sendiri, bukan cuma "tidak ketemu" — misalnya kalau Cache
+        // Storage di device rusak/korup atau kena quota exceeded (pernah
+        // terjadi di Chrome Android). Kalau reject ini tidak ditangkap,
+        // dia akan ikut membuat promise respondWith() reject juga, dan
+        // hasilnya net::ERR_FAILED persis seperti skenario di atas — inilah
+        // penyebab bug "harus hapus data & cache dulu baru bisa akses".
+        // Makanya seluruh chain ini dibungkus .catch() lagi supaya APAPUN
+        // yang gagal (fetch atau Cache API itu sendiri), user tetap dapat
+        // Response yang valid, bukan promise yang reject.
         caches.match(req)
           .then((cached) => cached || caches.match('./index.html'))
-          .then((cached) => cached || new Response(
-            '<h1>Sedang offline</h1><p>Tidak bisa memuat halaman ini dan belum ada salinan tersimpan. Coba lagi setelah koneksi kembali.</p>',
-            { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8' } }
-          ))
+          .then((cached) => cached || fallbackResponse())
+          .catch(() => fallbackResponse())
       )
+      .catch(() => fallbackResponse())
   );
 });

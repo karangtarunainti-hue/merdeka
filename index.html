@@ -98,7 +98,33 @@
 
 <script src="vendor/supabase.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script src="script.js"></script>
+
+<!-- script.js dipecah jadi beberapa file per modul (lihat folder js/).
+     PENTING: urutan load di bawah ini HARUS sama seperti urutan di
+     script.js semula, karena modul-modul ini saling bergantung lewat
+     variabel/fungsi global bersama (bukan ES module dengan import/export) -->
+<script src="js/00-config.js"></script>
+<script src="js/01-utils-currency.js"></script>
+<script src="js/02-auth.js"></script>
+<script src="js/03-db-core.js"></script>
+<script src="js/04-event-settings.js"></script>
+<script src="js/05-navigation.js"></script>
+<script src="js/06-login-users.js"></script>
+<script src="js/07-dashboard.js"></script>
+<script src="js/08-anggota.js"></script>
+<script src="js/09-donatur-transaksi-operasional.js"></script>
+<script src="js/10-lomba.js"></script>
+<script src="js/11-belanja.js"></script>
+<script src="js/12-jadwal-agenda-kas.js"></script>
+<script src="js/13-lpj.js"></script>
+<script src="js/14-dokumen.js"></script>
+<script src="js/15-pengaturan-event.js"></script>
+<script src="js/16-ui-helpers.js"></script>
+<script src="js/17a-gudang-core.js"></script>
+<script src="js/17b-gudang-pinjam.js"></script>
+<script src="js/17c-gudang-histori-kelola.js"></script>
+<script src="js/18-getters-refresh.js"></script>
+<script src="js/19-init.js"></script>
 <script>
   // Daftarkan service worker supaya aplikasi bisa di-"Add to Home Screen"
   // dan tetap bisa dibuka walau koneksi sedang jelek/offline.

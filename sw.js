@@ -5,17 +5,41 @@
    TIDAK di-cache di sini — selalu ambil langsung dari jaringan,
    supaya saldo/anggota/dll yang ditampilkan selalu data terbaru.
 
-   NAIKKAN CACHE_VERSION setiap kali index.html/style.css/script.js
+   NAIKKAN CACHE_VERSION setiap kali index.html/style.css/js/*
    diupdate, supaya HP pengguna otomatis ambil versi baru.
    ============================================================ */
-const CACHE_VERSION = 'v19';
+const CACHE_VERSION = 'v20';
 const CACHE_NAME = `kt-shell-${CACHE_VERSION}`;
 
+// script.js lama sudah dipecah jadi banyak file per modul di folder js/
+// (lihat index.html) — semuanya harus di-precache juga supaya app tetap
+// bisa dibuka utuh saat offline.
 const APP_SHELL = [
   './',
   './index.html',
   './style.css',
-  './script.js',
+  './js/00-config.js',
+  './js/01-utils-currency.js',
+  './js/02-auth.js',
+  './js/03-db-core.js',
+  './js/04-event-settings.js',
+  './js/05-navigation.js',
+  './js/06-login-users.js',
+  './js/07-dashboard.js',
+  './js/08-anggota.js',
+  './js/09-donatur-transaksi-operasional.js',
+  './js/10-lomba.js',
+  './js/11-belanja.js',
+  './js/12-jadwal-agenda-kas.js',
+  './js/13-lpj.js',
+  './js/14-dokumen.js',
+  './js/15-pengaturan-event.js',
+  './js/16-ui-helpers.js',
+  './js/17a-gudang-core.js',
+  './js/17b-gudang-pinjam.js',
+  './js/17c-gudang-histori-kelola.js',
+  './js/18-getters-refresh.js',
+  './js/19-init.js',
   './vendor/supabase.js',
   './manifest.json',
   './icons/icon-192.png',

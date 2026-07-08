@@ -1,0 +1,375 @@
+/* ============================================================
+   TAB: RIWAYAT PEMINJAMAN
+   ============================================================ */
+function renderGudangHistori(){
+  const canKelola = gudangCanKelola();
+  const q = gudangSearchHistori.toLowerCase();
+  const filtered = gudangTransactions.filter(t=>{
+    const matchQ = t.resi.toLowerCase().includes(q) || t.nama.toLowerCase().includes(q);
+    const matchS = !gudangFilterHistori || t.status===gudangFilterHistori;
+    return matchQ && matchS;
+  });
+  const totalFiltered = filtered.length;
+  const visible = filtered.slice(0, GUDANG_HIST_KEEP);
+  const statusLabel = {aktif:'⏳ Aktif', selesai:'✅ Selesai', bermasalah:'⚠️ Bermasalah'};
+  const statusBadgeCls = {aktif:'', selesai:'lunas', bermasalah:'belum'};
+
+  const rows = visible.map(t=>{
+    const itemsText = t.items.map(it=>`${it.qty}× ${esc(it.nama)} <span style="color:var(--ink-soft);">[${esc(it.gudang)}]</span>`).join('<br>');
+    const statusCell = canKelola
+      ? `<select onchange="gudangChangeStatus('${t.id}', this.value)">
+          <option value="aktif" ${t.status==='aktif'?'selected':''}>⏳ Aktif</option>
+          <option value="selesai" ${t.status==='selesai'?'selected':''}>✅ Selesai</option>
+          <option value="bermasalah" ${t.status==='bermasalah'?'selected':''}>⚠️ Bermasalah</option>
+        </select>`
+      : `<span class="badge ${statusBadgeCls[t.status]||''}">${statusLabel[t.status]||t.status}</span>`;
+    return `<tr>
+      <td><b>#${esc(t.resi)}</b><div style="font-size:12px; color:var(--ink-soft);">${esc(t.nama)}</div></td>
+      <td>${itemsText}</td>
+      <td>${fmtGudangTanggal(t.tglPinjam)} → ${fmtGudangTanggal(t.tglKembali)}</td>
+      <td>${statusCell}</td>
+      <td><button type="button" class="btn secondary small" onclick="gudangShowNota('${t.id}')">🧾 Lihat Nota</button></td>
+    </tr>`;
+  }).join('');
+
+  const limitNote = totalFiltered > GUDANG_HIST_KEEP
+    ? `<p style="font-size:11.5px; color:var(--ink-soft); margin-top:10px;">Menampilkan ${GUDANG_HIST_KEEP} riwayat terbaru dari ${totalFiltered} yang cocok. Riwayat "Selesai" yang sudah lama otomatis dihapus (maks. ${GUDANG_HIST_KEEP} disimpan); Aktif/Bermasalah tidak ikut terhapus.</p>` : '';
+
+  return `
+  <div class="panel">
+    <div class="panel-head">
+      <div><h3>Log Peminjaman</h3><div class="desc">${canKelola?'Ubah status transaksi lewat dropdown.':'Hanya admin yang dapat mengubah status transaksi.'}</div></div>
+      ${canKelola?`<button class="btn secondary small" style="border-color:var(--merah); color:var(--merah);" onclick="gudangDeleteAllHistory()">🗑️ Hapus Riwayat Selesai</button>`:''}
+    </div>
+    <div class="panel-body">
+      <div class="filter-row">
+        <div class="search-box" style="flex:1;min-width:180px;"><input type="text" id="gudang-search-histori" placeholder="🔍 Cari resi / nama..." value="${esc(gudangSearchHistori)}" oninput="gudangSearchHistori=this.value; renderContent();"></div>
+        <div class="field" style="margin-bottom:0;">
+          <select onchange="gudangFilterHistori=this.value; renderContent();">
+            <option value="">Semua Status</option>
+            <option value="aktif" ${gudangFilterHistori==='aktif'?'selected':''}>⏳ Aktif</option>
+            <option value="selesai" ${gudangFilterHistori==='selesai'?'selected':''}>✅ Selesai</option>
+            <option value="bermasalah" ${gudangFilterHistori==='bermasalah'?'selected':''}>⚠️ Bermasalah</option>
+          </select>
+        </div>
+      </div>
+      <div style="overflow-x:auto;">
+      <table class="anggota-table">
+        <thead><tr><th>Resi / Peminjam</th><th>Barang &amp; Gudang</th><th>Tanggal</th><th>Status</th><th></th></tr></thead>
+        <tbody>${rows || `<tr class="empty-row"><td colspan="5">Belum ada transaksi peminjaman tercatat.</td></tr>`}</tbody>
+      </table>
+      </div>
+      ${limitNote}
+    </div>
+  </div>`;
+}
+
+function gudangShowNota(id){
+  const t = gudangTransactions.find(x=>x.id===id);
+  if(!t) return;
+  const statusLabel = {aktif:'⏳ Aktif — masih di luar gudang', selesai:'✅ Selesai — barang sudah dikembalikan', bermasalah:'⚠️ Bermasalah'};
+  const statusHtml = `<div class="nota-footer"><span>Status saat ini: <b>${statusLabel[t.status]||t.status}</b> · Nota ini sesuai dengan pengajuan yang sudah disetujui &amp; dikirim peminjam.</span></div>`;
+  const notaHtml = buildGudangNotaHtml({
+    resi: t.resi, nama: t.nama, alamat: t.alamat, pencatat: t.wa,
+    tglPinjam: t.tglPinjam, tglKembali: t.tglKembali, items: t.items,
+    tanggalCetak: (t.createdAt||'').slice(0,10) || t.tglPinjam,
+    statusHtml,
+  });
+  setModal('Nota Peminjaman', notaHtml, [
+    {label:'Tutup', cls:'secondary', onclick: closeModal},
+    {label:'⬇ Unduh JPEG', cls:'', onclick: ()=>gudangExportNotaJPEG(t.resi)},
+  ]);
+}
+
+// Export tampilan nota (di modal Riwayat Peminjaman) jadi file JPEG —
+// pakai html2canvas karena nota-nya murni HTML/CSS (bukan gambar), belum
+// ada elemen input yang perlu disamarkan, jadi tidak perlu toggle class 'exporting'.
+function gudangExportNotaJPEG(resi){
+  const el = document.getElementById('gudang-nota-sheet');
+  if(!el){ toast('⛔ Gagal menemukan nota'); return; }
+  if(typeof html2canvas === 'undefined'){ toast('⛔ Gagal memuat modul export gambar. Cek koneksi internet lalu muat ulang.'); return; }
+  html2canvas(el, { scale: 2, backgroundColor: '#ffffff', useCORS: true }).then(canvas => {
+    const link = document.createElement('a');
+    const namaFile = (resi || 'nota-peminjaman').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
+    link.download = `${namaFile || 'nota-peminjaman'}.jpg`;
+    link.href = canvas.toDataURL('image/jpeg', 0.95);
+    link.click();
+    toast('⬇ JPEG berhasil diunduh');
+  }).catch(err => {
+    console.error('Gagal export JPEG nota:', err);
+    toast('⛔ Gagal membuat JPEG: ' + (err.message||'error tak dikenal'));
+  });
+}
+
+async function gudangPruneOldHistory(){
+  const selesai = gudangTransactions.filter(t=>t.status==='selesai');
+  if(selesai.length <= GUDANG_HIST_KEEP) return;
+  const toDelete = selesai.slice(GUDANG_HIST_KEEP);
+  const idList = toDelete.map(t=>t.id);
+  try{ await sb.from('kt_gudang_transaction_items').delete().in('transaction_id', idList); }catch(e){}
+  try{
+    await sb.from('kt_gudang_transactions').delete().in('id', idList);
+    const delIds = new Set(idList);
+    gudangTransactions = gudangTransactions.filter(t=>!delIds.has(t.id));
+  }catch(e){ console.warn('Gagal prune riwayat gudang:', e); }
+}
+
+async function gudangChangeStatus(id, newStatus){
+  if(!gudangCanKelola()){ toast('🔒 Hanya admin yang dapat mengubah status peminjaman.'); renderContent(); return; }
+  const t = gudangTransactions.find(x=>x.id===id);
+  if(!t) return;
+  const wasActive = t.status==='aktif' || t.status==='bermasalah';
+  const nowSelesai = newStatus==='selesai';
+  try{
+    if(nowSelesai && wasActive){
+      for(const it of t.items){
+        const r = await sb.rpc('kt_gudang_return_stock', {p_item_id: it.itemId, p_qty: it.qty});
+        if(!r.error && r.data && r.data[0]){ const inv = gudangInventory.find(i=>i.id===it.itemId); if(inv) inv.tersedia = r.data[0].tersedia; }
+      }
+    }
+    if(t.status==='selesai' && !nowSelesai){
+      for(const it of t.items){
+        const r = await sb.rpc('kt_gudang_reborrow_stock', {p_item_id: it.itemId, p_qty: it.qty});
+        if(!r.error && r.data && r.data[0]){ const inv = gudangInventory.find(i=>i.id===it.itemId); if(inv) inv.tersedia = r.data[0].tersedia; }
+      }
+    }
+    const upd = await sb.from('kt_gudang_transactions').update({status:newStatus}).eq('id', id);
+    if(upd.error) throw new Error(upd.error.message);
+    t.status = newStatus;
+    if(newStatus==='selesai') await gudangPruneOldHistory();
+    toast('✅ Status transaksi diperbarui.');
+    renderContent();
+  }catch(err){
+    console.error(err);
+    toast('⛔ Gagal update status: ' + err.message);
+  }
+}
+
+async function gudangDeleteAllHistory(){
+  if(!gudangCanKelola()){ toast('🔒 Hanya admin yang dapat menghapus riwayat.'); return; }
+  const selesai = gudangTransactions.filter(t=>t.status==='selesai');
+  const belumSelesai = gudangTransactions.length - selesai.length;
+  if(selesai.length===0){ toast('Tidak ada riwayat berstatus "Selesai" yang bisa dihapus.'); return; }
+  const ket = belumSelesai>0 ? `\n\n(${belumSelesai} transaksi Aktif/Bermasalah akan tetap disimpan.)` : '';
+  if(!confirm(`Hapus ${selesai.length} riwayat peminjaman berstatus "Selesai"? Tindakan ini tidak dapat dibatalkan.${ket}`)) return;
+  if(!confirm('Konfirmasi sekali lagi: riwayat akan dihapus permanen dari server. Lanjutkan?')) return;
+  const idList = selesai.map(t=>t.id);
+  try{
+    await sb.from('kt_gudang_transaction_items').delete().in('transaction_id', idList);
+    const del = await sb.from('kt_gudang_transactions').delete().in('id', idList);
+    if(del.error) throw new Error(del.error.message);
+    const delIds = new Set(idList);
+    gudangTransactions = gudangTransactions.filter(t=>!delIds.has(t.id));
+    toast(`✅ ${selesai.length} riwayat selesai berhasil dihapus.`);
+    renderContent();
+  }catch(err){
+    console.error(err);
+    toast('⛔ Gagal menghapus riwayat: ' + err.message);
+  }
+}
+
+/* ============================================================
+   TAB: KELOLA INVENTARIS (admin only)
+   ============================================================ */
+function renderGudangKelola(){
+  const totalJenis = gudangInventory.length;
+  const totalTersedia = gudangInventory.reduce((s,i)=>s+i.tersedia,0);
+  const totalDipinjam = gudangInventory.reduce((s,i)=>s+(i.total-i.tersedia),0);
+  const q = (gudangSearchKelola||'').toLowerCase();
+  const filtered = gudangInventory.filter(i=>i.nama.toLowerCase().includes(q)||i.gudang.toLowerCase().includes(q));
+
+  const rows = filtered.map(i=>{
+    const namaLabel = i.isActive ? esc(i.nama) : `${esc(i.nama)} <span class="badge readonly">Nonaktif</span>`;
+    const actionBtn = i.isActive
+      ? `<button class="icon-btn" title="Nonaktifkan" onclick="gudangDeleteStok('${i.id}')">🗑</button>`
+      : `<button class="icon-btn" title="Aktifkan kembali" onclick="gudangAktifkanStok('${i.id}')">↺</button>`;
+    return `<tr>
+      <td>${namaLabel}</td>
+      <td><span class="badge">${esc(i.gudang)}</span></td>
+      <td class="num ${gudangStokBadgeClass(i.tersedia,i.total)}">${i.tersedia}</td>
+      <td class="num">${i.total}</td>
+      <td style="white-space:nowrap;"><button class="icon-btn" title="Edit" onclick="openGudangStokModal('${i.id}')">✎</button>${actionBtn}</td>
+    </tr>`;
+  }).join('');
+
+  return `
+  <div class="stat-grid-ringkasan" style="margin-bottom:20px;">
+    <div class="stat-card"><div class="lbl">Jenis Aset</div><div class="val">${totalJenis}</div></div>
+    <div class="stat-card pemasukan"><div class="lbl">Unit Tersedia</div><div class="val">${totalTersedia}</div></div>
+    <div class="stat-card"><div class="lbl">Unit Dipinjam</div><div class="val">${totalDipinjam}</div></div>
+  </div>
+  <div class="panel">
+    <div class="panel-head">
+      <div><h3>Data Gudang</h3><div class="desc">Export/import cadangan data inventaris &amp; riwayat peminjaman (JSON).</div></div>
+      <div style="display:flex; gap:8px;">
+        <button class="btn secondary small" onclick="gudangExportJSON()">⬇ Export JSON</button>
+        <button class="btn secondary small" onclick="document.getElementById('gudang-import-input').click()">⬆ Import JSON</button>
+        <input type="file" id="gudang-import-input" accept=".json" style="display:none" onchange="gudangImportJSON(this)">
+      </div>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="panel-head">
+      <div><h3>Inventory Terkini</h3></div>
+      <button class="btn" onclick="openGudangStokModal()">+ Tambah Aset</button>
+    </div>
+    <div class="panel-body">
+      <div class="filter-row">
+        <div class="search-box" style="flex:1;"><input type="text" id="gudang-search-kelola" placeholder="🔍 Cari nama barang atau gudang..." value="${esc(gudangSearchKelola||'')}" oninput="gudangSearchKelola=this.value; renderContent();"></div>
+      </div>
+      <div style="overflow-x:auto;">
+      <table class="anggota-table">
+        <thead><tr><th>Barang</th><th>Lokasi</th><th class="num">Tersedia</th><th class="num">Total</th><th></th></tr></thead>
+        <tbody>${rows || `<tr class="empty-row"><td colspan="5">Belum ada aset tercatat. Tambahkan lewat tombol di atas.</td></tr>`}</tbody>
+      </table>
+      </div>
+    </div>
+  </div>`;
+}
+let gudangSearchKelola = '';
+
+// Lokasi gudang mengikuti penamaan yang sudah dipakai di data lama ("Gudang RT 1" dst),
+// bukan daftar RT umum (RT_LIST) yang dipakai di menu Anggota — supaya aset baru
+// masuk ke grup yang sama dengan data lama, bukan bikin grup terpisah.
+const GUDANG_LOKASI_LIST = ['Gudang RT 1', 'Gudang RT 2', 'Gudang RT 3', 'Gudang Karang Taruna'];
+function gudangLokasiOptions(selectedGudang){
+  const known = GUDANG_LOKASI_LIST.map(l=>`<option value="${esc(l)}" ${selectedGudang===l?'selected':''}>${esc(l)}</option>`).join('');
+  const legacy = (selectedGudang && !GUDANG_LOKASI_LIST.includes(selectedGudang))
+    ? `<option value="${esc(selectedGudang)}" selected>${esc(selectedGudang)} (lama)</option>` : '';
+  return `<option value="">-- Pilih Lokasi --</option>${known}${legacy}`;
+}
+function openGudangStokModal(id){
+  const item = id ? gudangInventory.find(i=>i.id===id) : null;
+  const dipinjam = item ? (item.total - item.tersedia) : 0;
+  const body = `
+    <div class="field"><label>Nama Barang</label><input type="text" id="gs-nama" placeholder="Kursi Plastik Hijau" value="${item?esc(item.nama):''}"></div>
+    <div class="field"><label>Lokasi / Gudang</label>
+      <select id="gs-gudang">${gudangLokasiOptions(item?item.gudang:'')}</select>
+    </div>
+    <div class="field"><label>Total Unit</label><input type="number" min="0" id="gs-total" value="${item?item.total:''}"></div>
+    ${item ? `<div class="hint" style="margin:-6px 0 14px;">Sedang dipinjam: <b>${dipinjam}</b> unit. Stok tersedia otomatis dihitung dari Total Unit dikurangi yang sedang dipinjam.</div>` : ''}`;
+  setModal(item?'Ubah Aset':'Tambah Aset', body, [
+    {label:'Batal', cls:'secondary', onclick: closeModal},
+    {label:'Simpan', onclick: ()=>gudangSaveStok(id)},
+  ]);
+}
+async function gudangSaveStok(id){
+  const nama = document.getElementById('gs-nama').value.trim();
+  const gudang = document.getElementById('gs-gudang').value.trim();
+  const total = parseInt(document.getElementById('gs-total').value, 10);
+  if(!nama || !gudang){ toast('⛔ Nama & lokasi wajib diisi.'); return; }
+  if(isNaN(total) || total<0){ toast('⛔ Total unit harus angka valid.'); return; }
+  const now = todayISO();
+  try{
+    if(id){
+      // PENTING (race condition): perhitungan `tersedia` TIDAK dilakukan di sini
+      // lagi. Kalau dihitung di JS pakai data gudangInventory yang mungkin sudah
+      // basi (device ini belum tentu baru saja refresh), lalu ditimpakan mentah-
+      // mentah ke server, perubahan stok dari device lain (mis. ada yang baru
+      // saja pinjam/kembalikan barang ini) bisa hilang tertimpa tanpa peringatan.
+      // Sebagai gantinya, seluruh baca-hitung-tulis dilakukan ATOMIK di server
+      // lewat RPC kt_gudang_update_asset (lock baris + hitung ulang "dipinjam"
+      // dari data TERKINI di server, bukan dari data di layar kita).
+      const r = await sb.rpc('kt_gudang_update_asset', {p_item_id: id, p_nama: nama, p_gudang: gudang, p_new_total: total});
+      if(r.error) throw new Error(r.error.message);
+      if(!r.data || !r.data.length){
+        toast('⛔ Gagal menyimpan: Total Unit lebih kecil dari jumlah yang SAAT INI sedang dipinjam (mungkin baru saja ada peminjaman lain), atau aset sudah dihapus. Data disegarkan, silakan cek ulang.');
+        await loadGudangData();
+        renderContent();
+        return;
+      }
+      const row = r.data[0];
+      const existing = gudangInventory.find(i=>i.id===id);
+      if(existing) Object.assign(existing, {nama: row.nama, gudang: row.gudang, total: row.total, tersedia: row.tersedia, lastUpdated: row.last_updated});
+      toast('✅ Data aset tersimpan.');
+    } else {
+      const newId = uid();
+      const tersedia = total;
+      const ins = await sb.from('kt_gudang_inventory').insert({id:newId, nama, gudang, total, tersedia, last_updated: now, is_active: true});
+      if(ins.error) throw new Error(ins.error.message);
+      gudangInventory.push({id:newId, nama, gudang, total, tersedia, lastUpdated: now, isActive: true});
+      toast('✅ Aset baru ditambahkan.');
+    }
+    closeModal();
+    renderContent();
+  }catch(err){
+    console.error(err);
+    toast('⛔ Gagal menyimpan: ' + err.message);
+  }
+}
+async function gudangDeleteStok(id){
+  const item = gudangInventory.find(i=>i.id===id);
+  if(!item) return;
+  if(!confirm(`Nonaktifkan "${item.nama}" dari inventaris aktif? Riwayat peminjaman lama tetap aman.`)) return;
+  try{
+    const upd = await sb.from('kt_gudang_inventory').update({is_active:false}).eq('id', id);
+    if(upd.error) throw new Error(upd.error.message);
+    item.isActive = false;
+    toast('✅ Aset dinonaktifkan.');
+    renderContent();
+  }catch(err){
+    console.error(err);
+    toast('⛔ Gagal menonaktifkan: ' + err.message);
+  }
+}
+async function gudangAktifkanStok(id){
+  const item = gudangInventory.find(i=>i.id===id);
+  if(!item) return;
+  try{
+    const upd = await sb.from('kt_gudang_inventory').update({is_active:true}).eq('id', id);
+    if(upd.error) throw new Error(upd.error.message);
+    item.isActive = true;
+    toast('✅ Aset diaktifkan kembali.');
+    renderContent();
+  }catch(err){
+    console.error(err);
+    toast('⛔ Gagal mengaktifkan: ' + err.message);
+  }
+}
+
+function gudangExportJSON(){
+  const payload = {exportedAt: new Date().toISOString(), inventory: gudangInventory, transactions: gudangTransactions};
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `gudang-backup-${todayISO()}.json`;
+  a.click();
+  toast('✅ Backup Gudang berhasil diekspor.');
+}
+function gudangImportJSON(input){
+  const file = input.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = async (e)=>{
+    try{
+      const parsed = JSON.parse(e.target.result);
+      if(!parsed.inventory || !parsed.transactions) throw new Error('Format file backup tidak dikenali.');
+      if(!confirm(`Import akan MENAMBAH ${parsed.inventory.length} aset dan ${parsed.transactions.length} transaksi baru ke database (data lama tidak dihapus). Lanjutkan?`)) return;
+      toast('⏳ Mengimpor data...');
+      for(const inv of parsed.inventory){
+        await sb.from('kt_gudang_inventory').upsert({
+          id: inv.id||uid(), nama:inv.nama, gudang:inv.gudang, total:inv.total, tersedia:inv.tersedia,
+          is_active: inv.isActive!==false, last_updated: inv.lastUpdated||null,
+        }, {onConflict:'id'});
+      }
+      for(const trx of parsed.transactions){
+        await sb.from('kt_gudang_transactions').upsert({
+          id: trx.id||uid(), resi:trx.resi, nama:trx.nama, alamat:trx.alamat, wa:trx.wa,
+          tgl_pinjam:trx.tglPinjam||null, tgl_kembali:trx.tglKembali||null, status:trx.status||'aktif',
+        }, {onConflict:'id'});
+        for(const it of (trx.items||[])){
+          await sb.from('kt_gudang_transaction_items').insert({transaction_id: trx.id, item_id: it.itemId, nama: it.nama, gudang: it.gudang, qty: it.qty});
+        }
+      }
+      await loadGudangData();
+      toast('✅ Import selesai.');
+      renderContent();
+    }catch(err){
+      console.error(err);
+      toast('⛔ Gagal import: ' + err.message);
+    }
+    input.value = '';
+  };
+  reader.readAsText(file);
+}
+

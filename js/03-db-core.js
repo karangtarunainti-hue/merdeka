@@ -1,0 +1,520 @@
+/* ============================================================
+   DATA LAYER
+   ============================================================ */
+function uid(){ return (crypto.randomUUID ? crypto.randomUUID() : 'id-'+Date.now()+'-'+Math.random().toString(16).slice(2)); }
+function todayISO(){ return new Date().toISOString().slice(0,10); }
+function fmtRp(n){ return new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',minimumFractionDigits:0}).format(Number(n)||0); }
+function fmtDate(iso){ if(!iso) return '-'; const d=new Date(iso+'T00:00:00'); return d.toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'}); }
+function fmtDateShort(iso){ if(!iso) return '-'; const d=new Date(iso+'T00:00:00'); return d.toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'2-digit'}); }
+function esc(s){ return String(s??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function defaultDB(){
+  return {
+    events: [],
+    activeEventId: null,
+    settings: {},
+    anggota: [],
+    donatur: [],
+    transaksiLain: [],
+    operasional: [],
+    lomba: [],
+    lombaKebutuhan: [],
+    hadiahKategori: [],
+    lombaHadiah: [],
+    daftarBelanjaHadiah: [],
+    daftarBelanjaPerlengkapan: [],
+    hadiahJalanSantai: [],
+    daftarBelanjaJalanSantai: [],
+    jadwal: [],
+    // Agenda Kegiatan — TIDAK terikat event sama sekali (beda dari
+    // `jadwal` yang per event_id). Untuk agenda umum organisasi yang
+    // tetap mau muncul sebagai reminder di Buku Kegiatan walau belum
+    // ada event 17-an yang aktif/dibuat. Disimpan di tabel kt_agenda
+    // (tanpa kolom event_id) — lihat supabase-agenda-migration.sql.
+    agenda: [],
+    // Kas Karang Taruna — buku kas umum organisasi, TIDAK terikat event
+    // (sama seperti Agenda/Gudang/Dokumen). Setiap baris punya debit/kredit,
+    // saldo dihitung berjalan (running balance) saat render, tidak disimpan
+    // di DB. Disimpan di tabel kt_kas (lihat supabase-kas-migration.sql).
+    kas: [],
+    users: [...DEFAULT_USERS_FALLBACK],
+    telegram: {
+      botToken: '',
+      chatId: '',
+      enabled: false
+    },
+    // Menu yang TIDAK boleh dilihat guest (belum login). Section yang tidak
+    // disebut di sini otomatis dianggap boleh dilihat guest (default true).
+    // Diatur admin lewat halaman Pengaturan > Akses Guest.
+    guestMenu: {
+      'database-anggota': false,
+      'jadwal': false
+    },
+    // Draft Surat & Dokumen (Undangan, Proposal, Absensi) — TIDAK terikat
+    // event, sama seperti Gudang. Disimpan satu set global di tabel
+    // kt_dokumen_global (lihat supabase-dokumen-global-migration.sql),
+    // bukan lagi per event_id di kt_settings.dokumen.
+    dokumenGlobal: { undangan:{}, proposal:{}, absensi:{} }
+  };
+}
+
+/* ============================================================
+   SUPABASE SYNC LAYER
+   Setiap array di objek `db` dipetakan ke satu tabel Supabase.
+   Semua fungsi render/CRUD lain tetap memanipulasi `db.xxx`
+   di memori seperti sebelumnya lalu memanggil saveDB() —
+   tidak ada perubahan pada logika CRUD yang sudah ada.
+   ============================================================ */
+const ARRAY_TABLE_MAP = {
+  events: 'kt_events',
+  anggota: 'kt_anggota',
+  donatur: 'kt_donatur',
+  transaksiLain: 'kt_transaksi_lain',
+  operasional: 'kt_operasional',
+  lomba: 'kt_lomba',
+  lombaKebutuhan: 'kt_lomba_kebutuhan',
+  hadiahKategori: 'kt_hadiah_kategori',
+  lombaHadiah: 'kt_lomba_hadiah',
+  daftarBelanjaHadiah: 'kt_daftar_belanja_hadiah',
+  daftarBelanjaPerlengkapan: 'kt_daftar_belanja_perlengkapan',
+  hadiahJalanSantai: 'kt_hadiah_jalan_santai',
+  daftarBelanjaJalanSantai: 'kt_daftar_belanja_jalan_santai',
+  jadwal: 'kt_jadwal',
+  agenda: 'kt_agenda',
+  kas: 'kt_kas',
+};
+
+// Migrasi satu-kali: dulu status "dibeli" di daftarBelanjaHadiah dilacak pakai
+// `item_index` (posisi item dalam array `items` milik satu paket hadiah). Itu rapuh
+// karena kalau item dihapus/direorder, index bergeser dan status "dibeli" nyasar ke
+// item lain. Sekarang tiap item hadiah punya `id` sendiri (lihat tambahItemHadiah,
+// openHadiahModal, addItemRow). Fungsi ini menjalankan migrasi SEKALI saat load:
+// untuk tiap item lama yang belum punya `id`, generate id baru, lalu cocokkan ke
+// record daftarBelanjaHadiah yang match hadiah_kategori_id+item_index PADA SAAT INI
+// (sebelum ada hapus/reorder lagi) dan tempelkan `item_id` itu ke record tsb supaya
+// status "dibeli" yang sudah ada tidak hilang/salah sasaran. Item yang sudah punya
+// id (dibuat setelah fitur ini ada) dilewati.
+function migrasiItemIdHadiah(result){
+  let changed = false;
+  (result.hadiahKategori||[]).forEach(h=>{
+    (h.items||[]).forEach((item, idx)=>{
+      if(item.id) return;
+      item.id = uid();
+      changed = true;
+      (result.daftarBelanjaHadiah||[]).forEach(b=>{
+        if(b.hadiah_kategori_id===h.id && b.item_index===idx && !b.item_id){
+          b.item_id = item.id;
+        }
+      });
+    });
+  });
+  return changed;
+}
+
+async function loadDB(){
+  const result = defaultDB();
+  try{
+    const entries = Object.entries(ARRAY_TABLE_MAP);
+    const [arrayResults, settingsRes, telegramRes, usersRes, guestMenuRes, dokumenGlobalRes] = await Promise.all([
+      Promise.all(entries.map(([, table]) => sb.from(table).select('*'))),
+      sb.from('kt_settings').select('*'),
+      sb.from('kt_telegram_settings').select('*').eq('id', 'main').maybeSingle(),
+      sb.rpc('rpc_list_users'),
+      sb.from('kt_guest_menu_settings').select('*').eq('id', 'main').maybeSingle(),
+      sb.from('kt_dokumen_global').select('*').eq('id', 'main').maybeSingle(),
+    ]);
+
+    const failedTables = [];
+    entries.forEach(([key, table], idx) => {
+      const res = arrayResults[idx];
+      if(res.error){ console.error(`Gagal memuat ${table}:`, res.error); failedTables.push(table); return; }
+      result[key] = res.data || [];
+      // Catat ID mana saja yang KITA tahu ada di server saat ini. Dipakai nanti oleh
+      // syncArrayTable() supaya delete-diff tidak menghapus data yang ditambahkan
+      // client lain setelah kita load (lihat penjelasan di syncArrayTable).
+      _lastKnownIds[table] = new Set(result[key].map(r => r.id));
+      // Catat juga `updated_at` tiap baris SAAT KITA MELIHATNYA. Dipakai syncArrayTable()
+      // untuk mendeteksi kalau baris yang sama sudah diubah akun/device lain setelah kita
+      // load (lihat penjelasan lengkap di syncArrayTable) — supaya tidak ditimpa diam-diam.
+      _lastKnownUpdatedAt[table] = new Map(result[key].map(r => [r.id, r.updated_at || null]));
+    });
+    if(failedTables.length){
+      toast(`⚠️ Gagal memuat data: ${failedTables.join(', ')} — cek koneksi lalu muat ulang halaman`);
+    }
+
+    if(usersRes.error){ console.error('Gagal memuat users:', usersRes.error); }
+    result.users = (!usersRes.error && usersRes.data && usersRes.data.length) ? usersRes.data : [...DEFAULT_USERS_FALLBACK];
+
+    if(!settingsRes.error){
+      (settingsRes.data || []).forEach(s => { result.settings[s.event_id] = { tarif: s.tarif, hadiahBudget: s.hadiah_budget || {}, dokumen: s.dokumen || {} }; });
+      _lastKnownSettingsIds = new Set((settingsRes.data || []).map(s => s.event_id));
+    }
+
+    if(!telegramRes.error && telegramRes.data){
+      result.telegram = {
+        botToken: telegramRes.data.bot_token || '',
+        chatId: telegramRes.data.chat_id || '',
+        enabled: !!telegramRes.data.enabled,
+      };
+    }
+
+    if(!guestMenuRes.error && guestMenuRes.data && guestMenuRes.data.hidden_sections){
+      result.guestMenu = {};
+      (guestMenuRes.data.hidden_sections || []).forEach(key => { result.guestMenu[key] = false; });
+    }
+
+    if(dokumenGlobalRes.error){ console.error('Gagal memuat kt_dokumen_global:', dokumenGlobalRes.error); }
+    else if(dokumenGlobalRes.data && dokumenGlobalRes.data.dokumen){
+      result.dokumenGlobal = {
+        undangan: dokumenGlobalRes.data.dokumen.undangan || {},
+        proposal: dokumenGlobalRes.data.dokumen.proposal || {},
+        absensi: dokumenGlobalRes.data.dokumen.absensi || {},
+      };
+    }
+
+    result.activeEventId = localStorage.getItem('kt_active_event') || (result.events[0] ? result.events[0].id : null);
+  }catch(e){
+    console.error('Gagal memuat data dari Supabase', e);
+    toast('⚠️ Gagal terhubung ke Supabase. Cek konfigurasi & koneksi internet.');
+    // Ditandai supaya PEMANGGIL (initApp, refreshFromServer) tahu ini gagal total,
+    // bukan sekadar "organisasi ini memang belum punya data" — soalnya `result`
+    // di titik ini masih persis defaultDB() yang kosong melompong. Tanpa penanda
+    // ini, auto-refresh yang gagal di tengah jalan (mis. sinyal putus sebentar)
+    // bisa menimpa data yang sudah ada di layar dengan tampilan KOSONG.
+    result._loadFailed = true;
+  }
+  if(migrasiItemIdHadiah(result)){
+    // Ada item hadiah lama yang baru saja diberi `id` + record belanja yang baru
+    // ditautkan via `item_id` — simpan sekarang juga supaya migrasi ini benar-benar
+    // jalan sekali dan tidak hilang kalau user langsung hapus/reorder item sebelum
+    // ada perubahan lain yang memicu saveDB().
+    db = result;
+    saveDB();
+  }
+  return result;
+}
+
+// PENTING — soal keamanan data multi-device/multi-tab:
+// `rows` adalah snapshot `db[key]` di memori tab ini, yang di-load SEKALI saat init.
+// Kalau tab/device lain menambah baris baru ke tabel yang sama sesudah itu, baris itu
+// akan muncul di `existing` (hasil select di bawah) tapi TIDAK ADA di `rows` milik kita —
+// bukan karena kita menghapusnya, tapi karena kita belum pernah tahu baris itu ada.
+// Dulu itu dianggap "harus dihapus" (existingIds - currentIds), jadi data yang baru
+// ditambahkan device lain bisa ke-delete oleh sync device ini. Untuk mencegah itu,
+// kita hanya boleh menghapus ID yang PERNAH kita kenal (ada di _lastKnownIds, artinya
+// ID itu ada waktu kita load/sync terakhir) dan sekarang sudah tidak ada lagi di rows
+// kita (berarti KITA yang menghapusnya). ID yang muncul di server tapi tidak pernah kita
+// kenal sebelumnya dibiarkan saja — itu punya device lain, bukan urusan sync ini.
+const _lastKnownIds = {};
+
+// PENTING — soal konflik simpan bersamaan (concurrent edit) di baris yang SAMA:
+// `rows` adalah snapshot PENUH tabel ini di memori tab kita, bukan diff per-field.
+// Kalau device/akun lain juga sedang mengedit baris yang sama, dan mereka menyimpan
+// setelah kita terakhir kali load/sync tapi SEBELUM kita menyimpan sekarang, maka
+// upsert kita bisa menimpa perubahan mereka tanpa siapa pun sadar.
+// Untuk mendeteksi ini: setiap tabel punya kolom `updated_at` yang di-refresh OTOMATIS
+// oleh trigger Postgres (lihat supabase-conflict-detection-migration.sql) setiap kali
+// baris di-UPDATE. Kita simpan `updated_at` terakhir yang KITA TAHU untuk tiap ID
+// (_lastKnownUpdatedAt, diisi saat load). Sebelum upsert, kita select ulang
+// `id, updated_at` dari server: kalau untuk suatu ID nilai itu SUDAH BEDA dari yang
+// terakhir kita tahu, berarti ada pihak lain yang mengubahnya sejak kita load —
+// baris itu kita LEWATI (tidak ditimpa), bukan langsung dipaksa overwrite.
+const _lastKnownUpdatedAt = {};
+
+async function syncArrayTable(table, rows, key){
+  const { data: existing, error: selErr } = await sb.from(table).select('id, updated_at');
+  if(selErr){ console.error(`Gagal membaca ${table}:`, selErr); throw new Error(`Gagal membaca ${table}: ${selErr.message}`); }
+  const existingMap = new Map((existing || []).map(r => [r.id, r.updated_at]));
+  const existingIds = new Set(existingMap.keys());
+  const knownIds = _lastKnownIds[table] || new Set();
+  const knownUpdatedAt = _lastKnownUpdatedAt[table] || new Map();
+
+  // BUG LAMA (penyebab "data terhapus muncul lagi"): tab ini dimuat sekali di awal dan
+  // menyimpan snapshot penuh `rows` (=db[key]) di memori. Kalau device/tab LAIN menghapus
+  // salah satu baris itu di server, tab kita tidak pernah tahu — baris itu masih ada di
+  // memori kita. Begitu tab ini menyimpan (saveDB) untuk alasan APA PUN, baris itu dikirim
+  // ulang oleh upsert di bawah karena kode lama mengira "tidak ada di server = baris baru".
+  // Fix: kalau suatu id PERNAH kita kenal (ada di knownIds) tapi sekarang sudah hilang dari
+  // server, itu bukan baris baru — itu baris "hantu" sisa sebelum kita reload, dan harus
+  // dibuang dari memori kita, BUKAN dikirim ulang ke server.
+  const ghostIds = new Set(rows.filter(r => knownIds.has(r.id) && !existingMap.has(r.id)).map(r => r.id));
+  const ghostRows = ghostIds.size ? rows.filter(r => ghostIds.has(r.id)) : [];
+  if(ghostIds.size){
+    for(let i = rows.length - 1; i >= 0; i--){
+      if(ghostIds.has(rows[i].id)) rows.splice(i, 1);
+    }
+  }
+
+  const currentIds = new Set(rows.map(r => r.id));
+  const toDelete = [...existingIds].filter(id => knownIds.has(id) && !currentIds.has(id));
+
+  // Pisahkan baris yang aman disimpan vs yang konflik (sudah diubah pihak lain
+  // sejak kita load, dan berbeda dari versi server saat ini).
+  const conflicts = [];
+  const rowsToUpsert = rows.filter(r => {
+    if(!existingMap.has(r.id)) return true; // baris baru, pasti aman
+    const serverUpdatedAt = existingMap.get(r.id);
+    const lastKnown = knownUpdatedAt.get(r.id);
+    if(lastKnown && serverUpdatedAt && lastKnown !== serverUpdatedAt){
+      conflicts.push({ key, table, id: r.id, label: r.keterangan || r.judul || r.nama || r.namaLengkap || r.id });
+      return false;
+    }
+    return true;
+  // `updated_at` selalu dibuang sebelum dikirim: kolom ini server-managed (diisi
+  // trigger/default now(), lihat supabase-conflict-detection-migration.sql), TIDAK
+  // PERNAH perlu dikirim dari JS. Kalau dibiarkan, baris yang di-load dari server
+  // (punya updated_at) tercampur dengan baris baru yang belum punya field itu
+  // (mis. event baru dari buatEvent) dalam satu batch upsert — PostgREST menolak
+  // request itu dengan 400 karena bentuk kolom antar baris tidak seragam.
+  }).map(({updated_at, ...rest}) => rest);
+
+  let savedRows = [];
+  if(rowsToUpsert.length){
+    const { data: upData, error: upErr } = await sb.from(table).upsert(rowsToUpsert, { onConflict: 'id' }).select('id, updated_at');
+    if(upErr){ console.error(`Gagal menyimpan ${table}:`, upErr); throw new Error(`Gagal menyimpan ${table}: ${upErr.message}`); }
+    savedRows = upData || [];
+  }
+  if(toDelete.length){
+    const { error: delErr } = await sb.from(table).delete().in('id', toDelete);
+    if(delErr){ console.error(`Gagal menghapus data lama ${table}:`, delErr); throw new Error(`Gagal menghapus ${table}: ${delErr.message}`); }
+  }
+
+  // Update memori "ID yang kita kenal": gabungan ID milik kita sendiri (currentIds)
+  // dan ID milik device lain yang masih hidup di server dan tidak kita sentuh.
+  const survivedRemote = [...existingIds].filter(id => !toDelete.includes(id));
+  _lastKnownIds[table] = new Set([...survivedRemote, ...currentIds]);
+
+  // Update memori `updated_at`: pakai nilai terbaru dari server untuk baris yang barusan
+  // kita simpan (savedRows), dan untuk baris yang tidak kita sentuh tapi masih hidup di
+  // server (termasuk baris konflik — kita catat versi server TERBARU supaya tidak terus
+  // dianggap konflik kalau user cuma reload tanpa mengedit lagi).
+  const newMap = new Map();
+  existingMap.forEach((updatedAt, id) => newMap.set(id, updatedAt));
+  savedRows.forEach(r => newMap.set(r.id, r.updated_at));
+  _lastKnownUpdatedAt[table] = newMap;
+
+  if(ghostRows.length){
+    conflicts.push({ ghost: true, key, table, count: ghostRows.length, labels: ghostRows.map(r => r.keterangan || r.judul || r.nama || r.namaLengkap || r.id) });
+  }
+  return conflicts;
+}
+
+// Sama seperti _lastKnownIds di syncArrayTable — mencegah setting event milik device
+// lain (yang belum sempat kita lihat) ikut terhapus saat kita sync.
+let _lastKnownSettingsIds = new Set();
+
+async function syncSettings(){
+  const rows = Object.keys(db.settings).map(eventId => ({ event_id: eventId, tarif: db.settings[eventId].tarif, hadiah_budget: db.settings[eventId].hadiahBudget || {}, dokumen: db.settings[eventId].dokumen || {} }));
+  const { data: existing, error: selErr } = await sb.from('kt_settings').select('event_id');
+  if(selErr){ console.error('Gagal membaca kt_settings:', selErr); throw new Error(`Gagal membaca kt_settings: ${selErr.message}`); }
+  const existingIds = new Set((existing || []).map(r => r.event_id));
+  const currentIds = new Set(Object.keys(db.settings));
+  const toDelete = [...existingIds].filter(id => _lastKnownSettingsIds.has(id) && !currentIds.has(id));
+
+  if(rows.length){
+    const { error } = await sb.from('kt_settings').upsert(rows, { onConflict: 'event_id' });
+    if(error){ console.error('Gagal menyimpan kt_settings:', error); throw new Error(`Gagal menyimpan kt_settings: ${error.message}`); }
+  }
+  if(toDelete.length){
+    const { error: delErr } = await sb.from('kt_settings').delete().in('event_id', toDelete);
+    if(delErr){ console.error('Gagal menghapus kt_settings lama:', delErr); throw new Error(`Gagal menghapus kt_settings: ${delErr.message}`); }
+  }
+
+  const survivedRemote = [...existingIds].filter(id => !toDelete.includes(id));
+  _lastKnownSettingsIds = new Set([...survivedRemote, ...currentIds]);
+}
+
+async function syncTelegram(){
+  const { error } = await sb.from('kt_telegram_settings').upsert({
+    id: 'main',
+    bot_token: db.telegram.botToken,
+    chat_id: db.telegram.chatId,
+    enabled: db.telegram.enabled,
+  }, { onConflict: 'id' });
+  if(error){ console.error('Gagal menyimpan kt_telegram_settings:', error); throw new Error(`Gagal menyimpan pengaturan Telegram: ${error.message}`); }
+}
+
+async function syncGuestMenu(){
+  const hiddenSections = Object.keys(db.guestMenu || {}).filter(k => db.guestMenu[k] === false);
+  const { error } = await sb.from('kt_guest_menu_settings').upsert({
+    id: 'main',
+    hidden_sections: hiddenSections,
+  }, { onConflict: 'id' });
+  if(error){ console.error('Gagal menyimpan kt_guest_menu_settings:', error); throw new Error(`Gagal menyimpan pengaturan menu guest: ${error.message}`); }
+}
+
+// Surat & Dokumen — satu set draft global, tidak terikat event_id (lihat
+// catatan di defaultDB()). Disimpan di tabel kt_dokumen_global (1 baris, id='main').
+async function syncDokumenGlobal(){
+  const { error } = await sb.from('kt_dokumen_global').upsert({
+    id: 'main',
+    dokumen: db.dokumenGlobal || { undangan:{}, proposal:{}, absensi:{}, jadwal_sinoman:{} },
+  }, { onConflict: 'id' });
+  if(error){ console.error('Gagal menyimpan kt_dokumen_global:', error); throw new Error(`Gagal menyimpan Surat & Dokumen: ${error.message}`); }
+}
+
+// saveDB() dipanggil di puluhan tempat setiap ada perubahan kecil. Sebelumnya setiap panggilan
+// langsung melakukan sync PENUH (select+upsert+delete-diff) ke 15+ tabel sekaligus, dan bisa
+// berjalan paralel tanpa lock kalau dipanggil beruntun cepat (race condition antar sync).
+// Sekarang di-debounce (nunggu 400ms jeda aktivitas) dan diberi lock supaya hanya 1 proses
+// sync yang jalan pada satu waktu; kalau ada request baru saat masih sync, ditandai untuk
+// dijalankan ulang setelah yang sedang berjalan selesai.
+let _saveDBTimer = null;
+let _saveDBRunning = false;
+let _saveDBQueued = false;
+
+// Dipakai oleh refreshFromServer() (lihat bagian AUTO-REFRESH di bawah) supaya
+// auto-refresh tidak pernah menimpa perubahan lokal yang belum sempat terkirim
+// ke server. Selama ada perubahan yang masih menunggu disimpan (true), auto-refresh
+// akan melewati siklusnya dan coba lagi nanti.
+let _hasPendingLocalChange = false;
+
+function saveDB(){
+  if(db.activeEventId) localStorage.setItem('kt_active_event', db.activeEventId);
+  _hasPendingLocalChange = true;
+  clearTimeout(_saveDBTimer);
+  _saveDBTimer = setTimeout(_flushSaveDB, 400);
+}
+
+async function _flushSaveDB(){
+  if(_saveDBRunning){ _saveDBQueued = true; return; }
+  _saveDBRunning = true;
+  // Snapshot yang akan dikirim sudah "dipegang" di bawah ini, jadi tandai tidak ada
+  // lagi perubahan lokal yang menunggu — kalau ada saveDB() baru dipanggil SELAMA
+  // proses simpan ini berjalan (user masih mengedit), flag akan otomatis jadi true
+  // lagi lewat panggilan saveDB() tersebut.
+  _hasPendingLocalChange = false;
+  
+  try{
+    const arrayEntries = Object.entries(ARRAY_TABLE_MAP);
+    // 'events' WAJIB disimpan & ditunggu selesai LEBIH DULU, terpisah dari
+    // Promise.all di bawah. Alasan: kt_settings, kt_anggota, dan hampir semua
+    // tabel lain punya foreign key ke kt_events(id). Kalau event yang BARU dibuat
+    // disinkron bersamaan (paralel) dengan baris-baris yang mereferensikannya,
+    // ada race condition: request child bisa sampai & dieksekusi server SEBELUM
+    // request kt_events selesai committed, sehingga foreign key constraint gagal
+    // (error 409 "violates foreign key constraint kt_settings_event_id_fkey" dkk).
+    const eventsTable = ARRAY_TABLE_MAP.events;
+    const eventsConflicts = await syncArrayTable(eventsTable, db.events, 'events');
+
+    // Sama seperti alasan 'events' di atas: beberapa tabel lain SALING punya foreign
+    // key satu sama lain (bukan cuma ke kt_events), jadi tidak semuanya aman disinkron
+    // bersamaan dalam satu Promise.all. Rantai dependensinya:
+    //   lomba ──> lombaKebutuhan ──> daftarBelanjaPerlengkapan
+    //   lomba, hadiahKategori ──> lombaHadiah
+    //   hadiahKategori ──> daftarBelanjaHadiah
+    //   hadiahJalanSantai ──> daftarBelanjaJalanSantai
+    // Kalau baris BARU di tabel induk (mis. lombaKebutuhan) disinkron paralel dengan
+    // baris BARU di tabel anak yang mereferensikannya (daftarBelanjaPerlengkapan),
+    // request anak bisa sampai & dieksekusi server SEBELUM request induk selesai
+    // committed → error 409 "violates foreign key constraint ..._fkey". Makanya
+    // tabel-tabel ini disinkron bertahap per "level" (menunggu level sebelumnya
+    // selesai), bukan semua sekaligus. Di dalam satu level tetap paralel karena
+    // tidak saling bergantung.
+    const LEVEL_1_KEYS = ['anggota','donatur','transaksiLain','operasional','lomba','hadiahKategori','hadiahJalanSantai','jadwal','agenda','kas'];
+    const LEVEL_2_KEYS = ['lombaKebutuhan','lombaHadiah','daftarBelanjaHadiah','daftarBelanjaJalanSantai'];
+    const LEVEL_3_KEYS = ['daftarBelanjaPerlengkapan'];
+    const otherEntries = arrayEntries.filter(([key]) => key !== 'events');
+    const byKey = key => otherEntries.find(([k]) => k === key);
+    const level1Entries = LEVEL_1_KEYS.map(byKey).filter(Boolean);
+    const level2Entries = LEVEL_2_KEYS.map(byKey).filter(Boolean);
+    const level3Entries = LEVEL_3_KEYS.map(byKey).filter(Boolean);
+    // Jaga-jaga kalau ada key baru di ARRAY_TABLE_MAP yang belum dimasukkan ke daftar
+    // level manapun di atas — tetap disinkron di level 1 (paralel dengan yang lain)
+    // supaya tidak diam-diam terlewat.
+    const categorizedKeys = new Set([...LEVEL_1_KEYS, ...LEVEL_2_KEYS, ...LEVEL_3_KEYS]);
+    const uncategorizedEntries = otherEntries.filter(([key]) => !categorizedKeys.has(key));
+
+    const level1Results = await Promise.all([
+      ...level1Entries.map(([key, table]) => syncArrayTable(table, db[key], key)),
+      ...uncategorizedEntries.map(([key, table]) => syncArrayTable(table, db[key], key)),
+      syncSettings(),
+      syncTelegram(),
+      syncGuestMenu(),
+      syncDokumenGlobal(),
+    ]);
+    const level2Results = await Promise.all(level2Entries.map(([key, table]) => syncArrayTable(table, db[key], key)));
+    const level3Results = await Promise.all(level3Entries.map(([key, table]) => syncArrayTable(table, db[key], key)));
+
+    // Hasil konflik dari 'events' (disimpan terpisah di atas) digabung dengan hasil
+    // dari semua level lainnya (syncSettings dkk tidak mengembalikan daftar konflik).
+    const arrayConflictResults = [
+      ...level1Results.slice(0, level1Entries.length + uncategorizedEntries.length),
+      ...level2Results,
+      ...level3Results,
+    ];
+    const allResults = [eventsConflicts, ...arrayConflictResults].flat().filter(Boolean);
+    const ghosts = allResults.filter(c => c.ghost);
+    const conflicts = allResults.filter(c => !c.ghost);
+    if(conflicts.length){
+      const contoh = conflicts.slice(0, 2).map(c => `"${c.label}"`).join(', ');
+      toast(`⚠️ ${conflicts.length} perubahan (${contoh}${conflicts.length>2?', ...':''}) TIDAK disimpan karena sudah diubah pengguna lain. Muat ulang halaman untuk lihat versi terbaru.`, 7000);
+    }
+    if(ghosts.length){
+      // Baris yang sudah dihapus di device/tab lain, dan barusan kita buang dari memori
+      // tab ini juga (lihat catatan "BUG LAMA" di syncArrayTable) — bukan error, cuma info.
+      const totalGhost = ghosts.reduce((s,g) => s + g.count, 0);
+      const contoh = ghosts.flatMap(g => g.labels).slice(0, 2).map(l => `"${l}"`).join(', ');
+      toast(`ℹ️ ${totalGhost} data (${contoh}${totalGhost>2?', ...':''}) sudah dihapus di perangkat lain, tampilan disegarkan.`, 6000);
+      renderContent(); renderTopbarSaldo();
+    }
+  }catch(e){
+    console.error('Gagal menyimpan ke Supabase', e);
+    toast(`⚠️ ${e.message || 'Gagal menyimpan ke Supabase'} — coba simpan ulang`);
+  }finally{
+    _saveDBRunning = false;
+    if(_saveDBQueued){
+      _saveDBQueued = false;
+      _flushSaveDB();
+    }
+  }
+}
+
+// Best-effort: kalau tab ditutup saat masih ada perubahan yang belum sempat ke-sync
+// (masih dalam jeda debounce), coba paksa flush segera.
+window.addEventListener('beforeunload', ()=>{
+  if(_saveDBTimer){ clearTimeout(_saveDBTimer); _flushSaveDB(); }
+});
+
+let db = defaultDB();
+
+const KATEGORI_ANGGOTA = [
+  {v:'sekolah', l:'Sekolah'},
+  {v:'bekerja', l:'Bekerja'},
+  {v:'perantauan', l:'Perantauan'},
+  {v:'khusus', l:'Khusus'},
+];
+const RT_LIST = [
+  {v:'rt1', l:'RT 1'},
+  {v:'rt2', l:'RT 2'},
+  {v:'rt3', l:'RT 3'},
+];
+const GENDER_LIST = [
+  {v:'pria', l:'Laki-Laki'},
+  {v:'wanita', l:'Perempuan'},
+  {v:'tidak_diketahui', l:'Tidak diketahui'},
+];
+const KATEGORI_PESERTA = [
+  {v:'anak', l:'Anak'},
+  {v:'remaja', l:'Remaja'},
+  {v:'ibu', l:'Ibu'},
+  {v:'bapak-ibu', l:'Bapak-Ibu'},
+  {v:'bapak-bapak', l:'Bapak-Bapak'},
+  {v:'umum', l:'Umum'},
+];
+const JUARA_LIST = [
+  {v:'1', l:'Juara 1'},
+  {v:'2', l:'Juara 2'},
+  {v:'3', l:'Juara 3'},
+  {v:'partisipasi', l:'Partisipasi'},
+];
+const KATEGORI_JADWAL = [
+  {v:'belanja', l:'🛒 Belanja'},
+  {v:'rapat', l:'📋 Rapat'},
+  {v:'acara', l:'🎉 Acara'},
+  {v:'tenggat', l:'⏰ Tenggat'},
+  {v:'lainnya', l:'📌 Lainnya'},
+];
+
+function activeEvent(){ return db.events.find(e=>e.id===db.activeEventId) || null; }
+

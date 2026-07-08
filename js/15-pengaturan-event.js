@@ -1,0 +1,447 @@
+/* ============================================================
+   PENGATURAN (Admin only)
+   ============================================================ */
+function renderPengaturan(){
+  if (!isAdmin()) {
+    return `<div class="empty-state"><h3>⛔ Akses Ditolak</h3><p>Halaman Pengaturan hanya untuk Admin.</p><button class="btn" onclick="goSection('dashboard')">Kembali ke Dashboard</button></div>`;
+  }
+  
+  const s = getSettings();
+  const telegram = getTelegramSettings();
+  
+  return `
+  <div class="panel">
+    <div class="panel-head"><h3>Tarif Iuran Anggota</h3></div>
+    <div class="panel-body">
+      <div class="field-row">
+        <div class="field"><label>Sekolah (Rp)</label><input id="tarif-sekolah" class="currency-input" type="text" value="${formatCurrency(s.tarif.sekolah)}"></div>
+        <div class="field"><label>Bekerja (Rp)</label><input id="tarif-bekerja" class="currency-input" type="text" value="${formatCurrency(s.tarif.bekerja)}"></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Perantauan (Rp)</label><input id="tarif-perantauan" class="currency-input" type="text" value="${formatCurrency(s.tarif.perantauan)}"></div>
+        <div class="field"><label style="color:var(--ungu);">Khusus</label>
+          <div style="padding:10px 12px;background:var(--cream);border:1px solid var(--garis);border-radius:8px;font-size:13px;color:var(--ink-soft);">🔓 Nominal bebas — diisi manual per anggota saat ditambahkan</div>
+          <div class="hint">Kategori khusus tidak punya tarif tetap, nominal iurannya diisi langsung saat menambah/mengedit anggota</div>
+        </div>
+      </div>
+      <button class="btn" onclick="simpanTarif()">Simpan Tarif</button>
+    </div>
+  </div>
+  
+  <!-- TELEGRAM NOTIFICATION SETTINGS -->
+  <div class="panel">
+    <div class="panel-head"><h3>🤖 Telegram Notifikasi</h3></div>
+    <div class="panel-body">
+      <div class="field">
+        <label>Bot Token</label>
+        <input id="telegram-bot-token" type="text" value="${esc(telegram.botToken||'')}" placeholder="Masukkan token bot dari @BotFather">
+        <div class="hint">Contoh: 1234567890:ABCdefGHIjklMNOpqrsTUVwxyz</div>
+      </div>
+      <div class="field">
+        <label>Chat ID</label>
+        <input id="telegram-chat-id" type="text" value="${esc(telegram.chatId||'')}" placeholder="Masukkan chat ID tujuan">
+        <div class="hint">Bisa didapat dari @userinfobot atau @getidsbot</div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Status</label>
+          <div class="status">
+            <span class="dot ${telegram.enabled ? 'active' : 'inactive'}"></span>
+            <span>${telegram.enabled ? '✅ Notifikasi Aktif' : '⛔ Notifikasi Nonaktif'}</span>
+          </div>
+        </div>
+        <div class="field" style="display:flex; align-items:end; gap:8px;">
+          <button class="btn ${telegram.enabled ? 'danger' : 'success'} small" onclick="toggleTelegram()" style="margin-bottom:0;">
+            ${telegram.enabled ? '⛔ Nonaktifkan' : '✅ Aktifkan'}
+          </button>
+          <button class="btn telegram small" onclick="testTelegram()" style="margin-bottom:0;">📨 Test Kirim</button>
+        </div>
+      </div>
+      <button class="btn telegram" onclick="simpanTelegram()">💾 Simpan Pengaturan Telegram</button>
+    </div>
+  </div>
+  
+  <!-- AKSES GUEST -->
+  <div class="panel">
+    <div class="panel-head"><h3>👁️ Akses Guest (Belum Login)</h3></div>
+    <div class="panel-body">
+      <div class="hint" style="margin-bottom:10px;">Pilih menu yang boleh dilihat pengunjung yang belum login. Menu yang tidak dicentang akan disembunyikan dari Guest dan langsung ditolak jika diakses.</div>
+      <div class="guest-menu-list" style="display:flex;flex-direction:column;gap:8px;">
+        ${SECTIONS.filter(s=>!s.adminOnly).map(s=>`
+          <label style="display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--garis);border-radius:8px;">
+            <input type="checkbox" class="guest-menu-check" data-key="${s.key}" ${isGuestVisible(s.key) ? 'checked' : ''}>
+            <span>${icon(s.icon)}</span>
+            <span>${esc(s.label)}</span>
+          </label>`).join('')}
+      </div>
+      <button class="btn" style="margin-top:12px;" onclick="simpanGuestMenu()">💾 Simpan Akses Guest</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head"><h3>Manajemen Event</h3></div>
+    <div class="panel-body flush">
+      <table class="general-table"><thead><tr><th>Nama</th><th>Tahun</th><th></th></tr></thead>
+      <tbody>${db.events.map(e=>`<tr><td>${esc(e.nama)}${e.id===db.activeEventId?' <span class="badge lunas">Aktif</span>':''}</td><td>${esc(e.tahun)}</td><td style="text-align:right;white-space:nowrap;">${e.id===db.activeEventId?'':`<button class="btn secondary small" onclick="setActiveEvent('${e.id}')">Aktifkan</button>`}<button class="icon-btn" onclick="openEventModal('${e.id}')" title="Ubah nama/tahun">✎</button><button class="icon-btn" onclick="hapusEvent('${e.id}')" title="Hapus event">🗑</button></td></tr>`).join('')||`<tr class="empty-row"><td colspan="3">Belum ada event.</td></tr>`}</tbody></table>
+    </div>
+    <div class="panel-body"><button class="btn gold" onclick="openEventModal()">+ Buat Event</button></div>
+  </div>
+  <div class="panel">
+    <div class="panel-head"><h3>Cadangan Data</h3></div>
+    <div class="panel-body">
+      <div class="hint" style="margin-bottom:8px;">Backup penuh berisi SEMUA event sekaligus. Impor akan MENIMPA seluruh data.</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn secondary" onclick="exportData()">⬇ Ekspor Semua Data</button>
+        <label class="btn secondary" style="margin:0;">⬆ Impor (Timpa Semua)<input type="file" accept=".json" style="display:none;" onchange="importData(event)"></label>
+      </div>
+    </div>
+    <div class="panel-body" style="border-top:1px solid var(--garis);">
+      <div class="hint" style="margin-bottom:8px;">Backup khusus event aktif${activeEvent()?` (<b>${esc(activeEvent().nama)}</b>)`:''}. Aman untuk disimpan per-kegiatan; saat diimpor akan dibuat sebagai <b>event baru</b>, tidak menimpa data lain.</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn secondary" onclick="exportDataEvent()" ${!activeEvent()?'disabled':''}>⬇ Ekspor Event Aktif</button>
+        <label class="btn secondary" style="margin:0;${!activeEvent()?'opacity:.5;pointer-events:none;':''}">⬆ Impor sebagai Event Baru<input type="file" accept=".json" style="display:none;" onchange="importDataEvent(event)"></label>
+      </div>
+    </div>
+  </div>`;
+}
+
+function simpanTarif(){
+  if (!isAdmin()) { toast('⛔ Hanya Admin'); return; }
+  const s = getSettings();
+  s.tarif.sekolah = getCurrencyValue(document.getElementById('tarif-sekolah'));
+  s.tarif.bekerja = getCurrencyValue(document.getElementById('tarif-bekerja'));
+  s.tarif.perantauan = getCurrencyValue(document.getElementById('tarif-perantauan'));
+  saveDB(); toast('Tarif iuran disimpan');
+  notifyTelegram(`⚙️ Update tarif iuran`, `Sekolah: ${fmtRp(s.tarif.sekolah)}\nBekerja: ${fmtRp(s.tarif.bekerja)}\nPerantauan: ${fmtRp(s.tarif.perantauan)}\nKhusus: bebas (manual per anggota)`);
+}
+
+function simpanTelegram(){
+  if (!isAdmin()) { toast('⛔ Hanya Admin'); return; }
+  const botToken = document.getElementById('telegram-bot-token').value.trim();
+  const chatId = document.getElementById('telegram-chat-id').value.trim();
+  const settings = { botToken, chatId, enabled: db.telegram?.enabled || false };
+  saveTelegramSettings(settings);
+  toast('✅ Pengaturan Telegram disimpan');
+  renderContent();
+}
+
+function simpanGuestMenu(){
+  if (!isAdmin()) { toast('⛔ Hanya Admin'); return; }
+  const checks = document.querySelectorAll('.guest-menu-check');
+  const guestMenu = {};
+  checks.forEach(c => { guestMenu[c.dataset.key] = c.checked; });
+  db.guestMenu = guestMenu;
+  saveDB();
+  toast('✅ Akses Guest disimpan');
+  renderSidebar();
+}
+
+function toggleTelegram(){
+  if (!isAdmin()) { toast('⛔ Hanya Admin'); return; }
+  const settings = getTelegramSettings();
+  if(!settings.botToken || !settings.chatId){
+    toast('⚠️ Isi Bot Token dan Chat ID terlebih dahulu');
+    return;
+  }
+  settings.enabled = !settings.enabled;
+  saveTelegramSettings(settings);
+  toast(settings.enabled ? '✅ Notifikasi Telegram diaktifkan' : '⛔ Notifikasi Telegram dinonaktifkan');
+  renderContent();
+}
+
+async function testTelegram(){
+  if (!isAdmin()) { toast('⛔ Hanya Admin'); return; }
+  const settings = getTelegramSettings();
+  if(!settings.botToken || !settings.chatId){
+    toast('⚠️ Isi Bot Token dan Chat ID terlebih dahulu');
+    return;
+  }
+  if(!settings.enabled){
+    if(!confirm('Notifikasi sedang nonaktif. Aktifkan sekarang?')) return;
+    settings.enabled = true;
+    saveTelegramSettings(settings);
+  }
+  await sendTelegramNotification(`🔔 <b>Test Notifikasi</b>\n\nHalo! Ini adalah pesan test dari Buku Keuangan Karang Taruna.\n\n✅ Notifikasi berhasil terkonfigurasi!\n\nWaktu: ${new Date().toLocaleString('id-ID')}`, true);
+}
+
+function setActiveEvent(id){ 
+  if (!canEdit()) { toast('⛔ Login untuk mengelola event'); return; }
+  db.activeEventId = id; 
+  applyTemaWarna(eventTema(db.events.find(e=>e.id===id)).key);
+  saveDB(); renderSidebar();
+  goSection(isMenuAktif(currentSection) ? currentSection : 'dashboard');
+  notifyTelegram(`📂 Buka event: ${db.events.find(e=>e.id===id)?.nama || id}`, '');
+}
+
+function hapusEvent(id){
+  if (!isAdmin()) { toast('⛔ Hanya Admin'); return; }
+  const e = db.events.find(x=>x.id===id); if(!e) return;
+  if(!confirm(`Hapus event "${e.nama}" beserta semua data?`)) return;
+  db.events = db.events.filter(x=>x.id!==id);
+  delete db.settings[id];
+  db.anggota = db.anggota.filter(x=>x.event_id!==id);
+  db.donatur = db.donatur.filter(x=>x.event_id!==id);
+  db.transaksiLain = db.transaksiLain.filter(x=>x.event_id!==id);
+  db.operasional = db.operasional.filter(x=>x.event_id!==id);
+  const lombaIds = db.lomba.filter(l=>l.event_id===id).map(l=>l.id);
+  db.lombaKebutuhan = db.lombaKebutuhan.filter(k=>!lombaIds.includes(k.lomba_id));
+  db.lombaHadiah = db.lombaHadiah.filter(lh=>!lombaIds.includes(lh.lomba_id));
+  db.lomba = db.lomba.filter(l=>l.event_id!==id);
+  db.hadiahKategori = db.hadiahKategori.filter(x=>x.event_id!==id);
+  db.daftarBelanjaHadiah = db.daftarBelanjaHadiah.filter(x=>x.event_id!==id);
+  db.daftarBelanjaPerlengkapan = db.daftarBelanjaPerlengkapan.filter(x=>x.event_id!==id);
+  db.hadiahJalanSantai = db.hadiahJalanSantai.filter(x=>x.event_id!==id);
+  db.daftarBelanjaJalanSantai = db.daftarBelanjaJalanSantai.filter(x=>x.event_id!==id);
+  db.jadwal = db.jadwal.filter(x=>x.event_id!==id);
+  if(db.activeEventId===id) db.activeEventId = db.events[0]?.id || null;
+  saveDB(); renderSidebar(); goSection(db.activeEventId ? currentSection : 'dashboard');
+  notifyTelegram(`🗑️ Hapus event: ${e.nama}`, '');
+}
+
+function exportData(){
+  if (!canEdit()) { toast('⛔ Login untuk ekspor data'); return; }
+  // Redaksi token Telegram — ini kredensial live, bukan "data", tidak perlu ikut ke file backup.
+  const exportable = JSON.parse(JSON.stringify(db));
+  if (exportable.telegram) exportable.telegram.botToken = '';
+  const blob = new Blob([JSON.stringify(exportable, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `buku-keuangan-${todayISO()}.json`;
+  a.click();
+  toast('✅ Data diekspor (token Telegram tidak disertakan, atur ulang jika perlu)');
+  notifyTelegram(`⬇️ Ekspor data`, `File: buku-keuangan-${todayISO()}.json`);
+}
+
+function importData(evt){
+  if (!isAdmin()) { toast('⛔ Hanya Admin'); return; }
+  const file = evt.target.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    try{
+      const parsed = JSON.parse(reader.result);
+      if(!confirm('Impor akan MENIMPA data yang ada. Lanjutkan?')) return;
+      db = Object.assign(defaultDB(), parsed);
+      saveDB(); renderSidebar(); goSection('dashboard'); toast('Data diimpor');
+      notifyTelegram(`⬆️ Impor data`, `File: ${file.name}\nUkuran: ${(file.size/1024).toFixed(1)} KB`);
+    }catch(e){ toast('File tidak valid'); }
+  };
+  reader.readAsText(file);
+}
+
+/* ============================================================
+   CADANGAN DATA PER EVENT AKTIF
+   Ekspor hanya mengambil data yang event_id-nya = event aktif.
+   Impor membuat EVENT BARU (id & seluruh id record di-generate ulang
+   supaya tidak bentrok dengan data yang sudah ada), lalu diaktifkan.
+   ============================================================ */
+function exportDataEvent(){
+  if (!canEdit()) { toast('⛔ Login untuk ekspor data'); return; }
+  const ev = activeEvent();
+  if(!ev){ toast('Tidak ada event aktif'); return; }
+  const id = ev.id;
+  const lombaIds = db.lomba.filter(x=>x.event_id===id).map(x=>x.id);
+
+  const payload = {
+    _type: 'kt-event-backup',
+    _version: 1,
+    exported_at: new Date().toISOString(),
+    event: { nama: ev.nama, tahun: ev.tahun, fitur: ev.fitur || null },
+    settings: db.settings[id] ? { tarif: db.settings[id].tarif, hadiahBudget: db.settings[id].hadiahBudget || {} } : { tarif:{sekolah:0,bekerja:0,perantauan:0,khusus:0}, hadiahBudget:{} },
+    anggota: db.anggota.filter(x=>x.event_id===id),
+    donatur: db.donatur.filter(x=>x.event_id===id),
+    transaksiLain: db.transaksiLain.filter(x=>x.event_id===id),
+    operasional: db.operasional.filter(x=>x.event_id===id),
+    lomba: db.lomba.filter(x=>x.event_id===id),
+    lombaKebutuhan: db.lombaKebutuhan.filter(x=>lombaIds.includes(x.lomba_id)),
+    lombaHadiah: db.lombaHadiah.filter(x=>lombaIds.includes(x.lomba_id)),
+    hadiahKategori: db.hadiahKategori.filter(x=>x.event_id===id),
+    daftarBelanjaHadiah: db.daftarBelanjaHadiah.filter(x=>x.event_id===id),
+    daftarBelanjaPerlengkapan: db.daftarBelanjaPerlengkapan.filter(x=>x.event_id===id),
+    hadiahJalanSantai: db.hadiahJalanSantai.filter(x=>x.event_id===id),
+    daftarBelanjaJalanSantai: db.daftarBelanjaJalanSantai.filter(x=>x.event_id===id),
+    jadwal: db.jadwal.filter(x=>x.event_id===id),
+  };
+
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  const safeName = (ev.nama||'event').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'') || 'event';
+  a.href = URL.createObjectURL(blob);
+  a.download = `backup-${safeName}-${todayISO()}.json`;
+  a.click();
+  toast(`✅ Data event "${ev.nama}" diekspor`);
+  notifyTelegram(`⬇️ Ekspor data event`, `Event: ${ev.nama}\nFile: ${a.download}`);
+}
+
+function importDataEvent(evt){
+  if (!canEdit()) { toast('⛔ Login untuk impor data'); return; }
+  const file = evt.target.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    try{
+      const parsed = JSON.parse(reader.result);
+      if(!parsed || parsed._type !== 'kt-event-backup' || !parsed.event){
+        toast('File bukan backup event yang valid'); evt.target.value=''; return;
+      }
+      if(!confirm(`Impor akan membuat EVENT BARU "${parsed.event.nama}" berisi salinan data dari file backup ini. Data event lain tidak akan berubah. Lanjutkan?`)){
+        evt.target.value=''; return;
+      }
+
+      const newEventId = uid();
+      db.events.push({ id:newEventId, nama: parsed.event.nama || 'Event Impor', tahun: parsed.event.tahun || new Date().getFullYear(), fitur: parsed.event.fitur || undefined, created_at: new Date().toISOString() });
+      db.settings[newEventId] = {
+        tarif: (parsed.settings && parsed.settings.tarif) ? {...parsed.settings.tarif} : {sekolah:0,bekerja:0,perantauan:0,khusus:0},
+        hadiahBudget: (parsed.settings && parsed.settings.hadiahBudget) ? JSON.parse(JSON.stringify(parsed.settings.hadiahBudget)) : {}
+      };
+
+      (parsed.anggota||[]).forEach(x=>{ db.anggota.push({...x, id:uid(), event_id:newEventId}); });
+      (parsed.donatur||[]).forEach(x=>{ db.donatur.push({...x, id:uid(), event_id:newEventId}); });
+      (parsed.transaksiLain||[]).forEach(x=>{ db.transaksiLain.push({...x, id:uid(), event_id:newEventId}); });
+      (parsed.operasional||[]).forEach(x=>{ db.operasional.push({...x, id:uid(), event_id:newEventId}); });
+      (parsed.jadwal||[]).forEach(x=>{ db.jadwal.push({...x, id:uid(), event_id:newEventId}); });
+
+      const lombaIdMap = {};
+      (parsed.lomba||[]).forEach(x=>{ const nid=uid(); lombaIdMap[x.id]=nid; db.lomba.push({...x, id:nid, event_id:newEventId}); });
+
+      const kebutuhanIdMap = {};
+      (parsed.lombaKebutuhan||[]).forEach(x=>{ const nid=uid(); kebutuhanIdMap[x.id]=nid; db.lombaKebutuhan.push({...x, id:nid, lomba_id: lombaIdMap[x.lomba_id] || x.lomba_id}); });
+
+      const hadiahKategoriIdMap = {};
+      (parsed.hadiahKategori||[]).forEach(x=>{ const nid=uid(); hadiahKategoriIdMap[x.id]=nid; db.hadiahKategori.push({...x, id:nid, event_id:newEventId}); });
+
+      (parsed.lombaHadiah||[]).forEach(x=>{ db.lombaHadiah.push({...x, id:uid(),
+        lomba_id: lombaIdMap[x.lomba_id] || x.lomba_id,
+        hadiah_kategori_id: hadiahKategoriIdMap[x.hadiah_kategori_id] || x.hadiah_kategori_id }); });
+
+      (parsed.daftarBelanjaHadiah||[]).forEach(x=>{ db.daftarBelanjaHadiah.push({...x, id:uid(), event_id:newEventId,
+        hadiah_kategori_id: hadiahKategoriIdMap[x.hadiah_kategori_id] || x.hadiah_kategori_id }); });
+
+      (parsed.daftarBelanjaPerlengkapan||[]).forEach(x=>{ db.daftarBelanjaPerlengkapan.push({...x, id:uid(), event_id:newEventId,
+        kebutuhan_id: kebutuhanIdMap[x.kebutuhan_id] || x.kebutuhan_id }); });
+
+      const hadiahJalanIdMap = {};
+      (parsed.hadiahJalanSantai||[]).forEach(x=>{ const nid=uid(); hadiahJalanIdMap[x.id]=nid; db.hadiahJalanSantai.push({...x, id:nid, event_id:newEventId}); });
+
+      (parsed.daftarBelanjaJalanSantai||[]).forEach(x=>{ db.daftarBelanjaJalanSantai.push({...x, id:uid(), event_id:newEventId,
+        hadiah_jalan_id: hadiahJalanIdMap[x.hadiah_jalan_id] || x.hadiah_jalan_id }); });
+
+      db.activeEventId = newEventId;
+      saveDB(); renderSidebar(); goSection('dashboard');
+      toast(`✅ Event "${parsed.event.nama}" berhasil diimpor & diaktifkan`);
+      notifyTelegram(`⬆️ Impor data event`, `Event baru: ${parsed.event.nama}\nFile: ${file.name}\nUkuran: ${(file.size/1024).toFixed(1)} KB`);
+    }catch(e){
+      console.error(e);
+      toast('File tidak valid');
+    } finally {
+      evt.target.value = '';
+    }
+  };
+  reader.readAsText(file);
+}
+
+/* ============================================================
+   EVENT MODAL
+   ============================================================ */
+function openEventModal(id){
+  if (!canEdit()) { toast('⛔ Login untuk mengelola event'); return; }
+  const editing = id ? db.events.find(e=>e.id===id) : null;
+  const fiturAwal = eventFitur(editing);
+  const eventLain = db.events.slice().sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||''));
+  setModal(editing?'Edit Event':'Buat Event', `
+    <div class="field"><label>Nama Event</label><input id="f-nama" placeholder="HUT RI 82" value="${editing?esc(editing.nama):''}"></div>
+    <div class="field"><label>Tahun</label><input id="f-tahun" type="number" value="${editing?esc(editing.tahun):new Date().getFullYear()}"></div>
+
+    <div class="field">
+      <label>Warna Tema</label>
+      <input type="hidden" id="f-tema" value="${eventTema(editing).key}">
+      <div id="tema-swatch-list" style="display:flex; flex-wrap:wrap; gap:10px; margin-top:2px;">
+        ${PRESET_TEMA.map(t=>{
+          const active = eventTema(editing).key===t.key;
+          return `<div class="tema-swatch" data-key="${t.key}" onclick="selectTemaModal('${t.key}')" title="${esc(t.label)}"
+            style="width:32px; height:32px; border-radius:50%; background:${t.main}; cursor:pointer; display:flex; align-items:center; justify-content:center; border:3px solid ${active?'var(--ink)':'transparent'}; transition:border-color .15s ease;">
+            ${active?'<span style="color:#fff; font-size:13px; font-weight:700;">✓</span>':''}
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+
+    ${!editing && eventLain.length ? `
+    <div class="field">
+      <label>Salin Data Anggota (opsional)</label>
+      <select id="f-salin-anggota">
+        <option value="">— Jangan salin, mulai kosong —</option>
+        ${eventLain.map(e=>{
+          const jumlah = db.anggota.filter(a=>a.event_id===e.id).length;
+          return `<option value="${e.id}">${esc(e.nama)} (${esc(e.tahun)}) · ${jumlah} anggota</option>`;
+        }).join('')}
+      </select>
+      <div class="hint">Nama, kategori, RT &amp; jenis kelamin akan disalin. Status iuran diset ulang jadi "Belum Lunas" karena ini event baru.</div>
+    </div>` : ''}
+
+    <div class="field" style="margin-top:6px;">
+      <label>Fitur yang Dipakai</label>
+      <div class="field-hint" style="margin:-2px 0 8px; color:var(--ink-soft); font-size:12.5px;">Nonaktifkan modul yang tidak dipakai supaya menu lebih ringkas. Iuran, Buku Kegiatan & LPJ selalu aktif.</div>
+      <div style="display:flex; gap:8px; margin-bottom:10px;">
+        <button type="button" class="btn secondary small" onclick="setFiturModalPreset('lengkap')">Pilih Semua (Lengkap)</button>
+        <button type="button" class="btn secondary small" onclick="setFiturModalPreset('sederhana')">Hanya Iuran & LPJ</button>
+      </div>
+      <div id="fitur-opsional-list" style="display:flex; flex-direction:column; gap:6px;">
+        ${FITUR_OPSIONAL.map(f=>`
+          <label style="display:flex; align-items:center; gap:8px; font-size:13.5px; font-weight:400;">
+            <input type="checkbox" id="fitur-${f.key}" ${fiturAwal[f.key]?'checked':''}> ${esc(f.label)}
+          </label>`).join('')}
+      </div>
+    </div>
+  `, [
+    {label:'Batal', cls:'secondary', onclick:closeModal},
+    {label:editing?'Simpan':'Buat', cls:'', onclick:()=>{
+      const nama = document.getElementById('f-nama').value.trim();
+      const tahun = document.getElementById('f-tahun').value.trim();
+      const warna_tema = document.getElementById('f-tema')?.value || 'hijau';
+      if(!nama){ toast('Nama wajib'); return; }
+      const fitur = {};
+      FITUR_OPSIONAL.forEach(f => fitur[f.key] = !!document.getElementById(`fitur-${f.key}`)?.checked);
+      if(editing){
+        const namaLama = editing.nama;
+        editing.nama = nama; editing.tahun = tahun; editing.fitur = fitur; editing.warna_tema = warna_tema;
+        if(db.activeEventId === editing.id) applyTemaWarna(warna_tema);
+        saveDB(); closeModal(); renderSidebar(); renderContent(); toast('Event diperbarui');
+        notifyTelegram(`✏️ Edit event: ${namaLama} → ${nama}`, `Tahun: ${tahun}`);
+      } else {
+        const newId = uid();
+        db.events.push({id:newId, nama, tahun, fitur, warna_tema, created_at:new Date().toISOString()});
+        db.settings[newId] = {tarif:{sekolah:0,bekerja:0,perantauan:0,khusus:0}, hadiahBudget:{}};
+        const sourceEventId = document.getElementById('f-salin-anggota')?.value || '';
+        let jumlahDisalin = 0;
+        if(sourceEventId){
+          db.anggota.filter(a=>a.event_id===sourceEventId).forEach(a=>{
+            db.anggota.push({id:uid(), event_id:newId, nama:a.nama, kategori:a.kategori, rt:a.rt, gender:a.gender, nominal_wajib:a.nominal_wajib, status:'belum_lunas', tanggal_bayar:null});
+            jumlahDisalin++;
+          });
+        }
+        db.activeEventId = newId;
+        applyTemaWarna(warna_tema);
+        saveDB(); closeModal(); renderSidebar(); goSection('pengaturan');
+        toast(jumlahDisalin ? `Event dibuat, ${jumlahDisalin} anggota disalin` : 'Event dibuat');
+        notifyTelegram(`📂 Event baru: ${nama}`, `Tahun: ${tahun}${jumlahDisalin ? `\nAnggota disalin: ${jumlahDisalin}` : ''}`);
+      }
+    }}
+  ]);
+}
+function setFiturModalPreset(preset){
+  const src = preset === 'lengkap' ? FITUR_PRESET_LENGKAP : FITUR_PRESET_SEDERHANA;
+  FITUR_OPSIONAL.forEach(f=>{
+    const cb = document.getElementById(`fitur-${f.key}`);
+    if(cb) cb.checked = !!src[f.key];
+  });
+}
+
+function selectTemaModal(key){
+  const input = document.getElementById('f-tema');
+  if(input) input.value = key;
+  document.querySelectorAll('#tema-swatch-list .tema-swatch').forEach(el=>{
+    const active = el.dataset.key === key;
+    el.style.borderColor = active ? 'var(--ink)' : 'transparent';
+    el.innerHTML = active ? '<span style="color:#fff; font-size:13px; font-weight:700;">✓</span>' : '';
+  });
+}
+

@@ -8,7 +8,7 @@
    NAIKKAN CACHE_VERSION setiap kali index.html/style.css/script.js
    diupdate, supaya HP pengguna otomatis ambil versi baru.
    ============================================================ */
-const CACHE_VERSION = 'v13';
+const CACHE_VERSION = 'v14';
 const CACHE_NAME = `kt-shell-${CACHE_VERSION}`;
 
 const APP_SHELL = [
@@ -71,6 +71,22 @@ self.addEventListener('fetch', (event) => {
         caches.open(CACHE_NAME).then((cache) => cache.put(req, resClone));
         return res;
       })
-      .catch(() => caches.match(req).then((cached) => cached || caches.match('./index.html')))
+      .catch(() =>
+        // PENTING: rantai fallback ini HARUS selalu berakhir dengan sebuah
+        // Response yang valid. Kalau fetch gagal (koneksi jelek/putus) DAN
+        // request ini kebetulan tidak ada di cache DAN './index.html' juga
+        // entah kenapa tidak ke-cache, hasilnya bisa `undefined` —
+        // respondWith(undefined) bikin Chrome melempar net::ERR_FAILED dan
+        // seluruh halaman gagal total sampai di-hard-refresh. Response
+        // buatan tangan di baris terakhir ini mencegah itu: dalam skenario
+        // terburuk sekalipun, user tetap dapat pesan yang jelas, bukan
+        // error jaringan yang bikin bingung.
+        caches.match(req)
+          .then((cached) => cached || caches.match('./index.html'))
+          .then((cached) => cached || new Response(
+            '<h1>Sedang offline</h1><p>Tidak bisa memuat halaman ini dan belum ada salinan tersimpan. Coba lagi setelah koneksi kembali.</p>',
+            { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8' } }
+          ))
+      )
   );
 });

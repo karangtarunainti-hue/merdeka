@@ -36,6 +36,7 @@ create table if not exists kt_panitia_sinoman (
   desa text default '',
   kecamatan text default '',
   kabupaten text default '',
+  empunya_hajat text default '',
   hari text default '',
   tanggal date,
   tempat text default '',

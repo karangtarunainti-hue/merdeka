@@ -1629,3 +1629,46 @@ table.panitia-table .pt-input{width:100%;}
 .initial-loading .msg.slow{color:var(--orange, #b5722a); font-weight:600;}
 .initial-loading .retry-btn{display:none;}
 @keyframes kt-spin{ to{ transform:rotate(360deg); } }
+
+/* ============================================================
+   OFFLINE OVERLAY — layar buram + peringatan saat perangkat
+   kehilangan koneksi internet. Menutup seluruh aplikasi (blur +
+   blokir klik/keyboard) supaya user tidak bisa input data selama
+   offline, untuk meminimalisir konflik data saat sinkron ulang
+   ke Supabase begitu koneksi kembali (lihat initOfflineGuard() di
+   script.js).
+   ============================================================ */
+.offline-overlay{
+  position:fixed; inset:0; z-index:9999;
+  display:flex; align-items:center; justify-content:center; padding:20px;
+  background:rgba(43,35,32,.35);
+  backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+  opacity:0; visibility:hidden; pointer-events:none;
+  transition:opacity .25s ease, visibility 0s linear .25s;
+}
+.offline-overlay.show{
+  opacity:1; visibility:visible; pointer-events:all;
+  transition:opacity .25s ease, visibility 0s linear 0s;
+}
+.offline-box{
+  background:var(--surface); border:1px solid var(--garis); border-radius:var(--radius);
+  box-shadow:0 10px 40px rgba(0,0,0,.25);
+  max-width:340px; width:100%; padding:28px 24px; text-align:center;
+}
+.offline-icon{font-size:36px; line-height:1; margin-bottom:10px; filter:grayscale(1); opacity:.75;}
+.offline-box h3{margin:0 0 8px; font-size:16.5px; font-weight:700; color:var(--bahaya-dark);}
+.offline-box p{margin:0 0 16px; font-size:13px; line-height:1.6; color:var(--ink-soft);}
+.offline-status{
+  display:inline-flex; align-items:center; gap:7px;
+  font-size:12.5px; font-weight:600; color:var(--ink-soft);
+  background:var(--surface-soft); border:1px solid var(--garis); border-radius:20px;
+  padding:6px 14px;
+}
+.offline-dot{
+  width:7px; height:7px; border-radius:50%; background:var(--bahaya, #A32638);
+  animation:kt-offline-pulse 1.2s ease-in-out infinite;
+}
+@keyframes kt-offline-pulse{
+  0%,100%{ opacity:1; transform:scale(1); }
+  50%{ opacity:.35; transform:scale(.75); }
+}

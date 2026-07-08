@@ -6261,6 +6261,56 @@ function closeSidebar(){
   document.getElementById('sidebar-backdrop').classList.remove('show');
 }
 
+/* ============================================================
+   OFFLINE GUARD
+   ============================================================
+   Kalau perangkat kehilangan koneksi internet, layar dibuat buram +
+   dikunci (lihat .offline-overlay di style.css) supaya user TIDAK BISA
+   input/edit data sama sekali selama offline. Ini untuk mencegah skenario
+   konflik data: user A input sesuatu saat offline pakai data yang sudah
+   basi di layarnya, lalu begitu online lagi perubahannya bentrok/menimpa
+   perubahan user B yang sudah tersimpan di server duluan.
+   Begitu koneksi kembali, overlay hilang otomatis dan data langsung
+   ditarik ulang dari server (refreshFromServer) supaya user melihat versi
+   terbaru sebelum lanjut input.
+*/
+let _offlineToastShown = false;
+
+function _setOfflineOverlay(show){
+  const el = document.getElementById('offline-overlay');
+  if(!el) return;
+  el.classList.toggle('show', show);
+  el.setAttribute('aria-hidden', show ? 'false' : 'true');
+}
+
+function _handleOffline(){
+  _setOfflineOverlay(true);
+  if(!_offlineToastShown){
+    _offlineToastShown = true;
+    toast('⚠️ Koneksi internet terputus. Input dinonaktifkan sementara.', 4000);
+  }
+}
+
+function _handleOnline(){
+  _setOfflineOverlay(false);
+  if(_offlineToastShown){
+    _offlineToastShown = false;
+    toast('✅ Koneksi internet kembali. Menyinkronkan data terbaru...', 3000);
+  }
+  // Tarik ulang data terbaru dari server begitu online lagi, supaya user
+  // tidak melanjutkan input di atas data yang mungkin sudah usang.
+  if(typeof refreshFromServer === 'function') refreshFromServer();
+}
+
+function initOfflineGuard(){
+  // Cek status begitu app dibuka — kalau ternyata sudah offline dari awal,
+  // langsung kunci layar tanpa harus menunggu event 'offline' terpicu.
+  if(!navigator.onLine) _handleOffline();
+  window.addEventListener('offline', _handleOffline);
+  window.addEventListener('online', _handleOnline);
+}
+initOfflineGuard();
+
 (async function initApp(){
   // Sebelumnya cuma ada toast() yang otomatis hilang dalam 2.4 detik — kalau
   // koneksi lambat (lumrah di lapangan/lokasi acara), setelah toast hilang

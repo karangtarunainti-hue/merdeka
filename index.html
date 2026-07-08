@@ -82,6 +82,20 @@
 
 <div class="toast" id="toast"></div>
 
+<!-- OFFLINE GUARD: layar buram + peringatan saat device tidak ada koneksi internet,
+     supaya user tidak bisa input data (mencegah konflik data antar perangkat saat
+     koneksi kembali & proses sinkronisasi berjalan). -->
+<div class="offline-overlay" id="offline-overlay" aria-hidden="true">
+  <div class="offline-box">
+    <div class="offline-icon">📡</div>
+    <h3>Tidak Ada Akses Internet</h3>
+    <p>Koneksi internet perangkat ini terputus. Input dinonaktifkan sementara agar data tidak bentrok dengan perangkat lain.</p>
+    <div class="offline-status" id="offline-status">
+      <span class="offline-dot"></span> Menunggu koneksi kembali&hellip;
+    </div>
+  </div>
+</div>
+
 <script src="vendor/supabase.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="script.js"></script>

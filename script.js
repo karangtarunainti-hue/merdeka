@@ -946,13 +946,14 @@ const SECTIONS = [
   {key:'agenda', label:'Agenda Kegiatan', sub:'', icon:'calendar', adminOnly: true},
   {key:'gudang', label:'Gudang Aset', sub:'Inventaris & pinjam aset desa', icon:'package', adminOnly: false},
   {key:'dokumen', label:'Surat & Dokumen', sub:'Undangan, proposal & absensi', icon:'clipboard', adminOnly: false},
+  {key:'panitia', label:'Panitia / Sinoman', sub:'Susunan panitia acara warga', icon:'tag', adminOnly: false},
   {key:'kas', label:'Kas Karang Taruna', sub:'', icon:'wallet', adminOnly: false},
 ];
 
 // Menu yang tidak terikat event tertentu (datanya global, bukan per-event).
 // Menu ini ditampilkan terpisah di atas, antara info login dan dropdown
 // Kegiatan Aktif, supaya jelas tidak berubah walau event aktif diganti.
-const GLOBAL_MENU_KEYS = ['kas', 'agenda', 'dokumen', 'database-anggota', 'gudang', 'users', 'pengaturan'];
+const GLOBAL_MENU_KEYS = ['kas', 'agenda', 'dokumen', 'panitia', 'database-anggota', 'gudang', 'users', 'pengaturan'];
 
 /* ============================================================
    FITUR OPSIONAL PER EVENT
@@ -1114,7 +1115,7 @@ function goSection(key){
 // saldo proyeksi kegiatan/event tidak ikut nongol di menu yang memang tidak
 // terikat event tersebut — chip itu punya arti khusus untuk event aktif,
 // jadi kalau ditampilkan di menu eventless malah bikin salah paham).
-const EVENTLESS_SECTIONS = ['gudang', 'dokumen', 'agenda', 'kas', 'dashboard', 'pengaturan', 'users'];
+const EVENTLESS_SECTIONS = ['gudang', 'dokumen', 'panitia', 'agenda', 'kas', 'dashboard', 'pengaturan', 'users'];
 
 function renderTopbarSaldo(){
   const chip = document.getElementById('saldo-chip');
@@ -1192,6 +1193,7 @@ function renderContent(){
     case 'agenda': el.innerHTML = renderAgenda(); break;
     case 'gudang': el.innerHTML = renderGudang(); break;
     case 'dokumen': el.innerHTML = renderDokumen(); break;
+    case 'panitia': el.innerHTML = renderPanitiaSinoman(); break;
     case 'kas': el.innerHTML = renderKas(); break;
     case 'lpj': el.innerHTML = renderLPJ(); break;
     case 'pengaturan': el.innerHTML = renderPengaturan(); break;

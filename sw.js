@@ -8,7 +8,7 @@
    NAIKKAN CACHE_VERSION setiap kali index.html/style.css/script.js
    diupdate, supaya HP pengguna otomatis ambil versi baru.
    ============================================================ */
-const CACHE_VERSION = 'v14';
+const CACHE_VERSION = 'v13';
 const CACHE_NAME = `kt-shell-${CACHE_VERSION}`;
 
 const APP_SHELL = [
@@ -71,18 +71,6 @@ self.addEventListener('fetch', (event) => {
         caches.open(CACHE_NAME).then((cache) => cache.put(req, resClone));
         return res;
       })
-      .catch(() =>
-        caches.match(req)
-          .then((cached) => cached || caches.match('./index.html'))
-          // Jaga-jaga terakhir: kalau jaringan gagal DAN cache (termasuk index.html)
-          // juga kosong (mis. baru install & belum sempat ke-cache penuh), tetap
-          // kembalikan Response yang valid — jangan biarkan undefined lolos ke
-          // respondWith(), karena itu yang bikin Chrome menampilkan ERR_FAILED
-          // ("Situs ini tidak dapat dijangkau") alih-alih halaman offline yang wajar.
-          .then((res) => res || new Response(
-            '<h1>Offline</h1><p>Tidak ada koneksi & belum ada versi tersimpan di perangkat ini.</p>',
-            { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8' } }
-          ))
-      )
+      .catch(() => caches.match(req).then((cached) => cached || caches.match('./index.html')))
   );
 });

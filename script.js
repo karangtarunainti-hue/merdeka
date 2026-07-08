@@ -4558,19 +4558,12 @@ async function testTelegram(){
 }
 
 function setActiveEvent(id){ 
+  if (!canEdit()) { toast('⛔ Login untuk mengelola event'); return; }
   db.activeEventId = id; 
   applyTemaWarna(eventTema(db.events.find(e=>e.id===id)).key);
-  if (canEdit()) {
-    // User login: simpan & sync penuh ke server + kirim notifikasi Telegram.
-    saveDB();
-    notifyTelegram(`📂 Buka event: ${db.events.find(e=>e.id===id)?.nama || id}`, '');
-  } else {
-    // Guest: cuma ganti tampilan lokal di browser ini, tanpa sync ke server
-    // atau notifikasi (mencegah guest memicu full-sync/RLS error & spam Telegram).
-    localStorage.setItem('kt_active_event', id);
-  }
-  renderSidebar();
+  saveDB(); renderSidebar();
   goSection(isMenuAktif(currentSection) ? currentSection : 'dashboard');
+  notifyTelegram(`📂 Buka event: ${db.events.find(e=>e.id===id)?.nama || id}`, '');
 }
 
 function hapusEvent(id){
@@ -6295,7 +6288,8 @@ const AUTO_REFRESH_INTERVAL_MS = 20000;
    INIT
    ============================================================ */
 document.getElementById('event-select').addEventListener('change', (e)=>{ 
-  setActiveEvent(e.target.value);
+  if (canEdit()) setActiveEvent(e.target.value); 
+  else toast('⛔ Login untuk mengubah event');
 });
 document.getElementById('btn-new-event').addEventListener('click', openEventModal);
 document.getElementById('nav').addEventListener('click', (e)=>{

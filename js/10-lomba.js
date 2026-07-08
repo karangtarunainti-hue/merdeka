@@ -25,7 +25,7 @@ function renderLomba(){
     return `
     <div class="lomba-card ${isOpen?'open':''}">
       <div class="lomba-card-head" onclick="toggleLombaCard('${l.id}')" style="cursor:pointer;">
-        <div><span class="nomor-badge kategori-${l.kategori_peserta}">${idx+1}</span><span class="name">${esc(l.nama)}</span><span class="kategori-pill" style="margin-left:8px;">${labelPeserta(l.kategori_peserta)}</span>${Number(l.jumlah_anggota_regu||1)>1?`<span class="kategori-pill khusus" style="margin-left:6px;">👥 Beregu ×${l.jumlah_anggota_regu}</span>`:''}</div>
+        <div><span class="nomor-badge kategori-${l.kategori_peserta}">${idx+1}</span><span class="name">${esc(l.nama)}</span><span class="kategori-pill" style="margin-left:8px;">${labelPeserta(l.kategori_peserta)}</span>${Number(l.jumlah_anggota_regu||1)>1?`<span class="kategori-pill khusus" style="margin-left:6px;">👥 Beregu ×${l.jumlah_anggota_regu}${l.hadiah_per_regu?' · 1 hadiah/regu':''}</span>`:''}</div>
         <div style="display:flex;align-items:center;gap:14px;">
           <span class="lomba-badge">${items.length} item</span>
           ${hadiahBadge}
@@ -109,24 +109,32 @@ function renderHadiahLombaBlock(lomba){
 function openLombaModal(id){
   if (!canEditSection('lomba')) { toast('⛔ Login untuk mengedit data'); return; }
   const editing = id ? db.lomba.find(l=>l.id===id) : null;
-  setModal(editing?'Edit Lomba':'Tambah Lomba', `<div class="field"><label>Nama Lomba</label><input id="f-nama" value="${editing?esc(editing.nama):''}"></div><div class="field"><label>Kategori Peserta</label><select id="f-kategori">${KATEGORI_PESERTA.map(k=>`<option value="${k.v}" ${editing&&editing.kategori_peserta===k.v?'selected':''}>${k.l}</option>`).join('')}</select></div><div class="field"><label>Jumlah Anggota per Regu</label><input id="f-anggota" type="number" min="1" value="${editing?(editing.jumlah_anggota_regu||1):1}"><div class="hint">Isi 1 jika lomba perorangan. Jika lomba beregu (misal 1 regu = 5 orang), isi 5 — kebutuhan hadiah untuk lomba ini otomatis dikalikan 5.</div></div>`, [
+  const anggotaAwal = editing?(editing.jumlah_anggota_regu||1):1;
+  const hadiahPerReguAwal = editing ? !!editing.hadiah_per_regu : false;
+  setModal(editing?'Edit Lomba':'Tambah Lomba', `<div class="field"><label>Nama Lomba</label><input id="f-nama" value="${editing?esc(editing.nama):''}"></div><div class="field"><label>Kategori Peserta</label><select id="f-kategori">${KATEGORI_PESERTA.map(k=>`<option value="${k.v}" ${editing&&editing.kategori_peserta===k.v?'selected':''}>${k.l}</option>`).join('')}</select></div><div class="field"><label>Jumlah Anggota per Regu</label><input id="f-anggota" type="number" min="1" value="${anggotaAwal}" oninput="toggleHadiahPerReguHint()"><div class="hint">Isi 1 jika lomba perorangan. Jika lomba beregu (misal 1 regu = 5 orang), isi 5.</div></div><div class="field" id="f-hadiah-per-regu-wrap" style="display:${anggotaAwal>1?'block':'none'};"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" id="f-hadiah-per-regu" ${hadiahPerReguAwal?'checked':''} style="width:auto;"> Hadiah 1 paket untuk seluruh regu (bukan per anggota)</label><div class="hint">Dicentang: kebutuhan hadiah lomba ini dihitung 1 paket saja meski jumlah anggota regu lebih dari 1. Tidak dicentang (default): kebutuhan hadiah dikalikan jumlah anggota regu (tiap anggota dapat paket sendiri).</div></div>`, [
     {label:'Batal', cls:'secondary', onclick:closeModal},
     {label:editing?'Simpan':'Tambah', cls:'', onclick:()=>{
       const nama=document.getElementById('f-nama').value.trim(); const kategori_peserta=document.getElementById('f-kategori').value; 
       const jumlah_anggota_regu=Math.max(1, Number(document.getElementById('f-anggota').value||1));
+      const hadiah_per_regu = jumlah_anggota_regu>1 && !!document.getElementById('f-hadiah-per-regu').checked;
       if(!nama){toast('Nama wajib');return;}
       let actionMsg = editing ? `✏️ Edit lomba: ${editing.nama} → ${nama}` : `➕ Lomba baru: ${nama}`;
       if(editing){ 
-        editing.nama=nama; editing.kategori_peserta=kategori_peserta; editing.jumlah_anggota_regu=jumlah_anggota_regu; 
+        editing.nama=nama; editing.kategori_peserta=kategori_peserta; editing.jumlah_anggota_regu=jumlah_anggota_regu; editing.hadiah_per_regu=hadiah_per_regu;
       }
-      else{ db.lomba.push({id:uid(),event_id:eid(),nama,kategori_peserta,jumlah_anggota_regu}); }
+      else{ db.lomba.push({id:uid(),event_id:eid(),nama,kategori_peserta,jumlah_anggota_regu,hadiah_per_regu}); }
       saveDB();
       // Lomba bertambah/berubah → kebutuhan paket hadiah berubah, sinkronkan stok yang harus dibeli.
       autoSyncHadiahStok(true);
       closeModal(); renderContent(); renderTopbarSaldo(); toast('Disimpan');
-      notifyTelegram(actionMsg, `Kategori: ${labelPeserta(kategori_peserta)}\nAnggota/regu: ${jumlah_anggota_regu}`);
+      notifyTelegram(actionMsg, `Kategori: ${labelPeserta(kategori_peserta)}\nAnggota/regu: ${jumlah_anggota_regu}${hadiah_per_regu?' (1 hadiah untuk seluruh regu)':''}`);
     }}
   ]);
+}
+function toggleHadiahPerReguHint(){
+  const anggota = Math.max(1, Number(document.getElementById('f-anggota').value||1));
+  const wrap = document.getElementById('f-hadiah-per-regu-wrap');
+  if(wrap) wrap.style.display = anggota>1 ? 'block' : 'none';
 }
 function hapusLomba(id){ 
   if (!canEditSection('lomba')) { toast('⛔ Login untuk mengedit data'); return; }
@@ -192,8 +200,8 @@ function renderHadiah(){
     if(!items.length) return '';
     const lombaKategoriList = semuaLomba.filter(l => l.kategori_peserta === kp.v);
     const jumlahLomba = lombaKategoriList.length;
-    const totalKebutuhanPaket = lombaKategoriList.reduce((s,l)=>s+Math.max(1,Number(l.jumlah_anggota_regu||1)),0);
-    const adaBeregu = lombaKategoriList.some(l => Number(l.jumlah_anggota_regu||1) > 1);
+    const totalKebutuhanPaket = lombaKategoriList.reduce((s,l)=>s+anggotaHadiahLomba(l),0);
+    const adaBeregu = lombaKategoriList.some(l => Number(l.jumlah_anggota_regu||1) > 1 && !l.hadiah_per_regu);
     const groupHtml = items.map(h => {
       const isPartisipasi = h.juara_ke === 'partisipasi';
       const kebutuhan = isPartisipasi ? null : totalKebutuhanPaket;
@@ -203,8 +211,8 @@ function renderHadiah(){
       // dengan budget, karena budget diatur per paket/per pemenang, bukan akumulasi
       // seluruh lomba di kategori ini (yang jumlahnya beda-beda tiap kategori).
       const totalPerPaket = h.items.reduce((s, item) => s + (Number(item.harga_satuan||0) * Math.max(1,Number(item.qty_per_paket||1))), 0);
-      const namaLombaTitle = esc(lombaKategoriList.map(l => Number(l.jumlah_anggota_regu||1)>1 ? `${l.nama} (beregu ×${l.jumlah_anggota_regu})` : l.nama).join(', '));
-      const rincianLomba = adaBeregu ? ` = ${lombaKategoriList.map(l=>Number(l.jumlah_anggota_regu||1)).join('+')}` : '';
+      const namaLombaTitle = esc(lombaKategoriList.map(l => Number(l.jumlah_anggota_regu||1)>1 ? `${l.nama} (beregu ×${l.jumlah_anggota_regu}${l.hadiah_per_regu?', 1 hadiah/regu':''})` : l.nama).join(', '));
+      const rincianLomba = adaBeregu ? ` = ${lombaKategoriList.map(l=>anggotaHadiahLomba(l)).join('+')}` : '';
       const kebutuhanBadge = kebutuhan!=null
         ? (kurangItems.length
             ? `<span class="lomba-badge warn" style="margin-left:8px;" title="${namaLombaTitle}">⚠️ Kurang, butuh ${kebutuhan} pcs (dari ${jumlahLomba} lomba${rincianLomba})</span>`
@@ -229,7 +237,7 @@ function renderHadiah(){
         </div></div>`;
     }).join('');
     const kebutuhanInfo = jumlahLomba > 0 ? `<span style="font-size:11.5px;color:var(--ink-soft);font-weight:500;text-transform:none;letter-spacing:0;margin-left:8px;">(${jumlahLomba} lomba${adaBeregu?` · butuh ${totalKebutuhanPaket} pcs karena ada beregu`:''})</span>` : '';
-    const daftarLombaInfo = lombaKategoriList.length ? `<div class="lomba-mini-list">${lombaKategoriList.map((l,i)=>{const anggota=Number(l.jumlah_anggota_regu||1); return `<span class="lomba-mini-chip">${anggota>1?`<span class="num beregu">${anggota}×</span>`:`<span class="num">${i+1}</span>`}${esc(l.nama)}${anggota>1?` <span class="beregu-tag">beregu</span>`:''}</span>`;}).join('')}</div>` : '';
+    const daftarLombaInfo = lombaKategoriList.length ? `<div class="lomba-mini-list">${lombaKategoriList.map((l,i)=>{const anggota=Number(l.jumlah_anggota_regu||1); const perRegu=anggota>1&&l.hadiah_per_regu; return `<span class="lomba-mini-chip">${anggota>1?`<span class="num beregu">${anggotaHadiahLomba(l)}×</span>`:`<span class="num">${i+1}</span>`}${esc(l.nama)}${anggota>1?` <span class="beregu-tag">${perRegu?'1 hadiah/regu':'beregu'}</span>`:''}</span>`;}).join('')}</div>` : '';
     return `<div class="subgroup-title">${kp.l}${kebutuhanInfo}</div>${daftarLombaInfo}${groupHtml}`;
   }).join('');
 
@@ -302,9 +310,10 @@ function renderHadiah(){
 
 // Kebutuhan paket hadiah Juara 1/2/3 = jumlah lomba pada kategori peserta tsb, dikalikan jumlah anggota regu tiap lomba
 // (lomba perorangan = x1, lomba beregu = x jumlah anggota regu). Partisipasi tidak dihitung otomatis.
+function anggotaHadiahLomba(l){ return l.hadiah_per_regu ? 1 : Math.max(1, Number(l.jumlah_anggota_regu||1)); }
 function hitungKebutuhanHadiah(kategoriPeserta, juaraKe){
   if(juaraKe === 'partisipasi') return null;
-  return gLomba().filter(l => l.kategori_peserta === kategoriPeserta).reduce((s,l)=> s + Math.max(1, Number(l.jumlah_anggota_regu||1)), 0);
+  return gLomba().filter(l => l.kategori_peserta === kategoriPeserta).reduce((s,l)=> s + anggotaHadiahLomba(l), 0);
 }
 // Target qty tiap item = kebutuhan (jumlah paket/lomba) dikalikan qty_per_paket item tsb
 // (mis. pulpen 2/paket pada kategori yg butuh 3 paket => target 6, bukan 3)
@@ -509,4 +518,3 @@ function hapusHadiah(id){
   const h=db.hadiahKategori.find(x=>x.id===id); if(!h) return; if(!confirm('Hapus paket?')) return; db.hadiahKategori=db.hadiahKategori.filter(x=>x.id!==id); saveDB(); renderContent(); renderTopbarSaldo(); 
   notifyTelegram(`🗑️ Hapus paket hadiah`, `Kategori: ${labelPeserta(h.kategori_peserta)}\nJuara: ${labelJuara(h.juara_ke)}`);
 }
-

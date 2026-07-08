@@ -8,7 +8,7 @@
    NAIKKAN CACHE_VERSION setiap kali index.html/style.css/script.js
    diupdate, supaya HP pengguna otomatis ambil versi baru.
    ============================================================ */
-const CACHE_VERSION = 'v12';
+const CACHE_VERSION = 'v13';
 const CACHE_NAME = `kt-shell-${CACHE_VERSION}`;
 
 const APP_SHELL = [
@@ -25,7 +25,9 @@ const APP_SHELL = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(APP_SHELL))
+      // {cache:'reload'} supaya fetch awal ini juga tidak diam-diam diambil dari
+      // HTTP cache browser/CDN (lihat penjelasan lengkap di listener 'fetch' di bawah).
+      .then((cache) => cache.addAll(APP_SHELL.map((url) => new Request(url, { cache: 'reload' }))))
       .then(() => self.skipWaiting())
   );
 });
@@ -54,8 +56,16 @@ self.addEventListener('fetch', (event) => {
   // Network-first untuk app shell: kalau online, selalu pakai versi
   // terbaru dari server + update cache. Kalau offline, baru fallback
   // ke cache supaya aplikasi tetap bisa dibuka.
+  //
+  // CATATAN PENTING: `fetch(req)` biasa TETAP BISA diam-diam dijawab dari
+  // HTTP cache bawaan browser/CDN (bukan Cache Storage kita), tergantung
+  // header Cache-Control dari hosting — jadi walau kode di sini sudah
+  // "network-first", device tertentu masih bisa dapat file lama beberapa
+  // saat kalau layer cache HTTP itu belum kadaluarsa. `cache:'no-store'`
+  // memaksa permintaan ini betul-betul ke jaringan, tidak boleh dijawab
+  // dari cache manapun selain Cache Storage kita sendiri sebagai fallback.
   event.respondWith(
-    fetch(req)
+    fetch(req.url, { cache: 'no-store' })
       .then((res) => {
         const resClone = res.clone();
         caches.open(CACHE_NAME).then((cache) => cache.put(req, resClone));

@@ -4364,9 +4364,9 @@ function renderFormAbsensi(ev){
     </div>
 
     <table class="lpj-table absensi-table">
-      <thead><tr><th style="width:36px;">No</th><th>Nama</th><th>Kategori</th><th>RT</th><th>Tanda Tangan</th></tr></thead>
+      <thead><tr><th style="width:36px;">No</th><th>Nama</th><th>RT</th><th>Tanda Tangan</th></tr></thead>
       <tbody>
-        ${list.length ? list.map((a,i)=>`<tr><td class="num">${i+1}</td><td>${esc(a.nama)}</td><td>${esc(labelKategori(a.kategori))}</td><td>${esc(labelRT(a.rt))}</td><td class="absensi-ttd-cell"></td></tr>`).join('') : `<tr class="empty-row"><td colspan="5">Belum ada data anggota${filterKategori||filterRT?' yang cocok dengan filter ini':''}.</td></tr>`}
+        ${list.length ? list.map((a,i)=>`<tr><td class="num">${i+1}</td><td>${esc(a.nama)}</td><td>${esc(labelRT(a.rt))}</td><td class="absensi-ttd-cell"></td></tr>`).join('') : `<tr class="empty-row"><td colspan="4">Belum ada data anggota${filterKategori||filterRT?' yang cocok dengan filter ini':''}.</td></tr>`}
       </tbody>
     </table>
   </div>

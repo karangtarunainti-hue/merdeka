@@ -771,6 +771,43 @@ const KATEGORI_JADWAL = [
 ];
 
 function activeEvent(){ return db.events.find(e=>e.id===db.activeEventId) || null; }
+
+/* ============================================================
+   TEMA WARNA PER EVENT
+   ============================================================
+   Warna utama aplikasi (sidebar, tombol, aksen) dikendalikan lewat 3 CSS
+   variable: --merah, --merah-dark, --merah-tint (lihat :root di style.css).
+   Tiap event bisa punya `warna_tema` sendiri (salah satu key di
+   PRESET_TEMA) — begitu event di-switch, applyTemaWarna() menimpa 3
+   variable itu di :root supaya tampilan langsung berubah tanpa reload.
+   Default 'hijau' dipakai untuk event lama yang belum pernah pilih tema.
+   ============================================================ */
+const PRESET_TEMA = [
+  {key:'hijau',  label:'Hijau (Default)', main:'#2F7D5A', dark:'#1D4B36', tint:'#E1EFE7'},
+  {key:'merah',  label:'Merah Bata',      main:'#B5423E', dark:'#7A2A27', tint:'#F3E0DE'},
+  {key:'biru',   label:'Biru Teal',       main:'#2E7D82', dark:'#1B4D50', tint:'#DCEDEC'},
+  {key:'ungu',   label:'Ungu',            main:'#7B4C8C', dark:'#4E2F59', tint:'#EDE1F0'},
+  {key:'oranye', label:'Oranye',          main:'#B8763A', dark:'#7A4E22', tint:'#F1E2D2'},
+  {key:'pink',   label:'Pink',            main:'#C94C7C', dark:'#832F51', tint:'#F5E0E8'},
+  {key:'emas',   label:'Emas',            main:'#C99A3C', dark:'#8A6A1E', tint:'#F6ECD3'},
+];
+
+function eventTema(ev){
+  const key = (ev && ev.warna_tema) || 'hijau';
+  return PRESET_TEMA.find(t=>t.key===key) || PRESET_TEMA[0];
+}
+
+function applyTemaWarna(key){
+  const tema = PRESET_TEMA.find(t=>t.key===key) || PRESET_TEMA[0];
+  const root = document.documentElement.style;
+  root.setProperty('--merah', tema.main);
+  root.setProperty('--merah-dark', tema.dark);
+  root.setProperty('--merah-tint', tema.tint);
+  // Samakan juga warna chrome browser/PWA (address bar di HP) dengan tema aktif.
+  const metaTheme = document.querySelector('meta[name="theme-color"]');
+  if(metaTheme) metaTheme.setAttribute('content', tema.dark);
+}
+
 function eid(){ return db.activeEventId; }
 function getSettings(){
   if(!eid()) return {tarif:{sekolah:0,bekerja:0,perantauan:0,khusus:0}, hadiahBudget:{}, dokumen:{}};
@@ -4523,6 +4560,7 @@ async function testTelegram(){
 function setActiveEvent(id){ 
   if (!canEdit()) { toast('⛔ Login untuk mengelola event'); return; }
   db.activeEventId = id; 
+  applyTemaWarna(eventTema(db.events.find(e=>e.id===id)).key);
   saveDB(); renderSidebar();
   goSection(isMenuAktif(currentSection) ? currentSection : 'dashboard');
   notifyTelegram(`📂 Buka event: ${db.events.find(e=>e.id===id)?.nama || id}`, '');
@@ -4705,6 +4743,20 @@ function openEventModal(id){
     <div class="field"><label>Nama Event</label><input id="f-nama" placeholder="HUT RI 82" value="${editing?esc(editing.nama):''}"></div>
     <div class="field"><label>Tahun</label><input id="f-tahun" type="number" value="${editing?esc(editing.tahun):new Date().getFullYear()}"></div>
 
+    <div class="field">
+      <label>Warna Tema</label>
+      <input type="hidden" id="f-tema" value="${eventTema(editing).key}">
+      <div id="tema-swatch-list" style="display:flex; flex-wrap:wrap; gap:10px; margin-top:2px;">
+        ${PRESET_TEMA.map(t=>{
+          const active = eventTema(editing).key===t.key;
+          return `<div class="tema-swatch" data-key="${t.key}" onclick="selectTemaModal('${t.key}')" title="${esc(t.label)}"
+            style="width:32px; height:32px; border-radius:50%; background:${t.main}; cursor:pointer; display:flex; align-items:center; justify-content:center; border:3px solid ${active?'var(--ink)':'transparent'}; transition:border-color .15s ease;">
+            ${active?'<span style="color:#fff; font-size:13px; font-weight:700;">✓</span>':''}
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+
     ${!editing && eventLain.length ? `
     <div class="field">
       <label>Salin Data Anggota (opsional)</label>
@@ -4737,17 +4789,19 @@ function openEventModal(id){
     {label:editing?'Simpan':'Buat', cls:'', onclick:()=>{
       const nama = document.getElementById('f-nama').value.trim();
       const tahun = document.getElementById('f-tahun').value.trim();
+      const warna_tema = document.getElementById('f-tema')?.value || 'hijau';
       if(!nama){ toast('Nama wajib'); return; }
       const fitur = {};
       FITUR_OPSIONAL.forEach(f => fitur[f.key] = !!document.getElementById(`fitur-${f.key}`)?.checked);
       if(editing){
         const namaLama = editing.nama;
-        editing.nama = nama; editing.tahun = tahun; editing.fitur = fitur;
+        editing.nama = nama; editing.tahun = tahun; editing.fitur = fitur; editing.warna_tema = warna_tema;
+        if(db.activeEventId === editing.id) applyTemaWarna(warna_tema);
         saveDB(); closeModal(); renderSidebar(); renderContent(); toast('Event diperbarui');
         notifyTelegram(`✏️ Edit event: ${namaLama} → ${nama}`, `Tahun: ${tahun}`);
       } else {
         const newId = uid();
-        db.events.push({id:newId, nama, tahun, fitur, created_at:new Date().toISOString()});
+        db.events.push({id:newId, nama, tahun, fitur, warna_tema, created_at:new Date().toISOString()});
         db.settings[newId] = {tarif:{sekolah:0,bekerja:0,perantauan:0,khusus:0}, hadiahBudget:{}};
         const sourceEventId = document.getElementById('f-salin-anggota')?.value || '';
         let jumlahDisalin = 0;
@@ -4758,6 +4812,7 @@ function openEventModal(id){
           });
         }
         db.activeEventId = newId;
+        applyTemaWarna(warna_tema);
         saveDB(); closeModal(); renderSidebar(); goSection('pengaturan');
         toast(jumlahDisalin ? `Event dibuat, ${jumlahDisalin} anggota disalin` : 'Event dibuat');
         notifyTelegram(`📂 Event baru: ${nama}`, `Tahun: ${tahun}${jumlahDisalin ? `\nAnggota disalin: ${jumlahDisalin}` : ''}`);
@@ -4770,6 +4825,16 @@ function setFiturModalPreset(preset){
   FITUR_OPSIONAL.forEach(f=>{
     const cb = document.getElementById(`fitur-${f.key}`);
     if(cb) cb.checked = !!src[f.key];
+  });
+}
+
+function selectTemaModal(key){
+  const input = document.getElementById('f-tema');
+  if(input) input.value = key;
+  document.querySelectorAll('#tema-swatch-list .tema-swatch').forEach(el=>{
+    const active = el.dataset.key === key;
+    el.style.borderColor = active ? 'var(--ink)' : 'transparent';
+    el.innerHTML = active ? '<span style="color:#fff; font-size:13px; font-weight:700;">✓</span>' : '';
   });
 }
 
@@ -6330,6 +6395,7 @@ initOfflineGuard();
     return;
   }
 
+  applyTemaWarna(eventTema(activeEvent()).key);
   renderSidebar();
   renderTopbarSaldo();
   goSection('dashboard');

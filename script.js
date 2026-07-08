@@ -631,7 +631,7 @@ async function syncGuestMenu(){
 async function syncDokumenGlobal(){
   const { error } = await sb.from('kt_dokumen_global').upsert({
     id: 'main',
-    dokumen: db.dokumenGlobal || { undangan:{}, proposal:{}, absensi:{} },
+    dokumen: db.dokumenGlobal || { undangan:{}, proposal:{}, absensi:{}, jadwal_sinoman:{} },
   }, { onConflict: 'id' });
   if(error){ console.error('Gagal menyimpan kt_dokumen_global:', error); throw new Error(`Gagal menyimpan Surat & Dokumen: ${error.message}`); }
 }
@@ -816,6 +816,13 @@ function getDokumenGlobal(){
   if(!db.dokumenGlobal.undangan) db.dokumenGlobal.undangan = {};
   if(!db.dokumenGlobal.proposal) db.dokumenGlobal.proposal = {};
   if(!db.dokumenGlobal.absensi) db.dokumenGlobal.absensi = {};
+  if(!db.dokumenGlobal.jadwal_sinoman) db.dokumenGlobal.jadwal_sinoman = {
+    judul: '', tempat: '',
+    rows: Array.from({length:5}, () => ({ pagi:'', siang:'', sore:'' })),
+  };
+  if(!Array.isArray(db.dokumenGlobal.jadwal_sinoman.rows) || !db.dokumenGlobal.jadwal_sinoman.rows.length){
+    db.dokumenGlobal.jadwal_sinoman.rows = Array.from({length:5}, () => ({ pagi:'', siang:'', sore:'' }));
+  }
   return db.dokumenGlobal;
 }
 
@@ -4070,14 +4077,31 @@ function renderLPJ(){
 /* ============================================================
    SURAT & DOKUMEN
    Kumpulan dokumen siap cetak: Surat Undangan Kegiatan, Proposal
-   Kegiatan, dan Form Absensi (berdasar Database Anggota). Draft
-   teksnya disimpan di db.settings[event].dokumen (kolom jsonb
-   `dokumen` di tabel kt_settings — lihat
-   supabase-dokumen-migration.sql). Pola cetaknya sama seperti LPJ:
-   render di layar, lalu tombol "Cetak / Simpan sebagai PDF" yang
-   memanggil window.print().
+   Kegiatan, Form Absensi (berdasar Database Anggota), dan Jadwal
+   Sinoman (jadwal piket pagi/siang/sore, nama dipilih dari Database
+   Anggota). Draft teksnya disimpan di db.dokumenGlobal (kolom jsonb
+   `dokumen` di tabel kt_dokumen_global — lihat
+   supabase-dokumen-global-migration.sql, tidak perlu migrasi baru
+   karena kolomnya jsonb bebas struktur). Pola cetaknya sama seperti
+   LPJ: render di layar, lalu tombol "Cetak / Simpan sebagai PDF"
+   yang memanggil window.print().
    ============================================================ */
 function nl2br(s){ return esc(s).replace(/\n/g, '<br>'); }
+
+// Nama untuk dropdown Pagi/Siang/Sore di Jadwal Sinoman — diambil dari
+// Database Anggota (bukan ketik bebas), sama seperti dropdown lain di app ini.
+function dokumenDaftarNama(){
+  const set = new Set();
+  db.anggota.forEach(a => { if(a.nama && a.nama.trim()) set.add(a.nama.trim()); });
+  return [...set].sort((a,b)=>a.localeCompare(b));
+}
+function dokumenOptionsNama(selected){
+  const names = dokumenDaftarNama();
+  const opts = names.map(n => `<option value="${esc(n)}" ${n===selected?'selected':''}>${esc(n)}</option>`).join('');
+  const extra = (selected && !names.includes(selected))
+    ? `<option value="${esc(selected)}" selected>${esc(selected)} (tidak ada di data anggota)</option>` : '';
+  return `<option value=""${!selected?' selected':''}>— pilih nama —</option>${extra}${opts}`;
+}
 
 let _dokumenTab = 'undangan';
 function gotoDokumenTab(tab){ _dokumenTab = tab; renderContent(); }
@@ -4091,11 +4115,13 @@ function renderDokumen(){
     {key:'undangan', label:'📨 Surat Undangan'},
     {key:'proposal', label:'📋 Proposal Kegiatan'},
     {key:'absensi', label:'📝 Form Absensi'},
+    {key:'jadwal_sinoman', label:'🗓️ Jadwal Sinoman'},
   ];
   const tabNav = `<div class="dokumen-tabs no-print">${tabs.map(t=>`<button type="button" class="dokumen-tab ${_dokumenTab===t.key?'active':''}" onclick="gotoDokumenTab('${t.key}')">${t.label}</button>`).join('')}</div>`;
   let body = '';
   if(_dokumenTab==='proposal') body = renderProposalKegiatan(ev);
   else if(_dokumenTab==='absensi') body = renderFormAbsensi(ev);
+  else if(_dokumenTab==='jadwal_sinoman') body = renderJadwalSinoman(ev);
   else body = renderSuratUndangan(ev);
   return tabNav + body;
 }
@@ -4380,6 +4406,91 @@ function simpanAbsensi(){
   s.absensi.judul = document.getElementById('doc-abs-judul').value.trim();
   s.absensi.tanggal = document.getElementById('doc-abs-tanggal').value;
   saveDB(); renderContent(); toast('💾 Form absensi diperbarui');
+}
+
+/* ---------- 4. Jadwal Sinoman (jadwal piket pagi/siang/sore) ---------- */
+function renderJadwalSinoman(ev){
+  const isLoggedIn = !!getCurrentUser();
+  const d = getDokumenGlobal().jadwal_sinoman;
+  const judulDefault = d.judul || (ev ? ev.nama : '');
+
+  const rowsEdit = d.rows.map((r,idx)=>`
+    <tr>
+      <td class="num" style="width:60px;">Hari ${idx+1}</td>
+      <td><select id="js-row-${idx}-pagi" style="width:100%" onchange="jadwalSinomanSetCell(${idx},'pagi',this.value)">${dokumenOptionsNama(r.pagi)}</select></td>
+      <td><select id="js-row-${idx}-siang" style="width:100%" onchange="jadwalSinomanSetCell(${idx},'siang',this.value)">${dokumenOptionsNama(r.siang)}</select></td>
+      <td><select id="js-row-${idx}-sore" style="width:100%" onchange="jadwalSinomanSetCell(${idx},'sore',this.value)">${dokumenOptionsNama(r.sore)}</select></td>
+      <td style="width:36px;"><button class="icon-btn" onclick="jadwalSinomanRemoveRow(${idx})" title="Hapus baris">✕</button></td>
+    </tr>`).join('');
+
+  const editForm = isLoggedIn ? `
+  <div class="panel no-print">
+    <div class="panel-head"><h3>✏️ Isi Jadwal Sinoman</h3></div>
+    <div class="panel-body">
+      <div class="field-row">
+        <div class="field"><label>Judul Acara</label><input id="doc-js-judul" value="${esc(judulDefault)}" placeholder="Contoh: 17-an Tahun 2026"></div>
+        <div class="field"><label>Tempat</label><input id="doc-js-tempat" value="${esc(d.tempat||'')}" placeholder="Balai Desa / Rumah Bapak RT 02"></div>
+      </div>
+      <button class="btn" onclick="simpanJadwalSinoman()">💾 Simpan &amp; Perbarui Pratinjau</button>
+
+      <div class="field-hint" style="color:var(--ink-soft); font-size:12.5px; margin:16px 0 6px;">Nama dipilih dari Database Anggota. Perubahan nama per baris tersimpan otomatis.</div>
+      <table class="lpj-table">
+        <thead><tr><th></th><th>Pagi</th><th>Siang</th><th>Sore</th><th></th></tr></thead>
+        <tbody>${rowsEdit}</tbody>
+      </table>
+      <button class="btn secondary small" onclick="jadwalSinomanAddRow()">+ Tambah Baris</button>
+    </div>
+  </div>` : '';
+
+  const rowsPrint = d.rows.map((r,idx)=>`<tr><td class="num">${idx+1}</td><td>${esc(r.pagi)||'-'}</td><td>${esc(r.siang)||'-'}</td><td>${esc(r.sore)||'-'}</td></tr>`).join('');
+
+  return editForm + `
+  <div class="lpj-scale-wrap" id="lpj-scale-wrap">
+  <div class="lpj-print-area" id="lpj-print-area">
+    <div class="lpj-header">
+      <div class="lpj-header-inner">
+        <img src="icons/logo-kop.png" alt="Logo Karang Taruna Inti" class="lpj-logo">
+        <div class="lpj-header-text">
+          <div class="lpj-eyebrow">Karang Taruna Inti</div>
+          <h2>JADWAL SINOMAN</h2>
+          <div class="lpj-sub">${esc(judulDefault||'-')}</div>
+          <div class="lpj-meta">${d.tempat ? `Tempat: ${esc(d.tempat)}` : ''}</div>
+        </div>
+        <div class="lpj-header-spacer" aria-hidden="true"></div>
+      </div>
+    </div>
+
+    <table class="lpj-table">
+      <thead><tr><th style="width:60px;">Hari</th><th>Pagi</th><th>Siang</th><th>Sore</th></tr></thead>
+      <tbody>${rowsPrint || `<tr class="empty-row"><td colspan="4">Belum ada jadwal diisi.</td></tr>`}</tbody>
+    </table>
+  </div>
+  </div>
+  ${isLoggedIn ? `<div class="lpj-toolbar no-print"><button class="btn small" onclick="window.print()">🖨️ Cetak / Simpan sebagai PDF</button></div>` : ''}`;
+}
+
+function simpanJadwalSinoman(){
+  const s = getDokumenGlobal();
+  s.jadwal_sinoman.judul = document.getElementById('doc-js-judul').value.trim();
+  s.jadwal_sinoman.tempat = document.getElementById('doc-js-tempat').value.trim();
+  saveDB(); renderContent(); toast('💾 Jadwal Sinoman disimpan');
+}
+function jadwalSinomanSetCell(idx, field, value){
+  const s = getDokumenGlobal();
+  if(!s.jadwal_sinoman.rows[idx]) return;
+  s.jadwal_sinoman.rows[idx][field] = value;
+  saveDB();
+}
+function jadwalSinomanAddRow(){
+  const s = getDokumenGlobal();
+  s.jadwal_sinoman.rows.push({ pagi:'', siang:'', sore:'' });
+  saveDB(); renderContent();
+}
+function jadwalSinomanRemoveRow(idx){
+  const s = getDokumenGlobal();
+  if(s.jadwal_sinoman.rows.length<=1) return;
+  s.jadwal_sinoman.rows.splice(idx,1);
+  saveDB(); renderContent();
 }
 
 /* ============================================================

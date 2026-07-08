@@ -1323,6 +1323,9 @@
   background:var(--surface); border:1px solid var(--garis); border-radius:var(--radius);
   padding:32px; max-width:820px; margin:0 auto; box-shadow:var(--shadow);
 }
+/* Preview generator Surat & Dokumen (Undangan/Proposal/Absensi/Jadwal Sinoman):
+   margin kiri-kanan teks 2x lipat dari LPJ (64px vs 32px), atas-bawah tetap sama. */
+.lpj-print-area.surat-print-area{padding-left:64px; padding-right:64px;}
 .lpj-header{text-align:center; border-bottom:2px solid var(--ink); padding-bottom:16px; margin-bottom:24px;}
 .lpj-header-inner{display:flex; align-items:center; gap:16px;}
 .lpj-logo{width:72px; height:72px; object-fit:contain; flex-shrink:0;}

@@ -2169,7 +2169,6 @@ function openOperasionalModal(id){
     <div class="field"><label>QTY</label><input id="f-qty" type="number" min="1" step="1" oninput="hitungJumlahOperasionalModal()" value="${editing?(editing.qty||1):1}"></div></div>
     <div class="field"><label>Jumlah</label><div id="f-jumlah-preview" style="font-weight:700; font-size:16px; padding:6px 0;">${fmtRp((editing?Number(editing.satuan||0):0)*(editing?(editing.qty||1):1))}</div><div class="hint">Otomatis: Harga Satuan × QTY</div></div>
     <div class="field"><label>Tanggal</label><input id="f-tanggal" type="date" value="${editing?editing.tanggal:todayISO()}"></div>
-    <div class="field"><label>Catatan (opsional)</label><input id="f-bukti" value="${editing?esc(editing.catatan_bukti||''):''}"></div>
   `, [
     {label:'Batal', cls:'secondary', onclick:closeModal},
     {label:editing?'Simpan':'Tambah', cls:'', onclick:()=>{
@@ -2178,13 +2177,12 @@ function openOperasionalModal(id){
       const qty = Number(document.getElementById('f-qty').value) || 1;
       const jumlah = satuan * qty;
       const tanggal = document.getElementById('f-tanggal').value||todayISO();
-      const bukti = document.getElementById('f-bukti').value.trim();
       if(!ket||jumlah<=0){ toast('Keterangan & harga satuan wajib'); return; }
       let actionMsg = '';
-      if(editing){ actionMsg = `✏️ Edit biaya operasional: ${editing.keterangan} → ${ket}`; Object.assign(editing,{keterangan:ket,satuan,qty,jumlah,tanggal,catatan_bukti:bukti}); }
-      else{ actionMsg = `➕ Biaya operasional baru: ${ket}`; db.operasional.push({id:uid(),event_id:eid(),keterangan:ket,satuan,qty,jumlah,tanggal,catatan_bukti:bukti,created_at:new Date().toISOString()}); }
+      if(editing){ actionMsg = `✏️ Edit biaya operasional: ${editing.keterangan} → ${ket}`; Object.assign(editing,{keterangan:ket,satuan,qty,jumlah,tanggal}); }
+      else{ actionMsg = `➕ Biaya operasional baru: ${ket}`; db.operasional.push({id:uid(),event_id:eid(),keterangan:ket,satuan,qty,jumlah,tanggal,created_at:new Date().toISOString()}); }
       saveDB(); closeModal(); renderContent(); renderTopbarSaldo(); toast('Disimpan');
-      notifyTelegram(actionMsg, `Keterangan: ${ket}\nHarga Satuan: ${fmtRp(satuan)}\nQTY: ${qty}\nJumlah: ${fmtRp(jumlah)}\nTanggal: ${fmtDate(tanggal)}\nCatatan: ${bukti || '-'}`);
+      notifyTelegram(actionMsg, `Keterangan: ${ket}\nHarga Satuan: ${fmtRp(satuan)}\nQTY: ${qty}\nJumlah: ${fmtRp(jumlah)}\nTanggal: ${fmtDate(tanggal)}`);
     }}
   ]);
   setTimeout(setupAllCurrencyInputs, 50);
@@ -3900,8 +3898,8 @@ function renderLPJ(){
   const pengeluaranSubs = [];
   if (showOperasional) pengeluaranSubs.push({ title:'Operasional Kegiatan', html:`
     <div class="lpj-table-scroll"><table class="lpj-table lpj-detail">
-      <thead><tr><th>Tanggal</th><th>Nama</th><th>Catatan</th><th class="num">Qty</th><th class="num">Harga Satuan</th><th class="num">Jumlah</th></tr></thead>
-      <tbody>${operasionalList.map(o=>`<tr><td>${fmtDate(o.tanggal)}</td><td>${esc(o.keterangan)}</td><td>${esc(o.catatan_bukti||'-')}</td><td class="num">${o.qty||1}</td><td class="num">${fmtRp(o.satuan||0)}</td><td class="num">${fmtRp(o.jumlah)}</td></tr>`).join('') || emptyRow(6,'Belum ada biaya operasional.')}</tbody>
+      <thead><tr><th>Tanggal</th><th>Nama</th><th class="num">Qty</th><th class="num">Harga Satuan</th><th class="num">Jumlah</th></tr></thead>
+      <tbody>${operasionalList.map(o=>`<tr><td>${fmtDate(o.tanggal)}</td><td>${esc(o.keterangan)}</td><td class="num">${o.qty||1}</td><td class="num">${fmtRp(o.satuan||0)}</td><td class="num">${fmtRp(o.jumlah)}</td></tr>`).join('') || emptyRow(5,'Belum ada biaya operasional.')}</tbody>
     </table></div>` });
   if (showLomba) pengeluaranSubs.push({ title:'Kebutuhan Lomba', html:`
     <div class="lpj-table-scroll"><table class="lpj-table lpj-detail lpj-kebutuhan-table">

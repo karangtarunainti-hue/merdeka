@@ -492,7 +492,13 @@ async function syncArrayTable(table, rows, key){
       return false;
     }
     return true;
-  });
+  // `updated_at` selalu dibuang sebelum dikirim: kolom ini server-managed (diisi
+  // trigger/default now(), lihat supabase-conflict-detection-migration.sql), TIDAK
+  // PERNAH perlu dikirim dari JS. Kalau dibiarkan, baris yang di-load dari server
+  // (punya updated_at) tercampur dengan baris baru yang belum punya field itu
+  // (mis. event baru dari buatEvent) dalam satu batch upsert — PostgREST menolak
+  // request itu dengan 400 karena bentuk kolom antar baris tidak seragam.
+  }).map(({updated_at, ...rest}) => rest);
 
   let savedRows = [];
   if(rowsToUpsert.length){
@@ -605,16 +611,27 @@ async function _flushSaveDB(){
   db.panitiaSinoman.forEach(d => { if(d.tanggal === '') d.tanggal = null; });
   try{
     const arrayEntries = Object.entries(ARRAY_TABLE_MAP);
+    // 'events' WAJIB disimpan & ditunggu selesai LEBIH DULU, terpisah dari
+    // Promise.all di bawah. Alasan: kt_settings, kt_anggota, dan hampir semua
+    // tabel lain punya foreign key ke kt_events(id). Kalau event yang BARU dibuat
+    // disinkron bersamaan (paralel) dengan baris-baris yang mereferensikannya,
+    // ada race condition: request child bisa sampai & dieksekusi server SEBELUM
+    // request kt_events selesai committed, sehingga foreign key constraint gagal
+    // (error 409 "violates foreign key constraint kt_settings_event_id_fkey" dkk).
+    const eventsTable = ARRAY_TABLE_MAP.events;
+    const otherEntries = arrayEntries.filter(([key]) => key !== 'events');
+    const eventsConflicts = await syncArrayTable(eventsTable, db.events, 'events');
     const arrayResults = await Promise.all([
-      ...arrayEntries.map(([key, table]) => syncArrayTable(table, db[key], key)),
+      ...otherEntries.map(([key, table]) => syncArrayTable(table, db[key], key)),
       syncSettings(),
       syncTelegram(),
       syncGuestMenu(),
       syncDokumenGlobal(),
     ]);
-    // Hanya arrayEntries.length hasil pertama yang berasal dari syncArrayTable
-    // (yang lain — syncSettings dkk — tidak mengembalikan daftar konflik).
-    const allResults = arrayResults.slice(0, arrayEntries.length).flat().filter(Boolean);
+    // Hasil konflik dari 'events' (disimpan terpisah di atas) digabung dengan
+    // hasil dari otherEntries (yang lain — syncSettings dkk — tidak mengembalikan
+    // daftar konflik).
+    const allResults = [eventsConflicts, ...arrayResults.slice(0, otherEntries.length)].flat().filter(Boolean);
     const ghosts = allResults.filter(c => c.ghost);
     const conflicts = allResults.filter(c => !c.ghost);
     if(conflicts.length){

@@ -1386,11 +1386,14 @@ table.lpj-kebutuhan-table th:nth-child(4), table.lpj-kebutuhan-table td:nth-chil
 @media (min-width:1200px){
   .dokumen-layout{
     display:grid;
-    grid-template-columns:minmax(380px, 460px) 1fr;
+    grid-template-columns:1fr 1fr;
     align-items:start;
     gap:28px;
   }
   .dokumen-preview-col{position:sticky; top:20px;}
+  /* Isi penuh lebar kolom kanan (1:1 dengan form) supaya tidak ada spasi
+     kosong di sisi kanan/kiri pratinjau pada layar lebar. */
+  .dokumen-preview-col .lpj-print-area.surat-print-area{max-width:none; width:100%;}
 }
 
 .dokumen-tab{padding:9px 16px; border-radius:8px; border:1px solid var(--garis); background:var(--surface); color:var(--ink-soft); font-size:13.5px; font-weight:600; cursor:pointer;}

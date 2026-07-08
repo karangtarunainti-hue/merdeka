@@ -1373,6 +1373,7 @@ table.absensi-table th:nth-child(1), table.absensi-table td:nth-child(1){text-al
 .sign-name{font-weight:700; text-decoration:underline; text-decoration-style:dotted;}
 
 @media print{
+  @page{ size:A4; margin:15mm 14mm; }
   .no-print, .sidebar, .topbar, .sidebar-backdrop, #modal-overlay, .overlay, #toast{display:none !important;}
   .main{margin:0 !important; padding:0 !important;}
   #content{padding:0 !important;}
@@ -1382,6 +1383,30 @@ table.absensi-table th:nth-child(1), table.absensi-table td:nth-child(1){text-al
   #lpj-print-area{zoom:1 !important; width:auto !important;}
   .lpj-scale-wrap{overflow:visible !important;}
   body{background:#fff;}
+
+  /* Potongan halaman rapi ala kertas A4: header/baris tabel tidak
+     kepotong di tengah, judul seksi tidak jadi yatim di bawah halaman,
+     dan header tabel (thead) berulang otomatis di tiap halaman baru. */
+  .lpj-header{ page-break-after:avoid; break-after:avoid; }
+  .lpj-print-area h3, .lpj-print-area h4,
+  .surat-body h3, .surat-body h4{
+    page-break-after:avoid; break-after:avoid;
+    page-break-inside:avoid; break-inside:avoid;
+  }
+  table.lpj-table, table.absensi-table{
+    page-break-inside:auto; break-inside:auto;
+  }
+  table.lpj-table thead, table.absensi-table thead{
+    display:table-header-group;
+  }
+  table.lpj-table tr, table.absensi-table tr{
+    page-break-inside:avoid; break-inside:avoid;
+  }
+  .lpj-table-scroll{ page-break-inside:auto; break-inside:auto; }
+  .lpj-penutup, .lpj-signature, .sign-block,
+  .surat-detail-table, .surat-ttd{
+    page-break-inside:avoid; break-inside:avoid;
+  }
 }
 
 /* ============================================================

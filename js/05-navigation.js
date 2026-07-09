@@ -5,7 +5,7 @@ const SECTIONS = [
   {key:'dashboard', label:'Buku Kegiatan', sub:'Rekap & Reminder', icon:'grid', adminOnly: false},
   {key:'anggota', label:'Iuran Anggota', sub:'Kelola iuran anggota', icon:'users', adminOnly: false},
   {key:'donatur', label:'Donatur', sub:'Sumbangan tunai dari donatur', icon:'heart', adminOnly: false},
-  {key:'transaksi', label:'Transaksi Lain', sub:'Pemasukan di luar iuran & donasi', icon:'swap', adminOnly: false},
+  {key:'transaksi', label:'Pemasukan Lain', sub:'Pemasukan di luar iuran & donasi', icon:'swap', adminOnly: false},
   {key:'operasional', label:'Operasional Kegiatan', sub:'Biaya operasional umum event', icon:'briefcase', adminOnly: false},
   {key:'lomba', label:'Lomba & Perlengkapan', sub:'Kebutuhan barang per lomba', icon:'flag', adminOnly: false},
   {key:'hadiah', label:'Kebutuhan Hadiah', sub:'Belanja hadiah per kategori peserta', icon:'gift', adminOnly: false},
@@ -38,7 +38,7 @@ const GLOBAL_MENU_KEYS = ['kas', 'agenda', 'dokumen', 'database-anggota', 'gudan
    ============================================================ */
 const FITUR_OPSIONAL = [
   {key:'donatur', label:'Donatur', menus:['donatur']},
-  {key:'transaksi', label:'Transaksi Lain', menus:['transaksi']},
+  {key:'transaksi', label:'Pemasukan Lain', menus:['transaksi']},
   {key:'operasional', label:'Operasional Kegiatan', menus:['operasional']},
   {key:'lomba', label:'Lomba & Perlengkapan', menus:['lomba','belanja-perlengkapan']},
   {key:'hadiah', label:'Hadiah Lomba', menus:['hadiah','belanja-hadiah']},

@@ -28,7 +28,7 @@ function renderDashboard(){
   const pemasukanItems = [
     {key:'anggota', label:'Total Iuran', value:b.iuran, info:`${b.jumlahIuranLunas} anggota sudah lunas`},
     {key:'donatur', label:'Total Donasi', value:b.donasi, info:`${b.jumlahDonatur} donatur tercatat`},
-    {key:'transaksi', label:'Total Transaksi Lain', value:b.transaksiLain, info:`${b.jumlahTransaksiLain} transaksi tercatat`},
+    {key:'transaksi', label:'Total Pemasukan Lain', value:b.transaksiLain, info:`${b.jumlahTransaksiLain} transaksi tercatat`},
   ].filter(item => isMenuAktif(item.key));
   const pengeluaranItems = [
     {key:'operasional', label:'Total Operasional Kegiatan', value:b.opsional, info:`${b.jumlahOperasional} biaya tercatat`},

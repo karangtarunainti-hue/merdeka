@@ -236,7 +236,7 @@ function renderProposalKegiatan(ev){
         <tr class="lpj-subtotal"><td>Rencana Pemasukan</td><td class="num">${fmtRp(b.pemasukan)}</td></tr>
         <tr><td class="indent">Iuran Anggota</td><td class="num">${fmtRp(b.iuran)}</td></tr>
         ${showDonatur ? `<tr><td class="indent">Donatur</td><td class="num">${fmtRp(b.donasi)}</td></tr>` : ''}
-        ${showTransaksi ? `<tr><td class="indent">Transaksi Lain</td><td class="num">${fmtRp(b.transaksiLain)}</td></tr>` : ''}
+        ${showTransaksi ? `<tr><td class="indent">Pemasukan Lain</td><td class="num">${fmtRp(b.transaksiLain)}</td></tr>` : ''}
         <tr class="lpj-subtotal"><td>Rencana Pengeluaran</td><td class="num">${fmtRp(b.pengeluaran)}</td></tr>
         ${showOperasional ? `<tr><td class="indent">Operasional Kegiatan</td><td class="num">${fmtRp(b.opsional)}</td></tr>` : ''}
         ${showLomba ? `<tr><td class="indent">Kebutuhan Lomba</td><td class="num">${fmtRp(b.kebutuhanLomba)}</td></tr>` : ''}

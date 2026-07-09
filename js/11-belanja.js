@@ -207,7 +207,7 @@ function toggleBelanjaHadiahGroup(gi){
     notifyTelegram(`↩️ Belanja hadiah dibatalkan: ${group.nama}`, detail.join('\n'));
   }
 }
-function editHargaBelanjaHadiahGroup(gi){
+async function editHargaBelanjaHadiahGroup(gi){
   if (!canEditSection('belanja-hadiah')) { toast('⛔ Login untuk mengedit data'); return; }
   const group = (window._belanjaHadiahGroups||{})[gi];
   if(!group || !group.refs.length){ toast('Item tidak ditemukan'); return; }
@@ -217,7 +217,12 @@ function editHargaBelanjaHadiahGroup(gi){
   if(!firstItem){ toast('Item tidak ditemukan'); return; }
 
   const isiSekarang = Math.max(1, Number(firstItem.isi_per_pack||1));
-  const isiInput = prompt(`"${group.nama}" dijual isi berapa per pack?\n(Isi 1 kalau dijual satuan/bijian, isi 12 kalau 1 pack = 12 pcs, dst.)`, isiSekarang);
+  const isiInput = await promptModal({
+    title: `"${group.nama}"`,
+    label: 'Dijual isi berapa per pack?',
+    hint: 'Isi 1 kalau dijual satuan/bijian, isi 12 kalau 1 pack = 12 pcs, dst.',
+    defaultValue: isiSekarang, type:'number'
+  });
   if(isiInput===null) return;
   const isiPerPack = Math.max(1, Number(String(isiInput).replace(/[^0-9]/g,''))||1);
 
@@ -225,9 +230,13 @@ function editHargaBelanjaHadiahGroup(gi){
   const isPack = isiPerPack > 1;
   const labelHarga = isPack ? `Harga per PACK (isi ${isiPerPack} pcs)` : 'Harga per pcs (satuan)';
   const defaultHargaInput = isPack ? hargaSatuanSekarang * isiPerPack : hargaSatuanSekarang;
-  const hargaInput = prompt(`${labelHarga} untuk "${group.nama}" (Rp):`, defaultHargaInput);
+  const hargaInput = await promptModal({
+    title: `"${group.nama}"`,
+    label: `${labelHarga} (Rp)`,
+    defaultValue: defaultHargaInput, type:'currency'
+  });
   if(hargaInput===null) return;
-  const hargaMasuk = Number(String(hargaInput).replace(/[^0-9]/g,''));
+  const hargaMasuk = Number(hargaInput)||0;
   if(!(hargaMasuk >= 0)){ toast('Harga tidak valid'); return; }
   const hargaSatuanBaru = isPack ? Math.round(hargaMasuk / isiPerPack) : hargaMasuk;
 
@@ -236,9 +245,14 @@ function editHargaBelanjaHadiahGroup(gi){
   let hargaEceranBaru = hargaSatuanBaru;
   if(isPack){
     const eceranSekarang = firstItem.harga_eceran!=null ? firstItem.harga_eceran : hargaSatuanBaru;
-    const eceranInput = prompt(`Kalau beli SATUAN/eceran (sisa yg tidak genap 1 pack), harga per pcs berapa?\n(Isi sama dgn ${fmtRp(hargaSatuanBaru)} kalau harganya nggak beda)`, eceranSekarang);
+    const eceranInput = await promptModal({
+      title: `"${group.nama}"`,
+      label: 'Harga per pcs kalau beli SATUAN/eceran (Rp)',
+      hint: `Sisa yang tidak genap 1 pack. Isi sama dengan ${fmtRp(hargaSatuanBaru)} kalau harganya nggak beda.`,
+      defaultValue: eceranSekarang, type:'currency'
+    });
     if(eceranInput===null) return;
-    const eceranMasuk = Number(String(eceranInput).replace(/[^0-9]/g,''));
+    const eceranMasuk = Number(eceranInput)||0;
     if(eceranMasuk >= 0) hargaEceranBaru = eceranMasuk;
   }
 
@@ -415,9 +429,16 @@ function resetSemuaBelanjaPerlengkapan(){
   saveDB(); renderContent(); toast('Reset');
   notifyTelegram(`↩️ Reset semua status belanja perlengkapan`, `Semua status dikembalikan ke "belum dibeli"`);
 }
-function editBelanjaPerlengkapan(kebutuhanId){ 
+async function editBelanjaPerlengkapan(kebutuhanId){ 
   if (!canEditSection('belanja-perlengkapan')) { toast('⛔ Login untuk mengedit data'); return; }
-  const k=db.lombaKebutuhan.find(x=>x.id===kebutuhanId); if(!k) return; const newNama=prompt('Nama item:',k.nama_item); if(newNama===null)return; const newEst=prompt('Harga estimasi:',k.harga_estimasi); if(newEst===null)return; const newQty=prompt('Qty:',k.qty); if(newQty===null)return; if(!newNama.trim()||Number(newQty)<=0){toast('Nama & qty wajib');return;} k.nama_item=newNama.trim(); k.harga_estimasi=Number(newEst)||0; k.qty=Number(newQty)||0; saveDB(); renderContent(); toast('Diupdate'); 
+  const k=db.lombaKebutuhan.find(x=>x.id===kebutuhanId); if(!k) return;
+  const newNama = await promptModal({title:'Edit Item Perlengkapan', label:'Nama Item', defaultValue:k.nama_item});
+  if(newNama===null) return;
+  const newEst = await promptModal({title:'Edit Item Perlengkapan', label:'Harga Estimasi (Rp)', defaultValue:k.harga_estimasi, type:'currency'});
+  if(newEst===null) return;
+  const newQty = await promptModal({title:'Edit Item Perlengkapan', label:'Qty', defaultValue:k.qty, type:'number'});
+  if(newQty===null) return;
+  if(!newNama.trim()||Number(newQty)<=0){toast('Nama & qty wajib');return;} k.nama_item=newNama.trim(); k.harga_estimasi=Number(newEst)||0; k.qty=Number(newQty)||0; saveDB(); renderContent(); toast('Diupdate'); 
   notifyTelegram(`✏️ Edit item perlengkapan: ${k.nama_item}`, `Lomba: ${db.lomba.find(x=>x.id===k.lomba_id)?.nama || k.lomba_id}\nQty: ${k.qty}\nEstimasi: ${fmtRp(k.harga_estimasi)}`);
 }
 

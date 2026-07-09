@@ -39,6 +39,47 @@ function toast(msg, durationMs = 2400){
 }
 
 /* ============================================================
+   PROMPT MODAL — pengganti window.prompt() bawaan browser (yang
+   tampilannya "native" & tidak bisa di-style) dengan modal ber-tema
+   app sendiri, pakai overlay/setModal yang sudah ada.
+   Dipakai dgn async/await, contoh:
+     const isi = await promptModal({title:'Isi per pack', label:'...', defaultValue:5, type:'number'});
+     if(isi===null) return; // user tekan Batal
+   type: 'text' (default) | 'number' | 'currency'
+   ============================================================ */
+function promptModal({title, label, hint, defaultValue, type='text', okLabel='OK', cancelLabel='Batal'}){
+  return new Promise((resolve) => {
+    const inputId = 'pm-input-' + uid();
+    const isCurrency = type === 'currency';
+    const isNumber = type === 'number';
+    const initialVal = defaultValue==null ? '' : String(defaultValue);
+    setModal(title, `
+      <div class="field">
+        ${label ? `<label>${esc(label)}</label>` : ''}
+        <input id="${inputId}" class="${isCurrency?'currency-input':''}" type="${isNumber?'number':'text'}" value="${esc(isCurrency?formatCurrency(defaultValue):initialVal)}">
+        ${hint ? `<div class="hint">${esc(hint)}</div>` : ''}
+      </div>
+    `, [
+      {label:cancelLabel, cls:'secondary', onclick:()=>{ closeModal(); resolve(null); }},
+      {label:okLabel, cls:'', onclick:()=>{
+        const el = document.getElementById(inputId);
+        const val = isCurrency ? getCurrencyValue(el) : el.value;
+        closeModal();
+        resolve(val);
+      }}
+    ]);
+    setTimeout(()=>{
+      const el = document.getElementById(inputId);
+      if(!el) return;
+      el.focus(); el.select();
+      el.addEventListener('keydown', e=>{
+        if(e.key==='Enter'){ e.preventDefault(); document.querySelector('#modal-foot .btn:not(.secondary)')?.click(); }
+      });
+    }, 60);
+  });
+}
+
+/* ============================================================
    FUNGSI HITUNG BUKU UTAMA
    ============================================================ */
 function hitungBukuUtama(){

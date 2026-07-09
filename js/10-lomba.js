@@ -494,9 +494,18 @@ function autofillHargaHadiah(nameInput){
   const harga = cariHargaItemSejenis(nameInput.value);
   if(harga!=null) setCurrencyValue(priceInput, harga);
 }
-function editHadiahItem(hadiahId,itemId){ 
+async function editHadiahItem(hadiahId,itemId){ 
   if (!canEditSection('hadiah')) { toast('⛔ Login untuk mengedit data'); return; }
-  const h=db.hadiahKategori.find(x=>x.id===hadiahId); const item=h && h.items.find(it=>it.id===itemId); if(!item){ toast('Item tidak ditemukan'); return; } const newNama=prompt('Nama:',item.nama); if(newNama===null) return; const newHarga=prompt('Harga:',item.harga_satuan); if(newHarga===null) return; const newPerPaket=prompt('Qty per paket (dasar hitung kebutuhan otomatis):',item.qty_per_paket||1); if(newPerPaket===null) return; const newQty=prompt('Qty total (dibeli) — boleh diisi lebih untuk cadangan:',item.qty_dibeli); if(newQty===null) return; if(!newNama.trim()||Number(newQty)<0){toast('Nama & qty wajib');return;} item.nama=newNama.trim(); item.harga_satuan=Number(newHarga)||0; item.qty_per_paket=Math.max(1,Number(newPerPaket)||1); item.qty_dibeli=Number(newQty)||0;
+  const h=db.hadiahKategori.find(x=>x.id===hadiahId); const item=h && h.items.find(it=>it.id===itemId); if(!item){ toast('Item tidak ditemukan'); return; }
+  const newNama = await promptModal({title:'Edit Item Hadiah', label:'Nama', defaultValue:item.nama});
+  if(newNama===null) return;
+  const newHarga = await promptModal({title:'Edit Item Hadiah', label:'Harga (Rp)', defaultValue:item.harga_satuan, type:'currency'});
+  if(newHarga===null) return;
+  const newPerPaket = await promptModal({title:'Edit Item Hadiah', label:'Qty per paket', hint:'Dasar hitung kebutuhan otomatis.', defaultValue:item.qty_per_paket||1, type:'number'});
+  if(newPerPaket===null) return;
+  const newQty = await promptModal({title:'Edit Item Hadiah', label:'Qty total (dibeli)', hint:'Boleh diisi lebih untuk cadangan.', defaultValue:item.qty_dibeli, type:'number'});
+  if(newQty===null) return;
+  if(!newNama.trim()||Number(newQty)<0){toast('Nama & qty wajib');return;} item.nama=newNama.trim(); item.harga_satuan=Number(newHarga)||0; item.qty_per_paket=Math.max(1,Number(newPerPaket)||1); item.qty_dibeli=Number(newQty)||0;
   const samaCount = samakanHargaItemSejenis(item.nama, item.harga_satuan, item.id);
   saveDB(); renderContent(); toast(samaCount>0?`Diupdate, harga disamakan ke ${samaCount} item "${item.nama}" lainnya`:'Diupdate'); 
   notifyTelegram(`✏️ Edit item hadiah: ${item.nama}`, `Paket: ${labelPeserta(h.kategori_peserta)} - ${labelJuara(h.juara_ke)}\nHarga: ${fmtRp(item.harga_satuan)}\nQty: ${item.qty_dibeli}${item.qty_per_paket>1?` (${item.qty_per_paket} buah per paket)`:''}`);

@@ -95,7 +95,8 @@ function renderBelanjaHadiah(){
     const belum = list.filter(i=>!i.sudahDibeli);
     const tglTerbaru = list.filter(i=>i.tanggalBeli).map(i=>i.tanggalBeli).sort().pop();
     const isiPerPack = Math.max(1, Number(list[0].isi_per_pack||1));
-    const jumlahPack = isiPerPack > 1 ? Math.ceil(totalQty / isiPerPack) : null;
+    const jumlahPackUtuh = isiPerPack > 1 ? Math.floor(totalQty / isiPerPack) : 0;
+    const sisaSatuan = isiPerPack > 1 ? totalQty % isiPerPack : 0;
 
     const tagHtml = list.map(item => {
       // Hadiah non-partisipasi digabung dari SEMUA lomba dgn kategori_peserta yang sama
@@ -105,7 +106,9 @@ function renderBelanjaHadiah(){
       const lombaInfo = jumlahLomba > 1 ? ` <span style="opacity:.65;">(gabungan ${jumlahLomba} lomba)</span>` : '';
       return `<span class="tag">Kategori: ${labelPeserta(item.kategori_peserta)} · ${labelJuara(item.juara_ke)} · ${item.itemQtyDibeli} pcs${lombaInfo}</span>`;
     }).join('');
-    const packTagHtml = jumlahPack ? `<span class="tag pack-tag">📦 Beli ${jumlahPack} pack (isi ${isiPerPack} → ${jumlahPack*isiPerPack} pcs)</span>` : '';
+    const packTagHtml = jumlahPackUtuh > 0
+      ? `<span class="tag pack-tag">📦 Beli ${jumlahPackUtuh} pack (isi ${isiPerPack})${sisaSatuan>0?` + ${sisaSatuan} pcs satuan`:''} → ${totalQty} pcs</span>`
+      : (isiPerPack > 1 ? `<span class="tag pack-tag">📦 Beli ${sisaSatuan} pcs satuan (kurang dari 1 pack isi ${isiPerPack})</span>` : '');
 
     // Header kategori toko, muncul setiap kali kategori berganti
     let headerHtml = '';
@@ -230,9 +233,13 @@ function editHargaBelanjaHadiahGroup(gi){
   saveDB(); renderContent(); renderTopbarSaldo();
 
   if(isPack){
-    const jumlahPack = Math.ceil(totalQty / isiPerPack);
-    toast(`✓ "${group.nama}": beli ${jumlahPack} pack (isi ${isiPerPack}) — Rp${fmtRp(hargaSatuanBaru)}/pcs`);
-    notifyTelegram(`✏️ Update kemasan & harga belanja hadiah: ${group.nama}`, `Isi per pack: ${isiPerPack}\nHarga per pack: ${fmtRp(hargaMasuk)} (≈ ${fmtRp(hargaSatuanBaru)}/pcs)\nKebutuhan: ${totalQty} pcs → beli ${jumlahPack} pack`);
+    const jumlahPackUtuh = Math.floor(totalQty / isiPerPack);
+    const sisaSatuan = totalQty % isiPerPack;
+    const rincianBeli = jumlahPackUtuh > 0
+      ? `${jumlahPackUtuh} pack${sisaSatuan>0?` + ${sisaSatuan} pcs satuan`:''}`
+      : `${sisaSatuan} pcs satuan`;
+    toast(`✓ "${group.nama}": beli ${rincianBeli} (isi ${isiPerPack}/pack) — Rp${fmtRp(hargaSatuanBaru)}/pcs`);
+    notifyTelegram(`✏️ Update kemasan & harga belanja hadiah: ${group.nama}`, `Isi per pack: ${isiPerPack}\nHarga per pack: ${fmtRp(hargaMasuk)} (≈ ${fmtRp(hargaSatuanBaru)}/pcs)\nKebutuhan: ${totalQty} pcs → beli ${rincianBeli}`);
   } else {
     toast(`✓ Harga "${group.nama}" diupdate ke ${fmtRp(hargaSatuanBaru)}/pcs (${count} paket)`);
     notifyTelegram(`✏️ Update harga belanja hadiah: ${group.nama}`, `Harga satuan baru: ${fmtRp(hargaSatuanBaru)}\nDiterapkan ke ${count} paket`);

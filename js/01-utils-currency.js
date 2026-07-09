@@ -1,11 +1,23 @@
 /* ============================================================
    CURRENCY INPUT HELPER
    ============================================================ */
-// Format angka dengan titik ribuan
+// Format angka dengan titik ribuan.
+// PENTING: 0 adalah nilai VALID (mis. "Harga Realisasi: Rp 0" untuk barang
+// sponsor/gratis) dan harus ditampilkan sebagai "0", BUKAN string kosong.
+// String kosong ('') secara konsisten dipakai di seluruh app ini untuk
+// makna "belum diisi sama sekali" (lihat mis. harga_realisasi di
+// js/10-lomba.js yang membedakan field kosong = null vs field terisi
+// angka apapun termasuk 0). Kalau formatCurrency(0) balikin '', kode
+// pemanggil tidak bisa membedakan "sengaja diisi 0" dari "belum diisi",
+// dan re-save form bisa diam-diam mengubah 0 yang sudah tersimpan jadi
+// null lagi. Angka negatif TETAP ditolak (dianggap tidak valid, sama
+// seperti sebelumnya) karena tidak ada field currency di app ini yang
+// butuh nilai negatif — semua (tarif, harga, budget, jumlah kas dst)
+// selalu bernilai 0 atau positif.
 function formatCurrency(value) {
   if (value === undefined || value === null || value === '') return '';
   const num = typeof value === 'string' ? parseFloat(value.replace(/\./g, '').replace(/,/g, '')) : value;
-  if (isNaN(num) || num === 0) return '';
+  if (isNaN(num) || num < 0) return '';
   return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 }
 
@@ -29,7 +41,10 @@ function setupCurrencyInput(inputEl) {
   const rawValue = inputEl.value.trim();
   if (rawValue) {
     const parsed = parseCurrency(rawValue);
-    if (!isNaN(parsed) && parsed > 0) {
+    // >=0 (dulu >0): nilai 0 yang sudah ada di field (mis. dari value="0"
+    // yang diset HTML) harus tetap ditampilkan sebagai "0", bukan dianggap
+    // sama dengan tidak ada nilai sama sekali.
+    if (!isNaN(parsed) && parsed >= 0) {
       inputEl.value = formatCurrency(parsed);
     }
   }
@@ -50,7 +65,11 @@ function setupCurrencyInput(inputEl) {
       return;
     }
     
-    // Format dengan titik
+    // Format dengan titik. Catatan: dulu formatCurrency(0) balikin '' di sini,
+    // jadi field currency APAPUN langsung menghapus diri sendiri begitu user
+    // mengetik angka 0 (mis. mengetik "0" untuk isi "Rp 0", atau mengetik
+    // "1000" lalu backspace jadi "0") — user sama sekali tidak bisa mengisi
+    // Rp 0 secara manual. Sekarang formatCurrency(0) balikin "0" dengan benar.
     const formatted = formatCurrency(parseInt(raw, 10));
     this.value = formatted;
     
@@ -63,7 +82,10 @@ function setupCurrencyInput(inputEl) {
   inputEl.addEventListener('blur', function() {
     if (this.value === '') return;
     const raw = parseCurrency(this.value);
-    if (!isNaN(raw) && raw > 0) {
+    // >=0 (dulu >0) supaya "0" yang sudah benar tampil dari handler input di
+    // atas tetap dirapikan lewat formatCurrency saat blur, konsisten dengan
+    // nilai lain — bukan cuma "kebetulan" sudah benar dari langkah sebelumnya.
+    if (!isNaN(raw) && raw >= 0) {
       this.value = formatCurrency(raw);
     }
   });
@@ -73,7 +95,10 @@ function setupCurrencyInput(inputEl) {
   const setValue = function(value) {
     if (value !== undefined && value !== null && value !== '') {
       const num = typeof value === 'string' ? parseCurrency(value) : value;
-      if (!isNaN(num) && num > 0) {
+      // >=0 (dulu >0): set terprogram ke 0 (mis. el.value = 0) harus tetap
+      // diformat & ditampilkan sebagai "0", bukan jatuh ke jalur else di
+      // bawah yang menampilkan angka mentah tanpa format.
+      if (!isNaN(num) && num >= 0) {
         originalSetValue.set.call(this, formatCurrency(num));
         return;
       }
@@ -110,18 +135,21 @@ function getCurrencyValue(inputEl) {
   return isNaN(parsed) ? 0 : parsed;
 }
 
-// Helper untuk mengisi nilai input dengan format ribuan
+// Helper untuk mengisi nilai input dengan format ribuan.
+// Nilai 0 sengaja dibedakan dari null/undefined/'': 0 = "isi field dengan
+// angka 0 yang valid", null/undefined/'' = "kosongkan field (belum diisi)".
 function setCurrencyValue(inputEl, value) {
   if (!inputEl) return;
-  if (value === undefined || value === null) {
+  if (value === undefined || value === null || value === '') {
     inputEl.value = '';
     return;
   }
   const num = typeof value === 'string' ? parseCurrency(value) : value;
-  if (isNaN(num) || num <= 0) {
+  // <0 (dulu <=0): cuma nilai negatif/tidak valid yang ditolak sekarang,
+  // 0 tetap ditampilkan sebagai "0" alih-alih dikosongkan.
+  if (isNaN(num) || num < 0) {
     inputEl.value = '';
     return;
   }
   inputEl.value = formatCurrency(num);
 }
-

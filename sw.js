@@ -8,7 +8,7 @@
    NAIKKAN CACHE_VERSION setiap kali index.html/style.css/js/*
    diupdate, supaya HP pengguna otomatis ambil versi baru.
    ============================================================ */
-const CACHE_VERSION = 'v20';
+const CACHE_VERSION = 'v21';
 const CACHE_NAME = `kt-shell-${CACHE_VERSION}`;
 
 // script.js lama sudah dipecah jadi banyak file per modul di folder js/
@@ -100,7 +100,20 @@ self.addEventListener('fetch', (event) => {
       .then((res) => {
         const resClone = res.clone();
         caches.open(CACHE_NAME).then((cache) => cache.put(req, resClone)).catch(() => {});
-        return res;
+
+        // FIX: kalau server (Cloudflare) redirect request ini (mis. "/" -> "/index.html",
+        // http -> https, atau strip/tambah trailing slash), `res.redirected` jadi true.
+        // Untuk request navigasi (buka halaman), Chrome MENOLAK meneruskan Response yang
+        // bertanda "redirected" lewat respondWith() — persis pesan error "a redirected
+        // response was used for a request whose redirect mode is not 'follow'" — dan
+        // seluruh halaman gagal dimuat. Solusinya: bikin Response baru dari body yang
+        // sama supaya flag .redirected hilang, isi/status/header tetap identik.
+        if (!res.redirected) return res;
+        return res.blob().then((blob) => new Response(blob, {
+          status: res.status,
+          statusText: res.statusText,
+          headers: res.headers
+        }));
       })
       .catch(() =>
         // PENTING: rantai fallback ini HARUS selalu berakhir dengan sebuah

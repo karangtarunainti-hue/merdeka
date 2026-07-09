@@ -50,7 +50,13 @@ function renderLPJ(){
   });
 
   const hadiahRows = [];
-  gHadiahKategori().forEach(h=>{
+  const urutanKategori = KATEGORI_PESERTA.map(k=>k.v);
+  const urutanJuara = JUARA_LIST.map(j=>j.v);
+  gHadiahKategori().slice().sort((a,b)=>{
+    const ka = urutanKategori.indexOf(a.kategori_peserta), kb = urutanKategori.indexOf(b.kategori_peserta);
+    if(ka !== kb) return ka - kb;
+    return urutanJuara.indexOf(a.juara_ke) - urutanJuara.indexOf(b.juara_ke);
+  }).forEach(h=>{
     (h.items||[]).forEach(item=>{
       hadiahRows.push({ kategori:labelPeserta(h.kategori_peserta), juara:labelJuara(h.juara_ke), nama:item.nama, qty:item.qty_dibeli, harga:item.harga_satuan, subtotal:Number(item.harga_satuan||0)*Number(item.qty_dibeli||0) });
     });

@@ -254,6 +254,7 @@ function openGudangStokModal(id){
   ]);
 }
 async function gudangSaveStok(id){
+  if(!gudangCanKelola()){ toast('🔒 Hanya admin yang dapat mengelola aset.'); closeModal(); return; }
   const nama = document.getElementById('gs-nama').value.trim();
   const gudang = document.getElementById('gs-gudang').value.trim();
   const total = parseInt(document.getElementById('gs-total').value, 10);
@@ -298,6 +299,7 @@ async function gudangSaveStok(id){
   }
 }
 async function gudangDeleteStok(id){
+  if(!gudangCanKelola()){ toast('🔒 Hanya admin yang dapat mengelola aset.'); return; }
   const item = gudangInventory.find(i=>i.id===id);
   if(!item) return;
   if(!confirm(`Nonaktifkan "${item.nama}" dari inventaris aktif? Riwayat peminjaman lama tetap aman.`)) return;
@@ -313,6 +315,7 @@ async function gudangDeleteStok(id){
   }
 }
 async function gudangAktifkanStok(id){
+  if(!gudangCanKelola()){ toast('🔒 Hanya admin yang dapat mengelola aset.'); return; }
   const item = gudangInventory.find(i=>i.id===id);
   if(!item) return;
   try{
@@ -337,6 +340,7 @@ function gudangExportJSON(){
   toast('✅ Backup Gudang berhasil diekspor.');
 }
 function gudangImportJSON(input){
+  if(!gudangCanKelola()){ toast('🔒 Hanya admin yang dapat mengimpor data.'); input.value=''; return; }
   const file = input.files[0];
   if(!file) return;
   const reader = new FileReader();

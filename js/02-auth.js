@@ -53,12 +53,18 @@ function userSections() {
   return (user && user.allowed_sections) || [];
 }
 
-// Bisa akses (lihat) section ini? Admin & User: semua non-adminOnly.
-// Petugas: cuma dashboard + section yang ditugaskan ke dia.
+// Bisa akses (lihat) section ini? Admin: semua section. User: semua section
+// KECUALI yang adminOnly (Pengaturan, Manajemen User, Agenda Kegiatan).
+// Petugas: cuma dashboard + section yang ditugaskan ke dia (juga tidak pernah
+// termasuk section adminOnly, karena adminOnly tidak pernah masuk daftar
+// pilihan bidang Petugas — lihat openUserModal di 06-login-users.js).
 function canAccessSection(key) {
   const user = getCurrentUser();
   if (!user) return false;
-  if (user.role === 'admin' || user.role === 'user') return true;
+  if (user.role === 'admin') return true;
+  const section = typeof SECTIONS !== 'undefined' ? SECTIONS.find(s => s.key === key) : null;
+  if (section && section.adminOnly) return false;
+  if (user.role === 'user') return true;
   if (user.role === 'petugas') return key === 'dashboard' || userSections().includes(key);
   return false;
 }

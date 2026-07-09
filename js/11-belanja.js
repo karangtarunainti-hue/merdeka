@@ -133,6 +133,7 @@ function renderBelanjaHadiah(){
     }
 
     return `${headerHtml}<div class="belanja-item ${semuaDibeli?'dibeli':''}">
+      <span class="nomor-urut">${totalItem}</span>
       <div class="checkbox-wrapper ${semuaDibeli?'checked':''} ${!isLoggedIn ? 'disabled' : ''}" onclick="${isLoggedIn ? `toggleBelanjaHadiahGroup(${gi})` : 'toast(\'⛔ Login untuk mengedit\')'}"></div>
       <div class="info">
         <div class="nama"><span class="nama-text">${esc(g.nama)}</span><span class="qty-total">(Total: ${totalQty} pcs)</span></div>
@@ -345,6 +346,7 @@ function renderBelanjaPerlengkapan(){
     const tagHtml = groupItems.map(item => `<span class="tag tag-orange">📋 ${esc(item.lombaNama)} · ${labelPeserta(item.lombaKategori)} · ${item.qty}</span>`).join('');
 
     return `<div class="belanja-item ${semuaDibeli?'dibeli':''}">
+      <span class="nomor-urut">${gi+1}</span>
       <div class="checkbox-wrapper ${semuaDibeli?'checked':''} ${!isLoggedIn ? 'disabled' : ''}" onclick="${isLoggedIn ? `toggleBelanjaPerlengkapanGroup(${gi})` : 'toast(\'⛔ Login untuk mengedit\')'}"></div>
       <div class="info">
         <div class="nama"><span class="nama-text">${esc(g.nama)}</span><span class="qty-total">(Total: ${totalQty})</span></div>
@@ -665,6 +667,7 @@ function renderBelanjaJalanSantai(){
     const tagHtml = groupItems.map(item => `<span class="tag tag-pink">${item.qty} @${fmtRp(item.harga_satuan)}</span>`).join('');
 
     return `<div class="belanja-item ${semuaDibeli ? 'dibeli' : ''}">
+      <span class="nomor-urut">${gi+1}</span>
       <div class="checkbox-wrapper ${semuaDibeli ? 'checked' : ''} ${!isLoggedIn ? 'disabled' : ''}" 
            onclick="${isLoggedIn ? `toggleBelanjaJalanGroup(${gi})` : 'toast(\'⛔ Login untuk mengedit\')'}">
       </div>

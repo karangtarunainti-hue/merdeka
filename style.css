@@ -785,6 +785,13 @@
     padding:10px 14px; border-bottom:1px solid var(--garis);
     transition:background .15s ease;
   }
+  .belanja-item .nomor-urut{
+    flex-shrink:0; width:22px; height:22px;
+    display:flex; align-items:center; justify-content:center;
+    border-radius:50%; background:var(--garis); color:var(--ink-soft);
+    font-size:11.5px; font-weight:700;
+  }
+  .belanja-item.dibeli .nomor-urut{ opacity:.5; }
   .belanja-item:hover{background:var(--row-hover);}
   .belanja-item .checkbox-wrapper{
     flex-shrink:0;

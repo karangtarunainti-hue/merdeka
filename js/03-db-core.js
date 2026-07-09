@@ -148,28 +148,55 @@ async function loadDB(){
     if(!settingsRes.error){
       (settingsRes.data || []).forEach(s => { result.settings[s.event_id] = { tarif: s.tarif, hadiahBudget: s.hadiah_budget || {}, dokumen: s.dokumen || {} }; });
       _lastKnownSettingsIds = new Set((settingsRes.data || []).map(s => s.event_id));
+      // Sama seperti _lastKnownUpdatedAt di syncArrayTable — dipakai syncSettings()
+      // untuk mendeteksi kalau baris event_id yang sama sudah diubah admin lain
+      // sejak kita load (lihat penjelasan lengkap di syncSettings).
+      _lastKnownSettingsUpdatedAt = new Map((settingsRes.data || []).map(s => [s.event_id, s.updated_at || null]));
     }
 
-    if(!telegramRes.error && telegramRes.data){
-      result.telegram = {
-        botToken: telegramRes.data.bot_token || '',
-        chatId: telegramRes.data.chat_id || '',
-        enabled: !!telegramRes.data.enabled,
-      };
+    if(!telegramRes.error){
+      if(telegramRes.data){
+        result.telegram = {
+          botToken: telegramRes.data.bot_token || '',
+          chatId: telegramRes.data.chat_id || '',
+          enabled: !!telegramRes.data.enabled,
+        };
+      }
+      // Dicatat terlepas dari ada/tidaknya baris 'main' (null kalau belum ada baris
+      // sama sekali) — dipakai syncTelegram() untuk deteksi konflik singleton row.
+      _lastKnownTelegramUpdatedAt = telegramRes.data ? (telegramRes.data.updated_at || null) : null;
     }
 
-    if(!guestMenuRes.error && guestMenuRes.data && guestMenuRes.data.hidden_sections){
-      result.guestMenu = {};
-      (guestMenuRes.data.hidden_sections || []).forEach(key => { result.guestMenu[key] = false; });
+    if(!guestMenuRes.error){
+      if(guestMenuRes.data && guestMenuRes.data.hidden_sections){
+        result.guestMenu = {};
+        (guestMenuRes.data.hidden_sections || []).forEach(key => { result.guestMenu[key] = false; });
+      }
+      _lastKnownGuestMenuUpdatedAt = guestMenuRes.data ? (guestMenuRes.data.updated_at || null) : null;
     }
 
     if(dokumenGlobalRes.error){ console.error('Gagal memuat kt_dokumen_global:', dokumenGlobalRes.error); }
-    else if(dokumenGlobalRes.data && dokumenGlobalRes.data.dokumen){
-      result.dokumenGlobal = {
-        undangan: dokumenGlobalRes.data.dokumen.undangan || {},
-        proposal: dokumenGlobalRes.data.dokumen.proposal || {},
-        absensi: dokumenGlobalRes.data.dokumen.absensi || {},
-      };
+    else{
+      if(dokumenGlobalRes.data && dokumenGlobalRes.data.dokumen){
+        // PENTING (bug lama — data hilang): sebelumnya cuma undangan/proposal/absensi
+        // yang dibaca balik ke `result.dokumenGlobal`, field `jadwal_sinoman` TIDAK
+        // ikut disalin. Karena refreshFromServer() (siklus 20 detik) mengganti `db`
+        // sepenuhnya dengan hasil loadDB() ini, jadwal_sinoman yang sudah tersimpan
+        // di server jadi hilang dari memori tab dalam ≤20 detik, lalu getDokumenGlobal()
+        // otomatis mengisinya dengan default KOSONG lagi (lihat 04-event-settings.js).
+        // Kalau setelah itu ada saveDB() dari perubahan APAPUN (bukan cuma Jadwal
+        // Sinoman), syncDokumenGlobal() ikut mengirim jadwal_sinoman kosong itu dan
+        // MENIMPA data asli di server. Sekarang jadwal_sinoman ikut disalin balik
+        // seperti field dokumen lainnya.
+        result.dokumenGlobal = {
+          undangan: dokumenGlobalRes.data.dokumen.undangan || {},
+          proposal: dokumenGlobalRes.data.dokumen.proposal || {},
+          absensi: dokumenGlobalRes.data.dokumen.absensi || {},
+          jadwal_sinoman: dokumenGlobalRes.data.dokumen.jadwal_sinoman || undefined,
+        };
+        if(!result.dokumenGlobal.jadwal_sinoman) delete result.dokumenGlobal.jadwal_sinoman;
+      }
+      _lastKnownDokumenGlobalUpdatedAt = dokumenGlobalRes.data ? (dokumenGlobalRes.data.updated_at || null) : null;
     }
 
     result.activeEventId = localStorage.getItem('kt_active_event') || (result.events[0] ? result.events[0].id : null);
@@ -302,18 +329,42 @@ async function syncArrayTable(table, rows, key){
 // Sama seperti _lastKnownIds di syncArrayTable — mencegah setting event milik device
 // lain (yang belum sempat kita lihat) ikut terhapus saat kita sync.
 let _lastKnownSettingsIds = new Set();
+// Sama seperti _lastKnownUpdatedAt di syncArrayTable, tapi per event_id — dipakai
+// syncSettings() untuk mendeteksi baris kt_settings yang sudah diubah admin lain
+// sejak kita load, supaya tidak ditimpa diam-diam (lihat penjelasan lengkap di
+// syncArrayTable, pola persis sama, cuma keyed by event_id bukan id).
+let _lastKnownSettingsUpdatedAt = new Map();
 
 async function syncSettings(){
   const rows = Object.keys(db.settings).map(eventId => ({ event_id: eventId, tarif: db.settings[eventId].tarif, hadiah_budget: db.settings[eventId].hadiahBudget || {}, dokumen: db.settings[eventId].dokumen || {} }));
-  const { data: existing, error: selErr } = await sb.from('kt_settings').select('event_id');
+  const { data: existing, error: selErr } = await sb.from('kt_settings').select('event_id, updated_at');
   if(selErr){ console.error('Gagal membaca kt_settings:', selErr); throw new Error(`Gagal membaca kt_settings: ${selErr.message}`); }
-  const existingIds = new Set((existing || []).map(r => r.event_id));
+  const existingMap = new Map((existing || []).map(r => [r.event_id, r.updated_at]));
+  const existingIds = new Set(existingMap.keys());
   const currentIds = new Set(Object.keys(db.settings));
   const toDelete = [...existingIds].filter(id => _lastKnownSettingsIds.has(id) && !currentIds.has(id));
 
-  if(rows.length){
-    const { error } = await sb.from('kt_settings').upsert(rows, { onConflict: 'event_id' });
+  // Sama seperti syncArrayTable: pisahkan baris yang aman disimpan vs yang sudah
+  // diubah admin lain sejak kita load (dibandingkan lewat updated_at) — baris
+  // konflik DILEWATI, bukan ditimpa paksa.
+  const conflicts = [];
+  const rowsToUpsert = rows.filter(r => {
+    if(!existingMap.has(r.event_id)) return true; // event baru, pasti aman
+    const serverUpdatedAt = existingMap.get(r.event_id);
+    const lastKnown = _lastKnownSettingsUpdatedAt.get(r.event_id);
+    if(lastKnown && serverUpdatedAt && lastKnown !== serverUpdatedAt){
+      const ev = db.events.find(e => e.id === r.event_id);
+      conflicts.push({ key:'settings', table:'kt_settings', id:r.event_id, label: ev?.nama || r.event_id });
+      return false;
+    }
+    return true;
+  });
+
+  let savedRows = [];
+  if(rowsToUpsert.length){
+    const { data: upData, error } = await sb.from('kt_settings').upsert(rowsToUpsert, { onConflict: 'event_id' }).select('event_id, updated_at');
     if(error){ console.error('Gagal menyimpan kt_settings:', error); throw new Error(`Gagal menyimpan kt_settings: ${error.message}`); }
+    savedRows = upData || [];
   }
   if(toDelete.length){
     const { error: delErr } = await sb.from('kt_settings').delete().in('event_id', toDelete);
@@ -322,35 +373,66 @@ async function syncSettings(){
 
   const survivedRemote = [...existingIds].filter(id => !toDelete.includes(id));
   _lastKnownSettingsIds = new Set([...survivedRemote, ...currentIds]);
+
+  const newMap = new Map();
+  existingMap.forEach((updatedAt, id) => newMap.set(id, updatedAt));
+  savedRows.forEach(r => newMap.set(r.event_id, r.updated_at));
+  _lastKnownSettingsUpdatedAt = newMap;
+
+  return conflicts;
 }
 
+// Ke-3 fungsi di bawah ini (Telegram/Guest Menu/Surat & Dokumen) menyimpan ke tabel
+// singleton (1 baris, id='main'). Polanya sama seperti syncArrayTable/syncSettings:
+// sebelum upsert, baca dulu updated_at TERKINI di server dan bandingkan dengan yang
+// terakhir kita tahu (diisi loadDB()). Kalau beda, berarti admin lain sudah menyimpan
+// perubahan sejak kita load terakhir — kita LEWATI upsert (bukan ditimpa paksa) dan
+// laporkan sebagai konflik, supaya user tahu harus muat ulang untuk lihat versi
+// terbaru sebelum menyimpan ulang.
+async function _syncSingletonRow(table, label, payload, lastKnownUpdatedAt, setLastKnownUpdatedAt){
+  const { data: existing, error: selErr } = await sb.from(table).select('id, updated_at').eq('id', 'main').maybeSingle();
+  if(selErr){ console.error(`Gagal membaca ${table}:`, selErr); throw new Error(`Gagal membaca ${table}: ${selErr.message}`); }
+  const serverUpdatedAt = existing ? existing.updated_at : null;
+  if(existing && lastKnownUpdatedAt && serverUpdatedAt && lastKnownUpdatedAt !== serverUpdatedAt){
+    // Ada baris & sudah berubah sejak kita load — jangan ditimpa, laporkan konflik.
+    return { conflict: { key: table, table, id: 'main', label } };
+  }
+  const { data: upData, error } = await sb.from(table).upsert(payload, { onConflict: 'id' }).select('updated_at').maybeSingle();
+  if(error){ console.error(`Gagal menyimpan ${table}:`, error); throw new Error(`Gagal menyimpan ${label}: ${error.message}`); }
+  setLastKnownUpdatedAt(upData ? upData.updated_at : null);
+  return { conflict: null };
+}
+
+let _lastKnownTelegramUpdatedAt = null;
 async function syncTelegram(){
-  const { error } = await sb.from('kt_telegram_settings').upsert({
+  const r = await _syncSingletonRow('kt_telegram_settings', 'Pengaturan Telegram', {
     id: 'main',
     bot_token: db.telegram.botToken,
     chat_id: db.telegram.chatId,
     enabled: db.telegram.enabled,
-  }, { onConflict: 'id' });
-  if(error){ console.error('Gagal menyimpan kt_telegram_settings:', error); throw new Error(`Gagal menyimpan pengaturan Telegram: ${error.message}`); }
+  }, _lastKnownTelegramUpdatedAt, v => { _lastKnownTelegramUpdatedAt = v; });
+  return r.conflict ? [r.conflict] : [];
 }
 
+let _lastKnownGuestMenuUpdatedAt = null;
 async function syncGuestMenu(){
   const hiddenSections = Object.keys(db.guestMenu || {}).filter(k => db.guestMenu[k] === false);
-  const { error } = await sb.from('kt_guest_menu_settings').upsert({
+  const r = await _syncSingletonRow('kt_guest_menu_settings', 'Akses Guest', {
     id: 'main',
     hidden_sections: hiddenSections,
-  }, { onConflict: 'id' });
-  if(error){ console.error('Gagal menyimpan kt_guest_menu_settings:', error); throw new Error(`Gagal menyimpan pengaturan menu guest: ${error.message}`); }
+  }, _lastKnownGuestMenuUpdatedAt, v => { _lastKnownGuestMenuUpdatedAt = v; });
+  return r.conflict ? [r.conflict] : [];
 }
 
 // Surat & Dokumen — satu set draft global, tidak terikat event_id (lihat
 // catatan di defaultDB()). Disimpan di tabel kt_dokumen_global (1 baris, id='main').
+let _lastKnownDokumenGlobalUpdatedAt = null;
 async function syncDokumenGlobal(){
-  const { error } = await sb.from('kt_dokumen_global').upsert({
+  const r = await _syncSingletonRow('kt_dokumen_global', 'Surat & Dokumen', {
     id: 'main',
     dokumen: db.dokumenGlobal || { undangan:{}, proposal:{}, absensi:{}, jadwal_sinoman:{} },
-  }, { onConflict: 'id' });
-  if(error){ console.error('Gagal menyimpan kt_dokumen_global:', error); throw new Error(`Gagal menyimpan Surat & Dokumen: ${error.message}`); }
+  }, _lastKnownDokumenGlobalUpdatedAt, v => { _lastKnownDokumenGlobalUpdatedAt = v; });
+  return r.conflict ? [r.conflict] : [];
 }
 
 // saveDB() dipanggil di puluhan tempat setiap ada perubahan kecil. Sebelumnya setiap panggilan
@@ -437,9 +519,12 @@ async function _flushSaveDB(){
     const level3Results = await Promise.all(level3Entries.map(([key, table]) => syncArrayTable(table, db[key], key)));
 
     // Hasil konflik dari 'events' (disimpan terpisah di atas) digabung dengan hasil
-    // dari semua level lainnya (syncSettings dkk tidak mengembalikan daftar konflik).
+    // dari semua level lainnya. syncSettings/syncTelegram/syncGuestMenu/syncDokumenGlobal
+    // sekarang juga mengembalikan daftar konflik (array kosong kalau tidak ada) seperti
+    // syncArrayTable, jadi seluruh isi level1Results (termasuk 4 fungsi settings di akhir
+    // array Promise.all di atas) ikut dipakai langsung tanpa perlu di-slice lagi.
     const arrayConflictResults = [
-      ...level1Results.slice(0, level1Entries.length + uncategorizedEntries.length),
+      ...level1Results,
       ...level2Results,
       ...level3Results,
     ];
@@ -517,4 +602,3 @@ const KATEGORI_JADWAL = [
 ];
 
 function activeEvent(){ return db.events.find(e=>e.id===db.activeEventId) || null; }
-

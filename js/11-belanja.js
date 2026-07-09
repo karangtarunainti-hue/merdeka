@@ -43,7 +43,7 @@ function renderBelanjaHadiah(){
       const belanja = statusMap[key] || null;
       const status = belanja ? belanja.status : 'belum_dibeli';
       const tanggalBeli = belanja ? belanja.tanggal_beli : null;
-      items.push({...h, itemIndex: idx, itemId: item.id, itemNama: item.nama, itemHarga: item.harga_satuan, itemQtyDibeli: item.qty_dibeli, isi_per_pack: item.isi_per_pack||1, status, tanggalBeli, sudahDibeli: status==='dibeli', key});
+      items.push({...h, itemIndex: idx, itemId: item.id, itemNama: item.nama, itemHarga: item.harga_satuan, itemHargaEceran: (item.harga_eceran!=null?item.harga_eceran:item.harga_satuan), itemQtyDibeli: item.qty_dibeli, isi_per_pack: item.isi_per_pack||1, status, tanggalBeli, sudahDibeli: status==='dibeli', key});
     });
   });
 
@@ -55,8 +55,6 @@ function renderBelanjaHadiah(){
 
   const totalItem = items.length;
   const totalBelum = items.filter(i=>!i.sudahDibeli).length;
-  const totalEstimasi = items.reduce((s,i)=>s+(Number(i.itemHarga||0)*Number(i.itemQtyDibeli||0)),0);
-  const totalBelumEstimasi = items.filter(i=>!i.sudahDibeli).reduce((s,i)=>s+(Number(i.itemHarga||0)*Number(i.itemQtyDibeli||0)),0);
   const isLoggedIn = !!getCurrentUser();
 
   if(!items.length) return `<div class="belanja-toko-page"><div class="panel"><div class="panel-head"><h3>🎁 Belanja Hadiah</h3></div><div class="panel-body"><div class="empty-state"><h3>Belum ada hadiah</h3>${isLoggedIn ? `<button class="btn" onclick="goSection('hadiah')">+ Tambah Hadiah</button>` : ''}</div></div></div></div>`;
@@ -82,6 +80,7 @@ function renderBelanjaHadiah(){
 
   window._belanjaHadiahGroups = {};
   let lastKategoriToko = null;
+  let totalEstimasi = 0, totalBelumEstimasi = 0;
   const groups = nameGroups.map((g, gi) => {
     const list = g.list.slice().sort((a,b) => {
       if(a.kategori_peserta !== b.kategori_peserta) return a.kategori_peserta.localeCompare(b.kategori_peserta);
@@ -90,13 +89,26 @@ function renderBelanjaHadiah(){
     window._belanjaHadiahGroups[gi] = {nama: g.nama, refs: list.map(i=>({hadiahId:i.id, itemId:i.itemId}))};
 
     const totalQty = list.reduce((s,i)=>s+Number(i.itemQtyDibeli||0),0);
-    const totalHarga = list.reduce((s,i)=>s+(Number(i.itemHarga||0)*Number(i.itemQtyDibeli||0)),0);
     const semuaDibeli = list.every(i=>i.sudahDibeli);
     const belum = list.filter(i=>!i.sudahDibeli);
     const tglTerbaru = list.filter(i=>i.tanggalBeli).map(i=>i.tanggalBeli).sort().pop();
     const isiPerPack = Math.max(1, Number(list[0].isi_per_pack||1));
     const jumlahPackUtuh = isiPerPack > 1 ? Math.floor(totalQty / isiPerPack) : 0;
     const sisaSatuan = isiPerPack > 1 ? totalQty % isiPerPack : 0;
+
+    // Harga per pcs kalau beli via pack (harga_satuan hasil bagi harga pack), dan harga
+    // per pcs kalau beli eceran/satuan — bisa beda (biasanya eceran lebih mahal).
+    // Disinkron ke semua item dalam grup ini lewat editHargaBelanjaHadiahGroup.
+    const hargaPerPcsPack = Number(list[0].itemHarga||0);
+    const hargaEceran = Number(list[0].itemHargaEceran!=null ? list[0].itemHargaEceran : hargaPerPcsPack);
+    const hargaEceranBeda = isiPerPack > 1 && hargaEceran !== hargaPerPcsPack;
+    const totalHarga = isiPerPack > 1
+      ? (jumlahPackUtuh * isiPerPack * hargaPerPcsPack) + (sisaSatuan * hargaEceran)
+      : totalQty * hargaPerPcsPack;
+
+    totalEstimasi += totalHarga;
+    const belumQty = belum.reduce((s,i)=>s+Number(i.itemQtyDibeli||0),0);
+    if(totalQty > 0) totalBelumEstimasi += totalHarga * (belumQty / totalQty);
 
     const tagHtml = list.map(item => {
       // Hadiah non-partisipasi digabung dari SEMUA lomba dgn kategori_peserta yang sama
@@ -107,8 +119,8 @@ function renderBelanjaHadiah(){
       return `<span class="tag">Kategori: ${labelPeserta(item.kategori_peserta)} · ${labelJuara(item.juara_ke)} · ${item.itemQtyDibeli} pcs${lombaInfo}</span>`;
     }).join('');
     const packTagHtml = jumlahPackUtuh > 0
-      ? `<span class="tag pack-tag">📦 Beli ${jumlahPackUtuh} pack (isi ${isiPerPack})${sisaSatuan>0?` + ${sisaSatuan} pcs satuan`:''} → ${totalQty} pcs</span>`
-      : (isiPerPack > 1 ? `<span class="tag pack-tag">📦 Beli ${sisaSatuan} pcs satuan (kurang dari 1 pack isi ${isiPerPack})</span>` : '');
+      ? `<span class="tag pack-tag">📦 Beli ${jumlahPackUtuh} pack (isi ${isiPerPack}${hargaEceranBeda?`, ${fmtRp(hargaPerPcsPack*isiPerPack)}/pack`:''})${sisaSatuan>0?` + ${sisaSatuan} pcs satuan${hargaEceranBeda?` @${fmtRp(hargaEceran)}`:''}`:''} → ${totalQty} pcs</span>`
+      : (isiPerPack > 1 ? `<span class="tag pack-tag">📦 Beli ${sisaSatuan} pcs satuan${hargaEceranBeda?` @${fmtRp(hargaEceran)}`:''} (kurang dari 1 pack isi ${isiPerPack})</span>` : '');
 
     // Header kategori toko, muncul setiap kali kategori berganti
     let headerHtml = '';
@@ -219,6 +231,17 @@ function editHargaBelanjaHadiahGroup(gi){
   if(!(hargaMasuk >= 0)){ toast('Harga tidak valid'); return; }
   const hargaSatuanBaru = isPack ? Math.round(hargaMasuk / isiPerPack) : hargaMasuk;
 
+  // Kalau dijual per pack, tanya juga harga satuan/eceran (buat sisa pcs yang tidak
+  // genap 1 pack) — bisa beda dari hasil bagi harga pack, biasanya lebih mahal.
+  let hargaEceranBaru = hargaSatuanBaru;
+  if(isPack){
+    const eceranSekarang = firstItem.harga_eceran!=null ? firstItem.harga_eceran : hargaSatuanBaru;
+    const eceranInput = prompt(`Kalau beli SATUAN/eceran (sisa yg tidak genap 1 pack), harga per pcs berapa?\n(Isi sama dgn ${fmtRp(hargaSatuanBaru)} kalau harganya nggak beda)`, eceranSekarang);
+    if(eceranInput===null) return;
+    const eceranMasuk = Number(String(eceranInput).replace(/[^0-9]/g,''));
+    if(eceranMasuk >= 0) hargaEceranBaru = eceranMasuk;
+  }
+
   let count = 0, totalQty = 0;
   group.refs.forEach(r => {
     const h = db.hadiahKategori.find(x=>x.id===r.hadiahId);
@@ -226,6 +249,7 @@ function editHargaBelanjaHadiahGroup(gi){
     if(item){
       item.harga_satuan = hargaSatuanBaru;
       item.isi_per_pack = isiPerPack;
+      item.harga_eceran = hargaEceranBaru;
       totalQty += Number(item.qty_dibeli||0);
       count++;
     }
@@ -235,11 +259,12 @@ function editHargaBelanjaHadiahGroup(gi){
   if(isPack){
     const jumlahPackUtuh = Math.floor(totalQty / isiPerPack);
     const sisaSatuan = totalQty % isiPerPack;
+    const eceranBeda = hargaEceranBaru !== hargaSatuanBaru;
     const rincianBeli = jumlahPackUtuh > 0
-      ? `${jumlahPackUtuh} pack${sisaSatuan>0?` + ${sisaSatuan} pcs satuan`:''}`
-      : `${sisaSatuan} pcs satuan`;
-    toast(`✓ "${group.nama}": beli ${rincianBeli} (isi ${isiPerPack}/pack) — Rp${fmtRp(hargaSatuanBaru)}/pcs`);
-    notifyTelegram(`✏️ Update kemasan & harga belanja hadiah: ${group.nama}`, `Isi per pack: ${isiPerPack}\nHarga per pack: ${fmtRp(hargaMasuk)} (≈ ${fmtRp(hargaSatuanBaru)}/pcs)\nKebutuhan: ${totalQty} pcs → beli ${rincianBeli}`);
+      ? `${jumlahPackUtuh} pack${sisaSatuan>0?` + ${sisaSatuan} pcs satuan${eceranBeda?` @${fmtRp(hargaEceranBaru)}`:''}`:''}`
+      : `${sisaSatuan} pcs satuan${eceranBeda?` @${fmtRp(hargaEceranBaru)}`:''}`;
+    toast(`✓ "${group.nama}": beli ${rincianBeli} (isi ${isiPerPack}/pack) — Rp${fmtRp(hargaSatuanBaru)}/pcs${eceranBeda?`, eceran Rp${fmtRp(hargaEceranBaru)}/pcs`:''}`);
+    notifyTelegram(`✏️ Update kemasan & harga belanja hadiah: ${group.nama}`, `Isi per pack: ${isiPerPack}\nHarga per pack: ${fmtRp(hargaMasuk)} (≈ ${fmtRp(hargaSatuanBaru)}/pcs)${eceranBeda?`\nHarga eceran/satuan: ${fmtRp(hargaEceranBaru)}/pcs`:''}\nKebutuhan: ${totalQty} pcs → beli ${rincianBeli}`);
   } else {
     toast(`✓ Harga "${group.nama}" diupdate ke ${fmtRp(hargaSatuanBaru)}/pcs (${count} paket)`);
     notifyTelegram(`✏️ Update harga belanja hadiah: ${group.nama}`, `Harga satuan baru: ${fmtRp(hargaSatuanBaru)}\nDiterapkan ke ${count} paket`);

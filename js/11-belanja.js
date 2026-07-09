@@ -97,7 +97,14 @@ function renderBelanjaHadiah(){
     const isiPerPack = Math.max(1, Number(list[0].isi_per_pack||1));
     const jumlahPack = isiPerPack > 1 ? Math.ceil(totalQty / isiPerPack) : null;
 
-    const tagHtml = list.map(item => `<span class="tag">${labelPeserta(item.kategori_peserta)} · ${labelJuara(item.juara_ke)} · ${item.itemQtyDibeli} pcs</span>`).join('');
+    const tagHtml = list.map(item => {
+      // Hadiah non-partisipasi digabung dari SEMUA lomba dgn kategori_peserta yang sama
+      // (lihat hitungKebutuhanHadiah di 10-lomba.js), jadi qty di sini bukan utk 1 lomba
+      // saja. Tambahkan info jumlah lomba biar user tahu kenapa qty-nya sebesar itu.
+      const jumlahLomba = item.juara_ke !== 'partisipasi' ? gLomba().filter(l=>l.kategori_peserta===item.kategori_peserta).length : 0;
+      const lombaInfo = jumlahLomba > 1 ? ` <span style="opacity:.65;">(gabungan ${jumlahLomba} lomba)</span>` : '';
+      return `<span class="tag">${labelPeserta(item.kategori_peserta)} · ${labelJuara(item.juara_ke)} · ${item.itemQtyDibeli} pcs${lombaInfo}</span>`;
+    }).join('');
     const packTagHtml = jumlahPack ? `<span class="tag pack-tag">📦 Beli ${jumlahPack} pack (isi ${isiPerPack} → ${jumlahPack*isiPerPack} pcs)</span>` : '';
 
     // Header kategori toko, muncul setiap kali kategori berganti

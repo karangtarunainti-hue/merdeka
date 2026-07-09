@@ -53,8 +53,6 @@ function renderBelanjaHadiah(){
     return a.juara_ke.localeCompare(b.juara_ke);
   });
 
-  const totalItem = items.length;
-  const totalBelum = items.filter(i=>!i.sudahDibeli).length;
   const isLoggedIn = !!getCurrentUser();
 
   if(!items.length) return `<div class="belanja-toko-page"><div class="panel"><div class="panel-head"><h3>🎁 Belanja Hadiah</h3></div><div class="panel-body"><div class="empty-state"><h3>Belum ada hadiah</h3>${isLoggedIn ? `<button class="btn" onclick="goSection('hadiah')">+ Tambah Hadiah</button>` : ''}</div></div></div></div>`;
@@ -80,7 +78,7 @@ function renderBelanjaHadiah(){
 
   window._belanjaHadiahGroups = {};
   let lastKategoriToko = null;
-  let totalEstimasi = 0, totalBelumEstimasi = 0;
+  let totalEstimasi = 0, totalBelumEstimasi = 0, totalItem = 0, totalBelum = 0;
   const groups = nameGroups.map((g, gi) => {
     const list = g.list.slice().sort((a,b) => {
       if(a.kategori_peserta !== b.kategori_peserta) return a.kategori_peserta.localeCompare(b.kategori_peserta);
@@ -95,6 +93,9 @@ function renderBelanjaHadiah(){
     const isiPerPack = Math.max(1, Number(list[0].isi_per_pack||1));
     const jumlahPackUtuh = isiPerPack > 1 ? Math.floor(totalQty / isiPerPack) : 0;
     const sisaSatuan = isiPerPack > 1 ? totalQty % isiPerPack : 0;
+
+    totalItem++;
+    if(!semuaDibeli) totalBelum++;
 
     // Harga per pcs kalau beli via pack (harga_satuan hasil bagi harga pack), dan harga
     // per pcs kalau beli eceran/satuan — bisa beda (biasanya eceran lebih mahal).

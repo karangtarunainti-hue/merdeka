@@ -125,11 +125,11 @@ function openOperasionalModal(id){
   if (!canEditSection('operasional')) { toast('⛔ Login untuk mengedit data'); return; }
   const editing = id ? db.operasional.find(o=>o.id===id) : null;
   setModal(editing?'Edit Biaya':'Tambah Biaya', `
+    <div class="field"><label>Tanggal</label><input id="f-tanggal" type="date" value="${editing?editing.tanggal:todayISO()}"></div>
     <div class="field"><label>Keterangan</label><input id="f-ket" value="${editing?esc(editing.keterangan):''}"></div>
     <div class="field-row"><div class="field"><label>Harga Satuan (Rp)</label><input id="f-satuan" class="currency-input" type="text" oninput="hitungJumlahOperasionalModal()" value="${editing?formatCurrency(editing.satuan||0):''}"></div>
     <div class="field"><label>QTY</label><input id="f-qty" type="number" min="1" step="1" oninput="hitungJumlahOperasionalModal()" value="${editing?(editing.qty||1):1}"></div></div>
     <div class="field"><label>Jumlah</label><div id="f-jumlah-preview" style="font-weight:700; font-size:16px; padding:6px 0;">${fmtRp((editing?Number(editing.satuan||0):0)*(editing?(editing.qty||1):1))}</div><div class="hint">Otomatis: Harga Satuan × QTY</div></div>
-    <div class="field"><label>Tanggal</label><input id="f-tanggal" type="date" value="${editing?editing.tanggal:todayISO()}"></div>
   `, [
     {label:'Batal', cls:'secondary', onclick:closeModal},
     {label:editing?'Simpan':'Tambah', cls:'', onclick:()=>{

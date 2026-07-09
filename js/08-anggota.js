@@ -151,7 +151,7 @@ function openAnggotaModal(id){
       </select>
     </div>
     <div class="field"><label>Jenis Kelamin</label>
-      <select id="f-gender" onchange="this.dataset.userEdited='1'">
+      <select id="f-gender" ${editing&&editing.gender?"data-user-edited=\"1\"":''} onchange="this.dataset.userEdited='1'">
         ${GENDER_LIST.map(g=>`<option value="${g.v}" ${getGender(editing||{nama:''})===g.v?'selected':''}>${g.l}</option>`).join('')}
       </select>
       <div class="hint">Terisi otomatis dari nama, tapi bisa dikoreksi kapan saja.</div>

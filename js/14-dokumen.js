@@ -142,6 +142,7 @@ function setPrevText(id, text){ const el = document.getElementById(id); if(el) e
 // input tidak hilang saat user masih mengetik. Pratinjau surat di-update
 // langsung lewat DOM (textContent) supaya tetap tampak realtime.
 function liveUndangan(field, value){
+  if (!canEditSection('dokumen')) { toast('⛔ Login untuk mengedit data'); return; }
   const s = getDokumenGlobal();
   s.undangan = s.undangan || {};
   s.undangan[field] = value;
@@ -261,6 +262,7 @@ function renderProposalKegiatan(ev){
 // Autosave: sama seperti liveUndangan — simpan ke db + Supabase (debounced)
 // tanpa renderContent(), lalu update pratinjau langsung lewat DOM.
 function liveProposal(field, value){
+  if (!canEditSection('dokumen')) { toast('⛔ Login untuk mengedit data'); return; }
   const s = getDokumenGlobal();
   s.proposal = s.proposal || {};
   s.proposal[field] = value;
@@ -370,6 +372,10 @@ function renderFormAbsensi(ev){
 }
 
 function filterAbsensi(){
+  // Filter tampilan saja (tidak mengubah data), tapi tetap ditulis ke db.absensi
+  // supaya filter tersimpan; batasi ke yang berhak edit dokumen supaya konsisten
+  // dengan liveAbsensi dan tidak menimpa data kalau dipanggil manual dari console.
+  if (!canEditSection('dokumen')) { toast('⛔ Login untuk mengedit data'); return; }
   const s = getDokumenGlobal();
   s.absensi = s.absensi || {};
   s.absensi.filter_kategori = document.getElementById('doc-abs-kategori').value;
@@ -377,6 +383,7 @@ function filterAbsensi(){
   saveDB(); renderContent();
 }
 function liveAbsensi(field, value){
+  if (!canEditSection('dokumen')) { toast('⛔ Login untuk mengedit data'); return; }
   const s = getDokumenGlobal();
   s.absensi = s.absensi || {};
   s.absensi[field] = value;
@@ -447,6 +454,7 @@ function renderJadwalSinoman(ev){
 }
 
 function liveJadwalSinoman(field, value){
+  if (!canEditSection('dokumen')) { toast('⛔ Login untuk mengedit data'); return; }
   const s = getDokumenGlobal();
   s.jadwal_sinoman[field] = value;
   saveDB();
@@ -455,17 +463,20 @@ function liveJadwalSinoman(field, value){
   else if(field === 'tempat') setPrevText('js-prev-tempat', value ? `Tempat: ${value}` : '');
 }
 function jadwalSinomanSetCell(idx, field, value){
+  if (!canEditSection('dokumen')) { toast('⛔ Login untuk mengedit data'); return; }
   const s = getDokumenGlobal();
   if(!s.jadwal_sinoman.rows[idx]) return;
   s.jadwal_sinoman.rows[idx][field] = value;
   saveDB();
 }
 function jadwalSinomanAddRow(){
+  if (!canEditSection('dokumen')) { toast('⛔ Login untuk mengedit data'); return; }
   const s = getDokumenGlobal();
   s.jadwal_sinoman.rows.push({ pagi:'', siang:'', sore:'' });
   saveDB(); renderContent();
 }
 function jadwalSinomanRemoveRow(idx){
+  if (!canEditSection('dokumen')) { toast('⛔ Login untuk mengedit data'); return; }
   const s = getDokumenGlobal();
   if(s.jadwal_sinoman.rows.length<=1) return;
   s.jadwal_sinoman.rows.splice(idx,1);

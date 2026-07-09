@@ -90,7 +90,15 @@ function renderBelanjaHadiah(){
     const semuaDibeli = list.every(i=>i.sudahDibeli);
     const belum = list.filter(i=>!i.sudahDibeli);
     const tglTerbaru = list.filter(i=>i.tanggalBeli).map(i=>i.tanggalBeli).sort().pop();
-    const isiPerPack = Math.max(1, Number(list[0].isi_per_pack||1));
+    // Ambil item dengan isi_per_pack TERBESAR sebagai acuan kemasan/harga grup —
+    // bukan list[0] begitu saja. Kalau item baru bernama sama ditambahkan belakangan
+    // (mis. lewat paket hadiah kategori lain) sebelum sempat diatur lewat "Update
+    // harga & kemasan", isi_per_pack-nya masih default 1. Kalau kebetulan item baru
+    // itu jatuh di posisi list[0] (urutan grup disortir per kategori+juara, bukan
+    // per waktu dibuat), seluruh kalkulasi pack grup ini bisa diam-diam ke-reset
+    // jadi "bukan pack" walau item lain di grup sudah dikonfigurasi pack-nya.
+    const packRef = list.reduce((best, cur) => Number(cur.isi_per_pack||1) > Number(best.isi_per_pack||1) ? cur : best, list[0]);
+    const isiPerPack = Math.max(1, Number(packRef.isi_per_pack||1));
     const jumlahPackUtuh = isiPerPack > 1 ? Math.floor(totalQty / isiPerPack) : 0;
     const sisaSatuan = isiPerPack > 1 ? totalQty % isiPerPack : 0;
 
@@ -100,8 +108,8 @@ function renderBelanjaHadiah(){
     // Harga per pcs kalau beli via pack (harga_satuan hasil bagi harga pack), dan harga
     // per pcs kalau beli eceran/satuan — bisa beda (biasanya eceran lebih mahal).
     // Disinkron ke semua item dalam grup ini lewat editHargaBelanjaHadiahGroup.
-    const hargaPerPcsPack = Number(list[0].itemHarga||0);
-    const hargaEceran = Number(list[0].itemHargaEceran!=null ? list[0].itemHargaEceran : hargaPerPcsPack);
+    const hargaPerPcsPack = Number(packRef.itemHarga||0);
+    const hargaEceran = Number(packRef.itemHargaEceran!=null ? packRef.itemHargaEceran : hargaPerPcsPack);
     const hargaEceranBeda = isiPerPack > 1 && hargaEceran !== hargaPerPcsPack;
     const totalHarga = isiPerPack > 1
       ? (jumlahPackUtuh * isiPerPack * hargaPerPcsPack) + (sisaSatuan * hargaEceran)

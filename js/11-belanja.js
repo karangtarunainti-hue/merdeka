@@ -103,7 +103,7 @@ function renderBelanjaHadiah(){
       // saja. Tambahkan info jumlah lomba biar user tahu kenapa qty-nya sebesar itu.
       const jumlahLomba = item.juara_ke !== 'partisipasi' ? gLomba().filter(l=>l.kategori_peserta===item.kategori_peserta).length : 0;
       const lombaInfo = jumlahLomba > 1 ? ` <span style="opacity:.65;">(gabungan ${jumlahLomba} lomba)</span>` : '';
-      return `<span class="tag">${labelPeserta(item.kategori_peserta)} · ${labelJuara(item.juara_ke)} · ${item.itemQtyDibeli} pcs${lombaInfo}</span>`;
+      return `<span class="tag">Kategori: ${labelPeserta(item.kategori_peserta)} · ${labelJuara(item.juara_ke)} · ${item.itemQtyDibeli} pcs${lombaInfo}</span>`;
     }).join('');
     const packTagHtml = jumlahPack ? `<span class="tag pack-tag">📦 Beli ${jumlahPack} pack (isi ${isiPerPack} → ${jumlahPack*isiPerPack} pcs)</span>` : '';
 

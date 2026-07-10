@@ -193,6 +193,11 @@ function renderDaftarAnggota(){
     total: anggotaList.filter(a=>getRT(a)===r.v).length,
   }));
 
+  const rekapKategori = KATEGORI_ANGGOTA.map(k=>({
+    label: k.l,
+    total: anggotaList.filter(a=>a.kategori===k.v).length,
+  }));
+
   const emptyRow = (n,text)=>`<tr class="empty-row"><td colspan="${n}">${text}</td></tr>`;
 
   return `
@@ -214,19 +219,21 @@ function renderDaftarAnggota(){
     <h3>1. Rekap Anggota</h3>
     <table class="lpj-table">
       <tbody>
-        <tr class="lpj-subtotal"><td>Total Anggota</td><td class="num">${totalAnggota}</td></tr>
-        <tr><td class="indent">Laki-Laki</td><td class="num">${totalPria}</td></tr>
-        <tr><td class="indent">Perempuan</td><td class="num">${totalWanita}</td></tr>
-        ${totalTakDiketahui > 0 ? `<tr><td class="indent">Tidak diketahui</td><td class="num">${totalTakDiketahui}</td></tr>` : ''}
+        <tr class="lpj-subtotal"><td>Total Anggota</td><td class="num">${totalAnggota} orang</td></tr>
+        <tr><td class="indent">Laki-Laki</td><td class="num">${totalPria} orang</td></tr>
+        <tr><td class="indent">Perempuan</td><td class="num">${totalWanita} orang</td></tr>
+        ${totalTakDiketahui > 0 ? `<tr><td class="indent">Tidak diketahui</td><td class="num">${totalTakDiketahui} orang</td></tr>` : ''}
         <tr class="lpj-subtotal"><td>Per RT</td><td class="num"></td></tr>
-        ${rekapRT.map(r=>`<tr><td class="indent">${esc(r.label)}</td><td class="num">${r.total}</td></tr>`).join('')}
+        ${rekapRT.map(r=>`<tr><td class="indent">${esc(r.label)}</td><td class="num">${r.total} orang</td></tr>`).join('')}
+        <tr class="lpj-subtotal"><td>Per Kategori</td><td class="num"></td></tr>
+        ${rekapKategori.map(k=>`<tr><td class="indent">${esc(k.label)}</td><td class="num">${k.total} orang</td></tr>`).join('')}
       </tbody>
     </table>
 
     <h3>2. Daftar Nama Anggota</h3>
     <div class="lpj-table-scroll"><table class="lpj-table lpj-detail">
-      <thead><tr><th>No</th><th>Nama</th><th>RT</th><th>Jenis Kelamin</th></tr></thead>
-      <tbody>${anggotaList.map((a,idx)=>`<tr><td>${idx+1}</td><td>${esc(a.nama)}</td><td>${esc(labelRT(getRT(a)))}</td><td>${esc(labelGender(getGender(a)))}</td></tr>`).join('') || emptyRow(4,'Belum ada data anggota.')}</tbody>
+      <thead><tr><th>No</th><th>Nama</th><th>RT</th><th>Jenis Kelamin</th><th>Kategori</th></tr></thead>
+      <tbody>${anggotaList.map((a,idx)=>`<tr><td>${idx+1}</td><td>${esc(a.nama)}</td><td>${esc(labelRT(getRT(a)))}</td><td>${esc(labelGender(getGender(a)))}</td><td>${esc(labelKategori(a.kategori))}</td></tr>`).join('') || emptyRow(5,'Belum ada data anggota.')}</tbody>
     </table></div>
   </div>
   </div>

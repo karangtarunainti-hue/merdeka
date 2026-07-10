@@ -152,26 +152,38 @@ function renderSidebar(){
   document.getElementById('btn-new-event').style.display = isAdminUser ? 'inline-block' : 'none';
 }
 
-function goSection(key){
+// Nama key localStorage tempat menyimpan halaman terakhir yang dibuka, supaya
+// saat halaman di-refresh (F5) user tetap berada di halaman yang sama, tidak
+// selalu dilempar balik ke Buku Kegiatan (dashboard).
+const LAST_SECTION_KEY = 'merdeka_last_section';
+
+function goSection(key, opts){
+  const isFallback = !!(opts && opts.isFallback);
   const user = getCurrentUser();
   const section = SECTIONS.find(s=>s.key===key);
   if (section && section.adminOnly && !(user && user.role === 'admin')) {
-    toast('⛔ Hanya Admin yang bisa mengakses halaman ini');
+    if (!isFallback) toast('⛔ Hanya Admin yang bisa mengakses halaman ini');
+    if (key !== 'dashboard') return goSection('dashboard', {isFallback:true});
     return;
   }
   if (section && !isMenuAktif(key)) {
-    toast('⛔ Fitur ini tidak diaktifkan untuk event ini');
+    if (!isFallback) toast('⛔ Fitur ini tidak diaktifkan untuk event ini');
+    if (key !== 'dashboard') return goSection('dashboard', {isFallback:true});
     return;
   }
   if (section && !user && !isGuestVisible(key)) {
-    toast('⛔ Halaman ini tidak tersedia untuk Guest. Silakan login.');
+    if (!isFallback) toast('⛔ Halaman ini tidak tersedia untuk Guest. Silakan login.');
+    if (key !== 'dashboard') return goSection('dashboard', {isFallback:true});
     return;
   }
   if (section && user && user.role === 'petugas' && key !== 'dashboard' && !userSections().includes(key)) {
-    toast('⛔ Anda tidak memiliki akses ke halaman ini');
+    if (!isFallback) toast('⛔ Anda tidak memiliki akses ke halaman ini');
+    if (key !== 'dashboard') return goSection('dashboard', {isFallback:true});
     return;
   }
   currentSection = key;
+  // Simpan halaman terakhir supaya bertahan walau halaman di-refresh.
+  try { localStorage.setItem(LAST_SECTION_KEY, key); } catch(e){}
   const meta = SECTIONS.find(s=>s.key===key);
   document.getElementById('page-title').textContent = meta ? meta.label : 'Dashboard';
   document.getElementById('page-sub').textContent = meta ? (meta.desc || meta.sub) : '';

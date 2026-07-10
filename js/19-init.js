@@ -112,7 +112,15 @@ initOfflineGuard();
   applyTemaWarna(eventTema(activeEvent()).key);
   renderSidebar();
   renderTopbarSaldo();
-  goSection('dashboard');
+  // Buka kembali halaman terakhir yang dikunjungi (tersimpan di localStorage)
+  // supaya refresh (F5) tidak selalu melempar user balik ke Buku Kegiatan.
+  // Kalau belum pernah ada / key sudah tidak dikenal, baru fallback ke dashboard.
+  let lastSection = 'dashboard';
+  try {
+    const saved = localStorage.getItem(LAST_SECTION_KEY);
+    if (saved && SECTIONS.some(s => s.key === saved)) lastSection = saved;
+  } catch(e){}
+  goSection(lastSection);
   // Muat data Gudang di belakang layar (tidak memblokir tampilan awal) supaya
   // saat pertama kali buka menu Gudang, datanya sudah siap tanpa jeda loading.
   loadGudangData();

@@ -77,7 +77,7 @@ function renderLPJ(){
   // 2. Rincian Pemasukan — Iuran Anggota selalu ada, sisanya menyesuaikan fitur event
   const pemasukanSubs = [
     { title:'Iuran Anggota', html:`
-    <div class="lpj-table-scroll"><table class="lpj-table lpj-detail">
+    <div class="lpj-table-scroll"><table class="lpj-table lpj-detail lpj-iuran-table">
       <thead><tr><th>Kategori</th><th>Anggota</th><th>Lunas</th><th class="num">Total Terkumpul</th></tr></thead>
       <tbody>${kategoriRekap.map(r=>`<tr><td>${esc(r.label)}</td><td>${r.total}</td><td>${r.lunas}</td><td class="num">${fmtRp(r.nominal)}</td></tr>`).join('') || emptyRow(4,'Belum ada data anggota.')}</tbody>
     </table></div>` },

@@ -6,6 +6,11 @@ function todayISO(){ return new Date().toISOString().slice(0,10); }
 function fmtRp(n){ return new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',minimumFractionDigits:0}).format(Number(n)||0); }
 function fmtDate(iso){ if(!iso) return '-'; const d=new Date(iso+'T00:00:00'); return d.toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'}); }
 function fmtDateShort(iso){ if(!iso) return '-'; const d=new Date(iso+'T00:00:00'); return d.toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'2-digit'}); }
+// Tanggal + nama hari, dipakai di mana pun hari acara perlu terlihat jelas (mis. Jadwal Lomba).
+function fmtDateHari(iso){ if(!iso) return '-'; const d=new Date(iso+'T00:00:00'); return d.toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long',year:'numeric'}); }
+function fmtDateHariShort(iso){ if(!iso) return '-'; const d=new Date(iso+'T00:00:00'); return d.toLocaleDateString('id-ID',{weekday:'short',day:'numeric',month:'short',year:'numeric'}); }
+// Gabungan hari, tanggal, dan jam (kalau jam-nya diisi) — format siap-tampil.
+function fmtDateJam(iso, jam, {short}={}){ const tgl = short ? fmtDateHariShort(iso) : fmtDateHari(iso); return jam ? `${tgl} · ${jam}` : tgl; }
 function esc(s){ return String(s??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
 function defaultDB(){

@@ -32,7 +32,7 @@ function renderJadwal(){
 
     return `
     <tr class="${j.status === 'selesai' ? '' : (diffDays < 0 ? 'belum-bayar' : '')}">
-      <td data-label="Tanggal">${fmtDate(j.tanggal)}</td>
+      <td data-label="Tanggal">${fmtDateHariShort(j.tanggal)}${j.jam?`<div class="hint" style="margin-top:2px;">⏰ ${j.jam}</div>`:''}</td>
       <td data-label="Status"><span class="badge ${statusClass}">${statusLabel}</span></td>
       <td data-label="Kategori"><span class="kategori-pill">${labelKategoriJadwal(j.kategori)}</span></td>
       <td data-label="Judul">${esc(j.judul)}</td>
@@ -83,9 +83,10 @@ function openJadwalModal(id){
     <div class="field"><label>Judul</label><input id="f-judul" value="${editing?esc(editing.judul):''}" placeholder="mis. Belanja Hadiah Lomba"></div>
     <div class="field-row">
       <div class="field"><label>Tanggal</label><input id="f-tanggal" type="date" value="${editing?editing.tanggal:todayISO()}"></div>
-      <div class="field"><label>Kategori</label>
-        <select id="f-kategori">${KATEGORI_JADWAL.map(k=>`<option value="${k.v}" ${editing&&editing.kategori===k.v?'selected':''}>${k.l}</option>`).join('')}</select>
-      </div>
+      <div class="field"><label>Jam (opsional)</label><input id="f-jam" type="time" value="${editing?(editing.jam||''):''}"></div>
+    </div>
+    <div class="field"><label>Kategori</label>
+      <select id="f-kategori">${KATEGORI_JADWAL.map(k=>`<option value="${k.v}" ${editing&&editing.kategori===k.v?'selected':''}>${k.l}</option>`).join('')}</select>
     </div>
     <div class="field"><label>Deskripsi (opsional)</label>
       <textarea id="f-deskripsi" rows="3" placeholder="Detail jadwal...">${editing?esc(editing.deskripsi||''):''}</textarea>
@@ -101,15 +102,16 @@ function openJadwalModal(id){
     {label:editing?'Simpan':'Tambah', cls:'', onclick:()=>{
       const judul = document.getElementById('f-judul').value.trim();
       const tanggal = document.getElementById('f-tanggal').value;
+      const jam = document.getElementById('f-jam').value || null;
       const kategori = document.getElementById('f-kategori').value;
       const deskripsi = document.getElementById('f-deskripsi').value.trim();
       const status = document.getElementById('f-status').value;
       if(!judul || !tanggal){ toast('Judul & tanggal wajib diisi'); return; }
       let actionMsg = editing ? `✏️ Edit jadwal: ${editing.judul} → ${judul}` : `➕ Jadwal baru: ${judul}`;
-      if(editing){ Object.assign(editing, {judul, tanggal, kategori, deskripsi, status}); }
-      else{ db.jadwal.push({id:uid(), event_id:eid(), judul, tanggal, kategori, deskripsi, status}); }
+      if(editing){ Object.assign(editing, {judul, tanggal, jam, kategori, deskripsi, status}); }
+      else{ db.jadwal.push({id:uid(), event_id:eid(), judul, tanggal, jam, kategori, deskripsi, status}); }
       saveDB(); closeModal(); renderContent(); renderTopbarSaldo(); toast('Jadwal disimpan');
-      notifyTelegram(actionMsg, `Tanggal: ${fmtDate(tanggal)}\nKategori: ${labelKategoriJadwal(kategori)}\nDeskripsi: ${deskripsi || '-'}`);
+      notifyTelegram(actionMsg, `Jadwal: ${fmtDateJam(tanggal, jam)}\nKategori: ${labelKategoriJadwal(kategori)}\nDeskripsi: ${deskripsi || '-'}`);
     }}
   ]);
 }
@@ -122,7 +124,7 @@ function toggleJadwalStatus(id){
   saveDB(); renderContent(); 
   const action = j.status === 'selesai' ? '✅ Selesai' : '↩️ Dibuka kembali';
   toast(`Jadwal "${j.judul}" ${j.status === 'selesai' ? 'selesai' : 'diaktifkan kembali'}`);
-  notifyTelegram(`${action}: ${j.judul}`, `Tanggal: ${fmtDate(j.tanggal)}`);
+  notifyTelegram(`${action}: ${j.judul}`, `Jadwal: ${fmtDateJam(j.tanggal, j.jam)}`);
 }
 
 function hapusJadwal(id){
@@ -131,7 +133,7 @@ function hapusJadwal(id){
   const j = db.jadwal.find(x=>x.id===id);
   db.jadwal = db.jadwal.filter(j=>j.id!==id);
   saveDB(); renderContent(); toast('Jadwal dihapus');
-  if(j) notifyTelegram(`🗑️ Hapus jadwal: ${j.judul}`, `Tanggal: ${fmtDate(j.tanggal)}`);
+  if(j) notifyTelegram(`🗑️ Hapus jadwal: ${j.judul}`, `Jadwal: ${fmtDateJam(j.tanggal, j.jam)}`);
 }
 
 /* ============================================================

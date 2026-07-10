@@ -25,7 +25,7 @@ function renderLomba(){
     return `
     <div class="lomba-card ${isOpen?'open':''}">
       <div class="lomba-card-head" onclick="toggleLombaCard('${l.id}')" style="cursor:pointer;">
-        <div><span class="nomor-badge kategori-${l.kategori_peserta}">${idx+1}</span><span class="name">${esc(l.nama)}</span><span class="kategori-pill" style="margin-left:8px;">${labelPeserta(l.kategori_peserta)}</span>${Number(l.jumlah_anggota_regu||1)>1?`<span class="kategori-pill khusus" style="margin-left:6px;">👥 Beregu ×${l.jumlah_anggota_regu}${l.hadiah_per_regu?' · 1 hadiah/regu':''}</span>`:''}</div>
+        <div><span class="nomor-badge kategori-${l.kategori_peserta}">${idx+1}</span><span class="name">${esc(l.nama)}</span><span class="kategori-pill" style="margin-left:8px;">${labelPeserta(l.kategori_peserta)}</span>${Number(l.jumlah_anggota_regu||1)>1?`<span class="kategori-pill khusus" style="margin-left:6px;">👥 Beregu ×${l.jumlah_anggota_regu}${l.hadiah_per_regu?' · 1 hadiah/regu':''}</span>`:''}${l.tanggal?`<div class="hint" style="margin-top:4px;">🗓️ ${fmtDateJam(l.tanggal, l.jam, {short:true})}</div>`:''}</div>
         <div style="display:flex;align-items:center;gap:14px;">
           <span class="lomba-badge">${items.length} item</span>
           ${hadiahBadge}
@@ -145,9 +145,9 @@ function syncAgendaLomba(lomba){
   if(lomba.tanggal){
     const existing = lomba.jadwal_id ? db.jadwal.find(j=>j.id===lomba.jadwal_id) : null;
     if(existing){
-      existing.judul = judul; existing.tanggal = lomba.tanggal;
+      existing.judul = judul; existing.tanggal = lomba.tanggal; existing.jam = lomba.jam || null;
     } else {
-      const jadwalEntry = {id:uid(), event_id:lomba.event_id, judul, tanggal:lomba.tanggal, kategori:'acara', deskripsi:`Otomatis dibuat dari data lomba (kategori: ${labelPeserta(lomba.kategori_peserta)}).`, status:'aktif'};
+      const jadwalEntry = {id:uid(), event_id:lomba.event_id, judul, tanggal:lomba.tanggal, jam:lomba.jam || null, kategori:'acara', deskripsi:`Otomatis dibuat dari data lomba (kategori: ${labelPeserta(lomba.kategori_peserta)}).`, status:'aktif'};
       db.jadwal.push(jadwalEntry);
       lomba.jadwal_id = jadwalEntry.id;
     }
@@ -164,11 +164,13 @@ function openLombaModal(id){
   const hadiahPerReguAwal = editing ? !!editing.hadiah_per_regu : false;
   const estimasiPesertaAwal = editing?(editing.estimasi_peserta||''):'';
   const tanggalAwal = editing?(editing.tanggal||''):'';
-  setModal(editing?'Edit Lomba':'Tambah Lomba', `<div class="field"><label>Nama Lomba</label><input id="f-nama" value="${editing?esc(editing.nama):''}"></div><div class="field"><label>Tanggal Lomba (opsional)</label><input id="f-tanggal" type="date" value="${tanggalAwal}"><div class="hint">Kalau diisi, otomatis dibuatkan/diperbarui pengingat di menu Jadwal & Reminder.</div></div><div class="field"><label>Kategori Peserta</label><select id="f-kategori">${KATEGORI_PESERTA.map(k=>`<option value="${k.v}" ${editing&&editing.kategori_peserta===k.v?'selected':''}>${k.l}</option>`).join('')}</select></div><div class="field"><label>Jumlah Anggota per Regu</label><input id="f-anggota" type="number" min="1" value="${anggotaAwal}" oninput="toggleHadiahPerReguHint()"><div class="hint">Isi 1 jika lomba perorangan. Jika lomba beregu (misal 1 regu = 5 orang), isi 5.</div></div><div class="field" id="f-hadiah-per-regu-wrap" style="display:${anggotaAwal>1?'block':'none'};"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" id="f-hadiah-per-regu" ${hadiahPerReguAwal?'checked':''} style="width:auto;"> Hadiah 1 paket untuk seluruh regu (bukan per anggota)</label><div class="hint">Dicentang: kebutuhan hadiah lomba ini dihitung 1 paket saja meski jumlah anggota regu lebih dari 1. Tidak dicentang (default): kebutuhan hadiah dikalikan jumlah anggota regu (tiap anggota dapat paket sendiri).</div></div><div class="field"><label>Estimasi Jumlah Peserta (opsional)</label><input id="f-estimasi-peserta" type="number" min="0" value="${estimasiPesertaAwal}" placeholder="mis. 30"><div class="hint">Cuma buat hitung otomatis kebutuhan hadiah PARTISIPASI (dibagi rata ke semua peserta, beda dari hadiah Juara 1-3 di atas). Kosongkan kalau hadiah partisipasi mau diatur manual seperti biasa. Kalau diisi, isi juga untuk lomba lain sekategori supaya totalnya akurat (yang belum diisi dianggap 0 peserta).</div></div>`, [
+  const jamAwal = editing?(editing.jam||''):'';
+  setModal(editing?'Edit Lomba':'Tambah Lomba', `<div class="field"><label>Nama Lomba</label><input id="f-nama" value="${editing?esc(editing.nama):''}"></div><div class="field-row"><div class="field"><label>Tanggal Lomba (opsional)</label><input id="f-tanggal" type="date" value="${tanggalAwal}"></div><div class="field"><label>Jam (opsional)</label><input id="f-jam" type="time" value="${jamAwal}"></div></div><div class="hint" style="margin:-8px 0 14px;">Kalau tanggal diisi, otomatis dibuatkan/diperbarui pengingat di menu Jadwal & Reminder — lengkap dengan hari dan jamnya kalau diisi.</div><div class="field"><label>Kategori Peserta</label><select id="f-kategori">${KATEGORI_PESERTA.map(k=>`<option value="${k.v}" ${editing&&editing.kategori_peserta===k.v?'selected':''}>${k.l}</option>`).join('')}</select></div><div class="field"><label>Jumlah Anggota per Regu</label><input id="f-anggota" type="number" min="1" value="${anggotaAwal}" oninput="toggleHadiahPerReguHint()"><div class="hint">Isi 1 jika lomba perorangan. Jika lomba beregu (misal 1 regu = 5 orang), isi 5.</div></div><div class="field" id="f-hadiah-per-regu-wrap" style="display:${anggotaAwal>1?'block':'none'};"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" id="f-hadiah-per-regu" ${hadiahPerReguAwal?'checked':''} style="width:auto;"> Hadiah 1 paket untuk seluruh regu (bukan per anggota)</label><div class="hint">Dicentang: kebutuhan hadiah lomba ini dihitung 1 paket saja meski jumlah anggota regu lebih dari 1. Tidak dicentang (default): kebutuhan hadiah dikalikan jumlah anggota regu (tiap anggota dapat paket sendiri).</div></div><div class="field"><label>Estimasi Jumlah Peserta (opsional)</label><input id="f-estimasi-peserta" type="number" min="0" value="${estimasiPesertaAwal}" placeholder="mis. 30"><div class="hint">Cuma buat hitung otomatis kebutuhan hadiah PARTISIPASI (dibagi rata ke semua peserta, beda dari hadiah Juara 1-3 di atas). Kosongkan kalau hadiah partisipasi mau diatur manual seperti biasa. Kalau diisi, isi juga untuk lomba lain sekategori supaya totalnya akurat (yang belum diisi dianggap 0 peserta).</div></div>`, [
     {label:'Batal', cls:'secondary', onclick:closeModal},
     {label:editing?'Simpan':'Tambah', cls:'', onclick:()=>{
       const nama=document.getElementById('f-nama').value.trim(); const kategori_peserta=document.getElementById('f-kategori').value; 
       const tanggal = document.getElementById('f-tanggal').value || null;
+      const jam = document.getElementById('f-jam').value || null;
       const jumlah_anggota_regu=Math.max(1, Number(document.getElementById('f-anggota').value||1));
       const hadiah_per_regu = jumlah_anggota_regu>1 && !!document.getElementById('f-hadiah-per-regu').checked;
       const estimasi_peserta = Math.max(0, Number(document.getElementById('f-estimasi-peserta').value||0));
@@ -176,16 +178,16 @@ function openLombaModal(id){
       let actionMsg = editing ? `✏️ Edit lomba: ${editing.nama} → ${nama}` : `➕ Lomba baru: ${nama}`;
       let lombaRecord;
       if(editing){ 
-        editing.nama=nama; editing.kategori_peserta=kategori_peserta; editing.tanggal=tanggal; editing.jumlah_anggota_regu=jumlah_anggota_regu; editing.hadiah_per_regu=hadiah_per_regu; editing.estimasi_peserta=estimasi_peserta;
+        editing.nama=nama; editing.kategori_peserta=kategori_peserta; editing.tanggal=tanggal; editing.jam=jam; editing.jumlah_anggota_regu=jumlah_anggota_regu; editing.hadiah_per_regu=hadiah_per_regu; editing.estimasi_peserta=estimasi_peserta;
         lombaRecord = editing;
       }
-      else{ lombaRecord = {id:uid(),event_id:eid(),nama,kategori_peserta,tanggal,jumlah_anggota_regu,hadiah_per_regu,estimasi_peserta,koordinator_anggota_id:null,jadwal_id:null}; db.lomba.push(lombaRecord); }
+      else{ lombaRecord = {id:uid(),event_id:eid(),nama,kategori_peserta,tanggal,jam,jumlah_anggota_regu,hadiah_per_regu,estimasi_peserta,koordinator_anggota_id:null,jadwal_id:null}; db.lomba.push(lombaRecord); }
       syncAgendaLomba(lombaRecord);
       saveDB();
       // Lomba bertambah/berubah → kebutuhan paket hadiah berubah, sinkronkan stok yang harus dibeli.
       autoSyncHadiahStok(true);
       closeModal(); renderContent(); renderTopbarSaldo(); toast('Disimpan');
-      notifyTelegram(actionMsg, `Kategori: ${labelPeserta(kategori_peserta)}${tanggal?`\nTanggal: ${fmtDate(tanggal)}`:''}\nAnggota/regu: ${jumlah_anggota_regu}${hadiah_per_regu?' (1 hadiah untuk seluruh regu)':''}${estimasi_peserta>0?`\nEstimasi peserta: ${estimasi_peserta}`:''}`);
+      notifyTelegram(actionMsg, `Kategori: ${labelPeserta(kategori_peserta)}${tanggal?`\nJadwal: ${fmtDateJam(tanggal, jam)}`:''}\nAnggota/regu: ${jumlah_anggota_regu}${hadiah_per_regu?' (1 hadiah untuk seluruh regu)':''}${estimasi_peserta>0?`\nEstimasi peserta: ${estimasi_peserta}`:''}`);
     }}
   ]);
 }

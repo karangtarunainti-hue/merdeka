@@ -118,23 +118,17 @@ async function gudangChangeStatus(id, newStatus){
   if(!gudangCanKelola()){ toast('🔒 Hanya admin yang dapat mengubah status peminjaman.'); renderContent(); return; }
   const t = gudangTransactions.find(x=>x.id===id);
   if(!t) return;
-  const wasActive = t.status==='aktif' || t.status==='bermasalah';
-  const nowSelesai = newStatus==='selesai';
   try{
-    if(nowSelesai && wasActive){
-      for(const it of t.items){
-        const r = await sb.rpc('kt_gudang_return_stock', {p_item_id: it.itemId, p_qty: it.qty});
-        if(!r.error && r.data && r.data[0]){ const inv = gudangInventory.find(i=>i.id===it.itemId); if(inv) inv.tersedia = r.data[0].tersedia; }
-      }
-    }
-    if(t.status==='selesai' && !nowSelesai){
-      for(const it of t.items){
-        const r = await sb.rpc('kt_gudang_reborrow_stock', {p_item_id: it.itemId, p_qty: it.qty});
-        if(!r.error && r.data && r.data[0]){ const inv = gudangInventory.find(i=>i.id===it.itemId); if(inv) inv.tersedia = r.data[0].tersedia; }
-      }
-    }
-    const upd = await sb.from('kt_gudang_transactions').update({status:newStatus}).eq('id', id);
-    if(upd.error) throw new Error(upd.error.message);
+    // Kunci baris transaksi + hitung ulang & ubah stok + update status,
+    // semuanya ATOMIK di satu RPC — kalau ada langkah yang gagal di tengah,
+    // server otomatis rollback semuanya (stok tidak akan "kepotong sepihak"
+    // sementara status transaksinya sendiri gagal tersimpan).
+    const r = await sb.rpc('kt_gudang_change_status', {p_trx_id: id, p_new_status: newStatus});
+    if(r.error) throw new Error(r.error.message);
+    (r.data||[]).forEach(row => {
+      const inv = gudangInventory.find(i=>i.id===row.item_id);
+      if(inv) inv.tersedia = row.tersedia;
+    });
     t.status = newStatus;
     if(newStatus==='selesai') await gudangPruneOldHistory();
     toast('✅ Status transaksi diperbarui.');
@@ -142,6 +136,7 @@ async function gudangChangeStatus(id, newStatus){
   }catch(err){
     console.error(err);
     toast('⛔ Gagal update status: ' + err.message);
+    renderContent(); // pastikan dropdown balik ke status lama (t.status tidak diubah kalau gagal)
   }
 }
 

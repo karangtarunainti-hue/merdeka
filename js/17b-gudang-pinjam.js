@@ -344,30 +344,22 @@ async function gudangSubmitPinjam(p){
     const resi = 'TRX-' + String(seq).padStart(3,'0');
     const trxId = uid();
 
-    const insTrx = await sb.from('kt_gudang_transactions').insert({
-      id: trxId, resi, nama:p.nama, alamat:p.alamat, wa:p.wa,
-      tgl_pinjam:p.tglPinjam, tgl_kembali:p.tglKembali, status:'aktif',
+    // Insert transaksi + rincian barang + potong stok dilakukan ATOMIK di server
+    // lewat satu RPC (kt_gudang_submit_pinjam) — kalau stok item mana pun tidak
+    // cukup, atau salah satu langkah gagal di tengah, Postgres otomatis
+    // membatalkan semuanya. Tidak perlu lagi rollback manual dari sisi JS.
+    const itemsPayload = p.finalItems.map(it => ({item_id: it.itemId, nama: it.nama, gudang: it.gudang, qty: it.qty}));
+    const r = await sb.rpc('kt_gudang_submit_pinjam', {
+      p_trx_id: trxId, p_resi: resi, p_nama: p.nama, p_alamat: p.alamat, p_wa: p.wa,
+      p_tgl_pinjam: p.tglPinjam, p_tgl_kembali: p.tglKembali, p_items: itemsPayload,
     });
-    if(insTrx.error) throw new Error(insTrx.error.message);
+    if(r.error) throw new Error(r.error.message || 'Gagal menyimpan pengajuan.');
 
-    const decremented = [];
-    for(const it of p.finalItems){
-      const r = await sb.rpc('kt_gudang_borrow_stock', {p_item_id: it.itemId, p_qty: it.qty});
-      if(r.error || !r.data || !r.data.length){
-        // rollback
-        for(const d of decremented){ try{ await sb.rpc('kt_gudang_return_stock', {p_item_id:d.itemId, p_qty:d.qty}); }catch(e){} }
-        try{ await sb.from('kt_gudang_transactions').delete().eq('id', trxId); }catch(e){}
-        throw new Error(`Stok "${it.nama}" tidak cukup — mungkin baru saja dipinjam orang lain. Silakan coba lagi.`);
-      }
-      decremented.push(it);
+    // RPC sudah sukses penuh di server -> baru sinkronkan state lokal.
+    p.finalItems.forEach(it => {
       const invItem = gudangInventory.find(i=>i.id===it.itemId);
-      if(invItem) invItem.tersedia = r.data[0].tersedia;
-    }
-
-    for(const it of p.finalItems){
-      await sb.from('kt_gudang_transaction_items').insert({transaction_id:trxId, item_id:it.itemId, nama:it.nama, gudang:it.gudang, qty:it.qty});
-    }
-
+      if(invItem) invItem.tersedia -= it.qty;
+    });
     const trx = {id:trxId, resi, nama:p.nama, alamat:p.alamat, wa:p.wa, tglPinjam:p.tglPinjam, tglKembali:p.tglKembali, status:'aktif', items:p.finalItems};
     gudangTransactions.unshift(trx);
     toast('✅ Peminjaman berhasil disimpan.');

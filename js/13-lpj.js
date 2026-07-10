@@ -180,13 +180,8 @@ function renderDaftarAnggota(){
 
   const isLoggedIn = !!getCurrentUser();
 
-  // Urutkan berdasarkan RT lalu nama, supaya daftar rapi per wilayah.
-  const anggotaList = gAnggota().slice().sort((a,b)=>{
-    const rtA = RT_LIST.findIndex(r=>r.v===getRT(a));
-    const rtB = RT_LIST.findIndex(r=>r.v===getRT(b));
-    if(rtA !== rtB) return rtA - rtB;
-    return (a.nama||'').localeCompare(b.nama||'');
-  });
+  // Urutkan berdasarkan abjad nama saja (tidak dikelompokkan per RT).
+  const anggotaList = gAnggota().slice().sort((a,b)=>(a.nama||'').localeCompare(b.nama||'', 'id', {sensitivity:'base'}));
 
   const totalAnggota = anggotaList.length;
   const totalPria = anggotaList.filter(a=>getGender(a)==='pria').length;

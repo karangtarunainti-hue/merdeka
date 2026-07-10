@@ -206,6 +206,10 @@ function renderHadiah(){
       const isPartisipasi = h.juara_ke === 'partisipasi';
       const kebutuhan = isPartisipasi ? null : totalKebutuhanPaket;
       const kurangItems = kebutuhan!=null ? h.items.filter(item => Number(item.qty_dibeli||0) < hitungTargetQtyItem(item, kebutuhan)) : [];
+      // Stok tidak pernah diturunkan otomatis (lihat autoSyncHadiahStok), jadi kalau lomba
+      // dihapus atau qty_per_paket diturunkan, qty_dibeli bisa nyangkut lebih tinggi dari
+      // kebutuhan riil tanpa disadari panitia. Deteksi ini supaya ada sinyal juga, bukan cuma "kurang".
+      const lebihItems = kebutuhan!=null ? h.items.filter(item => Number(item.qty_dibeli||0) > hitungTargetQtyItem(item, kebutuhan)) : [];
       const totalItem = h.items.reduce((s, item) => s + (Number(item.harga_satuan||0) * Number(item.qty_dibeli||0)), 0);
       // Harga SATU paket saja (isi paket × qty/paket) — dipakai untuk dibandingkan
       // dengan budget, karena budget diatur per paket/per pemenang, bukan akumulasi
@@ -216,7 +220,9 @@ function renderHadiah(){
       const kebutuhanBadge = kebutuhan!=null
         ? (kurangItems.length
             ? `<span class="lomba-badge warn" style="margin-left:8px;" title="${namaLombaTitle}">⚠️ Kurang, butuh ${kebutuhan} paket (dari ${jumlahLomba} lomba${rincianLomba})</span>`
-            : `<span class="lomba-badge" style="margin-left:8px;" title="${namaLombaTitle}">✓ Kebutuhan untuk ${jumlahLomba} lomba terpenuhi</span>`)
+            : (lebihItems.length
+                ? `<span class="lomba-badge info" style="margin-left:8px;" title="${namaLombaTitle} — cek kalau ada lomba yang dihapus/diubah sebelumnya">📦 Stok lebih dari kebutuhan (${kebutuhan} paket dari ${jumlahLomba} lomba${rincianLomba})</span>`
+                : `<span class="lomba-badge" style="margin-left:8px;" title="${namaLombaTitle}">✓ Kebutuhan untuk ${jumlahLomba} lomba terpenuhi</span>`))
         : '';
       const budget = getHadiahBudget(kp.v, h.juara_ke);
       let budgetBadge = '';
@@ -228,8 +234,8 @@ function renderHadiah(){
       }
       return `<div class="hadiah-group"><div class="hadiah-group-header" onclick="toggleHadiahGroup('${h.id}')"><div><span class="title">🏆 ${labelJuara(h.juara_ke)}</span><span style="font-size:12px;color:var(--ink-soft);margin-left:8px;">${h.items.length} item</span>${kebutuhanBadge}${budgetBadge}</div><div style="display:flex;align-items:center;gap:4px;"><span class="total">${fmtRp(totalItem)}</span>${isLoggedIn ? `<button class="icon-btn" onclick="event.stopPropagation();openHadiahModal('${h.id}')" title="Edit paket">✎</button><button class="icon-btn" onclick="event.stopPropagation();hapusHadiah('${h.id}')" title="Hapus paket">🗑</button>` : ''}</div></div>
         <div class="hadiah-group-body" id="hadiah-group-${h.id}" style="display:${openHadiahGroups.has(h.id)?'block':'none'};">
-          ${kurangItems.length ? `<div class="hint" style="margin-bottom:10px;">Sebagian item belum sesuai kebutuhan (${jumlahLomba} lomba kategori ${labelPeserta(kp.v)}${adaBeregu?', termasuk lomba beregu':''} × qty/paket masing-masing item). Biasanya ini terjadi setelah "Qty per paket" sebuah item diubah manual. Klik tombol "⚡ Sesuaikan Semua Otomatis" di atas untuk langsung menyamakan, atau edit qty item satu-satu di bawah.</div>` : ''}
-          ${h.items.map((item, idx) => { const perPaket=Math.max(1,Number(item.qty_per_paket||1)); const target = hitungTargetQtyItem(item, kebutuhan); const kurang = target!=null && Number(item.qty_dibeli||0) < target; return `<div class="hadiah-item-row"><span class="item-name">${esc(item.nama)}${perPaket>1?` <span style="color:var(--ink-soft);font-size:11px;">${perPaket} buah per paket</span>`:''}${kurang?` <span style="color:var(--orange);font-size:11px;">(butuh ${target})</span>`:''}</span><span class="item-qty">Dibeli: ${item.qty_dibeli}</span><span class="item-price">${fmtRp(item.harga_satuan)} × ${item.qty_dibeli}</span>
+          ${kurangItems.length ? `<div class="hint" style="margin-bottom:10px;">Sebagian item belum sesuai kebutuhan (${jumlahLomba} lomba kategori ${labelPeserta(kp.v)}${adaBeregu?', termasuk lomba beregu':''} × qty/paket masing-masing item). Biasanya ini terjadi setelah "Qty per paket" sebuah item diubah manual. Klik tombol "⚡ Sesuaikan Semua Otomatis" di atas untuk langsung menyamakan, atau edit qty item satu-satu di bawah.</div>` : (lebihItems.length ? `<div class="hint" style="margin-bottom:10px;">Sebagian item stoknya lebih dari kebutuhan (${jumlahLomba} lomba kategori ${labelPeserta(kp.v)}). Ini bisa normal (sengaja beli cadangan), atau sisa dari lomba yang sudah dihapus/dikurangi — qty tidak pernah diturunkan otomatis. Cek dan kurangi manual lewat tombol ✎ di item kalau memang kelebihan.</div>` : '')}
+          ${h.items.map((item, idx) => { const perPaket=Math.max(1,Number(item.qty_per_paket||1)); const target = hitungTargetQtyItem(item, kebutuhan); const kurang = target!=null && Number(item.qty_dibeli||0) < target; const lebih = target!=null && Number(item.qty_dibeli||0) > target; return `<div class="hadiah-item-row"><span class="item-name">${esc(item.nama)}${perPaket>1?` <span style="color:var(--ink-soft);font-size:11px;">${perPaket} buah per paket</span>`:''}${kurang?` <span style="color:var(--orange);font-size:11px;">(butuh ${target})</span>`:''}${lebih?` <span style="color:var(--biru);font-size:11px;">(kebutuhan ${target}, lebih ${Number(item.qty_dibeli)-target})</span>`:''}</span><span class="item-qty">Dibeli: ${item.qty_dibeli}</span><span class="item-price">${fmtRp(item.harga_satuan)} × ${item.qty_dibeli}</span>
             <button class="icon-btn" onclick="editHadiahItem('${h.id}','${item.id}')" ${!isLoggedIn ? 'disabled' : ''}>✎</button>
             <button class="icon-btn" onclick="hapusHadiahItem('${h.id}','${item.id}')" ${!isLoggedIn ? 'disabled' : ''}>🗑</button>
           </div>`;}).join('')}

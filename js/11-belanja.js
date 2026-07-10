@@ -329,6 +329,14 @@ function resetSemuaBelanjaHadiah(){
   saveDB(); renderContent(); toast('Reset'); 
   notifyTelegram(`↩️ Reset semua status belanja hadiah`, `Semua status dikembalikan ke "belum dibeli"`);
 }
+// Grup barang di Daftar Belanja Perlengkapan yang sedang dibuka rinciannya (expand),
+// supaya status "sebagian dibeli" bisa ditandai per lomba tanpa pindah menu.
+// Dikunci pakai nama barang (bukan index) karena urutan grup bisa berubah tiap render.
+let openBelanjaPerlengkapanGroups = new Set();
+function toggleBelanjaPerlengkapanGroupExpand(groupKey){
+  openBelanjaPerlengkapanGroups.has(groupKey) ? openBelanjaPerlengkapanGroups.delete(groupKey) : openBelanjaPerlengkapanGroups.add(groupKey);
+  renderContent();
+}
 function renderBelanjaPerlengkapan(){
   const semuaKebutuhan = [];
   gLomba().forEach(l => { gKebutuhan(l.id).forEach(k => { semuaKebutuhan.push({...k, lombaNama: l.nama, lombaKategori: l.kategori_peserta}); }); });
@@ -372,14 +380,30 @@ function renderBelanjaPerlengkapan(){
     const groupBelum = groupItems.filter(i=>!i.sudahDibeli);
     const tglTerbaru = groupItems.filter(i=>i.tanggalBeli).map(i=>i.tanggalBeli).sort().pop();
 
+    // Grup dengan >1 lomba bisa di-expand untuk menandai status beli per lomba
+    // secara terpisah (dulu ini cuma bisa dilakukan dari menu Lomba).
+    const groupKey = g.nama.trim().toLowerCase();
+    const isMulti = groupItems.length > 1;
+    const isExpanded = isMulti && openBelanjaPerlengkapanGroups.has(groupKey);
+
     const tagHtml = groupItems.map(item => `<span class="tag tag-orange">📋 ${esc(item.lombaNama)} · ${labelPeserta(item.lombaKategori)} · ${item.qty}</span>`).join('');
+
+    const subRows = !isExpanded ? '' : `<div class="belanja-subitem-list">${groupItems.map(item => `
+      <div class="belanja-subitem ${item.sudahDibeli?'dibeli':''}">
+        <div class="checkbox-wrapper small ${item.sudahDibeli?'checked':''} ${!isLoggedIn ? 'disabled' : ''}" onclick="${isLoggedIn ? `event.stopPropagation(); toggleBelanjaPerlengkapan('${item.id}')` : 'toast(\'⛔ Login untuk mengedit\')'}"></div>
+        <div class="sub-info">
+          <span>📋 ${esc(item.lombaNama)} · ${labelPeserta(item.lombaKategori)}</span>
+          <span class="sub-qty">${item.qty} · ${fmtRp(item.hargaTotal)}</span>
+        </div>
+      </div>`).join('')}</div>`;
 
     return `<div class="belanja-item ${semuaDibeli?'dibeli':''}">
       <span class="nomor-urut">${gi+1}</span>
       <div class="checkbox-wrapper ${semuaDibeli?'checked':''} ${!isLoggedIn ? 'disabled' : ''}" onclick="${isLoggedIn ? `toggleBelanjaPerlengkapanGroup(${gi})` : 'toast(\'⛔ Login untuk mengedit\')'}"></div>
       <div class="info">
-        <div class="nama"><span class="nama-text">${esc(g.nama)}</span><span class="qty-total">(Total: ${totalQty})</span></div>
-        <div class="detail">${tagHtml}${semuaDibeli&&tglTerbaru?`<span>✓ Dibeli: ${fmtDate(tglTerbaru)}</span>`:(groupBelum.length && groupBelum.length<groupItems.length ? `<span style="color:var(--orange);">Sebagian belum (${groupBelum.length}/${groupItems.length})</span>` : '')}</div>
+        <div class="nama"><span class="nama-text">${esc(g.nama)}</span><span class="qty-total">(Total: ${totalQty})</span>${isMulti ? `<button type="button" class="expand-toggle" title="${isExpanded?'Tutup rincian per lomba':'Buka rincian per lomba'}" onclick="event.stopPropagation(); toggleBelanjaPerlengkapanGroupExpand('${groupKey}')">${isExpanded?'▲ Tutup':'▼ Rincian'}</button>` : ''}</div>
+        <div class="detail">${!isExpanded ? tagHtml : ''}${semuaDibeli&&tglTerbaru?`<span>✓ Dibeli: ${fmtDate(tglTerbaru)}</span>`:(groupBelum.length && groupBelum.length<groupItems.length ? `<span style="color:var(--orange);">Sebagian belum (${groupBelum.length}/${groupItems.length})</span>` : '')}</div>
+        ${subRows}
       </div>
       <div class="harga">${fmtRp(totalHarga)}</div>
     </div>`;
@@ -489,12 +513,11 @@ function renderHadiahJalanSantai(){
     return `
     <tr class="${sudahDibeli?'dibeli':''}">
       <td>${idx+1}</td>
-      <td>${esc(h.nama_hadiah)}</td>
+      <td>${esc(h.nama_hadiah)} ${sudahDibeli?'<span class="status-dibeli-pill">✓ Dibeli</span>':''}</td>
       <td class="num">${fmtRp(h.harga_satuan)}</td>
       <td class="num">${h.qty}</td>
       <td class="num">${fmtRp(Number(h.harga_satuan||0) * Number(h.qty||0))}</td>
       <td style="text-align:right; white-space:nowrap;">
-        <button class="btn secondary small" onclick="toggleBelanjaJalan('${h.id}')" ${!isLoggedIn ? 'disabled' : ''}>${sudahDibeli?'✓ Dibeli':'Belum'}</button>
         <button class="icon-btn" onclick="openHadiahJalanModal('${h.id}')" ${!isLoggedIn ? 'disabled' : ''} title="Edit">✎</button>
         <button class="icon-btn" onclick="hapusHadiahJalan('${h.id}')" ${!isLoggedIn ? 'disabled' : ''} title="Hapus">🗑</button>
       </td>

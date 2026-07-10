@@ -48,8 +48,7 @@ function renderLomba(){
           const belanja = db.daftarBelanjaPerlengkapan.find(b=>b.kebutuhan_id===k.id && b.event_id===eid());
           const sudahDibeli = belanja && belanja.status === 'dibeli';
           const hargaCell = k.harga_realisasi!=null ? fmtRp(k.harga_realisasi) : `${fmtRp(k.harga_estimasi)}<span style="color:var(--abu); font-size:11px;"> (estimasi)</span>`;
-          return `<tr class="${sudahDibeli?'dibeli':''}"><td>${esc(k.nama_item)} ${sudahDibeli?'✓':''}</td><td class="num">${hargaCell}</td><td class="num">${k.qty}</td><td class="num">${fmtRp(harga*k.qty)}</td><td style="text-align:right;white-space:nowrap;">
-            <button class="btn secondary small" onclick="toggleBelanjaPerlengkapan('${k.id}')" ${!isLoggedIn ? 'disabled' : ''}>${sudahDibeli?'✓ Dibeli':'Belum'}</button>
+          return `<tr class="${sudahDibeli?'dibeli':''}"><td>${esc(k.nama_item)} ${sudahDibeli?'<span class="status-dibeli-pill">✓ Dibeli</span>':''}</td><td class="num">${hargaCell}</td><td class="num">${k.qty}</td><td class="num">${fmtRp(harga*k.qty)}</td><td style="text-align:right;white-space:nowrap;">
             <button class="icon-btn" onclick="openKebutuhanModal('${l.id}','${k.id}')" ${!isLoggedIn ? 'disabled' : ''}>✎</button>
             <button class="icon-btn" onclick="hapusKebutuhan('${k.id}')" ${!isLoggedIn ? 'disabled' : ''}>🗑</button>
           </td></tr>`;
@@ -190,6 +189,50 @@ function hapusKebutuhan(id){
 /* ============================================================
    KEBUTUHAN HADIAH LOMBA (dengan auth check)
    ============================================================ */
+// Agregat semua item hadiah yang qty_dibeli-nya melebihi kebutuhan (target),
+// dikumpulkan dari SEMUA kategori peserta + juara sekaligus — dipakai untuk card
+// ringkasan "Stok Lebih dari Kebutuhan" di menu Hadiah. Partisipasi yang belum
+// diisi estimasi peserta (kebutuhan=null) dilewati karena memang belum punya target.
+function hitungStokLebihHadiah(){
+  const rows = [];
+  gHadiahKategori().forEach(h => {
+    const kebutuhan = hitungKebutuhanHadiah(h.kategori_peserta, h.juara_ke);
+    if(kebutuhan==null) return;
+    h.items.forEach(item => {
+      const target = hitungTargetQtyItem(item, kebutuhan);
+      const dibeli = Number(item.qty_dibeli||0);
+      if(dibeli > target){
+        const lebih = dibeli - target;
+        rows.push({
+          hadiahId: h.id, itemId: item.id,
+          kategori_peserta: h.kategori_peserta, juara_ke: h.juara_ke,
+          nama: item.nama, target, dibeli, lebih,
+          harga_satuan: Number(item.harga_satuan||0),
+          nilai: lebih * Number(item.harga_satuan||0)
+        });
+      }
+    });
+  });
+  rows.sort((a,b) => b.nilai - a.nilai);
+  return rows;
+}
+// Cepat turunkan qty_dibeli 1 item persis ke kebutuhan (target) saat ini — dipakai
+// dari tombol "↓ Sesuaikan" di card Stok Lebih, alternatif lebih cepat dibanding
+// buka modal edit item satu-satu.
+function turunkanStokHadiahKeKebutuhan(hadiahId, itemId){
+  if (!canEditSection('hadiah')) { toast('⛔ Login untuk mengedit data'); return; }
+  const h = db.hadiahKategori.find(x=>x.id===hadiahId);
+  const item = h && h.items.find(it=>it.id===itemId);
+  if(!item){ toast('Item tidak ditemukan'); return; }
+  const kebutuhan = hitungKebutuhanHadiah(h.kategori_peserta, h.juara_ke);
+  const target = hitungTargetQtyItem(item, kebutuhan);
+  const dibeliSebelum = Number(item.qty_dibeli||0);
+  if(target==null || dibeliSebelum <= target){ toast('Tidak ada kelebihan lagi'); renderContent(); return; }
+  item.qty_dibeli = target;
+  saveDB(); renderContent(); renderTopbarSaldo();
+  toast(`✓ "${item.nama}" diturunkan dari ${dibeliSebelum} → ${target} pcs`);
+  notifyTelegram(`↓ Turunkan stok lebih hadiah: ${item.nama}`, `Paket: ${labelPeserta(h.kategori_peserta)} - ${labelJuara(h.juara_ke)}\n${dibeliSebelum} → ${target} pcs`);
+}
 function renderHadiah(){
   const list = gHadiahKategori();
   let total = 0;
@@ -306,10 +349,30 @@ function renderHadiah(){
     </div>`;
   }).join('');
 
+  const stokLebihRows = hitungStokLebihHadiah();
+  const totalNilaiLebih = stokLebihRows.reduce((s,r)=>s+r.nilai,0);
+  const stokLebihPanel = stokLebihRows.length ? `<div class="panel">
+    <div class="panel-head"><div><h3>📦 Stok Lebih dari Kebutuhan</h3><div class="desc">Qty dibeli melebihi target — bisa sengaja (cadangan), atau sisa dari lomba yang dihapus/dikurangi qty-nya</div></div></div>
+    <div class="panel-body flush">
+      ${stokLebihRows.map(r => `<div class="belanja-item">
+        <div class="info">
+          <div class="nama"><span class="nama-text">${esc(r.nama)}</span><span class="qty-total">lebih ${r.lebih} pcs</span></div>
+          <div class="detail"><span class="tag tag-orange">${labelPeserta(r.kategori_peserta)} · ${labelJuara(r.juara_ke)}</span><span>Dibeli ${r.dibeli} dari kebutuhan ${r.target}</span></div>
+        </div>
+        <div class="harga" style="display:flex;align-items:center;gap:8px;">
+          <span>${fmtRp(r.nilai)}</span>
+          ${isLoggedIn ? `<button class="btn secondary small" title="Turunkan qty_dibeli persis ke kebutuhan (${r.target})" onclick="turunkanStokHadiahKeKebutuhan('${r.hadiahId}','${r.itemId}')">↓ Sesuaikan</button>` : ''}
+        </div>
+      </div>`).join('')}
+    </div>
+  </div>` : '';
+
   return `<div class="stat-grid">
     <div class="stat-card pengeluaran"><div class="lbl">Total Belanja Hadiah</div><div class="val">${fmtRp(total)}</div></div>
     ${totalBudget>0 ? `<div class="stat-card ${total>totalBudget?'defisit':'saldo'}"><div class="lbl">Total Budget Hadiah</div><div class="val">${fmtRp(totalBudget)}</div><div style="font-size:11px; color:var(--abu); margin-top:4px;">${total>totalBudget?`⚠️ Sudah lebih ${fmtRp(total-totalBudget)}`:`Sisa ${fmtRp(totalBudget-total)}`}</div></div>` : ''}
+    ${stokLebihRows.length ? `<div class="stat-card stok-lebih"><div class="lbl">📦 Nilai Stok Lebih</div><div class="val">${fmtRp(totalNilaiLebih)}</div><div style="font-size:11px; color:var(--abu); margin-top:4px;">${stokLebihRows.length} item kelebihan dari kebutuhan</div></div>` : ''}
   </div>
+  ${stokLebihPanel}
   ${budgetKategoriCards ? `<div class="panel"><div class="panel-head"><div><h3>Anggaran Hadiah per Kategori</h3><div class="desc">Harga 1 paket dibandingkan budget per paket (bukan akumulasi total belanja), dirinci per juara</div></div></div>
   <div class="panel-body"><div class="kategori-grid">${budgetKategoriCards}</div></div></div>` : ''}
   <div class="panel"><div class="panel-head"><div><h3>Kebutuhan Hadiah</h3><div class="desc">Setiap paket bisa berisi multiple item · Kebutuhan Juara 1-3 mengikuti jumlah lomba per kategori · Partisipasi otomatis kalau "Estimasi Jumlah Peserta" diisi di lomba (kalau belum diisi, tetap manual)</div></div>

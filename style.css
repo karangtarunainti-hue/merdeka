@@ -355,6 +355,7 @@
   .stat-card.buku-card{transition:border-color .15s, box-shadow .15s;}
   .stat-card.buku-card:hover{border-color:var(--merah); box-shadow:0 1px 6px rgba(0,0,0,.06);}
   .stat-card.buku-card.open{border-color:var(--merah);}
+  .stat-card.stok-lebih{border-left:3px solid var(--orange);}
 
   .kategori-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:10px;}
   .stat-section-label{font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-soft); margin:0 0 8px;}
@@ -859,6 +860,55 @@
   }
   .belanja-item.dibeli .info .detail{
     opacity:.6;
+  }
+
+  /* Badge status "sudah dibeli", read-only — dipakai di menu Lomba & Hadiah
+     Jalan Santai karena toggle beli/belum dipindah sepenuhnya ke menu Daftar
+     Belanja supaya status hanya diubah dari satu tempat. */
+  .status-dibeli-pill{
+    display:inline-block;
+    padding:1px 8px; border-radius:12px;
+    font-size:10.5px; font-weight:700;
+    background:var(--hijau-tint); color:var(--hijau);
+    margin-left:4px; vertical-align:middle;
+  }
+
+  /* Expand rincian per-lomba di Daftar Belanja Perlengkapan — dipakai saat satu
+     nama barang dibutuhkan oleh lebih dari satu lomba, supaya status "sebagian
+     dibeli" bisa ditandai per lomba tanpa harus pindah menu. */
+  .belanja-item .info .nama .expand-toggle{
+    background:transparent; border:none; cursor:pointer;
+    color:var(--ink-soft); font-size:10px;
+    padding:2px 5px; margin-left:6px; border-radius:4px;
+    vertical-align:middle;
+  }
+  .belanja-item .info .nama .expand-toggle:hover{
+    background:var(--row-hover); color:var(--ink);
+  }
+  .belanja-subitem-list{
+    margin-top:6px; padding-top:6px;
+    border-top:1px dashed var(--garis);
+    display:flex; flex-direction:column; gap:6px;
+  }
+  .belanja-subitem{
+    display:flex; align-items:center; gap:10px;
+  }
+  .belanja-subitem .checkbox-wrapper.small{
+    width:16px; height:16px; flex-shrink:0;
+  }
+  .belanja-subitem .checkbox-wrapper.small.checked::after{
+    font-size:11px;
+  }
+  .belanja-subitem .sub-info{
+    flex:1; min-width:0;
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    font-size:12px; color:var(--ink-soft);
+  }
+  .belanja-subitem.dibeli .sub-info{
+    text-decoration:line-through; opacity:.6;
+  }
+  .belanja-subitem .sub-qty{
+    flex-shrink:0; font-family:'JetBrains Mono',monospace; font-size:11px;
   }
 
   .consol-group{

@@ -14,6 +14,7 @@ const SECTIONS = [
   {key:'belanja-jalan', label:'Belanja Jalan Santai', sub:'Daftar belanja hadiah jalan santai', icon:'shopping-bag', adminOnly: false},
   {key:'belanja-hadiah', label:'Belanja Hadiah', sub:'Daftar belanja hadiah lomba', icon:'shopping', adminOnly: false},
   {key:'lpj', label:'Laporan (LPJ)', sub:'Cetak laporan pertanggungjawaban', icon:'report', adminOnly: false},
+  {key:'daftar-anggota', label:'Daftar Anggota', sub:'Rekap & daftar nama anggota', icon:'clipboard', adminOnly: false},
   {key:'pengaturan', label:'Pengaturan', sub:'Tarif iuran & event', icon:'gear', adminOnly: true},
   {key:'database-anggota', label:'Database Anggota', sub:'Cek & filter semua anggota', icon:'database', adminOnly: false},
   {key:'users', label:'Manajemen User', sub:'Kelola akun pengguna', icon:'users', adminOnly: true},
@@ -281,6 +282,7 @@ function renderContent(){
     case 'dokumen': el.innerHTML = renderDokumen(); break;
     case 'kas': el.innerHTML = renderKas(); break;
     case 'lpj': el.innerHTML = renderLPJ(); break;
+    case 'daftar-anggota': el.innerHTML = renderDaftarAnggota(); break;
     case 'pengaturan': el.innerHTML = renderPengaturan(); break;
     case 'users': el.innerHTML = renderUsers(); break;
     default: el.innerHTML = renderDashboard();
@@ -289,7 +291,7 @@ function renderContent(){
   // Setup currency inputs after content rendered
   setTimeout(setupAllCurrencyInputs, 50);
 
-  if (currentSection === 'lpj' || currentSection === 'dokumen') {
+  if (currentSection === 'lpj' || currentSection === 'dokumen' || currentSection === 'daftar-anggota') {
     requestAnimationFrame(applyLpjMobileScale);
   }
 

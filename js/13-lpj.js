@@ -18,7 +18,7 @@ function applyLpjMobileScale(){
   area.style.zoom = scale;
 }
 window.addEventListener('resize', ()=>{
-  if (currentSection === 'lpj' || currentSection === 'dokumen') applyLpjMobileScale();
+  if (currentSection === 'lpj' || currentSection === 'dokumen' || currentSection === 'daftar-anggota') applyLpjMobileScale();
 });
 
 /* ============================================================
@@ -161,6 +161,78 @@ function renderLPJ(){
 
     <h3>4. Penutup</h3>
     <p class="lpj-penutup">Demikian Laporan Pertanggungjawaban kegiatan <strong>${esc(ev.nama)}</strong> ini kami susun berdasarkan data yang tercatat pada sistem, untuk dipergunakan sebagaimana mestinya.</p>
+  </div>
+  </div>
+
+  ${isLoggedIn ? `
+  <div class="lpj-toolbar no-print">
+    <button class="btn small" onclick="window.print()">🖨️ Cetak / Simpan sebagai PDF</button>
+  </div>` : ''}`;
+}
+
+/* ============================================================
+   DAFTAR ANGGOTA - rekap & daftar nama anggota per event, format
+   cetak sama seperti LPJ (pakai class lpj-* & mekanisme scale yang sama).
+   ============================================================ */
+function renderDaftarAnggota(){
+  const ev = activeEvent();
+  if (!ev) return `<div class="panel"><div class="panel-body" style="padding:24px;">Tidak ada event aktif.</div></div>`;
+
+  const isLoggedIn = !!getCurrentUser();
+
+  // Urutkan berdasarkan RT lalu nama, supaya daftar rapi per wilayah.
+  const anggotaList = gAnggota().slice().sort((a,b)=>{
+    const rtA = RT_LIST.findIndex(r=>r.v===getRT(a));
+    const rtB = RT_LIST.findIndex(r=>r.v===getRT(b));
+    if(rtA !== rtB) return rtA - rtB;
+    return (a.nama||'').localeCompare(b.nama||'');
+  });
+
+  const totalAnggota = anggotaList.length;
+  const totalPria = anggotaList.filter(a=>getGender(a)==='pria').length;
+  const totalWanita = anggotaList.filter(a=>getGender(a)==='wanita').length;
+  const totalTakDiketahui = totalAnggota - totalPria - totalWanita;
+
+  const rekapRT = RT_LIST.map(r=>({
+    label: r.l,
+    total: anggotaList.filter(a=>getRT(a)===r.v).length,
+  }));
+
+  const emptyRow = (n,text)=>`<tr class="empty-row"><td colspan="${n}">${text}</td></tr>`;
+
+  return `
+  <div class="lpj-scale-wrap" id="lpj-scale-wrap">
+  <div class="lpj-print-area" id="lpj-print-area">
+    <div class="lpj-header">
+      <div class="lpj-header-inner">
+        <img src="icons/logo-kop.png" alt="Logo Karang Taruna Inti" class="lpj-logo">
+        <div class="lpj-header-text">
+          <div class="lpj-eyebrow">Karang Taruna Inti</div>
+          <h2>DAFTAR ANGGOTA</h2>
+          <div class="lpj-sub">Kegiatan: ${esc(ev.nama)} — Tahun ${esc(String(ev.tahun))}</div>
+          <div class="lpj-meta">Dicetak: ${fmtDate(todayISO())}</div>
+        </div>
+        <div class="lpj-header-spacer" aria-hidden="true"></div>
+      </div>
+    </div>
+
+    <h3>1. Rekap Anggota</h3>
+    <table class="lpj-table">
+      <tbody>
+        <tr class="lpj-subtotal"><td>Total Anggota</td><td class="num">${totalAnggota}</td></tr>
+        <tr><td class="indent">Laki-Laki</td><td class="num">${totalPria}</td></tr>
+        <tr><td class="indent">Perempuan</td><td class="num">${totalWanita}</td></tr>
+        ${totalTakDiketahui > 0 ? `<tr><td class="indent">Tidak diketahui</td><td class="num">${totalTakDiketahui}</td></tr>` : ''}
+        <tr class="lpj-subtotal"><td>Per RT</td><td class="num"></td></tr>
+        ${rekapRT.map(r=>`<tr><td class="indent">${esc(r.label)}</td><td class="num">${r.total}</td></tr>`).join('')}
+      </tbody>
+    </table>
+
+    <h3>2. Daftar Nama Anggota</h3>
+    <div class="lpj-table-scroll"><table class="lpj-table lpj-detail">
+      <thead><tr><th>No</th><th>Nama</th><th>RT</th><th>Jenis Kelamin</th></tr></thead>
+      <tbody>${anggotaList.map((a,idx)=>`<tr><td>${idx+1}</td><td>${esc(a.nama)}</td><td>${esc(labelRT(getRT(a)))}</td><td>${esc(labelGender(getGender(a)))}</td></tr>`).join('') || emptyRow(4,'Belum ada data anggota.')}</tbody>
+    </table></div>
   </div>
   </div>
 

@@ -107,19 +107,28 @@ function gudangComboIconCheck(){
 function gudangComboItemLabel(i){ return i ? `${i.nama} — ${i.gudang}` : ''; }
 function gudangComboPanelHtml(idx, selectedId){
   const {order, map} = gudangGroupByLokasi(gudangInventory.filter(i=>i.isActive));
+  // Barang yang sudah dipilih di baris LAIN (bukan baris ini sendiri) tidak boleh
+  // dipilih lagi — mencegah barang yang sama muncul di 2 baris berbeda dalam satu
+  // pengajuan (dulu cuma di-merge otomatis saat submit, jadi user bisa bingung
+  // kenapa barang A kelihatan dobel di dropdown).
+  const dipilihDiBarisLain = new Set(
+    _gudangPinjamRows.filter((r,i)=>i!==idx && r.itemId).map(r=>r.itemId)
+  );
   const groupsHtml = order.map(lokasi=>`
     <div class="combo-group" data-combo-group>
       <div class="combo-group-label">${esc(lokasi)}</div>
       ${map[lokasi].map(i=>{
         const habis = i.tersedia<=0;
+        const sudahDipilih = dipilihDiBarisLain.has(i.id);
+        const nonAktif = habis || sudahDipilih;
         const selected = i.id===selectedId;
-        return `<button type="button" class="combo-option${habis?' disabled':''}${selected?' selected':''}"
-          ${habis?'disabled':`onclick="selectGudangComboItem(${idx}, '${i.id}')"`}>
+        return `<button type="button" class="combo-option${nonAktif?' disabled':''}${selected?' selected':''}"
+          ${nonAktif?'disabled':`onclick="selectGudangComboItem(${idx}, '${i.id}')"`}>
           <span class="combo-option-main">
             <span class="combo-option-name">${esc(i.nama)}</span>
           </span>
           <span class="combo-option-side">
-            ${habis ? '<span class="badge stok-habis">Habis</span>' : `<span class="combo-option-sisa">Sisa ${i.tersedia}</span>`}
+            ${habis ? '<span class="badge stok-habis">Habis</span>' : sudahDipilih ? '<span class="badge stok-habis">Sudah dipilih</span>' : `<span class="combo-option-sisa">Sisa ${i.tersedia}</span>`}
             ${selected ? gudangComboIconCheck() : ''}
           </span>
         </button>`;
@@ -387,4 +396,3 @@ function gudangOpenReceipt(trx){
     {label:'Kirim ke WhatsApp Admin', onclick: ()=>window.open(`https://wa.me/?text=${gudangBuildWaMessage(trx)}`, '_blank')},
   ]);
 }
-

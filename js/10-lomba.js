@@ -351,7 +351,7 @@ function renderHadiah(){
       return `<div style="display:flex;justify-content:space-between;gap:6px;font-size:11px;color:${lebih?'var(--merah)':'var(--ink-soft)'};"><span>${r.label}</span><span>${fmtRp(r.totalPerPaket)} / ${fmtRp(r.budgetPerPaket)}${lebih?' ⚠️':''}</span></div>`;
     }).join('');
     return `<div class="kategori-card k-${kp.v}">
-      <div class="kc-title">${kp.l}</div>
+      <div class="kc-title">Kategori ${kp.l}</div>
       <div class="kc-progress">
         <div class="kc-progress-bar"><div class="kc-progress-fill" style="width:${pct}%;${adaLebih?'background:var(--merah);':''}"></div></div>
         <div class="kc-money"><span>Harga paket <b>${fmtRp(paketTotal)}</b></span><span>dari <b>${fmtRp(budgetTotal)}</b></span></div>

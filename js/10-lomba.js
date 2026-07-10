@@ -111,23 +111,25 @@ function openLombaModal(id){
   const editing = id ? db.lomba.find(l=>l.id===id) : null;
   const anggotaAwal = editing?(editing.jumlah_anggota_regu||1):1;
   const hadiahPerReguAwal = editing ? !!editing.hadiah_per_regu : false;
-  setModal(editing?'Edit Lomba':'Tambah Lomba', `<div class="field"><label>Nama Lomba</label><input id="f-nama" value="${editing?esc(editing.nama):''}"></div><div class="field"><label>Kategori Peserta</label><select id="f-kategori">${KATEGORI_PESERTA.map(k=>`<option value="${k.v}" ${editing&&editing.kategori_peserta===k.v?'selected':''}>${k.l}</option>`).join('')}</select></div><div class="field"><label>Jumlah Anggota per Regu</label><input id="f-anggota" type="number" min="1" value="${anggotaAwal}" oninput="toggleHadiahPerReguHint()"><div class="hint">Isi 1 jika lomba perorangan. Jika lomba beregu (misal 1 regu = 5 orang), isi 5.</div></div><div class="field" id="f-hadiah-per-regu-wrap" style="display:${anggotaAwal>1?'block':'none'};"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" id="f-hadiah-per-regu" ${hadiahPerReguAwal?'checked':''} style="width:auto;"> Hadiah 1 paket untuk seluruh regu (bukan per anggota)</label><div class="hint">Dicentang: kebutuhan hadiah lomba ini dihitung 1 paket saja meski jumlah anggota regu lebih dari 1. Tidak dicentang (default): kebutuhan hadiah dikalikan jumlah anggota regu (tiap anggota dapat paket sendiri).</div></div>`, [
+  const estimasiPesertaAwal = editing?(editing.estimasi_peserta||''):'';
+  setModal(editing?'Edit Lomba':'Tambah Lomba', `<div class="field"><label>Nama Lomba</label><input id="f-nama" value="${editing?esc(editing.nama):''}"></div><div class="field"><label>Kategori Peserta</label><select id="f-kategori">${KATEGORI_PESERTA.map(k=>`<option value="${k.v}" ${editing&&editing.kategori_peserta===k.v?'selected':''}>${k.l}</option>`).join('')}</select></div><div class="field"><label>Jumlah Anggota per Regu</label><input id="f-anggota" type="number" min="1" value="${anggotaAwal}" oninput="toggleHadiahPerReguHint()"><div class="hint">Isi 1 jika lomba perorangan. Jika lomba beregu (misal 1 regu = 5 orang), isi 5.</div></div><div class="field" id="f-hadiah-per-regu-wrap" style="display:${anggotaAwal>1?'block':'none'};"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" id="f-hadiah-per-regu" ${hadiahPerReguAwal?'checked':''} style="width:auto;"> Hadiah 1 paket untuk seluruh regu (bukan per anggota)</label><div class="hint">Dicentang: kebutuhan hadiah lomba ini dihitung 1 paket saja meski jumlah anggota regu lebih dari 1. Tidak dicentang (default): kebutuhan hadiah dikalikan jumlah anggota regu (tiap anggota dapat paket sendiri).</div></div><div class="field"><label>Estimasi Jumlah Peserta (opsional)</label><input id="f-estimasi-peserta" type="number" min="0" value="${estimasiPesertaAwal}" placeholder="mis. 30"><div class="hint">Cuma buat hitung otomatis kebutuhan hadiah PARTISIPASI (dibagi rata ke semua peserta, beda dari hadiah Juara 1-3 di atas). Kosongkan kalau hadiah partisipasi mau diatur manual seperti biasa. Kalau diisi, isi juga untuk lomba lain sekategori supaya totalnya akurat (yang belum diisi dianggap 0 peserta).</div></div>`, [
     {label:'Batal', cls:'secondary', onclick:closeModal},
     {label:editing?'Simpan':'Tambah', cls:'', onclick:()=>{
       const nama=document.getElementById('f-nama').value.trim(); const kategori_peserta=document.getElementById('f-kategori').value; 
       const jumlah_anggota_regu=Math.max(1, Number(document.getElementById('f-anggota').value||1));
       const hadiah_per_regu = jumlah_anggota_regu>1 && !!document.getElementById('f-hadiah-per-regu').checked;
+      const estimasi_peserta = Math.max(0, Number(document.getElementById('f-estimasi-peserta').value||0));
       if(!nama){toast('Nama wajib');return;}
       let actionMsg = editing ? `✏️ Edit lomba: ${editing.nama} → ${nama}` : `➕ Lomba baru: ${nama}`;
       if(editing){ 
-        editing.nama=nama; editing.kategori_peserta=kategori_peserta; editing.jumlah_anggota_regu=jumlah_anggota_regu; editing.hadiah_per_regu=hadiah_per_regu;
+        editing.nama=nama; editing.kategori_peserta=kategori_peserta; editing.jumlah_anggota_regu=jumlah_anggota_regu; editing.hadiah_per_regu=hadiah_per_regu; editing.estimasi_peserta=estimasi_peserta;
       }
-      else{ db.lomba.push({id:uid(),event_id:eid(),nama,kategori_peserta,jumlah_anggota_regu,hadiah_per_regu}); }
+      else{ db.lomba.push({id:uid(),event_id:eid(),nama,kategori_peserta,jumlah_anggota_regu,hadiah_per_regu,estimasi_peserta}); }
       saveDB();
       // Lomba bertambah/berubah → kebutuhan paket hadiah berubah, sinkronkan stok yang harus dibeli.
       autoSyncHadiahStok(true);
       closeModal(); renderContent(); renderTopbarSaldo(); toast('Disimpan');
-      notifyTelegram(actionMsg, `Kategori: ${labelPeserta(kategori_peserta)}\nAnggota/regu: ${jumlah_anggota_regu}${hadiah_per_regu?' (1 hadiah untuk seluruh regu)':''}`);
+      notifyTelegram(actionMsg, `Kategori: ${labelPeserta(kategori_peserta)}\nAnggota/regu: ${jumlah_anggota_regu}${hadiah_per_regu?' (1 hadiah untuk seluruh regu)':''}${estimasi_peserta>0?`\nEstimasi peserta: ${estimasi_peserta}`:''}`);
     }}
   ]);
 }
@@ -204,7 +206,7 @@ function renderHadiah(){
     const adaBeregu = lombaKategoriList.some(l => Number(l.jumlah_anggota_regu||1) > 1 && !l.hadiah_per_regu);
     const groupHtml = items.map(h => {
       const isPartisipasi = h.juara_ke === 'partisipasi';
-      const kebutuhan = isPartisipasi ? null : totalKebutuhanPaket;
+      const kebutuhan = hitungKebutuhanHadiah(kp.v, h.juara_ke);
       const kurangItems = kebutuhan!=null ? h.items.filter(item => Number(item.qty_dibeli||0) < hitungTargetQtyItem(item, kebutuhan)) : [];
       // Stok tidak pernah diturunkan otomatis (lihat autoSyncHadiahStok), jadi kalau lomba
       // dihapus atau qty_per_paket diturunkan, qty_dibeli bisa nyangkut lebih tinggi dari
@@ -215,13 +217,16 @@ function renderHadiah(){
       // dengan budget, karena budget diatur per paket/per pemenang, bukan akumulasi
       // seluruh lomba di kategori ini (yang jumlahnya beda-beda tiap kategori).
       const totalPerPaket = h.items.reduce((s, item) => s + (Number(item.harga_satuan||0) * Math.max(1,Number(item.qty_per_paket||1))), 0);
-      const namaLombaTitle = esc(lombaKategoriList.map(l => Number(l.jumlah_anggota_regu||1)>1 ? `${l.nama} (beregu ×${l.jumlah_anggota_regu}${l.hadiah_per_regu?', 1 hadiah/regu':''})` : l.nama).join(', '));
-      const rincianLomba = adaBeregu ? ` = ${lombaKategoriList.map(l=>anggotaHadiahLomba(l)).join('+')}` : '';
+      const satuanKebutuhan = isPartisipasi ? 'peserta' : 'paket';
+      const namaLombaTitle = isPartisipasi
+        ? esc(lombaKategoriList.map(l => `${l.nama}: ${Number(l.estimasi_peserta||0)} peserta`).join(', '))
+        : esc(lombaKategoriList.map(l => Number(l.jumlah_anggota_regu||1)>1 ? `${l.nama} (beregu ×${l.jumlah_anggota_regu}${l.hadiah_per_regu?', 1 hadiah/regu':''})` : l.nama).join(', '));
+      const rincianLomba = (!isPartisipasi && adaBeregu) ? ` = ${lombaKategoriList.map(l=>anggotaHadiahLomba(l)).join('+')}` : '';
       const kebutuhanBadge = kebutuhan!=null
         ? (kurangItems.length
-            ? `<span class="lomba-badge warn" style="margin-left:8px;" title="${namaLombaTitle}">⚠️ Kurang, butuh ${kebutuhan} paket (dari ${jumlahLomba} lomba${rincianLomba})</span>`
+            ? `<span class="lomba-badge warn" style="margin-left:8px;" title="${namaLombaTitle}">⚠️ Kurang, butuh ${kebutuhan} ${satuanKebutuhan} (dari ${jumlahLomba} lomba${rincianLomba})</span>`
             : (lebihItems.length
-                ? `<span class="lomba-badge info" style="margin-left:8px;" title="${namaLombaTitle} — cek kalau ada lomba yang dihapus/diubah sebelumnya">📦 Stok lebih dari kebutuhan (${kebutuhan} paket dari ${jumlahLomba} lomba${rincianLomba})</span>`
+                ? `<span class="lomba-badge info" style="margin-left:8px;" title="${namaLombaTitle} — cek kalau ada lomba yang dihapus/diubah sebelumnya">📦 Stok lebih dari kebutuhan (${kebutuhan} ${satuanKebutuhan} dari ${jumlahLomba} lomba${rincianLomba})</span>`
                 : `<span class="lomba-badge" style="margin-left:8px;" title="${namaLombaTitle}">✓ Kebutuhan untuk ${jumlahLomba} lomba terpenuhi</span>`))
         : '';
       const budget = getHadiahBudget(kp.v, h.juara_ke);
@@ -234,7 +239,7 @@ function renderHadiah(){
       }
       return `<div class="hadiah-group"><div class="hadiah-group-header" onclick="toggleHadiahGroup('${h.id}')"><div><span class="title">🏆 ${labelJuara(h.juara_ke)}</span><span style="font-size:12px;color:var(--ink-soft);margin-left:8px;">${h.items.length} item</span>${kebutuhanBadge}${budgetBadge}</div><div style="display:flex;align-items:center;gap:4px;"><span class="total">${fmtRp(totalItem)}</span>${isLoggedIn ? `<button class="icon-btn" onclick="event.stopPropagation();openHadiahModal('${h.id}')" title="Edit paket">✎</button><button class="icon-btn" onclick="event.stopPropagation();hapusHadiah('${h.id}')" title="Hapus paket">🗑</button>` : ''}</div></div>
         <div class="hadiah-group-body" id="hadiah-group-${h.id}" style="display:${openHadiahGroups.has(h.id)?'block':'none'};">
-          ${kurangItems.length ? `<div class="hint" style="margin-bottom:10px;">Sebagian item belum sesuai kebutuhan (${jumlahLomba} lomba kategori ${labelPeserta(kp.v)}${adaBeregu?', termasuk lomba beregu':''} × qty/paket masing-masing item). Biasanya ini terjadi setelah "Qty per paket" sebuah item diubah manual. Klik tombol "⚡ Sesuaikan Semua Otomatis" di atas untuk langsung menyamakan, atau edit qty item satu-satu di bawah.</div>` : (lebihItems.length ? `<div class="hint" style="margin-bottom:10px;">Sebagian item stoknya lebih dari kebutuhan (${jumlahLomba} lomba kategori ${labelPeserta(kp.v)}). Ini bisa normal (sengaja beli cadangan), atau sisa dari lomba yang sudah dihapus/dikurangi — qty tidak pernah diturunkan otomatis. Cek dan kurangi manual lewat tombol ✎ di item kalau memang kelebihan.</div>` : '')}
+          ${kurangItems.length ? `<div class="hint" style="margin-bottom:10px;">${isPartisipasi ? `Sebagian item belum sesuai kebutuhan (estimasi total ${kebutuhan} peserta dari ${jumlahLomba} lomba kategori ${labelPeserta(kp.v)} × qty/paket masing-masing item).` : `Sebagian item belum sesuai kebutuhan (${jumlahLomba} lomba kategori ${labelPeserta(kp.v)}${adaBeregu?', termasuk lomba beregu':''} × qty/paket masing-masing item).`} Biasanya ini terjadi setelah "Qty per paket" sebuah item diubah manual${isPartisipasi?', atau estimasi peserta baru saja diubah':''}. Klik tombol "⚡ Sesuaikan Semua Otomatis" di atas untuk langsung menyamakan, atau edit qty item satu-satu di bawah.</div>` : (lebihItems.length ? `<div class="hint" style="margin-bottom:10px;">Sebagian item stoknya lebih dari kebutuhan (${isPartisipasi ? `estimasi ${kebutuhan} peserta` : `${jumlahLomba} lomba`} kategori ${labelPeserta(kp.v)}). Ini bisa normal (sengaja beli cadangan), atau sisa dari lomba yang sudah dihapus/dikurangi${isPartisipasi?'/estimasi peserta diturunkan':''} — qty tidak pernah diturunkan otomatis. Cek dan kurangi manual lewat tombol ✎ di item kalau memang kelebihan.</div>` : '')}
           ${h.items.map((item, idx) => { const perPaket=Math.max(1,Number(item.qty_per_paket||1)); const target = hitungTargetQtyItem(item, kebutuhan); const kurang = target!=null && Number(item.qty_dibeli||0) < target; const lebih = target!=null && Number(item.qty_dibeli||0) > target; return `<div class="hadiah-item-row"><span class="item-name">${esc(item.nama)}${perPaket>1?` <span style="color:var(--ink-soft);font-size:11px;">${perPaket} buah per paket</span>`:''}${kurang?` <span style="color:var(--orange);font-size:11px;">(butuh ${target})</span>`:''}${lebih?` <span style="color:var(--biru);font-size:11px;">(kebutuhan ${target}, lebih ${Number(item.qty_dibeli)-target})</span>`:''}</span><span class="item-qty">Dibeli: ${item.qty_dibeli}</span><span class="item-price">${fmtRp(item.harga_satuan)} × ${item.qty_dibeli}</span>
             <button class="icon-btn" onclick="editHadiahItem('${h.id}','${item.id}')" ${!isLoggedIn ? 'disabled' : ''}>✎</button>
             <button class="icon-btn" onclick="hapusHadiahItem('${h.id}','${item.id}')" ${!isLoggedIn ? 'disabled' : ''}>🗑</button>
@@ -249,16 +254,18 @@ function renderHadiah(){
 
   // Total budget SEHARUSNYA untuk seluruh event = budget per paket × jumlah paket yang
   // dibutuhkan di kategori itu (mengikuti jumlah lomba, sama seperti kebutuhan stok).
-  // Untuk juara "partisipasi" (tidak ada target otomatis) budget dihitung apa adanya (×1),
-  // supaya tidak dibandingkan dengan kesalahan skala seperti sebelumnya.
+  // Untuk juara "partisipasi" yang BELUM diisi estimasi peserta (keb=null, tidak ada target
+  // otomatis), budget dihitung apa adanya (×1) supaya tidak dibandingkan dengan kesalahan
+  // skala. Begitu estimasi peserta diisi, keb terisi angka riil dan budget partisipasi ikut
+  // dikalikan jumlah peserta seperti kategori juara lain — jauh lebih akurat daripada ×1.
   const totalBudget = KATEGORI_PESERTA.reduce((s,kp)=>s+JUARA_LIST.reduce((s2,j)=>{
     const budgetPerPaket = getHadiahBudget(kp.v, j.v);
     if(budgetPerPaket<=0) return s2;
     const keb = hitungKebutuhanHadiah(kp.v, j.v);
-    // keb bisa null (juara partisipasi, memang tidak ada target) ATAU 0 (belum ada
-    // lomba dibuat untuk kategori ini). Keduanya sama-sama "belum diketahui jumlah
-    // paket yang dibutuhkan", jadi budget tetap dihitung penuh (×1) — bukan ditiadakan
-    // (×0) — supaya Total Budget tetap masuk akal sebelum data lomba diinput.
+    // keb bisa null (belum ada target otomatis) ATAU 0 (belum ada lomba/estimasi diisi
+    // untuk kategori ini). Keduanya sama-sama "belum diketahui jumlah paket yang
+    // dibutuhkan", jadi budget tetap dihitung penuh (×1) — bukan ditiadakan (×0) —
+    // supaya Total Budget tetap masuk akal sebelum data lomba diinput.
     return s2 + budgetPerPaket * (keb || 1);
   },0),0);
 
@@ -305,7 +312,7 @@ function renderHadiah(){
   </div>
   ${budgetKategoriCards ? `<div class="panel"><div class="panel-head"><div><h3>Anggaran Hadiah per Kategori</h3><div class="desc">Harga 1 paket dibandingkan budget per paket (bukan akumulasi total belanja), dirinci per juara</div></div></div>
   <div class="panel-body"><div class="kategori-grid">${budgetKategoriCards}</div></div></div>` : ''}
-  <div class="panel"><div class="panel-head"><div><h3>Kebutuhan Hadiah</h3><div class="desc">Setiap paket bisa berisi multiple item · Kebutuhan Juara 1-3 mengikuti jumlah lomba per kategori (Partisipasi tidak dihitung otomatis, atur qty-nya manual)</div></div>
+  <div class="panel"><div class="panel-head"><div><h3>Kebutuhan Hadiah</h3><div class="desc">Setiap paket bisa berisi multiple item · Kebutuhan Juara 1-3 mengikuti jumlah lomba per kategori · Partisipasi otomatis kalau "Estimasi Jumlah Peserta" diisi di lomba (kalau belum diisi, tetap manual)</div></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
       ${isLoggedIn ? `<button class="btn secondary" onclick="openHadiahBudgetModal()">🎯 Atur Budget</button>` : ''}
       ${isLoggedIn ? `<button class="btn secondary" onclick="sesuaikanSemuaKebutuhanHadiah()">⚡ Sesuaikan Semua Otomatis</button>` : ''}
@@ -315,11 +322,20 @@ function renderHadiah(){
 }
 
 // Kebutuhan paket hadiah Juara 1/2/3 = jumlah lomba pada kategori peserta tsb, dikalikan jumlah anggota regu tiap lomba
-// (lomba perorangan = x1, lomba beregu = x jumlah anggota regu). Partisipasi tidak dihitung otomatis.
+// (lomba perorangan = x1, lomba beregu = x jumlah anggota regu).
+// Partisipasi: otomatis dihitung dari total "Estimasi Jumlah Peserta" tiap lomba di kategori itu,
+// TAPI cuma kalau minimal satu lomba di kategori sudah diisi estimasinya — supaya event lama yang
+// belum pernah isi field ini tetap seperti semula (manual, kebutuhan=null), tidak tiba-tiba
+// menampilkan target 0/salah begitu fitur ini dipasang.
 function anggotaHadiahLomba(l){ return l.hadiah_per_regu ? 1 : Math.max(1, Number(l.jumlah_anggota_regu||1)); }
 function hitungKebutuhanHadiah(kategoriPeserta, juaraKe){
-  if(juaraKe === 'partisipasi') return null;
-  return gLomba().filter(l => l.kategori_peserta === kategoriPeserta).reduce((s,l)=> s + anggotaHadiahLomba(l), 0);
+  const lombaKategori = gLomba().filter(l => l.kategori_peserta === kategoriPeserta);
+  if(juaraKe === 'partisipasi'){
+    const adaEstimasiDiisi = lombaKategori.some(l => Number(l.estimasi_peserta||0) > 0);
+    if(!adaEstimasiDiisi) return null;
+    return lombaKategori.reduce((s,l)=> s + Number(l.estimasi_peserta||0), 0);
+  }
+  return lombaKategori.reduce((s,l)=> s + anggotaHadiahLomba(l), 0);
 }
 // Target qty tiap item = kebutuhan (jumlah paket/lomba) dikalikan qty_per_paket item tsb
 // (mis. pulpen 2/paket pada kategori yg butuh 3 paket => target 6, bukan 3)

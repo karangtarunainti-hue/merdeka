@@ -340,7 +340,7 @@ function renderFormAbsensi(ev){
           </select>
         </div>
       </div>
-      <div class="field-hint" style="color:var(--ink-soft); font-size:12.5px; margin-top:6px;">✅ Tersimpan otomatis saat Anda mengetik.</div>
+      ${(filterKategori||filterRT) ? `<div class="field-hint" style="color:var(--orange); font-size:12.5px; margin-top:6px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">⚠️ Filter aktif (${[filterKategori?labelKategori(filterKategori):'', filterRT?labelRT(filterRT):''].filter(Boolean).join(' · ')}) — sebagian anggota sengaja disembunyikan dari daftar di bawah, dan filter ini tetap tersimpan sampai direset. <button class="btn secondary small" onclick="resetFilterAbsensi()">↺ Reset Filter</button></div>` : `<div class="field-hint" style="color:var(--ink-soft); font-size:12.5px; margin-top:6px;">✅ Tersimpan otomatis saat Anda mengetik. Tidak ada filter aktif — daftar di bawah menampilkan semua anggota.</div>`}
     </div>
   </div>` : '';
 
@@ -381,6 +381,18 @@ function filterAbsensi(){
   s.absensi.filter_kategori = document.getElementById('doc-abs-kategori').value;
   s.absensi.filter_rt = document.getElementById('doc-abs-rt').value;
   saveDB(); renderContent();
+}
+function resetFilterAbsensi(){
+  // Filter RT/Kategori tersimpan permanen di dokumenGlobal.absensi, jadi kalau
+  // lupa direset dia diam-diam menyembunyikan anggota di kunjungan berikutnya.
+  // Tombol ini eksplisit mengosongkan kedua filter tersebut.
+  if (!canEditSection('dokumen')) { toast('⛔ Login untuk mengedit data'); return; }
+  const s = getDokumenGlobal();
+  s.absensi = s.absensi || {};
+  s.absensi.filter_kategori = '';
+  s.absensi.filter_rt = '';
+  saveDB(); renderContent();
+  toast('Filter form absensi direset — semua anggota ditampilkan');
 }
 function liveAbsensi(field, value){
   if (!canEditSection('dokumen')) { toast('⛔ Login untuk mengedit data'); return; }

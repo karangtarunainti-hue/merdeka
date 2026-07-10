@@ -372,6 +372,7 @@ function renderDatabaseAnggota(){
   return `${statCards}<div class="panel"><div class="panel-head"><div><h3>📋 Database Anggota</h3><div class="desc">${totalBelum} anggota belum bayar · total tunggakan ${fmtRp(totalNominal - totalTerkumpul)}</div></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
       <button class="btn success small" onclick="tandaiSemuaLunas()" ${!isLoggedIn ? 'disabled' : ''}>✓ Tandai Semua Lunas</button>
+      ${isLoggedIn ? `<button class="btn secondary small" onclick="openSalinAnggotaModal()">📥 Salin dari Event Lain</button>` : ''}
       ${isLoggedIn ? `<button class="btn" onclick="openAnggotaModal()">+ Tambah</button>` : ''}
     </div></div>
     <div class="panel-body">${filterHtml}${statKategoriHtml?`<div class="kategori-grid" style="margin-bottom:16px;">${statKategoriHtml}</div>`:''}
@@ -404,4 +405,88 @@ function tandaiSemuaLunas(){
   notifyTelegram(`✅ ${list.length} anggota ditandai LUNAS`, detail);
 }
 function exportAnggotaCSV(){ const list=gAnggota(); if(list.length===0){ toast('Tidak ada data'); return; } let csv='No,Nama,Kategori,RT,Jenis Kelamin,Nominal,Status,Tanggal Bayar\n'; list.forEach((a,i)=>{const status=a.status==='lunas'?'Lunas':'Belum Bayar'; const tgl=a.tanggal_bayar?fmtDate(a.tanggal_bayar):'-'; csv+=`${i+1},"${a.nama}",${labelKategori(a.kategori)},${labelRT(getRT(a))},${labelGender(getGender(a))},${a.nominal_wajib},${status},${tgl}\n`;}); const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}); const link=document.createElement('a'); link.href=URL.createObjectURL(blob); link.download=`database-anggota-${todayISO()}.csv`; link.click(); toast('CSV berhasil diekspor'); }
+
+/* ============================================================
+   SALIN ANGGOTA DARI EVENT LAIN
+   Anggota tersimpan per event_id (roster tahunan), jadi anggota yang
+   didaftarkan di event tahun lalu tidak otomatis muncul di event baru
+   (termasuk di Form Absensi). Fitur ini memindahkan (menyalin) anggota
+   terpilih dari event lain ke event yang sedang aktif, dengan:
+   - nama yang sudah ada di event aktif otomatis dilewati (anti dobel)
+   - nominal iuran dihitung ulang sesuai tarif event aktif (kecuali
+     kategori Khusus, nominalnya dipertahankan apa adanya)
+   - status iuran direset ke Belum Lunas (event baru = tagihan baru)
+   ============================================================ */
+function openSalinAnggotaModal(){
+  if (!canEditSection('database-anggota')) { toast('⛔ Login untuk mengedit data'); return; }
+  if(!eid()){ toast('Pilih event aktif dulu di sidebar'); return; }
+  const otherEvents = db.events.filter(e=>e.id!==eid() && db.anggota.some(a=>a.event_id===e.id)).sort((a,b)=>(b.tahun||0)-(a.tahun||0));
+  if(otherEvents.length===0){ toast('Belum ada anggota di event lain yang bisa disalin'); return; }
+  setModal('📥 Salin Anggota dari Event Lain', `
+    <div class="field"><label>Salin dari Event</label>
+      <select id="salin-source-event" onchange="renderSalinAnggotaList()">
+        ${otherEvents.map(e=>`<option value="${e.id}">${esc(e.nama)}${e.tahun?' ('+e.tahun+')':''}</option>`).join('')}
+      </select>
+    </div>
+    <div class="field-hint" style="color:var(--ink-soft); font-size:12.5px; margin:-2px 0 10px;">Nama yang sudah terdaftar di event aktif otomatis dilewati. Nominal iuran mengikuti tarif event aktif, status iuran direset jadi Belum Lunas.</div>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+      <label style="font-size:12px; display:flex; align-items:center; gap:6px; cursor:pointer;"><input type="checkbox" id="salin-pilih-semua" onchange="toggleSalinPilihSemua(this.checked)"> Pilih Semua</label>
+      <span id="salin-count-label" style="font-size:12px; color:var(--ink-soft);"></span>
+    </div>
+    <div id="salin-anggota-list" style="max-height:320px; overflow-y:auto; border:1px solid var(--line); border-radius:8px; padding:4px 8px;"></div>
+  `, [
+    {label:'Batal', cls:'secondary', onclick:closeModal},
+    {label:'Salin Anggota Terpilih', cls:'', onclick:konfirmasiSalinAnggota}
+  ]);
+  setTimeout(renderSalinAnggotaList, 0);
+}
+function renderSalinAnggotaList(){
+  const sel = document.getElementById('salin-source-event');
+  const listEl = document.getElementById('salin-anggota-list');
+  if(!sel || !listEl) return;
+  const namaSekarang = new Set(gAnggota().map(a=>a.nama.trim().toLowerCase()));
+  const sourceAnggota = db.anggota.filter(a=>a.event_id===sel.value).slice().sort((a,b)=>a.nama.localeCompare(b.nama,'id'));
+  listEl.innerHTML = sourceAnggota.length ? sourceAnggota.map(a=>{
+    const dobel = namaSekarang.has(a.nama.trim().toLowerCase());
+    return `<label style="display:flex; align-items:center; gap:8px; padding:6px 2px; ${dobel?'opacity:.5;':''} border-bottom:1px solid var(--line);">
+      <input type="checkbox" class="salin-anggota-chk" value="${a.id}" ${dobel?'disabled':'checked'} onchange="updateSalinCountLabel()">
+      <span style="flex:1;">${esc(a.nama)} <span style="color:var(--ink-soft); font-size:11.5px;">· ${esc(labelKategori(a.kategori))} · ${esc(labelRT(getRT(a)))}</span></span>
+      ${dobel?'<span style="font-size:11px;color:var(--ink-soft);">sudah ada</span>':''}
+    </label>`;
+  }).join('') : `<div class="hint" style="padding:8px 2px;">Event ini belum punya data anggota.</div>`;
+  const selectableCount = document.querySelectorAll('.salin-anggota-chk:not(:disabled)').length;
+  const pilihSemuaEl = document.getElementById('salin-pilih-semua');
+  if(pilihSemuaEl) pilihSemuaEl.checked = selectableCount>0;
+  updateSalinCountLabel();
+}
+function toggleSalinPilihSemua(checked){
+  document.querySelectorAll('.salin-anggota-chk:not(:disabled)').forEach(c=>c.checked=checked);
+  updateSalinCountLabel();
+}
+function updateSalinCountLabel(){
+  const label = document.getElementById('salin-count-label');
+  if(!label) return;
+  const total = document.querySelectorAll('.salin-anggota-chk').length;
+  const checked = document.querySelectorAll('.salin-anggota-chk:checked').length;
+  label.textContent = total ? `${checked} dari ${total} dipilih` : '';
+}
+function konfirmasiSalinAnggota(){
+  const sel = document.getElementById('salin-source-event');
+  if(!sel) return;
+  const checked = Array.from(document.querySelectorAll('.salin-anggota-chk:checked'));
+  if(checked.length===0){ toast('Pilih minimal satu anggota untuk disalin'); return; }
+  const sourceEvent = db.events.find(e=>e.id===sel.value);
+  const s = getSettings();
+  let count = 0;
+  checked.forEach(chk=>{
+    const src = db.anggota.find(a=>a.id===chk.value);
+    if(!src) return;
+    const nominal = src.kategori==='khusus' ? Number(src.nominal_wajib||0) : (s.tarif[src.kategori] || 0);
+    db.anggota.push({id:uid(), event_id:eid(), nama:src.nama, kategori:src.kategori, rt:getRT(src), gender:src.gender||null, nominal_wajib:nominal, status:'belum_lunas', tanggal_bayar:null});
+    count++;
+  });
+  saveDB(); closeModal(); renderContent(); renderTopbarSaldo();
+  toast(`✓ ${count} anggota disalin dari ${sourceEvent?sourceEvent.nama:'event lain'}`);
+  notifyTelegram(`📥 Salin ${count} anggota dari event lain`, `Dari: ${sourceEvent?sourceEvent.nama:'-'}\nKe event aktif: ${(activeEvent()||{}).nama||'-'}`);
+}
 

@@ -103,7 +103,7 @@ function renderHadiahLombaBlock(lomba){
     return `<div class="juara-row"><div class="juara-tag">${j.l}</div><div style="flex:1;padding:6px 0;">${isiPaket}</div></div>`;
   }).join('');
   const noStok = gHadiahKategori().filter(h=>h.kategori_peserta===lomba.kategori_peserta).length === 0;
-  return `${rows}${noStok?`<div class="hint" style="margin-top:8px;">Belum ada paket hadiah untuk kategori ini. <a style="color:var(--merah);font-weight:600;cursor:pointer;" onclick="goSection('hadiah')">Tambah di sini</a></div>`:''}`;
+  return `<div class="hint" style="margin-bottom:8px;">Paket hadiah berlaku otomatis untuk semua lomba kategori ${labelPeserta(lomba.kategori_peserta)}, bukan cuma lomba ini — kelola dari menu Hadiah.</div>${rows}${noStok?`<div class="hint" style="margin-top:8px;">Belum ada paket hadiah untuk kategori ini. <a style="color:var(--merah);font-weight:600;cursor:pointer;" onclick="goSection('hadiah')">Tambah di sini</a></div>`:''}`;
 }
 
 function openLombaModal(id){
@@ -228,7 +228,7 @@ function renderHadiah(){
       }
       return `<div class="hadiah-group"><div class="hadiah-group-header" onclick="toggleHadiahGroup('${h.id}')"><div><span class="title">🏆 ${labelJuara(h.juara_ke)}</span><span style="font-size:12px;color:var(--ink-soft);margin-left:8px;">${h.items.length} item</span>${kebutuhanBadge}${budgetBadge}</div><div style="display:flex;align-items:center;gap:4px;"><span class="total">${fmtRp(totalItem)}</span>${isLoggedIn ? `<button class="icon-btn" onclick="event.stopPropagation();openHadiahModal('${h.id}')" title="Edit paket">✎</button><button class="icon-btn" onclick="event.stopPropagation();hapusHadiah('${h.id}')" title="Hapus paket">🗑</button>` : ''}</div></div>
         <div class="hadiah-group-body" id="hadiah-group-${h.id}" style="display:${openHadiahGroups.has(h.id)?'block':'none'};">
-          ${kurangItems.length ? `<div class="hint" style="margin-bottom:10px;">Sebagian item belum sesuai kebutuhan (${jumlahLomba} lomba kategori ${labelPeserta(kp.v)}${adaBeregu?', termasuk lomba beregu':''} × qty/paket masing-masing item). Qty akan otomatis naik sendiri saat lomba berikutnya ditambahkan, atau edit manual di bawah.</div>` : ''}
+          ${kurangItems.length ? `<div class="hint" style="margin-bottom:10px;">Sebagian item belum sesuai kebutuhan (${jumlahLomba} lomba kategori ${labelPeserta(kp.v)}${adaBeregu?', termasuk lomba beregu':''} × qty/paket masing-masing item). Biasanya ini terjadi setelah "Qty per paket" sebuah item diubah manual. Klik tombol "⚡ Sesuaikan Semua Otomatis" di atas untuk langsung menyamakan, atau edit qty item satu-satu di bawah.</div>` : ''}
           ${h.items.map((item, idx) => { const perPaket=Math.max(1,Number(item.qty_per_paket||1)); const target = hitungTargetQtyItem(item, kebutuhan); const kurang = target!=null && Number(item.qty_dibeli||0) < target; return `<div class="hadiah-item-row"><span class="item-name">${esc(item.nama)}${perPaket>1?` <span style="color:var(--ink-soft);font-size:11px;">${perPaket} buah per paket</span>`:''}${kurang?` <span style="color:var(--orange);font-size:11px;">(butuh ${target})</span>`:''}</span><span class="item-qty">Dibeli: ${item.qty_dibeli}</span><span class="item-price">${fmtRp(item.harga_satuan)} × ${item.qty_dibeli}</span>
             <button class="icon-btn" onclick="editHadiahItem('${h.id}','${item.id}')" ${!isLoggedIn ? 'disabled' : ''}>✎</button>
             <button class="icon-btn" onclick="hapusHadiahItem('${h.id}','${item.id}')" ${!isLoggedIn ? 'disabled' : ''}>🗑</button>
@@ -299,7 +299,7 @@ function renderHadiah(){
   </div>
   ${budgetKategoriCards ? `<div class="panel"><div class="panel-head"><div><h3>Anggaran Hadiah per Kategori</h3><div class="desc">Harga 1 paket dibandingkan budget per paket (bukan akumulasi total belanja), dirinci per juara</div></div></div>
   <div class="panel-body"><div class="kategori-grid">${budgetKategoriCards}</div></div></div>` : ''}
-  <div class="panel"><div class="panel-head"><div><h3>Kebutuhan Hadiah</h3><div class="desc">Setiap paket bisa berisi multiple item · Kebutuhan Juara 1-3 mengikuti jumlah lomba per kategori</div></div>
+  <div class="panel"><div class="panel-head"><div><h3>Kebutuhan Hadiah</h3><div class="desc">Setiap paket bisa berisi multiple item · Kebutuhan Juara 1-3 mengikuti jumlah lomba per kategori (Partisipasi tidak dihitung otomatis, atur qty-nya manual)</div></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
       ${isLoggedIn ? `<button class="btn secondary" onclick="openHadiahBudgetModal()">🎯 Atur Budget</button>` : ''}
       ${isLoggedIn ? `<button class="btn secondary" onclick="sesuaikanSemuaKebutuhanHadiah()">⚡ Sesuaikan Semua Otomatis</button>` : ''}
@@ -503,7 +503,7 @@ async function editHadiahItem(hadiahId,itemId){
   if(newHarga===null) return;
   const newPerPaket = await promptModal({title:'Edit Item Hadiah', label:'Qty per paket', hint:'Dasar hitung kebutuhan otomatis.', defaultValue:item.qty_per_paket||1, type:'number'});
   if(newPerPaket===null) return;
-  const newQty = await promptModal({title:'Edit Item Hadiah', label:'Qty total (dibeli)', hint:'Boleh diisi lebih untuk cadangan.', defaultValue:item.qty_dibeli, type:'number'});
+  const newQty = await promptModal({title:'Edit Item Hadiah', label:'Qty total (dibeli)', hint:'Boleh diisi lebih untuk cadangan. Kalau diisi kurang dari kebutuhan (jumlah lomba × qty/paket), badge "⚠️ Kurang" akan muncul lagi.', defaultValue:item.qty_dibeli, type:'number'});
   if(newQty===null) return;
   if(!newNama.trim()||Number(newQty)<0){toast('Nama & qty wajib');return;} item.nama=newNama.trim(); item.harga_satuan=Number(newHarga)||0; item.qty_per_paket=Math.max(1,Number(newPerPaket)||1); item.qty_dibeli=Number(newQty)||0;
   const samaCount = samakanHargaItemSejenis(item.nama, item.harga_satuan, item.id);

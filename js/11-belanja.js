@@ -230,7 +230,7 @@ async function editHargaBelanjaHadiahGroup(gi){
   const isiInput = await promptModal({
     title: `"${group.nama}"`,
     label: 'Dijual isi berapa per pack?',
-    hint: 'Isi 1 kalau dijual satuan/bijian, isi 12 kalau 1 pack = 12 pcs, dst.',
+    hint: 'Ini soal kemasan di TOKO (bukan "paket hadiah" per pemenang). Isi 1 kalau dijual satuan/bijian, isi 12 kalau 1 pack toko = 12 pcs, dst.',
     defaultValue: isiSekarang, type:'number'
   });
   if(isiInput===null) return;

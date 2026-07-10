@@ -266,6 +266,27 @@ async function editHargaBelanjaHadiahGroup(gi){
     if(eceranMasuk >= 0) hargaEceranBaru = eceranMasuk;
   }
 
+  // Grup ini digabung cuma berdasarkan NAMA barang, lintas kategori peserta & juara
+  // (lihat renderBelanjaHadiah). Kalau ternyata item-item di dalamnya SUDAH punya
+  // harga_satuan berbeda-beda (mis. sengaja dibedakan kualitas antar kategori, tapi
+  // kebetulan nama itemnya sama persis), update ini akan menyamakan semuanya ke satu
+  // harga baru — perlu konfirmasi eksplisit dulu supaya tidak silently menghapus
+  // perbedaan itu tanpa disadari.
+  const hargaSebelumSet = new Set();
+  const rincianSebelum = [];
+  group.refs.forEach(r => {
+    const h = db.hadiahKategori.find(x=>x.id===r.hadiahId);
+    const item = h && h.items.find(it=>it.id===r.itemId);
+    if(item){
+      hargaSebelumSet.add(Number(item.harga_satuan||0));
+      rincianSebelum.push(`${labelPeserta(h.kategori_peserta)} - ${labelJuara(h.juara_ke)}: ${fmtRp(item.harga_satuan||0)}/pcs`);
+    }
+  });
+  if(hargaSebelumSet.size > 1){
+    const lanjut = confirm(`⚠️ "${group.nama}" saat ini punya harga BERBEDA di tiap paket (mungkin sengaja dibedakan):\n\n${rincianSebelum.join('\n')}\n\nMelanjutkan akan MENYAMAKAN semua ke satu harga baru. Yakin lanjut?`);
+    if(!lanjut){ toast('Dibatalkan, harga tidak diubah'); return; }
+  }
+
   let count = 0, totalQty = 0;
   group.refs.forEach(r => {
     const h = db.hadiahKategori.find(x=>x.id===r.hadiahId);

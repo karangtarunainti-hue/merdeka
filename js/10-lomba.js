@@ -39,7 +39,9 @@ function renderLomba(){
         <div class="lomba-tabs">
           <button type="button" class="lomba-tabbtn ${activeTab==='kebutuhan'?'active':''}" onclick="setLombaTab('${l.id}','kebutuhan')">Kebutuhan Barang</button>
           <button type="button" class="lomba-tabbtn ${activeTab==='hadiah'?'active':''}" onclick="setLombaTab('${l.id}','hadiah')">Hadiah${hadiahBadge?' •':''}</button>
+          <button type="button" class="lomba-tabbtn ${activeTab==='koordinator'?'active':''}" onclick="setLombaTab('${l.id}','koordinator')">Koordinator${!l.koordinator_anggota_id?' <span class="lomba-badge warn" style="margin-left:4px;">Belum ada</span>':''}</button>
         </div>
+
         <div style="display:${activeTab==='kebutuhan'?'block':'none'};">
         <div style="overflow-x:auto;">
         <table class="lomba-table"><thead><tr><th>Item</th><th class="num">Harga</th><th class="num">Qty</th><th class="num">Subtotal</th><th></th></tr></thead>
@@ -64,6 +66,9 @@ function renderLomba(){
         </div>
         <div style="display:${activeTab==='hadiah'?'block':'none'};">
         ${renderHadiahLombaBlock(l)}
+        </div>
+        <div style="display:${activeTab==='koordinator'?'block':'none'};">
+        ${renderKoordinatorLombaBlock(l, isLoggedIn)}
         </div>
       </div>
     </div>`;
@@ -105,30 +110,80 @@ function renderHadiahLombaBlock(lomba){
   return `<div class="hint" style="margin-bottom:8px;">Paket hadiah berlaku otomatis untuk semua lomba kategori ${labelPeserta(lomba.kategori_peserta)}, bukan cuma lomba ini — kelola dari menu Hadiah.</div>${rows}${noStok?`<div class="hint" style="margin-top:8px;">Belum ada paket hadiah untuk kategori ini. <a style="color:var(--merah);font-weight:600;cursor:pointer;" onclick="goSection('hadiah')">Tambah di sini</a></div>`:''}`;
 }
 
+// Koordinator lomba diambil dari Database Anggota (bukan input bebas), supaya
+// datanya konsisten dan bisa dilacak. Disimpan sebagai koordinator_anggota_id
+// di record lomba (lihat supabase-lomba-tanggal-koordinator-migration.sql).
+function renderKoordinatorLombaBlock(lomba, isLoggedIn){
+  const anggotaList = gAnggota().slice().sort((a,b)=>(a.nama||'').localeCompare(b.nama||'', 'id', {sensitivity:'base'}));
+  const koordinator = lomba.koordinator_anggota_id ? db.anggota.find(a=>a.id===lomba.koordinator_anggota_id) : null;
+  const opsi = `<option value="">-- Pilih Koordinator --</option>` + anggotaList.map(a=>`<option value="${a.id}" ${lomba.koordinator_anggota_id===a.id?'selected':''}>${esc(a.nama)}${a.rt?` (${labelRT(getRT(a))})`:''}</option>`).join('');
+  const infoKoordinator = koordinator
+    ? `<div class="hint" style="margin-top:8px;">Kategori: ${labelKategori(koordinator.kategori)}${koordinator.rt?` · ${labelRT(getRT(koordinator))}`:''}${koordinator.gender&&koordinator.gender!=='tidak_diketahui'?` · ${labelGender(getGender(koordinator))}`:''}</div>`
+    : `<div class="hint" style="margin-top:8px;">Belum ada koordinator dipilih untuk lomba ini.</div>`;
+  if(anggotaList.length===0){
+    return `<div class="hint">Belum ada data di Database Anggota untuk event ini. <a style="color:var(--merah);font-weight:600;cursor:pointer;" onclick="goSection('database-anggota')">Tambah di sini</a></div>`;
+  }
+  return `<div class="field" style="max-width:360px;"><label>Koordinator Lomba</label><select id="koordinator-${lomba.id}" onchange="setKoordinatorLomba('${lomba.id}', this.value)" ${!isLoggedIn?'disabled':''}>${opsi}</select></div>${infoKoordinator}`;
+}
+function setKoordinatorLomba(lombaId, anggotaId){
+  if (!canEditSection('lomba')) { toast('⛔ Login untuk mengedit data'); return; }
+  const lomba = db.lomba.find(l=>l.id===lombaId);
+  if(!lomba) return;
+  lomba.koordinator_anggota_id = anggotaId || null;
+  saveDB(); renderContent(); toast('Disimpan');
+  const anggota = anggotaId ? db.anggota.find(a=>a.id===anggotaId) : null;
+  notifyTelegram(`👤 Koordinator lomba diatur: ${lomba.nama}`, anggota ? `Koordinator: ${anggota.nama}` : 'Koordinator dikosongkan');
+}
+
+// Sinkronkan satu entri Agenda otomatis untuk lomba ini berdasarkan field
+// `tanggal`. Dilacak lewat `lomba.agenda_id` supaya edit tanggal tidak bikin
+// entri duplikat, dan menghapus tanggal akan menghapus entri agenda-nya.
+function syncAgendaLomba(lomba){
+  const judul = `Lomba: ${lomba.nama}`;
+  if(lomba.tanggal){
+    const existing = lomba.agenda_id ? db.agenda.find(a=>a.id===lomba.agenda_id) : null;
+    if(existing){
+      existing.judul = judul; existing.tanggal = lomba.tanggal;
+    } else {
+      const agendaEntry = {id:uid(), judul, tanggal:lomba.tanggal, kategori:'acara', deskripsi:`Otomatis dibuat dari data lomba (kategori: ${labelPeserta(lomba.kategori_peserta)}).`, status:'aktif'};
+      db.agenda.push(agendaEntry);
+      lomba.agenda_id = agendaEntry.id;
+    }
+  } else if(lomba.agenda_id){
+    db.agenda = db.agenda.filter(a=>a.id!==lomba.agenda_id);
+    lomba.agenda_id = null;
+  }
+}
+
 function openLombaModal(id){
   if (!canEditSection('lomba')) { toast('⛔ Login untuk mengedit data'); return; }
   const editing = id ? db.lomba.find(l=>l.id===id) : null;
   const anggotaAwal = editing?(editing.jumlah_anggota_regu||1):1;
   const hadiahPerReguAwal = editing ? !!editing.hadiah_per_regu : false;
   const estimasiPesertaAwal = editing?(editing.estimasi_peserta||''):'';
-  setModal(editing?'Edit Lomba':'Tambah Lomba', `<div class="field"><label>Nama Lomba</label><input id="f-nama" value="${editing?esc(editing.nama):''}"></div><div class="field"><label>Kategori Peserta</label><select id="f-kategori">${KATEGORI_PESERTA.map(k=>`<option value="${k.v}" ${editing&&editing.kategori_peserta===k.v?'selected':''}>${k.l}</option>`).join('')}</select></div><div class="field"><label>Jumlah Anggota per Regu</label><input id="f-anggota" type="number" min="1" value="${anggotaAwal}" oninput="toggleHadiahPerReguHint()"><div class="hint">Isi 1 jika lomba perorangan. Jika lomba beregu (misal 1 regu = 5 orang), isi 5.</div></div><div class="field" id="f-hadiah-per-regu-wrap" style="display:${anggotaAwal>1?'block':'none'};"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" id="f-hadiah-per-regu" ${hadiahPerReguAwal?'checked':''} style="width:auto;"> Hadiah 1 paket untuk seluruh regu (bukan per anggota)</label><div class="hint">Dicentang: kebutuhan hadiah lomba ini dihitung 1 paket saja meski jumlah anggota regu lebih dari 1. Tidak dicentang (default): kebutuhan hadiah dikalikan jumlah anggota regu (tiap anggota dapat paket sendiri).</div></div><div class="field"><label>Estimasi Jumlah Peserta (opsional)</label><input id="f-estimasi-peserta" type="number" min="0" value="${estimasiPesertaAwal}" placeholder="mis. 30"><div class="hint">Cuma buat hitung otomatis kebutuhan hadiah PARTISIPASI (dibagi rata ke semua peserta, beda dari hadiah Juara 1-3 di atas). Kosongkan kalau hadiah partisipasi mau diatur manual seperti biasa. Kalau diisi, isi juga untuk lomba lain sekategori supaya totalnya akurat (yang belum diisi dianggap 0 peserta).</div></div>`, [
+  const tanggalAwal = editing?(editing.tanggal||''):'';
+  setModal(editing?'Edit Lomba':'Tambah Lomba', `<div class="field"><label>Nama Lomba</label><input id="f-nama" value="${editing?esc(editing.nama):''}"></div><div class="field"><label>Tanggal Lomba (opsional)</label><input id="f-tanggal" type="date" value="${tanggalAwal}"><div class="hint">Kalau diisi, otomatis dibuatkan/diperbarui pengingat di menu Agenda.</div></div><div class="field"><label>Kategori Peserta</label><select id="f-kategori">${KATEGORI_PESERTA.map(k=>`<option value="${k.v}" ${editing&&editing.kategori_peserta===k.v?'selected':''}>${k.l}</option>`).join('')}</select></div><div class="field"><label>Jumlah Anggota per Regu</label><input id="f-anggota" type="number" min="1" value="${anggotaAwal}" oninput="toggleHadiahPerReguHint()"><div class="hint">Isi 1 jika lomba perorangan. Jika lomba beregu (misal 1 regu = 5 orang), isi 5.</div></div><div class="field" id="f-hadiah-per-regu-wrap" style="display:${anggotaAwal>1?'block':'none'};"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" id="f-hadiah-per-regu" ${hadiahPerReguAwal?'checked':''} style="width:auto;"> Hadiah 1 paket untuk seluruh regu (bukan per anggota)</label><div class="hint">Dicentang: kebutuhan hadiah lomba ini dihitung 1 paket saja meski jumlah anggota regu lebih dari 1. Tidak dicentang (default): kebutuhan hadiah dikalikan jumlah anggota regu (tiap anggota dapat paket sendiri).</div></div><div class="field"><label>Estimasi Jumlah Peserta (opsional)</label><input id="f-estimasi-peserta" type="number" min="0" value="${estimasiPesertaAwal}" placeholder="mis. 30"><div class="hint">Cuma buat hitung otomatis kebutuhan hadiah PARTISIPASI (dibagi rata ke semua peserta, beda dari hadiah Juara 1-3 di atas). Kosongkan kalau hadiah partisipasi mau diatur manual seperti biasa. Kalau diisi, isi juga untuk lomba lain sekategori supaya totalnya akurat (yang belum diisi dianggap 0 peserta).</div></div>`, [
     {label:'Batal', cls:'secondary', onclick:closeModal},
     {label:editing?'Simpan':'Tambah', cls:'', onclick:()=>{
       const nama=document.getElementById('f-nama').value.trim(); const kategori_peserta=document.getElementById('f-kategori').value; 
+      const tanggal = document.getElementById('f-tanggal').value || null;
       const jumlah_anggota_regu=Math.max(1, Number(document.getElementById('f-anggota').value||1));
       const hadiah_per_regu = jumlah_anggota_regu>1 && !!document.getElementById('f-hadiah-per-regu').checked;
       const estimasi_peserta = Math.max(0, Number(document.getElementById('f-estimasi-peserta').value||0));
       if(!nama){toast('Nama wajib');return;}
       let actionMsg = editing ? `✏️ Edit lomba: ${editing.nama} → ${nama}` : `➕ Lomba baru: ${nama}`;
+      let lombaRecord;
       if(editing){ 
-        editing.nama=nama; editing.kategori_peserta=kategori_peserta; editing.jumlah_anggota_regu=jumlah_anggota_regu; editing.hadiah_per_regu=hadiah_per_regu; editing.estimasi_peserta=estimasi_peserta;
+        editing.nama=nama; editing.kategori_peserta=kategori_peserta; editing.tanggal=tanggal; editing.jumlah_anggota_regu=jumlah_anggota_regu; editing.hadiah_per_regu=hadiah_per_regu; editing.estimasi_peserta=estimasi_peserta;
+        lombaRecord = editing;
       }
-      else{ db.lomba.push({id:uid(),event_id:eid(),nama,kategori_peserta,jumlah_anggota_regu,hadiah_per_regu,estimasi_peserta}); }
+      else{ lombaRecord = {id:uid(),event_id:eid(),nama,kategori_peserta,tanggal,jumlah_anggota_regu,hadiah_per_regu,estimasi_peserta,koordinator_anggota_id:null,agenda_id:null}; db.lomba.push(lombaRecord); }
+      syncAgendaLomba(lombaRecord);
       saveDB();
       // Lomba bertambah/berubah → kebutuhan paket hadiah berubah, sinkronkan stok yang harus dibeli.
       autoSyncHadiahStok(true);
       closeModal(); renderContent(); renderTopbarSaldo(); toast('Disimpan');
-      notifyTelegram(actionMsg, `Kategori: ${labelPeserta(kategori_peserta)}\nAnggota/regu: ${jumlah_anggota_regu}${hadiah_per_regu?' (1 hadiah untuk seluruh regu)':''}${estimasi_peserta>0?`\nEstimasi peserta: ${estimasi_peserta}`:''}`);
+      notifyTelegram(actionMsg, `Kategori: ${labelPeserta(kategori_peserta)}${tanggal?`\nTanggal: ${fmtDate(tanggal)}`:''}\nAnggota/regu: ${jumlah_anggota_regu}${hadiah_per_regu?' (1 hadiah untuk seluruh regu)':''}${estimasi_peserta>0?`\nEstimasi peserta: ${estimasi_peserta}`:''}`);
     }}
   ]);
 }
@@ -145,6 +200,7 @@ function hapusLomba(id){
   db.lombaKebutuhan=db.lombaKebutuhan.filter(k=>k.lomba_id!==id); 
   // Catatan: menghapus lomba TIDAK menurunkan qty_dibeli hadiah secara otomatis —
   // stok yang sudah disiapkan/dibeli tetap ada, bisa dikurangi manual lewat menu Kebutuhan Hadiah kalau perlu.
+  if(l && l.agenda_id){ db.agenda = db.agenda.filter(a=>a.id!==l.agenda_id); }
   db.lomba=db.lomba.filter(l=>l.id!==id); 
   saveDB(); renderContent(); renderTopbarSaldo();
   if(l) notifyTelegram(`🗑️ Hapus lomba: ${l.nama}`, `Kategori: ${labelPeserta(l.kategori_peserta)}`);

@@ -1711,3 +1711,18 @@ table.absensi-table th:nth-child(1), table.absensi-table td:nth-child(1){text-al
   0%,100%{ opacity:1; transform:scale(1); }
   50%{ opacity:.35; transform:scale(.75); }
 }
+
+/* FOOTER: catatan brand + kutipan, tampil di semua halaman karena diletakkan
+   di luar #content (lihat index.html) — bukan bagian dari renderContent(). */
+.app-footer{
+  margin-top:28px; padding:16px 4px 8px;
+  text-align:center;
+  border-top:1px solid var(--garis);
+}
+.app-footer-brand{
+  font-size:12px; font-weight:600; color:var(--ink-soft);
+  letter-spacing:.02em;
+}
+.app-footer-quote{
+  margin-top:3px; font-size:11.5px; font-style:italic; color:var(--abu);
+}

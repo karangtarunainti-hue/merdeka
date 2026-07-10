@@ -216,6 +216,14 @@ function hitungStokLebihHadiah(){
   rows.sort((a,b) => b.nilai - a.nilai);
   return rows;
 }
+// Cek apakah item hadiah ini sudah dicentang "dibeli" di Daftar Belanja Hadiah —
+// dipakai untuk memperingatkan panitia sebelum qty_dibeli-nya diubah lewat jalur lain
+// (panel Stok Lebih / edit item), supaya tidak nyelip beda dengan barang fisik yang
+// sudah benar-benar dibeli di toko.
+function isItemHadiahSudahDibeli(hadiahId, itemId){
+  const b = db.daftarBelanjaHadiah.find(x=>x.hadiah_kategori_id===hadiahId && x.item_id===itemId && x.event_id===eid());
+  return !!(b && b.status === 'dibeli');
+}
 // Cepat turunkan qty_dibeli 1 item persis ke kebutuhan (target) saat ini — dipakai
 // dari tombol "↓ Sesuaikan" di card Stok Lebih, alternatif lebih cepat dibanding
 // buka modal edit item satu-satu.
@@ -228,6 +236,9 @@ function turunkanStokHadiahKeKebutuhan(hadiahId, itemId){
   const target = hitungTargetQtyItem(item, kebutuhan);
   const dibeliSebelum = Number(item.qty_dibeli||0);
   if(target==null || dibeliSebelum <= target){ toast('Tidak ada kelebihan lagi'); renderContent(); return; }
+  if(isItemHadiahSudahDibeli(hadiahId, itemId)){
+    if(!confirm(`⚠️ "${item.nama}" sudah dicentang DIBELI di Daftar Belanja.\n\nMenurunkan qty di sini cuma mengubah angka kebutuhan (target), bukan barang fisik yang sudah dibeli — cek dulu apakah memang mau dikembalikan/dijual lagi kelebihannya. Lanjutkan?`)) return;
+  }
   item.qty_dibeli = target;
   saveDB(); renderContent(); renderTopbarSaldo();
   toast(`✓ "${item.nama}" diturunkan dari ${dibeliSebelum} → ${target} pcs`);
@@ -590,7 +601,11 @@ async function editHadiahItem(hadiahId,itemId){
   if(newPerPaket===null) return;
   const newQty = await promptModal({title:'Edit Item Hadiah', label:'Qty total (dibeli)', hint:'Boleh diisi lebih untuk cadangan. Kalau diisi kurang dari kebutuhan (jumlah lomba × qty/paket), badge "⚠️ Kurang" akan muncul lagi.', defaultValue:item.qty_dibeli, type:'number'});
   if(newQty===null) return;
-  if(!newNama.trim()||Number(newQty)<0){toast('Nama & qty wajib');return;} item.nama=newNama.trim(); item.harga_satuan=Number(newHarga)||0; item.qty_per_paket=Math.max(1,Number(newPerPaket)||1); item.qty_dibeli=Number(newQty)||0;
+  if(!newNama.trim()||Number(newQty)<0){toast('Nama & qty wajib');return;}
+  if(Number(newQty)!==Number(item.qty_dibeli||0) && isItemHadiahSudahDibeli(hadiahId, itemId)){
+    if(!confirm(`⚠️ "${item.nama}" sudah dicentang DIBELI di Daftar Belanja.\n\nQty di sini cuma angka kebutuhan (target), bukan barang fisik yang sudah dibeli — ubah kalau memang sudah dicek ulang. Lanjutkan?`)) return;
+  }
+  item.nama=newNama.trim(); item.harga_satuan=Number(newHarga)||0; item.qty_per_paket=Math.max(1,Number(newPerPaket)||1); item.qty_dibeli=Number(newQty)||0;
   const samaCount = samakanHargaItemSejenis(item.nama, item.harga_satuan, item.id);
   saveDB(); renderContent(); toast(samaCount>0?`Diupdate, harga disamakan ke ${samaCount} item "${item.nama}" lainnya`:'Diupdate'); 
   notifyTelegram(`✏️ Edit item hadiah: ${item.nama}`, `Paket: ${labelPeserta(h.kategori_peserta)} - ${labelJuara(h.juara_ke)}\nHarga: ${fmtRp(item.harga_satuan)}\nQty: ${item.qty_dibeli}${item.qty_per_paket>1?` (${item.qty_per_paket} buah per paket)`:''}`);

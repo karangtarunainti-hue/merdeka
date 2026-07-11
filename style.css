@@ -275,54 +275,73 @@
     border-color:var(--merah);
   }
 
-  .telegram-settings{
-    background:var(--telegram-tint);
-    border:1px solid #b8d9ef;
-    border-radius:var(--radius);
-    padding:16px 20px;
-    margin-bottom:20px;
-    display:flex;
-    align-items:center;
-    gap:16px;
-    flex-wrap:wrap;
+  /* ===== Pengaturan: status pill (dipakai di panel-head Telegram Notifikasi) ===== */
+  .status-pill{
+    display:inline-flex; align-items:center; gap:6px;
+    padding:5px 12px; border-radius:20px;
+    font-size:11.5px; font-weight:700;
+    white-space:nowrap;
   }
-  .telegram-settings .label{
-    font-weight:600;
-    font-size:13px;
-    color:var(--telegram);
-    display:flex;
-    align-items:center;
-    gap:6px;
+  .status-pill .status-dot{width:7px; height:7px; border-radius:50%; display:inline-block; flex-shrink:0;}
+  .status-pill.on{background:var(--hijau-tint); color:var(--hijau);}
+  .status-pill.on .status-dot{background:var(--hijau);}
+  .status-pill.off{background:var(--cream); color:var(--abu); border:1px solid var(--garis);}
+  .status-pill.off .status-dot{background:var(--abu);}
+
+  /* Baris tombol aksi pengaturan (Telegram, dst) — rapi & sejajar, bukan
+     tombol lepas yang menumpuk begitu saja. */
+  .settings-actions{
+    display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+    padding-top:14px; margin-top:14px; border-top:1px solid var(--garis);
   }
-  .telegram-settings .label .icon{font-size:20px;}
-  .telegram-settings input{
-    flex:1;
-    min-width:180px;
-    padding:8px 12px;
-    border:1px solid #b8d9ef;
-    border-radius:6px;
-    font-size:13px;
-    background:var(--surface);
+  .settings-actions .btn{margin:0;}
+  .settings-actions .spacer{flex:1;}
+
+  /* Field dengan ikon di kiri input (Bot Token, Chat ID, dst) */
+  .field.field-icon{position:relative;}
+  .field.field-icon input{padding-left:34px !important;}
+  .field.field-icon .field-icon-glyph{
+    position:absolute; left:11px; top:33px; font-size:14px; color:var(--abu); pointer-events:none; line-height:1;
   }
-  .telegram-settings input:focus{
-    outline:2px solid var(--telegram);
-    border-color:var(--telegram);
+
+  /* ===== Akses Guest — grid toggle-chip, pengganti checkbox polos bawaan ===== */
+  .toggle-grid{
+    display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:8px;
   }
-  .telegram-settings .status{
-    font-size:12px;
-    color:var(--ink-soft);
-    display:flex;
-    align-items:center;
-    gap:6px;
+  .toggle-chip{
+    display:flex; align-items:center; gap:10px;
+    padding:9px 12px; border:1px solid var(--garis); border-radius:9px;
+    background:var(--surface); cursor:pointer; transition:border-color .15s ease, background .15s ease;
   }
-  .telegram-settings .status .dot{
-    width:8px;
-    height:8px;
-    border-radius:50%;
-    display:inline-block;
+  .toggle-chip:hover{border-color:var(--abu);}
+  .toggle-chip:has(input:checked){background:var(--gold-tint); border-color:var(--gold);}
+  .toggle-box{
+    width:18px; height:18px; flex-shrink:0; border:2px solid var(--abu); border-radius:5px;
+    display:flex; align-items:center; justify-content:center; background:var(--surface);
+    transition:all .15s ease;
   }
-  .telegram-settings .status .dot.active{background:var(--hijau);}
-  .telegram-settings .status .dot.inactive{background:var(--abu);}
+  .toggle-chip input:checked ~ .toggle-box{background:var(--gold); border-color:var(--gold);}
+  .toggle-chip input:checked ~ .toggle-box::after{content:'✓'; color:#fff; font-size:11px; font-weight:700;}
+  .toggle-chip .toggle-icon{font-size:14px; flex-shrink:0;}
+  .toggle-chip .toggle-text{font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+
+  /* ===== Cadangan Data — baris aksi backup (judul+deskripsi kiri, tombol kanan) ===== */
+  .backup-row{
+    display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;
+    padding:14px 18px;
+  }
+  .backup-row + .backup-row{border-top:1px solid var(--garis);}
+  .backup-row .backup-info{flex:1 1 240px; min-width:0;}
+  .backup-row .backup-title{font-weight:700; font-size:13.5px; display:flex; align-items:center; gap:6px; margin-bottom:3px;}
+  .backup-row .backup-desc{font-size:11.5px; color:var(--abu); line-height:1.5;}
+  .backup-row .backup-desc b{color:var(--ink-soft);}
+  .backup-row .backup-actions{display:flex; gap:8px; flex-wrap:wrap; flex-shrink:0;}
+  .backup-row .backup-actions .btn{margin:0;}
+
+  /* ===== Manajemen Event — kartu ringkas versi HP (lihat .events-mobile-wrap,
+     pola sama dengan .users-mobile-wrap) ===== */
+  .events-mobile-wrap{display:none;}
+  .event-card-actions{display:flex; gap:8px; justify-content:flex-end;}
 
   .stat-grid{
     display:grid;
@@ -1405,6 +1424,18 @@
     /* --- Manajemen User: sembunyikan tabel geser, tampilkan kartu --- */
     .users-table-wrap{display:none;}
     .users-mobile-wrap{display:block;}
+
+    /* --- Manajemen Event (Pengaturan): sembunyikan tabel geser, tampilkan kartu --- */
+    .events-table-wrap{display:none;}
+    .events-mobile-wrap{display:block;}
+
+    /* --- Akses Guest: grid toggle jadi 1 kolom penuh di HP --- */
+    .toggle-grid{grid-template-columns:1fr;}
+
+    /* --- Cadangan Data: tombol full-width & rapi bertumpuk di HP --- */
+    .backup-row{flex-direction:column; align-items:stretch;}
+    .backup-row .backup-actions{width:100%;}
+    .backup-row .backup-actions .btn, .backup-row .backup-actions label.btn{flex:1; justify-content:center;}
 
 
     /* --- Jadwal & Reminder: kartu, bukan tabel geser --- */

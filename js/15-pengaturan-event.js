@@ -30,90 +30,120 @@ function renderPengaturan(){
   
   <!-- TELEGRAM NOTIFICATION SETTINGS -->
   <div class="panel">
-    <div class="panel-head"><h3>🤖 Telegram Notifikasi</h3></div>
+    <div class="panel-head">
+      <div><h3>🤖 Telegram Notifikasi</h3><div class="desc">Kirim notifikasi otomatis ke Telegram setiap ada perubahan data</div></div>
+      <span class="status-pill ${telegram.enabled ? 'on' : 'off'}"><span class="status-dot"></span>${telegram.enabled ? 'Aktif' : 'Nonaktif'}</span>
+    </div>
     <div class="panel-body">
-      <div class="field">
-        <label>Bot Token</label>
-        <input id="telegram-bot-token" type="text" value="${esc(telegram.botToken||'')}" placeholder="Masukkan token bot dari @BotFather">
-        <div class="hint">Contoh: 1234567890:ABCdefGHIjklMNOpqrsTUVwxyz</div>
-      </div>
-      <div class="field">
-        <label>Chat ID</label>
-        <input id="telegram-chat-id" type="text" value="${esc(telegram.chatId||'')}" placeholder="Masukkan chat ID tujuan">
-        <div class="hint">Bisa didapat dari @userinfobot atau @getidsbot</div>
-      </div>
       <div class="field-row">
-        <div class="field">
-          <label>Status</label>
-          <div class="status">
-            <span class="dot ${telegram.enabled ? 'active' : 'inactive'}"></span>
-            <span>${telegram.enabled ? '✅ Notifikasi Aktif' : '⛔ Notifikasi Nonaktif'}</span>
-          </div>
+        <div class="field field-icon">
+          <label>Bot Token</label>
+          <span class="field-icon-glyph">🔑</span>
+          <input id="telegram-bot-token" type="text" value="${esc(telegram.botToken||'')}" placeholder="Token dari @BotFather">
+          <div class="hint">Contoh: 1234567890:ABCdefGHIjklMNOpqrsTUVwxyz</div>
         </div>
-        <div class="field" style="display:flex; align-items:end; gap:8px;">
-          <button class="btn ${telegram.enabled ? 'danger' : 'success'} small" onclick="toggleTelegram()" style="margin-bottom:0;">
-            ${telegram.enabled ? '⛔ Nonaktifkan' : '✅ Aktifkan'}
-          </button>
-          <button class="btn telegram small" onclick="testTelegram()" style="margin-bottom:0;">📨 Test Kirim</button>
+        <div class="field field-icon">
+          <label>Chat ID</label>
+          <span class="field-icon-glyph">💬</span>
+          <input id="telegram-chat-id" type="text" value="${esc(telegram.chatId||'')}" placeholder="Chat ID tujuan">
+          <div class="hint">Bisa didapat dari @userinfobot atau @getidsbot</div>
         </div>
       </div>
-      <button class="btn telegram" onclick="simpanTelegram()">💾 Simpan Pengaturan Telegram</button>
+      <div class="settings-actions">
+        <button class="btn ${telegram.enabled ? 'danger' : 'success'} small" onclick="toggleTelegram()">
+          ${telegram.enabled ? '⛔ Nonaktifkan' : '✅ Aktifkan'}
+        </button>
+        <button class="btn telegram small" onclick="testTelegram()">📨 Test Kirim</button>
+        <span class="spacer"></span>
+        <button class="btn telegram" onclick="simpanTelegram()">💾 Simpan</button>
+      </div>
     </div>
   </div>
   
   <!-- AKSES GUEST -->
   <div class="panel">
-    <div class="panel-head"><h3>👁️ Akses Guest (Belum Login)</h3></div>
+    <div class="panel-head">
+      <div><h3>👁️ Akses Guest (Belum Login)</h3><div class="desc">Pilih menu yang boleh dilihat pengunjung yang belum login</div></div>
+    </div>
     <div class="panel-body">
-      <div class="hint" style="margin-bottom:10px;">Pilih menu yang boleh dilihat pengunjung yang belum login. Menu yang tidak dicentang akan disembunyikan dari Guest dan langsung ditolak jika diakses.</div>
-      <div class="guest-menu-list" style="display:flex;flex-direction:column;gap:8px;">
+      <div class="toggle-grid">
         ${SECTIONS.filter(s=>!s.adminOnly).map(s=>`
-          <label style="display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--garis);border-radius:8px;">
-            <input type="checkbox" class="guest-menu-check" data-key="${s.key}" ${isGuestVisible(s.key) ? 'checked' : ''}>
-            <span>${icon(s.icon)}</span>
-            <span>${esc(s.label)}</span>
+          <label class="toggle-chip">
+            <input type="checkbox" class="guest-menu-check" data-key="${s.key}" ${isGuestVisible(s.key) ? 'checked' : ''} hidden>
+            <span class="toggle-box"></span>
+            <span class="toggle-icon">${icon(s.icon)}</span>
+            <span class="toggle-text">${esc(s.label)}</span>
           </label>`).join('')}
       </div>
-      <button class="btn" style="margin-top:12px;" onclick="simpanGuestMenu()">💾 Simpan Akses Guest</button>
+      <button class="btn" style="margin-top:14px;" onclick="simpanGuestMenu()">💾 Simpan Akses Guest</button>
     </div>
   </div>
 
   <div class="panel">
-    <div class="panel-head"><h3>Manajemen Event</h3></div>
-    <div class="panel-body flush">
+    <div class="panel-head">
+      <div><h3>Manajemen Event</h3><div class="desc">Kelola event, aktifkan, atau buat event baru</div></div>
+      <button class="btn gold small" onclick="openEventModal()">+ Buat Event</button>
+    </div>
+    <div class="panel-body flush events-table-wrap">
       <table class="general-table"><thead><tr><th>Nama</th><th>Tahun</th><th></th></tr></thead>
       <tbody>${db.events.map(e=>`<tr><td>${esc(e.nama)}${e.id===db.activeEventId?' <span class="badge lunas">Aktif</span>':''}</td><td>${esc(e.tahun)}</td><td style="text-align:right;white-space:nowrap;">${e.id===db.activeEventId?'':`<button class="btn secondary small" onclick="setActiveEvent('${e.id}')">Aktifkan</button>`}<button class="icon-btn" onclick="openEventModal('${e.id}')" title="Ubah nama/tahun">✎</button><button class="icon-btn" onclick="hapusEvent('${e.id}')" title="Hapus event">🗑</button></td></tr>`).join('')||`<tr class="empty-row"><td colspan="3">Belum ada event.</td></tr>`}</tbody></table>
     </div>
-    <div class="panel-body"><button class="btn gold" onclick="openEventModal()">+ Buat Event</button></div>
+    <div class="panel-body events-mobile-wrap">
+      <div class="jadwal-item-list">${db.events.map(e=>`
+        <div class="jadwal-item">
+          <div class="jadwal-item-top">
+            <div class="jadwal-item-title" style="margin-bottom:0;">${esc(e.nama)}</div>
+            ${e.id===db.activeEventId?'<span class="badge lunas">Aktif</span>':''}
+          </div>
+          <div class="lomba-detail-row"><span class="lbl">📅 Tahun</span><span class="val">${esc(e.tahun)}</span></div>
+          <div class="jadwal-item-actions event-card-actions">
+            ${e.id===db.activeEventId?'':`<button class="btn secondary small" onclick="setActiveEvent('${e.id}')">Aktifkan</button>`}
+            <button class="icon-btn" onclick="openEventModal('${e.id}')" title="Ubah nama/tahun">✎</button>
+            <button class="icon-btn" onclick="hapusEvent('${e.id}')" title="Hapus event">🗑</button>
+          </div>
+        </div>`).join('') || `<div class="empty-row" style="padding:30px;text-align:center;">Belum ada event.</div>`}</div>
+    </div>
   </div>
   <div class="panel">
     <div class="panel-head"><h3>Cadangan Data</h3></div>
-    <div class="panel-body">
-      <div class="hint" style="margin-bottom:8px;">Backup penuh berisi SEMUA event sekaligus. Impor akan MENIMPA seluruh data.</div>
-      <div style="display:flex;gap:10px;flex-wrap:wrap;">
-        <button class="btn secondary" onclick="exportData()">⬇ Ekspor Semua Data</button>
-        <label class="btn secondary" style="margin:0;">⬆ Impor (Timpa Semua)<input type="file" accept=".json" style="display:none;" onchange="importData(event)"></label>
+    <div class="backup-row">
+      <div class="backup-info">
+        <div class="backup-title">📦 Backup Semua Data</div>
+        <div class="backup-desc">Berisi SEMUA event sekaligus. Impor akan <b>MENIMPA</b> seluruh data.</div>
+      </div>
+      <div class="backup-actions">
+        <button class="btn secondary" onclick="exportData()">⬇ Ekspor</button>
+        <label class="btn secondary">⬆ Impor (Timpa Semua)<input type="file" accept=".json" style="display:none;" onchange="importData(event)"></label>
       </div>
     </div>
-    <div class="panel-body" style="border-top:1px solid var(--garis);">
-      <div class="hint" style="margin-bottom:8px;">Backup khusus event aktif${activeEvent()?` (<b>${esc(activeEvent().nama)}</b>)`:''}. Aman untuk disimpan per-kegiatan; saat diimpor akan dibuat sebagai <b>event baru</b>, tidak menimpa data lain.</div>
-      <div style="display:flex;gap:10px;flex-wrap:wrap;">
-        <button class="btn secondary" onclick="exportDataEvent()" ${!activeEvent()?'disabled':''}>⬇ Ekspor Event Aktif</button>
-        <label class="btn secondary" style="margin:0;${!activeEvent()?'opacity:.5;pointer-events:none;':''}">⬆ Impor sebagai Event Baru<input type="file" accept=".json" style="display:none;" onchange="importDataEvent(event)"></label>
+    <div class="backup-row">
+      <div class="backup-info">
+        <div class="backup-title">🎉 Backup Event Aktif${activeEvent()?` — <b>${esc(activeEvent().nama)}</b>`:''}</div>
+        <div class="backup-desc">Aman untuk disimpan per-kegiatan; saat diimpor akan dibuat sebagai <b>event baru</b>, tidak menimpa data lain.</div>
+      </div>
+      <div class="backup-actions">
+        <button class="btn secondary" onclick="exportDataEvent()" ${!activeEvent()?'disabled':''}>⬇ Ekspor</button>
+        <label class="btn secondary" ${!activeEvent()?'style="opacity:.5;pointer-events:none;"':''}>⬆ Impor sebagai Event Baru<input type="file" accept=".json" style="display:none;" onchange="importDataEvent(event)"></label>
       </div>
     </div>
-    <div class="panel-body" style="border-top:1px solid var(--garis);">
-      <div class="hint" style="margin-bottom:8px;">Backup Gudang Aset (inventaris + riwayat peminjaman). Data ini eventless, tidak ikut Backup Per-Event di atas. Impor akan MENAMBAH data, tidak menimpa.</div>
-      <div style="display:flex;gap:10px;flex-wrap:wrap;">
-        <button class="btn secondary" onclick="gudangExportJSON()">⬇ Ekspor Gudang Aset</button>
-        <label class="btn secondary" style="margin:0;">⬆ Impor Gudang Aset<input type="file" accept=".json" style="display:none;" onchange="gudangImportJSON(this)"></label>
+    <div class="backup-row">
+      <div class="backup-info">
+        <div class="backup-title">🏬 Backup Gudang Aset</div>
+        <div class="backup-desc">Inventaris + riwayat peminjaman. Data ini eventless, tidak ikut Backup Per-Event. Impor akan <b>MENAMBAH</b> data, tidak menimpa.</div>
+      </div>
+      <div class="backup-actions">
+        <button class="btn secondary" onclick="gudangExportJSON()">⬇ Ekspor</button>
+        <label class="btn secondary">⬆ Impor<input type="file" accept=".json" style="display:none;" onchange="gudangImportJSON(this)"></label>
       </div>
     </div>
-    <div class="panel-body" style="border-top:1px solid var(--garis);">
-      <div class="hint" style="margin-bottom:8px;">Backup Kas Karang Taruna (transaksi debit/kredit). Data ini eventless, tidak ikut Backup Per-Event di atas — tapi IKUT ke dalam Backup Semua Data. Impor akan MENAMBAH data, tidak menimpa.</div>
-      <div style="display:flex;gap:10px;flex-wrap:wrap;">
-        <button class="btn secondary" onclick="kasExportJSON()">⬇ Ekspor Kas Karang Taruna</button>
-        <label class="btn secondary" style="margin:0;">⬆ Impor Kas Karang Taruna<input type="file" accept=".json" style="display:none;" onchange="kasImportJSON(this)"></label>
+    <div class="backup-row">
+      <div class="backup-info">
+        <div class="backup-title">💰 Backup Kas Karang Taruna</div>
+        <div class="backup-desc">Transaksi debit/kredit. Eventless, tidak ikut Backup Per-Event — tapi IKUT ke Backup Semua Data. Impor akan <b>MENAMBAH</b> data, tidak menimpa.</div>
+      </div>
+      <div class="backup-actions">
+        <button class="btn secondary" onclick="kasExportJSON()">⬇ Ekspor</button>
+        <label class="btn secondary">⬆ Impor<input type="file" accept=".json" style="display:none;" onchange="kasImportJSON(this)"></label>
       </div>
     </div>
   </div>`;

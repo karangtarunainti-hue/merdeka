@@ -50,8 +50,6 @@ function generateJadwalReminderCard(){
       <div class="lomba-detail-row"><span class="lbl">🗓️ Hari &amp; Tanggal</span><span class="val">${fmtDateHari(j.tanggal)} · ${kapanLabel}</span></div>
       <div class="lomba-detail-row"><span class="lbl">⏰ Waktu</span><span class="val">${j.jam?esc(j.jam):'Belum ditentukan'}</span></div>
       <div class="lomba-detail-row"><span class="lbl">📌 Judul</span><span class="val">${esc(j.judul)}${lombaLink?' 🔗':''}</span></div>
-      <div class="lomba-detail-row"><span class="lbl">🏷️ Kategori</span><span class="val">${esc(labelKategoriJadwal(j.kategori))}</span></div>
-      ${j.deskripsi ? `<div class="lomba-detail-row"><span class="lbl">📝 Keterangan</span><span class="val">${esc(j.deskripsi)}</span></div>` : ''}
       ${extraRows}
     </div>`;
   }).join('');

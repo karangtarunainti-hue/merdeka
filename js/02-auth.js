@@ -54,10 +54,10 @@ function userSections() {
 }
 
 // Bisa akses (lihat) section ini? Admin: semua section. User: semua section
-// KECUALI yang adminOnly (Pengaturan, Manajemen User, Agenda Kegiatan).
-// Petugas: cuma dashboard + section yang ditugaskan ke dia (juga tidak pernah
-// termasuk section adminOnly, karena adminOnly tidak pernah masuk daftar
-// pilihan bidang Petugas — lihat openUserModal di 06-login-users.js).
+// KECUALI yang adminOnly (Pengaturan, Manajemen User). Petugas: cuma
+// dashboard + section yang ditugaskan ke dia (juga tidak pernah termasuk
+// section adminOnly, karena adminOnly tidak pernah masuk daftar pilihan
+// bidang Petugas — lihat openUserModal di 06-login-users.js).
 function canAccessSection(key) {
   const user = getCurrentUser();
   if (!user) return false;

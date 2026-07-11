@@ -19,7 +19,7 @@ const SECTIONS = [
   {key:'pengaturan', label:'Pengaturan', sub:'Tarif iuran & event', icon:'gear', adminOnly: true},
   {key:'database-anggota', label:'Database Anggota', sub:'Cek & filter semua anggota', icon:'database', adminOnly: false},
   {key:'users', label:'Manajemen User', sub:'Kelola akun pengguna', icon:'users', adminOnly: true},
-  {key:'agenda', label:'Agenda Kegiatan', sub:'', icon:'calendar', adminOnly: true},
+  {key:'agenda', label:'Agenda Kegiatan', sub:'', icon:'calendar', adminOnly: false},
   {key:'gudang', label:'Gudang Aset', sub:'Inventaris & pinjam aset desa', icon:'package', adminOnly: false},
   {key:'dokumen', label:'Surat & Dokumen', sub:'Undangan, proposal & absensi', icon:'clipboard', adminOnly: false},
   {key:'kas', label:'Kas Karang Taruna', sub:'', icon:'wallet', adminOnly: false},

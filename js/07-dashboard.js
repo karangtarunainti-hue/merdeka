@@ -111,46 +111,10 @@ function generateReminders(){
     });
   }
 
-  // Lomba Hari Ini — saat tanggal lomba tiba, tampilkan kartu detail lengkap:
-  // hari/tanggal/waktu, nama lomba, kegiatan (kategori peserta), perlengkapan
-  // (dari Kebutuhan Barang lomba), dan nama koordinator (dari Database Anggota).
-  const lombaListHariIni = isMenuAktif('lomba') ? gLomba() : [];
-  const lombaHariIni = lombaListHariIni.filter(l => {
-    if (!l.tanggal) return false;
-    const lDate = new Date(l.tanggal + 'T00:00:00');
-    return lDate.toDateString() === today.toDateString();
-  }).sort((a,b) => String(a.jam||'').localeCompare(String(b.jam||'')));
-
-  if (lombaHariIni.length > 0) {
-    const lombaCardsHtml = lombaHariIni.map(l => {
-      const kebutuhan = gKebutuhan(l.id);
-      const perlengkapanText = kebutuhan.length
-        ? kebutuhan.map(k => `${k.nama_item} (${k.qty})`).join(', ')
-        : 'Belum ada data perlengkapan';
-      const koordinatorNama = getKoordinatorIds(l)
-        .map(id => (db.anggota.find(a=>a.id===id)||{}).nama)
-        .filter(Boolean);
-      const koordinatorText = koordinatorNama.length ? koordinatorNama.join(', ') : 'Belum ada koordinator';
-      return `
-      <div class="lomba-detail-card">
-        <div class="lomba-detail-row"><span class="lbl">🗓️ Hari &amp; Tanggal</span><span class="val">${fmtDateHari(l.tanggal)}</span></div>
-        <div class="lomba-detail-row"><span class="lbl">⏰ Waktu</span><span class="val">${l.jam?esc(l.jam):'Belum ditentukan'}</span></div>
-        <div class="lomba-detail-row"><span class="lbl">🏆 Nama Lomba</span><span class="val">${esc(l.nama)}</span></div>
-        <div class="lomba-detail-row"><span class="lbl">🎯 Kegiatan Lomba</span><span class="val">${esc(labelPeserta(l.kategori_peserta))}</span></div>
-        <div class="lomba-detail-row"><span class="lbl">📦 Perlengkapan</span><span class="val">${esc(perlengkapanText)}</span></div>
-        <div class="lomba-detail-row"><span class="lbl">👤 Koordinator</span><span class="val">${esc(koordinatorText)}</span></div>
-      </div>`;
-    }).join('');
-
-    reminders.push({
-      type: 'warning',
-      icon: '🏆',
-      title: 'Lomba Hari Ini!',
-      count: lombaHariIni.length,
-      itemsHtml: lombaCardsHtml,
-      action: {label: 'Lihat Semua Lomba →', link: 'lomba'}
-    });
-  }
+  // Catatan: kartu "Lomba Hari Ini!" (detail lomba yang jadwalnya hari ini)
+  // sudah dipindah ke menu Jadwal Kegiatan (lihat generateJadwalReminderCard
+  // di 12-jadwal-agenda-kas.js) supaya semua info jadwal — termasuk lomba —
+  // ngumpul di satu tempat yang memang tentang jadwal, tidak dobel di sini.
 
   // Catatan: kartu notifikasi "Jadwal Mendatang" sudah dipindah ke menu
   // Jadwal Kegiatan sendiri (lihat generateJadwalReminderCard di

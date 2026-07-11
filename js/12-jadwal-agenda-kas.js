@@ -4,6 +4,10 @@
 // Kartu notifikasi "Jadwal Mendatang" — sebelumnya tampil di Buku Kegiatan
 // (dashboard), sekarang dipindah ke sini supaya langsung terlihat di menu
 // Jadwal Kegiatan sendiri, lebih relevan & tidak dobel dengan Buku Kegiatan.
+// Setiap jadwal ditampilkan sebagai kartu detail lengkap (bukan cuma satu
+// baris ringkas) — kalau entrinya otomatis nyambung ke Lomba (lihat
+// getLombaForJadwal), detail perlengkapan & koordinatornya ikut ditampilkan,
+// menggantikan kartu "Lomba Hari Ini!" yang dulu ada terpisah di Buku Kegiatan.
 function generateJadwalReminderCard(){
   const today = new Date();
   const jadwalList = gJadwal().filter(j => j.status !== 'selesai');
@@ -11,34 +15,46 @@ function generateJadwalReminderCard(){
     const jDate = new Date(j.tanggal + 'T00:00:00');
     const diffDays = Math.ceil((jDate - today) / (1000 * 60 * 60 * 24));
     return diffDays >= 0 && diffDays <= 7;
-  }).sort((a,b) => new Date(a.tanggal) - new Date(b.tanggal));
+  }).sort((a,b) => new Date(a.tanggal) - new Date(b.tanggal) || String(a.jam||'').localeCompare(String(b.jam||'')));
 
   if (upcomingJadwal.length === 0) return '';
 
-  const todayJadwal = upcomingJadwal.filter(j => {
+  const itemCardsHtml = upcomingJadwal.map(j => {
     const jDate = new Date(j.tanggal + 'T00:00:00');
-    return jDate.toDateString() === today.toDateString();
-  });
-  const soonJadwal = upcomingJadwal.filter(j => {
-    const jDate = new Date(j.tanggal + 'T00:00:00');
-    return jDate.toDateString() !== today.toDateString();
-  });
+    const diffDays = Math.ceil((jDate - today) / (1000 * 60 * 60 * 24));
+    const kapanLabel = diffDays === 0 ? 'Hari ini!' : diffDays === 1 ? 'Besok' : `${diffDays} hari lagi`;
 
-  let items = [];
-  if (todayJadwal.length > 0) {
-    items.push({label: '📌 Hari ini:', value: todayJadwal.map(j => `${j.judul} (${labelKategoriJadwal(j.kategori)})`).join(', ')});
-  }
-  if (soonJadwal.length > 0) {
-    const soonText = soonJadwal.map(j => {
-      const jDate = new Date(j.tanggal + 'T00:00:00');
-      const diffDays = Math.ceil((jDate - today) / (1000 * 60 * 60 * 24));
-      const dayLabel = diffDays === 1 ? 'Besok' : `${diffDays} hari lagi`;
-      return `${j.judul} (${dayLabel})`;
-    }).join(', ');
-    items.push({label: '📅 Mendatang:', value: soonText});
-  }
+    // Entri yang otomatis nyambung ke Lomba (lihat syncAgendaLomba di
+    // 10-lomba.js) dapet baris tambahan: kegiatan lomba, perlengkapan yang
+    // dibutuhkan, dan koordinatornya — biar setara sama kartu "Lomba Hari
+    // Ini!" yang dulu tampil di Buku Kegiatan.
+    const lombaLink = getLombaForJadwal(j.id);
+    let extraRows = '';
+    if (lombaLink) {
+      const kebutuhan = gKebutuhan(lombaLink.id);
+      const perlengkapanText = kebutuhan.length
+        ? kebutuhan.map(k => `${k.nama_item} (${k.qty})`).join(', ')
+        : 'Belum ada data perlengkapan';
+      const koordinatorNama = getKoordinatorIds(lombaLink)
+        .map(id => (db.anggota.find(a=>a.id===id)||{}).nama)
+        .filter(Boolean);
+      const koordinatorText = koordinatorNama.length ? koordinatorNama.join(', ') : 'Belum ada koordinator';
+      extraRows = `
+        <div class="lomba-detail-row"><span class="lbl">🎯 Kegiatan Lomba</span><span class="val">${esc(labelPeserta(lombaLink.kategori_peserta))}</span></div>
+        <div class="lomba-detail-row"><span class="lbl">📦 Perlengkapan</span><span class="val">${esc(perlengkapanText)}</span></div>
+        <div class="lomba-detail-row"><span class="lbl">👤 Koordinator</span><span class="val">${esc(koordinatorText)}</span></div>`;
+    }
 
-  if (items.length === 0) return '';
+    return `
+    <div class="lomba-detail-card">
+      <div class="lomba-detail-row"><span class="lbl">🗓️ Hari &amp; Tanggal</span><span class="val">${fmtDateHari(j.tanggal)} · ${kapanLabel}</span></div>
+      <div class="lomba-detail-row"><span class="lbl">⏰ Waktu</span><span class="val">${j.jam?esc(j.jam):'Belum ditentukan'}</span></div>
+      <div class="lomba-detail-row"><span class="lbl">📌 Judul</span><span class="val">${esc(j.judul)}${lombaLink?' 🔗':''}</span></div>
+      <div class="lomba-detail-row"><span class="lbl">🏷️ Kategori</span><span class="val">${esc(labelKategoriJadwal(j.kategori))}</span></div>
+      ${j.deskripsi ? `<div class="lomba-detail-row"><span class="lbl">📝 Keterangan</span><span class="val">${esc(j.deskripsi)}</span></div>` : ''}
+      ${extraRows}
+    </div>`;
+  }).join('');
 
   return `
   <div class="reminder-grid">
@@ -49,12 +65,7 @@ function generateJadwalReminderCard(){
         <div class="count">${upcomingJadwal.length}</div>
       </div>
       <div class="card-body">
-        ${items.map(item => `
-          <div class="item">
-            <span class="label">${item.label}</span>
-            <span class="value">${esc(item.value)}</span>
-          </div>
-        `).join('')}
+        ${itemCardsHtml}
       </div>
     </div>
   </div>`;

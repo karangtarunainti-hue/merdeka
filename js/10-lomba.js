@@ -446,6 +446,10 @@ function hapusKebutuhan(id){
 // diisi estimasi peserta (kebutuhan=null) dilewati karena memang belum punya target.
 function hitungStokLebihHadiah(){
   const rows = [];
+  // Pakai harga efektif per pcs dari hitungHargaAktualHadiahLomba() (di
+  // 11-belanja.js) supaya "nilai" kelebihan stok ikut memperhitungkan
+  // harga_eceran, bukan cuma harga_satuan/pack (lihat Bug #2).
+  const hadiahAktual = hitungHargaAktualHadiahLomba();
   gHadiahKategori().forEach(h => {
     const kebutuhan = hitungKebutuhanHadiah(h.kategori_peserta, h.juara_ke);
     if(kebutuhan==null) return;
@@ -454,12 +458,14 @@ function hitungStokLebihHadiah(){
       const dibeli = Number(item.qty_dibeli||0);
       if(dibeli > target){
         const lebih = dibeli - target;
+        const alokasi = hadiahAktual.perItem[`${h.id}_${item.id}`];
+        const hargaEfektif = alokasi ? alokasi.hargaEfektif : Number(item.harga_satuan||0);
         rows.push({
           hadiahId: h.id, itemId: item.id,
           kategori_peserta: h.kategori_peserta, juara_ke: h.juara_ke,
           nama: item.nama, target, dibeli, lebih,
           harga_satuan: Number(item.harga_satuan||0),
-          nilai: lebih * Number(item.harga_satuan||0)
+          nilai: lebih * hargaEfektif
         });
       }
     });

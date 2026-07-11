@@ -617,7 +617,10 @@ function renderHadiah(){
       <div class="kc-title">Kategori ${kp.l}</div>
       <div class="kc-progress">
         <div class="kc-progress-bar"><div class="kc-progress-fill" style="width:${pct}%;${adaLebih?'background:var(--merah);':''}"></div></div>
-        <div class="kc-money"><span>Harga paket <b>${fmtRp(paketTotal)}</b></span><span>dari <b>${fmtRp(budgetTotal)}</b></span></div>
+      <div class="kc-money">
+        <div class="kc-money-label">Harga paket dari</div>
+        <div class="kc-money-values"><b>${fmtRp(paketTotal)}</b><span class="kc-money-sep">/</span><b>${fmtRp(budgetTotal)}</b></div>
+      </div>
       </div>
       <div style="margin-top:8px;display:flex;flex-direction:column;gap:3px;">${rincianHtml}</div>
     </div>`;

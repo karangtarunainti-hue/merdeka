@@ -396,9 +396,11 @@
   .kategori-card .kc-stat.belum .n{color:var(--bahaya);}
   .kategori-card .kc-progress{display:flex; flex-direction:column; gap:5px; margin-top:auto;}
   .kategori-card .kc-progress-bar{height:6px; border-radius:4px; background:var(--garis); overflow:hidden;}
-  .kategori-card .kc-progress-fill{height:100%; background:var(--hijau); border-radius:4px;}
-  .kategori-card .kc-money{display:flex; justify-content:space-between; align-items:baseline; font-size:11.5px; color:var(--ink-soft);}
-  .kategori-card .kc-money b{font-family:'JetBrains Mono',monospace; font-size:12.5px; color:var(--ink); font-weight:600;}
+  .kategori-card .kc-progress-fill{height:100%; min-width:4px; background:var(--hijau); border-radius:4px;}
+  .kategori-card .kc-money{display:flex; flex-direction:column; gap:2px; font-size:11.5px; color:var(--ink-soft);}
+  .kategori-card .kc-money-label{font-size:11px;}
+  .kategori-card .kc-money-values{display:flex; align-items:baseline; gap:6px; flex-wrap:wrap; font-family:'JetBrains Mono',monospace; font-size:12.5px; color:var(--ink); font-weight:600;}
+  .kategori-card .kc-money-sep{color:var(--abu); font-weight:400;}
 
   .panel{
     background:var(--cream-card); border:1px solid var(--garis); border-radius:var(--radius);
@@ -2098,4 +2100,30 @@ table.absensi-table th:nth-child(1), table.absensi-table td:nth-child(1){text-al
     width:16%; min-width:0; white-space:nowrap; padding-right:6px;
   }
   table.lomba-table .icon-btn{ padding:3px; }
+}
+
+/* ============================================================
+   Rapikan khusus HP: Kebutuhan Hadiah
+   1) Badge info panjang (Stok lebih dari kebutuhan / Kurang butuh X /
+      Budget X · Sisa Y) sebelumnya "white-space:nowrap" bawaan
+      .lomba-badge bikin teksnya kepotong nabrak tepi kartu di layar
+      sempit. Di header grup hadiah, badge ini dibolehkan membungkus
+      & pindah ke barisnya sendiri selebar penuh.
+   2) Header grup (judul+badge vs total+tombol) ditumpuk rapi jadi
+      2 baris dengan pemisah tipis, bukan mengandalkan wrap otomatis
+      yang hasilnya kadang nyangkut rata kiri sendirian.
+   ============================================================ */
+@media (max-width:820px){
+  .hadiah-group-header{
+    flex-direction:column; align-items:stretch; gap:8px;
+  }
+  .hadiah-group-header .lomba-badge{
+    display:block; width:100%;
+    white-space:normal; word-break:break-word; line-height:1.45;
+    margin-left:0 !important; padding:5px 10px;
+  }
+  .hadiah-group-header > div:last-child{
+    justify-content:space-between;
+    padding-top:8px; border-top:1px dashed var(--garis);
+  }
 }

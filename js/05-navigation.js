@@ -2,7 +2,6 @@
    NAV / ROUTING
    ============================================================ */
 const SECTIONS = [
-  {key:'panduan', label:'Panduan', sub:'Cara pakai aplikasi ini', icon:'book', adminOnly: false},
   {key:'jadwal', label:'Jadwal Kegiatan', sub:'Kelola jadwal dan pengingat', icon:'calendar', adminOnly: false},
   {key:'dashboard', label:'Buku Kegiatan', sub:'Rekap & Reminder', icon:'grid', adminOnly: false},
   {key:'anggota', label:'Iuran Anggota', sub:'Kelola iuran anggota', icon:'users', adminOnly: false},
@@ -22,6 +21,7 @@ const SECTIONS = [
   {key:'users', label:'Manajemen User', sub:'Kelola akun pengguna', icon:'users', adminOnly: true},
   {key:'agenda', label:'Agenda Kegiatan', sub:'', icon:'calendar', adminOnly: false},
   {key:'gudang', label:'Gudang Aset', sub:'Inventaris & pinjam aset desa', icon:'package', adminOnly: false},
+  {key:'panduan', label:'Panduan', sub:'Cara pakai aplikasi ini', icon:'book', adminOnly: false},
   {key:'dokumen', label:'Surat & Dokumen', sub:'Undangan, proposal & absensi', icon:'clipboard', adminOnly: false},
   {key:'kas', label:'Kas Karang Taruna', sub:'', icon:'wallet', adminOnly: false},
 ];
@@ -29,7 +29,7 @@ const SECTIONS = [
 // Menu yang tidak terikat event tertentu (datanya global, bukan per-event).
 // Menu ini ditampilkan terpisah di atas, antara info login dan dropdown
 // Kegiatan Aktif, supaya jelas tidak berubah walau event aktif diganti.
-const GLOBAL_MENU_KEYS = ['panduan', 'kas', 'agenda', 'dokumen', 'database-anggota', 'gudang', 'users', 'pengaturan'];
+const GLOBAL_MENU_KEYS = ['kas', 'agenda', 'dokumen', 'database-anggota', 'gudang', 'panduan', 'users', 'pengaturan'];
 
 /* ============================================================
    FITUR OPSIONAL PER EVENT

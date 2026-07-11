@@ -188,6 +188,11 @@
   .nav-foot{padding:14px 18px 18px; font-size:11px; color:#C9A9A9; border-top:1px solid rgba(255,255,255,.1);}
 
   .main{flex:1; min-width:0; display:flex; flex-direction:column;}
+  /* #content diberi flex:1 supaya mengisi sisa tinggi layar ketika kontennya
+     pendek/kosong (mis. belum ada data) — otomatis mendorong footer ke bawah
+     layar, bukan nempel tepat di bawah konten. Kalau kontennya panjang,
+     tidak berpengaruh (tetap scroll normal seperti biasa). */
+  #content{flex:1 1 auto;}
   .topbar{
     padding:18px 32px; background:var(--cream-card); border-bottom:1px solid var(--garis);
     display:flex; align-items:center; justify-content:space-between; gap:20px; flex-wrap:wrap;

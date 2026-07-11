@@ -1976,3 +1976,41 @@ table.absensi-table th:nth-child(1), table.absensi-table td:nth-child(1){text-al
 .app-footer-quote{
   margin-top:3px; font-size:11.5px; font-style:italic; color:var(--abu);
 }
+
+/* ============================================================
+   BATAS KOLOM GRID CARD (berlaku untuk semua grid kartu di app):
+   - Layar lebar (>900px): maksimal 3 kolom per baris
+   - Layar sedang (481-900px): maksimal 2 kolom per baris
+   - Layar kecil/HP (<=480px): 1 kolom per baris
+   Pakai auto-fit (bukan angka kolom tetap) supaya kalau card-nya
+   cuma 1-2 buah, dia otomatis melebar mengisi baris — TIDAK dipaksa
+   jadi 3 kolom yang bikin sisa ruang kosong. Batas kolom dicapai
+   dengan minmax(calc(lebar-per-kolom), 1fr): lebar minimum tiap
+   kolom = 1/N lebar container (dikurangi gap), jadi browser tidak
+   akan pernah muat lebih dari N kolom, tapi kalau card lebih
+   sedikit dari N, sisa kolom kosong otomatis dilipat (auto-fit).
+   Ditaruh paling akhir supaya menang dari aturan grid-template-columns
+   sebelumnya (auto-fit/auto-fill) untuk class yang sama.
+   ============================================================ */
+.stat-grid{ grid-template-columns:repeat(auto-fit,minmax(calc(33.333% - 10px),1fr)); }
+.kategori-grid{ grid-template-columns:repeat(auto-fit,minmax(calc(33.333% - 7px),1fr)); }
+.role-info-grid{ grid-template-columns:repeat(auto-fit,minmax(calc(33.333% - 7px),1fr)); }
+.reminder-grid{ grid-template-columns:repeat(auto-fit,minmax(calc(33.333% - 11px),1fr)); }
+.gudang-item-grid{ grid-template-columns:repeat(auto-fit,minmax(calc(33.333% - 8px),1fr)); }
+
+@media (max-width:900px){
+  .stat-grid{ grid-template-columns:repeat(auto-fit,minmax(calc(50% - 7px),1fr)); }
+  .kategori-grid{ grid-template-columns:repeat(auto-fit,minmax(calc(50% - 5px),1fr)); }
+  .role-info-grid{ grid-template-columns:repeat(auto-fit,minmax(calc(50% - 5px),1fr)); }
+  .reminder-grid{ grid-template-columns:repeat(auto-fit,minmax(calc(50% - 8px),1fr)); }
+  .gudang-item-grid{ grid-template-columns:repeat(auto-fit,minmax(calc(50% - 6px),1fr)); }
+}
+@media (max-width:480px){
+  .stat-grid,
+  .kategori-grid,
+  .role-info-grid,
+  .reminder-grid,
+  .gudang-item-grid{
+    grid-template-columns:1fr;
+  }
+}

@@ -141,7 +141,7 @@ function openAnggotaModal(id){
   setModal(editing?'Edit Anggota':'Tambah Anggota', `
     <div class="field"><label>Nama Anggota</label><input id="f-nama" value="${editing?esc(editing.nama):''}" placeholder="Nama lengkap" oninput="autoGuessGenderFromNama()"></div>
     <div class="field"><label>Kategori</label>
-      <select id="f-kategori" onchange="updateNominalPreview()">
+      <select id="f-kategori" data-initial="${editing?editing.kategori:''}" data-nominal-awal="${editing?Number(editing.nominal_wajib||0):0}" onchange="updateNominalPreview()">
         ${KATEGORI_ANGGOTA.map(k=>`<option value="${k.v}" ${editing&&editing.kategori===k.v?'selected':''}>${k.l}</option>`).join('')}
       </select>
     </div>
@@ -168,7 +168,15 @@ function openAnggotaModal(id){
       const rt = document.getElementById('f-rt').value;
       const gender = document.getElementById('f-gender').value;
       if(!nama){ toast('Nama anggota wajib diisi'); return; }
-      const nominal = kategori==='khusus' ? getCurrencyValue(document.getElementById('f-nominal')) : (getSettings().tarif[kategori] || 0);
+      // Nominal HANYA disinkronkan ke tarif terkini kalau kategorinya benar-benar
+      // berubah (atau anggota baru). Kalau kategori tetap sama, nominal yang
+      // sudah tersimpan dipertahankan — supaya anggota yang sudah ditandai Lunas
+      // dengan tarif lama tidak diam-diam berubah cuma karena admin mengedit
+      // field lain (mis. RT) setelah tarif di Pengaturan diubah. Lihat Bug #3.
+      const kategoriBerubah = !editing || editing.kategori !== kategori;
+      const nominal = kategori==='khusus'
+        ? getCurrencyValue(document.getElementById('f-nominal'))
+        : (kategoriBerubah ? (getSettings().tarif[kategori] || 0) : Number(editing.nominal_wajib||0));
       if(kategori==='khusus' && (!nominal || nominal<=0)){ toast('Isi nominal iuran untuk kategori khusus'); return; }
       let actionMsg = '';
       if(editing){
@@ -204,8 +212,16 @@ function updateNominalPreview(){
     if (labelEl) labelEl.textContent = 'Nominal Wajib (bebas)';
     if (hintEl) hintEl.style.display = '';
   } else {
+    // Sama seperti di handler Simpan: kalau kategori belum diganti dari saat
+    // modal dibuka (edit anggota lama), tampilkan nominal ASLI yang sudah
+    // tersimpan — bukan tarif terkini — supaya preview tidak menyesatkan
+    // sebelum disimpan. Cuma disinkronkan ke tarif kalau kategori benar-benar
+    // diganti (atau anggota baru, dataset.initial kosong).
+    const kategoriAwal = kEl.dataset.initial || '';
+    const kategoriBerubah = kategoriAwal === '' || kategoriAwal !== kEl.value;
     const s = getSettings();
-    setCurrencyValue(nominalInput, s.tarif[kEl.value] || 0);
+    const nilai = kategoriBerubah ? (s.tarif[kEl.value] || 0) : Number(kEl.dataset.nominalAwal || 0);
+    setCurrencyValue(nominalInput, nilai);
     nominalInput.disabled = true;
     nominalInput.style.background = 'var(--cream)';
     if (labelEl) labelEl.textContent = 'Nominal Wajib (otomatis)';

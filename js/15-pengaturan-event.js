@@ -297,10 +297,20 @@ function importDataEvent(evt){
       (parsed.donatur||[]).forEach(x=>{ db.donatur.push({...x, id:uid(), event_id:newEventId}); });
       (parsed.transaksiLain||[]).forEach(x=>{ db.transaksiLain.push({...x, id:uid(), event_id:newEventId}); });
       (parsed.operasional||[]).forEach(x=>{ db.operasional.push({...x, id:uid(), event_id:newEventId}); });
-      (parsed.jadwal||[]).forEach(x=>{ db.jadwal.push({...x, id:uid(), event_id:newEventId}); });
+      const jadwalIdMap = {};
+      (parsed.jadwal||[]).forEach(x=>{ const nid=uid(); jadwalIdMap[x.id]=nid; db.jadwal.push({...x, id:nid, event_id:newEventId}); });
 
       const lombaIdMap = {};
-      (parsed.lomba||[]).forEach(x=>{ const nid=uid(); lombaIdMap[x.id]=nid; db.lomba.push({...x, id:nid, event_id:newEventId}); });
+      (parsed.lomba||[]).forEach(x=>{ const nid=uid(); lombaIdMap[x.id]=nid; db.lomba.push({...x, id:nid, event_id:newEventId,
+        // jadwal_id lomba WAJIB di-remap ke ID baru jadwal hasil impor di atas — kalau
+        // tidak, jadwal_id akan tetap menunjuk ke ID lama yang sudah tidak ada di event
+        // baru, dan begitu lomba ini diedit lagi, syncAgendaLomba (10-lomba.js) tidak
+        // akan menemukan entri lama itu dan malah membuat entri jadwal DUPLIKAT baru,
+        // sementara entri jadwal hasil impor tadi jadi nyasar tidak terhubung ke lomba
+        // manapun. Kalau entri jadwal sumbernya ternyata tidak ikut ter-ekspor (backup
+        // lama/rusak), fallback ke null (bukan ID lama) supaya tidak nyasar diam-diam.
+        jadwal_id: x.jadwal_id ? (jadwalIdMap[x.jadwal_id] || null) : null
+      }); });
 
       const kebutuhanIdMap = {};
       (parsed.lombaKebutuhan||[]).forEach(x=>{ const nid=uid(); kebutuhanIdMap[x.id]=nid; db.lombaKebutuhan.push({...x, id:nid, lomba_id: lombaIdMap[x.lomba_id] || x.lomba_id}); });

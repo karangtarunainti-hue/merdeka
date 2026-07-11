@@ -130,6 +130,27 @@ function bersihkanOrphanBelanjaPerlengkapan(result){
   return result.daftarBelanjaPerlengkapan.length !== before;
 }
 
+// Sama seperti di atas, tapi untuk kt_daftar_belanja_hadiah — sebelum ada fix di
+// hapusHadiah/hapusHadiahItem, menghapus paket/item hadiah tidak ikut menghapus
+// baris status belanjanya (dicocokkan lewat hadiah_kategori_id + item_id).
+function bersihkanOrphanBelanjaHadiah(result){
+  const validPairs = new Set();
+  (result.hadiahKategori||[]).forEach(h=>(h.items||[]).forEach(it=>validPairs.add(`${h.id}_${it.id}`)));
+  const before = (result.daftarBelanjaHadiah||[]).length;
+  result.daftarBelanjaHadiah = (result.daftarBelanjaHadiah||[]).filter(b=>validPairs.has(`${b.hadiah_kategori_id}_${b.item_id}`));
+  return result.daftarBelanjaHadiah.length !== before;
+}
+
+// Sama seperti di atas, tapi untuk kt_daftar_belanja_jalan_santai — sebelum ada
+// fix di hapusHadiahJalan, menghapus hadiah jalan santai tidak ikut menghapus
+// baris status belanjanya (dicocokkan lewat hadiah_jalan_id).
+function bersihkanOrphanBelanjaJalanSantai(result){
+  const hadiahJalanIds = new Set((result.hadiahJalanSantai||[]).map(h=>h.id));
+  const before = (result.daftarBelanjaJalanSantai||[]).length;
+  result.daftarBelanjaJalanSantai = (result.daftarBelanjaJalanSantai||[]).filter(b=>hadiahJalanIds.has(b.hadiah_jalan_id));
+  return result.daftarBelanjaJalanSantai.length !== before;
+}
+
 async function loadDB(){
   const result = defaultDB();
   try{
@@ -230,13 +251,15 @@ async function loadDB(){
     result._loadFailed = true;
   }
   const migrasiHadiahBerubah = migrasiItemIdHadiah(result);
-  const orphanBelanjaDibersihkan = bersihkanOrphanBelanjaPerlengkapan(result);
-  if(migrasiHadiahBerubah || orphanBelanjaDibersihkan){
+  const orphanPerlengkapanDibersihkan = bersihkanOrphanBelanjaPerlengkapan(result);
+  const orphanHadiahDibersihkan = bersihkanOrphanBelanjaHadiah(result);
+  const orphanJalanDibersihkan = bersihkanOrphanBelanjaJalanSantai(result);
+  if(migrasiHadiahBerubah || orphanPerlengkapanDibersihkan || orphanHadiahDibersihkan || orphanJalanDibersihkan){
     // Ada item hadiah lama yang baru saja diberi `id` + record belanja yang baru
-    // ditautkan via `item_id`, dan/atau baris belanja perlengkapan orphan yang baru
-    // dibersihkan — simpan sekarang juga supaya migrasi ini benar-benar jalan sekali
-    // dan tidak hilang kalau user langsung hapus/reorder item sebelum ada perubahan
-    // lain yang memicu saveDB().
+    // ditautkan via `item_id`, dan/atau baris belanja (perlengkapan/hadiah/jalan
+    // santai) orphan yang baru dibersihkan — simpan sekarang juga supaya migrasi
+    // ini benar-benar jalan sekali dan tidak hilang kalau user langsung hapus/reorder
+    // item sebelum ada perubahan lain yang memicu saveDB().
     db = result;
     saveDB();
   }

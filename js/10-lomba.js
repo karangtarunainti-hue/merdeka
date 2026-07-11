@@ -778,6 +778,10 @@ function openHadiahModal(id){
       openHadiahGroups.add(currentHadiahId);
       let totalSama = 0;
       items.forEach((it)=>{ totalSama += samakanHargaItemSejenis(it.nama, it.harga_satuan, it.id); });
+      // qty_per_paket bisa saja baru diubah di form ini — sinkronkan lagi total qty
+      // yang wajib dibeli (dinamis, bukan cuma menunggu lomba diedit atau tombol
+      // "Sinkronkan Ulang" manual), supaya target selalu konsisten dengan data terbaru.
+      autoSyncHadiahStok(true);
       saveDB(); closeModal(); renderContent(); renderTopbarSaldo(); toast(totalSama>0?`Disimpan, harga disamakan ke ${totalSama} item lain`:'Disimpan');
       const detail = items.map(i => `${i.nama} (${i.qty_dibeli} × ${fmtRp(i.harga_satuan)})`).join('\n');
       notifyTelegram(actionMsg, detail);
@@ -863,7 +867,12 @@ async function editHadiahItem(hadiahId,itemId){
 }
 function hapusHadiahItem(hadiahId,itemId){ 
   if (!canEditSection('hadiah')) { toast('⛔ Login untuk mengedit data'); return; }
-  const h=db.hadiahKategori.find(x=>x.id===hadiahId); const itemIdx=h ? h.items.findIndex(it=>it.id===itemId) : -1; if(itemIdx===-1){ toast('Item tidak ditemukan'); return; } const itemName = h.items[itemIdx].nama; if(!confirm(`Hapus "${itemName}"?`)) return; h.items.splice(itemIdx,1); if(h.items.length===0) db.hadiahKategori=db.hadiahKategori.filter(x=>x.id!==hadiahId); saveDB(); renderContent(); toast('Dihapus'); 
+  const h=db.hadiahKategori.find(x=>x.id===hadiahId); const itemIdx=h ? h.items.findIndex(it=>it.id===itemId) : -1; if(itemIdx===-1){ toast('Item tidak ditemukan'); return; } const itemName = h.items[itemIdx].nama; if(!confirm(`Hapus "${itemName}"?`)) return; h.items.splice(itemIdx,1); const paketHabis = h.items.length===0; if(paketHabis) db.hadiahKategori=db.hadiahKategori.filter(x=>x.id!==hadiahId);
+  // Ikut hapus status belanja yang mereferensikan item ini (dan seluruh paket kalau
+  // paketnya ikut terhapus karena sudah kosong), supaya tidak jadi orphan permanen
+  // di kt_daftar_belanja_hadiah.
+  db.daftarBelanjaHadiah = db.daftarBelanjaHadiah.filter(b=> !(b.hadiah_kategori_id===hadiahId && (b.item_id===itemId || paketHabis)));
+  saveDB(); renderContent(); toast('Dihapus'); 
   notifyTelegram(`🗑️ Hapus item hadiah: ${itemName}`, `Paket: ${labelPeserta(h.kategori_peserta)} - ${labelJuara(h.juara_ke)}`);
 }
 function tambahItemHadiah(hadiahId, kebutuhan){ 
@@ -875,6 +884,10 @@ function tambahItemHadiah(hadiahId, kebutuhan){
 }
 function hapusHadiah(id){ 
   if (!canEditSection('hadiah')) { toast('⛔ Login untuk mengedit data'); return; }
-  const h=db.hadiahKategori.find(x=>x.id===id); if(!h) return; if(!confirm('Hapus paket?')) return; db.hadiahKategori=db.hadiahKategori.filter(x=>x.id!==id); saveDB(); renderContent(); renderTopbarSaldo(); 
+  const h=db.hadiahKategori.find(x=>x.id===id); if(!h) return; if(!confirm('Hapus paket?')) return; db.hadiahKategori=db.hadiahKategori.filter(x=>x.id!==id); 
+  // Ikut hapus semua status belanja milik paket ini, supaya tidak jadi orphan
+  // permanen di kt_daftar_belanja_hadiah.
+  db.daftarBelanjaHadiah = db.daftarBelanjaHadiah.filter(b=>b.hadiah_kategori_id!==id);
+  saveDB(); renderContent(); renderTopbarSaldo(); 
   notifyTelegram(`🗑️ Hapus paket hadiah`, `Kategori: ${labelPeserta(h.kategori_peserta)}\nJuara: ${labelJuara(h.juara_ke)}`);
 }

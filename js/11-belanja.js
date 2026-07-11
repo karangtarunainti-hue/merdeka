@@ -578,6 +578,9 @@ function hapusHadiahJalan(id){
   if(!confirm('Hapus hadiah ini?')) return;
   const h = db.hadiahJalanSantai.find(x=>x.id===id);
   db.hadiahJalanSantai = db.hadiahJalanSantai.filter(h=>h.id!==id);
+  // Ikut hapus status belanja yang mereferensikan hadiah ini, supaya tidak jadi
+  // orphan permanen di kt_daftar_belanja_jalan_santai.
+  db.daftarBelanjaJalanSantai = db.daftarBelanjaJalanSantai.filter(b=>b.hadiah_jalan_id!==id);
   saveDB(); renderContent(); renderTopbarSaldo();
   if(h) notifyTelegram(`🗑️ Hapus hadiah jalan santai: ${h.nama_hadiah}`, `Qty: ${h.qty}\nHarga: ${fmtRp(h.harga_satuan)}`);
 }

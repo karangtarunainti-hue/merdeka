@@ -1285,6 +1285,10 @@
     max-width:65%;
   }
 
+  /* Agenda Kegiatan: tabel di komputer (tidak berubah), kartu ala Jadwal
+     Kegiatan di HP supaya lebih rapi dan tidak perlu geser tabel. */
+  .agenda-mobile-wrap{display:none;}
+
   .reminder-empty{
     text-align:center;
     padding:20px;
@@ -1384,6 +1388,10 @@
        kolom 1 & 2 perlu lebar sendiri di atas aturan tanggal-nominal-table umum. */
     table.transaksi-lain-table th:nth-child(1), table.transaksi-lain-table td:nth-child(1){ width:24px; min-width:0; white-space:nowrap; padding:8px 4px 8px 14px; text-align:center; }
     table.transaksi-lain-table th:nth-child(2), table.transaksi-lain-table td:nth-child(2){ width:58px; min-width:0; white-space:nowrap; padding:8px 4px; }
+
+    /* --- Agenda Kegiatan: sembunyikan tabel geser, tampilkan kartu --- */
+    .agenda-table-wrap{display:none;}
+    .agenda-mobile-wrap{display:block;}
 
     /* --- Manajemen User: kartu, bukan tabel geser --- */
     table.users-table{table-layout:auto;}

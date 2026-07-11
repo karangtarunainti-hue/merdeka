@@ -152,7 +152,7 @@ function renderAgenda(){
   const isLoggedIn = !!getCurrentUser();
 
   const today = new Date();
-  const rows = list.map(a => {
+  function statusAgenda(a){
     const aDate = new Date(a.tanggal + 'T00:00:00');
     const diffDays = Math.ceil((aDate - today) / (1000 * 60 * 60 * 24));
     let statusLabel = '';
@@ -173,7 +173,11 @@ function renderAgenda(){
       statusLabel = `${diffDays} hari lagi`;
       statusClass = 'perlengkapan';
     }
+    return {diffDays, statusLabel, statusClass};
+  }
 
+  const rows = list.map(a => {
+    const {diffDays, statusLabel, statusClass} = statusAgenda(a);
     return `
     <tr class="${a.status === 'selesai' ? '' : (diffDays < 0 ? 'belum-bayar' : '')}">
       <td data-label="Tanggal">${fmtDate(a.tanggal)}</td>
@@ -187,6 +191,32 @@ function renderAgenda(){
         <button class="icon-btn" onclick="hapusAgenda('${a.id}')" ${!isLoggedIn ? 'disabled' : ''} title="Hapus">🗑</button>
       </td>
     </tr>`;
+  }).join('');
+
+  // Kartu khusus HP — dipakai lewat .agenda-mobile-wrap (lihat media query
+  // max-width:820px di style.css), tampilan komputer TETAP pakai tabel di
+  // atas (.agenda-table-wrap) dan tidak berubah sama sekali. Meniru gaya
+  // kartu Jadwal Kegiatan (hari/tanggal di atas, judul jadi judul kartu,
+  // kategori disembunyikan supaya ringkas), tapi tanpa jam karena Agenda
+  // Kegiatan memang tidak punya field jam.
+  const cards = list.map(a => {
+    const {diffDays, statusLabel, statusClass} = statusAgenda(a);
+    return `
+    <div class="jadwal-item ${a.status==='selesai'?'selesai':''} ${a.status!=='selesai'&&diffDays<0?'terlambat':''}">
+      <div class="jadwal-item-top">
+        <div class="jadwal-item-date">
+          <span class="jadwal-item-date-main">${fmtDateHariShort(a.tanggal)}</span>
+        </div>
+        <span class="badge ${statusClass}">${statusLabel}</span>
+      </div>
+      <div class="jadwal-item-title">${esc(a.judul)}</div>
+      ${a.deskripsi?`<div class="jadwal-item-desc">${esc(a.deskripsi)}</div>`:''}
+      <div class="jadwal-item-actions">
+        <button class="btn secondary small" onclick="toggleAgendaStatus('${a.id}')" ${!isLoggedIn ? 'disabled' : ''}>${a.status === 'selesai' ? 'Buka' : 'Selesai'}</button>
+        <button class="icon-btn" onclick="openAgendaModal('${a.id}')" ${!isLoggedIn ? 'disabled' : ''} title="Edit">✎</button>
+        <button class="icon-btn" onclick="hapusAgenda('${a.id}')" ${!isLoggedIn ? 'disabled' : ''} title="Hapus">🗑</button>
+      </div>
+    </div>`;
   }).join('');
 
   const total = list.length;
@@ -210,11 +240,14 @@ function renderAgenda(){
       </div>
       ${isLoggedIn ? `<button class="btn" onclick="openAgendaModal()">+ Tambah Agenda</button>` : ''}
     </div>
-    <div class="panel-body flush">
+    <div class="panel-body flush agenda-table-wrap">
       <table class="general-table jadwal-table">
         <thead><tr><th>Tanggal</th><th>Status</th><th>Kategori</th><th>Judul</th><th>Deskripsi</th><th></th></tr></thead>
         <tbody>${rows || `<tr class="empty-row"><td colspan="6">Belum ada agenda. ${isLoggedIn ? 'Tambahkan agenda untuk mendapatkan pengingat.' : 'Login untuk menambah agenda.'}</td></tr>`}</tbody>
       </table>
+    </div>
+    <div class="panel-body agenda-mobile-wrap">
+      <div class="jadwal-item-list">${cards || `<div class="empty-row" style="padding:30px;text-align:center;">Belum ada agenda. ${isLoggedIn ? 'Tambahkan agenda untuk mendapatkan pengingat.' : 'Login untuk menambah agenda.'}</div>`}</div>
     </div>
   </div>`;
 }

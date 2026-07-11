@@ -406,8 +406,8 @@ function renderKas(){
 
   return `
   <div class="stat-grid">
-    <div class="stat-card pemasukan"><div class="lbl">Total Debit</div><div class="val">${fmtRp(totalDebit)}</div></div>
-    <div class="stat-card pengeluaran"><div class="lbl">Total Kredit</div><div class="val">${fmtRp(totalKredit)}</div></div>
+    <div class="stat-card pemasukan"><div class="lbl">Total Pemasukan</div><div class="val">${fmtRp(totalDebit)}</div></div>
+    <div class="stat-card pengeluaran"><div class="lbl">Total Pengeluaran</div><div class="val">${fmtRp(totalKredit)}</div></div>
     <div class="stat-card ${saldo<0?'defisit':'saldo'}"><div class="lbl">Saldo Kas</div><div class="val">${fmtRp(saldo)}</div></div>
   </div>
   <div class="panel">
@@ -444,8 +444,8 @@ function openKasModal(id){
     <div class="field"><label>Keterangan</label><input id="f-kas-ket" value="${editing?esc(editing.keterangan||''):''}" placeholder="mis. Iuran bulanan anggota"></div>
     <div class="field"><label>Jenis Transaksi</label>
       <select id="f-kas-jenis">
-        <option value="masuk" ${editingJenis==='masuk'?'selected':''}>💰 Pemasukan (uang masuk)</option>
-        <option value="keluar" ${editingJenis==='keluar'?'selected':''}>📤 Pengeluaran (uang keluar)</option>
+        <option value="masuk" ${editingJenis==='masuk'?'selected':''}>⬇️ Pemasukan</option>
+        <option value="keluar" ${editingJenis==='keluar'?'selected':''}>⬆️ Pengeluaran</option>
       </select>
     </div>
     <div class="field-row">

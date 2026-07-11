@@ -68,17 +68,19 @@ function renderUsers() {
   
   const users = getUsers();
   const roleLabel = {admin:'Admin', user:'User', petugas:'Petugas'};
-  const roleBadgeClass = u => u.role === 'admin' ? 'lunas' : (u.role === 'petugas' ? 'khusus' : 'dibeli');
+  const roleBadgeClass = u => u.role === 'admin' ? 'role-admin' : (u.role === 'petugas' ? 'role-petugas' : 'role-user');
   const bidangHtml = u => u.role === 'petugas'
-    ? ((u.allowed_sections && u.allowed_sections.length) ? u.allowed_sections.map(k=>esc((SECTIONS.find(s=>s.key===k)||{}).label || k)).join(', ') : '<span style="color:var(--ink-soft);">Belum ada bidang</span>')
-    : '<span style="color:var(--ink-soft);">Semua bidang</span>';
+    ? ((u.allowed_sections && u.allowed_sections.length)
+        ? `<div class="mini-tag-list">${u.allowed_sections.map(k=>`<span class="mini-tag">${esc((SECTIONS.find(s=>s.key===k)||{}).label || k)}</span>`).join('')}</div>`
+        : '<span class="mini-tag mini-tag-muted">Belum ada bidang</span>')
+    : '<span class="mini-tag mini-tag-muted">Semua bidang</span>';
   const rows = users.map((u, idx) => `
     <tr>
       <td data-label="Nama">${esc(u.name)}</td>
       <td data-label="Role"><span class="badge ${roleBadgeClass(u)}">${roleLabel[u.role] || u.role}</span></td>
       <td data-label="Username">${esc(u.username)}</td>
       <td data-label="Bidang">${bidangHtml(u)}</td>
-      <td data-label="Password">******</td>
+      <td data-label="Password"><span class="password-pill">🔒 ••••••</span></td>
       <td data-label="Aksi" class="users-actions">
         <button class="btn secondary small" onclick="openUserModal('${u.id}')">✎ Edit</button>
         <button class="icon-btn" onclick="hapusUser('${u.id}')" ${users.length <= 1 ? 'disabled' : ''}>🗑</button>
@@ -126,10 +128,24 @@ function renderUsers() {
   <div class="panel">
     <div class="panel-head"><h3>ℹ️ Tentang Role</h3></div>
     <div class="panel-body">
-      <p><strong>👤 Guest (Tidak Login)</strong> — Hanya bisa melihat data (read-only). Tidak bisa menambah, mengedit, atau menghapus data.</p>
-      <p><strong>🛠️ Petugas</strong> — Login khusus untuk satu atau beberapa bidang tertentu saja (mis. hanya Iuran Anggota, atau hanya Lomba & Hadiah). Di luar bidang yang ditugaskan, halaman lain tidak terlihat dan tidak bisa diakses.</p>
-      <p><strong>👤 User</strong> — Bisa melihat dan mengedit semua data (anggota, donatur, transaksi, lomba, hadiah, dll). Tidak bisa mengakses Pengaturan.</p>
-      <p><strong>⚡ Admin</strong> — Akses penuh termasuk Pengaturan dan Manajemen User.</p>
+      <div class="role-info-grid">
+        <div class="role-info-card">
+          <div class="ric-title">👤 Guest (Tidak Login)</div>
+          <div class="ric-desc">Hanya bisa melihat data (read-only). Tidak bisa menambah, mengedit, atau menghapus data.</div>
+        </div>
+        <div class="role-info-card">
+          <div class="ric-title">🛠️ Petugas</div>
+          <div class="ric-desc">Login khusus untuk satu atau beberapa bidang tertentu saja (mis. hanya Iuran Anggota, atau hanya Lomba &amp; Hadiah). Di luar bidang yang ditugaskan, halaman lain tidak terlihat dan tidak bisa diakses.</div>
+        </div>
+        <div class="role-info-card">
+          <div class="ric-title">👤 User</div>
+          <div class="ric-desc">Bisa melihat dan mengedit semua data (anggota, donatur, transaksi, lomba, hadiah, dll). Tidak bisa mengakses Pengaturan.</div>
+        </div>
+        <div class="role-info-card">
+          <div class="ric-title">⚡ Admin</div>
+          <div class="ric-desc">Akses penuh termasuk Pengaturan dan Manajemen User.</div>
+        </div>
+      </div>
     </div>
   </div>`;
 }
@@ -154,12 +170,13 @@ function openUserModal(id) {
     <div class="field" id="f-sections-field" style="${editing && editing.role === 'petugas' ? '' : 'display:none;'}">
       <label>Bidang yang Ditugaskan</label>
       <div class="hint" style="margin-bottom:8px;">Petugas hanya bisa melihat & mengelola bidang yang dicentang di bawah ini.</div>
-      <div class="guest-menu-list" style="display:flex;flex-direction:column;gap:8px;">
+      <div class="toggle-grid">
         ${SECTIONS.filter(s=>!s.adminOnly && s.key!=='dashboard').map(s=>`
-          <label style="display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--garis);border-radius:8px;">
-            <input type="checkbox" class="f-section-check" value="${s.key}" ${editingSections.includes(s.key) ? 'checked' : ''}>
-            <span>${icon(s.icon)}</span>
-            <span>${esc(s.label)}</span>
+          <label class="toggle-chip">
+            <input type="checkbox" class="f-section-check" value="${s.key}" ${editingSections.includes(s.key) ? 'checked' : ''} hidden>
+            <span class="toggle-box"></span>
+            <span class="toggle-icon">${icon(s.icon)}</span>
+            <span class="toggle-text">${esc(s.label)}</span>
           </label>`).join('')}
       </div>
     </div>

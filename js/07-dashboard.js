@@ -114,7 +114,6 @@ function generateReminders(){
   // Lomba Hari Ini — saat tanggal lomba tiba, tampilkan kartu detail lengkap:
   // hari/tanggal/waktu, nama lomba, kegiatan (kategori peserta), perlengkapan
   // (dari Kebutuhan Barang lomba), dan nama koordinator (dari Database Anggota).
-  const lombaHariIniIds = new Set(); // dipakai untuk exclude dari kartu "Jadwal Mendatang" biar tidak dobel
   const lombaListHariIni = isMenuAktif('lomba') ? gLomba() : [];
   const lombaHariIni = lombaListHariIni.filter(l => {
     if (!l.tanggal) return false;
@@ -124,7 +123,6 @@ function generateReminders(){
 
   if (lombaHariIni.length > 0) {
     const lombaCardsHtml = lombaHariIni.map(l => {
-      if (l.jadwal_id) lombaHariIniIds.add(l.jadwal_id);
       const kebutuhan = gKebutuhan(l.id);
       const perlengkapanText = kebutuhan.length
         ? kebutuhan.map(k => `${k.nama_item} (${k.qty})`).join(', ')
@@ -154,48 +152,10 @@ function generateReminders(){
     });
   }
 
-  const jadwalList = isMenuAktif('jadwal') ? gJadwal().filter(j => j.status !== 'selesai') : [];
-  const upcomingJadwal = jadwalList.filter(j => {
-    const jDate = new Date(j.tanggal + 'T00:00:00');
-    const diffDays = Math.ceil((jDate - today) / (1000 * 60 * 60 * 24));
-    return diffDays >= 0 && diffDays <= 7;
-  }).sort((a,b) => new Date(a.tanggal) - new Date(b.tanggal));
-
-  if (upcomingJadwal.length > 0) {
-    const todayJadwal = upcomingJadwal.filter(j => {
-      const jDate = new Date(j.tanggal + 'T00:00:00');
-      return jDate.toDateString() === today.toDateString() && !lombaHariIniIds.has(j.id);
-    });
-    const soonJadwal = upcomingJadwal.filter(j => {
-      const jDate = new Date(j.tanggal + 'T00:00:00');
-      return jDate.toDateString() !== today.toDateString();
-    });
-
-    let items = [];
-    if (todayJadwal.length > 0) {
-      items.push({label: '📌 Hari ini:', value: todayJadwal.map(j => `${j.judul} (${labelKategoriJadwal(j.kategori)})`).join(', ')});
-    }
-    if (soonJadwal.length > 0) {
-      const soonText = soonJadwal.map(j => {
-        const jDate = new Date(j.tanggal + 'T00:00:00');
-        const diffDays = Math.ceil((jDate - today) / (1000 * 60 * 60 * 24));
-        const dayLabel = diffDays === 1 ? 'Besok' : `${diffDays} hari lagi`;
-        return `${j.judul} (${dayLabel})`;
-      }).join(', ');
-      items.push({label: '📅 Mendatang:', value: soonText});
-    }
-
-    if (items.length > 0) {
-      reminders.push({
-        type: 'info',
-        icon: '📅',
-        title: 'Jadwal Mendatang',
-        count: upcomingJadwal.length,
-        items: items,
-        action: {label: 'Lihat Semua →', link: 'jadwal'}
-      });
-    }
-  }
+  // Catatan: kartu notifikasi "Jadwal Mendatang" sudah dipindah ke menu
+  // Jadwal Kegiatan sendiri (lihat generateJadwalReminderCard di
+  // 12-jadwal-agenda-kas.js), tidak lagi ditampilkan di Buku Kegiatan supaya
+  // tidak dobel dan lebih relevan langsung di menunya.
 
   const hadiahItems = [];
   if (isMenuAktif('hadiah')) gHadiahKategori().forEach(h => {

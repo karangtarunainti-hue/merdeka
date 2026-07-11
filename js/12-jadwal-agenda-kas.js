@@ -1,6 +1,65 @@
 /* ============================================================
    JADWAL (dengan auth check)
    ============================================================ */
+// Kartu notifikasi "Jadwal Mendatang" — sebelumnya tampil di Buku Kegiatan
+// (dashboard), sekarang dipindah ke sini supaya langsung terlihat di menu
+// Jadwal Kegiatan sendiri, lebih relevan & tidak dobel dengan Buku Kegiatan.
+function generateJadwalReminderCard(){
+  const today = new Date();
+  const jadwalList = gJadwal().filter(j => j.status !== 'selesai');
+  const upcomingJadwal = jadwalList.filter(j => {
+    const jDate = new Date(j.tanggal + 'T00:00:00');
+    const diffDays = Math.ceil((jDate - today) / (1000 * 60 * 60 * 24));
+    return diffDays >= 0 && diffDays <= 7;
+  }).sort((a,b) => new Date(a.tanggal) - new Date(b.tanggal));
+
+  if (upcomingJadwal.length === 0) return '';
+
+  const todayJadwal = upcomingJadwal.filter(j => {
+    const jDate = new Date(j.tanggal + 'T00:00:00');
+    return jDate.toDateString() === today.toDateString();
+  });
+  const soonJadwal = upcomingJadwal.filter(j => {
+    const jDate = new Date(j.tanggal + 'T00:00:00');
+    return jDate.toDateString() !== today.toDateString();
+  });
+
+  let items = [];
+  if (todayJadwal.length > 0) {
+    items.push({label: '📌 Hari ini:', value: todayJadwal.map(j => `${j.judul} (${labelKategoriJadwal(j.kategori)})`).join(', ')});
+  }
+  if (soonJadwal.length > 0) {
+    const soonText = soonJadwal.map(j => {
+      const jDate = new Date(j.tanggal + 'T00:00:00');
+      const diffDays = Math.ceil((jDate - today) / (1000 * 60 * 60 * 24));
+      const dayLabel = diffDays === 1 ? 'Besok' : `${diffDays} hari lagi`;
+      return `${j.judul} (${dayLabel})`;
+    }).join(', ');
+    items.push({label: '📅 Mendatang:', value: soonText});
+  }
+
+  if (items.length === 0) return '';
+
+  return `
+  <div class="reminder-grid">
+    <div class="reminder-card info">
+      <div class="card-header">
+        <div class="icon">📅</div>
+        <div class="title">Jadwal Mendatang</div>
+        <div class="count">${upcomingJadwal.length}</div>
+      </div>
+      <div class="card-body">
+        ${items.map(item => `
+          <div class="item">
+            <span class="label">${item.label}</span>
+            <span class="value">${esc(item.value)}</span>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  </div>`;
+}
+
 function renderJadwal(){
   const list = gJadwal().slice().sort((a,b) => {
     return new Date(a.tanggal) - new Date(b.tanggal);
@@ -71,6 +130,7 @@ function renderJadwal(){
   }).length;
 
   return `
+  ${generateJadwalReminderCard()}
   <div class="stat-grid">
     <div class="stat-card info"><div class="lbl">Total Jadwal</div><div class="val">${total}</div></div>
     <div class="stat-card pemasukan"><div class="lbl">Aktif</div><div class="val">${totalActive}</div></div>

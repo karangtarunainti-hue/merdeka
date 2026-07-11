@@ -251,7 +251,7 @@ function generateReminders(){
   }
 
   const stokKurang = [];
-  gHadiahKategori().forEach(h => {
+  if (isMenuAktif('hadiah')) gHadiahKategori().forEach(h => {
     const kebutuhan = hitungKebutuhanHadiah(h.kategori_peserta, h.juara_ke);
     if (kebutuhan == null) return; // partisipasi: tidak dihitung otomatis
     h.items.forEach(item => {
@@ -352,4 +352,3 @@ function generateReminders(){
 }
 
 function labelKategoriJadwal(v){ return (KATEGORI_JADWAL.find(k=>k.v===v)||{}).l || v; }
-

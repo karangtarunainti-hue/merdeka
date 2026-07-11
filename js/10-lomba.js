@@ -56,7 +56,7 @@ function renderLomba(){
         <div class="lomba-tabs">
           <button type="button" class="lomba-tabbtn ${activeTab==='kebutuhan'?'active':''}" onclick="setLombaTab('${l.id}','kebutuhan')">Kebutuhan Barang</button>
           <button type="button" class="lomba-tabbtn ${activeTab==='hadiah'?'active':''}" onclick="setLombaTab('${l.id}','hadiah')">Hadiah${hadiahBadge?' •':''}</button>
-          <button type="button" class="lomba-tabbtn ${activeTab==='koordinator'?'active':''}" onclick="setLombaTab('${l.id}','koordinator')">Koordinator${!l.koordinator_anggota_id?' <span class="lomba-badge warn" style="margin-left:4px;">Belum ada</span>':''}</button>
+          <button type="button" class="lomba-tabbtn ${activeTab==='koordinator'?'active':''}" onclick="setLombaTab('${l.id}','koordinator')">Koordinator${getKoordinatorIds(l).length===0?' <span class="lomba-badge warn" style="margin-left:4px;">Belum ada</span>':''}</button>
         </div>
 
         <div style="display:${activeTab==='kebutuhan'?'block':'none'};">
@@ -150,28 +150,65 @@ function renderHadiahLombaBlock(lomba){
 }
 
 // Koordinator lomba diambil dari Database Anggota (bukan input bebas), supaya
-// datanya konsisten dan bisa dilacak. Disimpan sebagai koordinator_anggota_id
-// di record lomba (lihat supabase-lomba-tanggal-koordinator-migration.sql).
+// datanya konsisten dan bisa dilacak. Satu lomba bisa punya lebih dari satu
+// koordinator, disimpan sebagai array id di koordinator_anggota_ids (lihat
+// supabase-lomba-koordinator-multi-migration.sql). Kolom lama
+// koordinator_anggota_id (tunggal) tetap diisi = koordinator pertama, untuk
+// kompatibilitas mundur.
+function getKoordinatorIds(lomba){
+  if(Array.isArray(lomba.koordinator_anggota_ids)) return lomba.koordinator_anggota_ids.filter(Boolean);
+  return lomba.koordinator_anggota_id ? [lomba.koordinator_anggota_id] : [];
+}
 function renderKoordinatorLombaBlock(lomba, isLoggedIn){
   const anggotaList = gAnggota().slice().sort((a,b)=>(a.nama||'').localeCompare(b.nama||'', 'id', {sensitivity:'base'}));
-  const koordinator = lomba.koordinator_anggota_id ? db.anggota.find(a=>a.id===lomba.koordinator_anggota_id) : null;
-  const opsi = `<option value="">-- Pilih Koordinator --</option>` + anggotaList.map(a=>`<option value="${a.id}" ${lomba.koordinator_anggota_id===a.id?'selected':''}>${esc(a.nama)}${a.rt?` (${labelRT(getRT(a))})`:''}</option>`).join('');
-  const infoKoordinator = koordinator
-    ? `<div class="hint" style="margin-top:8px;">Kategori: ${labelKategori(koordinator.kategori)}${koordinator.rt?` · ${labelRT(getRT(koordinator))}`:''}${koordinator.gender&&koordinator.gender!=='tidak_diketahui'?` · ${labelGender(getGender(koordinator))}`:''}</div>`
-    : `<div class="hint" style="margin-top:8px;">Belum ada koordinator dipilih untuk lomba ini.</div>`;
   if(anggotaList.length===0){
     return `<div class="hint">Belum ada data di Database Anggota untuk event ini. <a style="color:var(--merah);font-weight:600;cursor:pointer;" onclick="goSection('database-anggota')">Tambah di sini</a></div>`;
   }
-  return `<div class="field" style="max-width:360px;"><label>Koordinator Lomba</label><select id="koordinator-${lomba.id}" onchange="setKoordinatorLomba('${lomba.id}', this.value)" ${!isLoggedIn?'disabled':''}>${opsi}</select></div>${infoKoordinator}`;
+  const koordinatorIds = getKoordinatorIds(lomba);
+  const koordinatorList = koordinatorIds.map(id=>db.anggota.find(a=>a.id===id)).filter(Boolean);
+  const sisaAnggota = anggotaList.filter(a=>!koordinatorIds.includes(a.id));
+
+  const listHtml = koordinatorList.length ? `<div class="koordinator-list">${koordinatorList.map(k=>`
+    <div class="koordinator-chip">
+      <span class="koordinator-avatar">${esc((k.nama||'?').trim().charAt(0).toUpperCase())}</span>
+      <span class="koordinator-nama">${esc(k.nama)}</span>
+      <button class="icon-btn" onclick="hapusKoordinatorLomba('${lomba.id}','${k.id}')" ${!isLoggedIn?'disabled':''} title="Hapus koordinator">✕</button>
+    </div>`).join('')}</div>` : `<div class="hint">Belum ada koordinator dipilih untuk lomba ini.</div>`;
+
+  const addRow = !isLoggedIn ? '' : (sisaAnggota.length ? `
+  <div class="quick-add-row" style="max-width:420px;margin-top:10px;">
+    <select id="koordinator-add-${lomba.id}" style="flex:1;">${`<option value="">-- Pilih Anggota --</option>` + sisaAnggota.map(a=>`<option value="${a.id}">${esc(a.nama)}${a.rt?` (${labelRT(getRT(a))})`:''}</option>`).join('')}</select>
+    <button class="btn secondary small" onclick="tambahKoordinatorLomba('${lomba.id}')">+ Tambah Koordinator</button>
+  </div>` : `<div class="hint" style="margin-top:10px;">Semua anggota sudah jadi koordinator lomba ini.</div>`);
+
+  return `${listHtml}${addRow}`;
 }
-function setKoordinatorLomba(lombaId, anggotaId){
+function tambahKoordinatorLomba(lombaId){
   if (!canEditSection('lomba')) { toast('⛔ Login untuk mengedit data'); return; }
   const lomba = db.lomba.find(l=>l.id===lombaId);
   if(!lomba) return;
-  lomba.koordinator_anggota_id = anggotaId || null;
-  saveDB(); renderContent(); toast('Disimpan');
-  const anggota = anggotaId ? db.anggota.find(a=>a.id===anggotaId) : null;
-  notifyTelegram(`👤 Koordinator lomba diatur: ${lomba.nama}`, anggota ? `Koordinator: ${anggota.nama}` : 'Koordinator dikosongkan');
+  const sel = document.getElementById(`koordinator-add-${lombaId}`);
+  const anggotaId = sel && sel.value;
+  if(!anggotaId){ toast('Pilih anggota dulu'); return; }
+  const ids = getKoordinatorIds(lomba);
+  if(ids.includes(anggotaId)){ toast('Sudah jadi koordinator'); return; }
+  ids.push(anggotaId);
+  lomba.koordinator_anggota_ids = ids;
+  lomba.koordinator_anggota_id = ids[0] || null;
+  saveDB(); renderContent(); toast('Koordinator ditambahkan');
+  const anggota = db.anggota.find(a=>a.id===anggotaId);
+  notifyTelegram(`👤 Koordinator lomba ditambahkan: ${lomba.nama}`, anggota ? `Koordinator: ${anggota.nama}` : '');
+}
+function hapusKoordinatorLomba(lombaId, anggotaId){
+  if (!canEditSection('lomba')) { toast('⛔ Login untuk mengedit data'); return; }
+  const lomba = db.lomba.find(l=>l.id===lombaId);
+  if(!lomba) return;
+  const ids = getKoordinatorIds(lomba).filter(id=>id!==anggotaId);
+  lomba.koordinator_anggota_ids = ids;
+  lomba.koordinator_anggota_id = ids[0] || null;
+  saveDB(); renderContent(); toast('Koordinator dihapus');
+  const anggota = db.anggota.find(a=>a.id===anggotaId);
+  notifyTelegram(`🗑️ Koordinator lomba dihapus: ${lomba.nama}`, anggota ? `Koordinator: ${anggota.nama}` : '');
 }
 
 // Sinkronkan satu entri Jadwal & Reminder otomatis untuk lomba ini berdasarkan
@@ -220,7 +257,7 @@ function openLombaModal(id){
         editing.nama=nama; editing.kategori_peserta=kategori_peserta; editing.tanggal=tanggal; editing.jam=jam; editing.jumlah_anggota_regu=jumlah_anggota_regu; editing.hadiah_per_regu=hadiah_per_regu; editing.estimasi_peserta=estimasi_peserta;
         lombaRecord = editing;
       }
-      else{ lombaRecord = {id:uid(),event_id:eid(),nama,kategori_peserta,tanggal,jam,jumlah_anggota_regu,hadiah_per_regu,estimasi_peserta,koordinator_anggota_id:null,jadwal_id:null}; db.lomba.push(lombaRecord); }
+      else{ lombaRecord = {id:uid(),event_id:eid(),nama,kategori_peserta,tanggal,jam,jumlah_anggota_regu,hadiah_per_regu,estimasi_peserta,koordinator_anggota_id:null,koordinator_anggota_ids:[],jadwal_id:null}; db.lomba.push(lombaRecord); }
       syncAgendaLomba(lombaRecord);
       saveDB();
       // Lomba bertambah/berubah → kebutuhan paket hadiah berubah, sinkronkan stok yang harus dibeli.

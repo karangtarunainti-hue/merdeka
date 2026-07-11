@@ -122,8 +122,6 @@ function renderJadwal(){
         <span class="badge ${statusClass}">${statusLabel}</span>
       </div>
       <div class="jadwal-item-title">${esc(j.judul)}${lockBadge}</div>
-      <div class="jadwal-item-meta"><span class="kategori-pill">${labelKategoriJadwal(j.kategori)}</span></div>
-      ${j.deskripsi?`<div class="jadwal-item-desc">${esc(j.deskripsi)}</div>`:''}
       <div class="jadwal-item-actions">
         <button class="btn secondary small" onclick="toggleJadwalStatus('${j.id}')" ${!isLoggedIn ? 'disabled' : ''}>${j.status === 'selesai' ? 'Buka' : 'Selesai'}</button>
         <button class="icon-btn" onclick="${editAction}" ${!isLoggedIn ? 'disabled' : ''} title="${editTitle}">✎</button>

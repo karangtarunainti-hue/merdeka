@@ -992,6 +992,39 @@
     padding:2px 8px; border-radius:20px;
   }
 
+  .jadwal-group{
+    margin-bottom:20px;
+  }
+  .jadwal-group:last-child{ margin-bottom:0; }
+  .jadwal-group-header{
+    display:flex; align-items:center; gap:8px;
+    padding:9px 14px;
+    margin-bottom:10px;
+    background:var(--gold-tint);
+    border:1px solid var(--garis);
+    border-left:3px solid var(--gold, #b8860b);
+    border-radius:8px;
+  }
+  .jadwal-group-icon{ font-size:14px; flex-shrink:0; }
+  .jadwal-group-title{
+    font-weight:700; font-size:13.5px;
+    color:var(--ink);
+    text-transform:capitalize;
+  }
+  .jadwal-group-count{
+    margin-left:auto;
+    font-size:11px; color:var(--ink-soft);
+    background:var(--cream-card, #f4f1ea);
+    padding:2px 9px; border-radius:20px;
+    flex-shrink:0;
+  }
+  .jadwal-group-none .jadwal-group-header{
+    background:var(--cream-card, #f4f1ea);
+    border-left-color:var(--abu);
+  }
+  .jadwal-group-body .lomba-card{ margin-bottom:12px; }
+  .jadwal-group-body .lomba-card:last-child{ margin-bottom:0; }
+
   .hadiah-group{
     background:var(--cream-card);
     border:1px solid var(--garis);

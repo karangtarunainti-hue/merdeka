@@ -12,7 +12,24 @@ function renderLomba(){
     .reduce((s,k)=>s + (Number(k.harga_realisasi ?? k.harga_estimasi ?? 0)*Number(k.qty||0)), 0);
   const isLoggedIn = !!getCurrentUser();
 
-  const cards = list.map((l, idx)=>{
+  // Kelompokkan lomba berdasarkan jadwal (tanggal). Lomba dengan jam berbeda
+  // di tanggal yang sama tetap satu grup, diurutkan berdasarkan jam.
+  const grupTanggal = {};
+  const tanpaJadwal = [];
+  list.forEach(l=>{
+    if(l.tanggal){
+      (grupTanggal[l.tanggal] = grupTanggal[l.tanggal] || []).push(l);
+    } else {
+      tanpaJadwal.push(l);
+    }
+  });
+  const tanggalUrut = Object.keys(grupTanggal).sort((a,b)=>a.localeCompare(b));
+  tanggalUrut.forEach(tgl=> grupTanggal[tgl].sort((a,b)=>String(a.jam||'').localeCompare(String(b.jam||''))));
+
+  let nomorGlobal = 0;
+  function renderLombaCard(l){
+    nomorGlobal++;
+    const idx = nomorGlobal;
     const items = gKebutuhan(l.id);
     const subtotal = items.reduce((s,k)=>s+(Number(k.harga_realisasi ?? k.harga_estimasi ?? 0)*Number(k.qty||0)),0);
     const isOpen = openLombaIds.has(l.id);
@@ -25,7 +42,7 @@ function renderLomba(){
     return `
     <div class="lomba-card ${isOpen?'open':''}">
       <div class="lomba-card-head" onclick="toggleLombaCard('${l.id}')" style="cursor:pointer;">
-        <div><span class="nomor-badge kategori-${l.kategori_peserta}">${idx+1}</span><span class="name">${esc(l.nama)}</span><span class="kategori-pill" style="margin-left:8px;">${labelPeserta(l.kategori_peserta)}</span>${Number(l.jumlah_anggota_regu||1)>1?`<span class="kategori-pill khusus" style="margin-left:6px;">👥 Beregu ×${l.jumlah_anggota_regu}${l.hadiah_per_regu?' · 1 hadiah/regu':''}</span>`:''}${l.tanggal?`<div class="hint" style="margin-top:4px;">🗓️ ${fmtDateJam(l.tanggal, l.jam, {short:true})}</div>`:''}</div>
+        <div><span class="nomor-badge kategori-${l.kategori_peserta}">${idx}</span><span class="name">${esc(l.nama)}</span><span class="kategori-pill" style="margin-left:8px;">${labelPeserta(l.kategori_peserta)}</span>${Number(l.jumlah_anggota_regu||1)>1?`<span class="kategori-pill khusus" style="margin-left:6px;">👥 Beregu ×${l.jumlah_anggota_regu}${l.hadiah_per_regu?' · 1 hadiah/regu':''}</span>`:''}${l.jam?`<div class="hint" style="margin-top:4px;">🕐 ${esc(l.jam)}</div>`:''}</div>
         <div style="display:flex;align-items:center;gap:14px;">
           <span class="lomba-badge">${items.length} item</span>
           ${hadiahBadge}
@@ -72,11 +89,33 @@ function renderLomba(){
         </div>
       </div>
     </div>`;
-  }).join('');
+  }
+
+  function renderJadwalGroup(labelHtml, items, extraClass){
+    return `<div class="jadwal-group ${extraClass||''}">
+      <div class="jadwal-group-header">
+        ${labelHtml}
+        <span class="jadwal-group-count">${items.length} lomba</span>
+      </div>
+      <div class="jadwal-group-body">${items.map(renderLombaCard).join('')}</div>
+    </div>`;
+  }
+
+  const groupsHtml = tanggalUrut.map(tgl=>{
+    return renderJadwalGroup(
+      `<span class="jadwal-group-icon">🗓️</span><span class="jadwal-group-title">${fmtDateHari(tgl)}</span>`,
+      grupTanggal[tgl]
+    );
+  }).join('')
+  + (tanpaJadwal.length ? renderJadwalGroup(
+      `<span class="jadwal-group-icon">❔</span><span class="jadwal-group-title">Belum Dijadwalkan</span>`,
+      tanpaJadwal,
+      'jadwal-group-none'
+    ) : '');
 
   return `<div class="stat-grid"><div class="stat-card pengeluaran"><div class="lbl">Total Kebutuhan</div><div class="val">${fmtRp(totalKebutuhan)}</div></div></div>
-  <div class="panel"><div class="panel-head"><div><h3>Daftar Lomba</h3><div class="desc">Klik kartu untuk buka rincian</div></div>${isLoggedIn ? `<button class="btn" onclick="openLombaModal()">+ Tambah Lomba</button>` : ''}</div>
-  <div class="panel-body">${cards||`<div class="empty-row" style="padding:30px;text-align:center;">Belum ada lomba.</div>`}</div></div>`;
+  <div class="panel"><div class="panel-head"><div><h3>Daftar Lomba</h3><div class="desc">Dikelompokkan berdasarkan jadwal · klik kartu untuk buka rincian</div></div>${isLoggedIn ? `<button class="btn" onclick="openLombaModal()">+ Tambah Lomba</button>` : ''}</div>
+  <div class="panel-body">${groupsHtml||`<div class="empty-row" style="padding:30px;text-align:center;">Belum ada lomba.</div>`}</div></div>`;
 }
 function labelPeserta(v){ return (KATEGORI_PESERTA.find(k=>k.v===v)||{}).l || v; }
 function toggleLombaCard(id){ openLombaIds.has(id)?openLombaIds.delete(id):openLombaIds.add(id); renderContent(); }

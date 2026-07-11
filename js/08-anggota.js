@@ -78,7 +78,7 @@ function renderAnggota(){
     <div class="panel-body">
       ${filterHtml}
       <div style="overflow-x:auto; -webkit-overflow-scrolling:touch;">
-      <table class="anggota-table">
+      <table class="anggota-table${isLoggedIn?'':' anggota-table-guest'}">
         <thead>${isLoggedIn ? `<tr><th>Nama</th><th>Kategori</th><th class="num">Nominal</th><th>Status</th><th></th></tr>` : `<tr><th>Nama</th><th class="num">Nominal</th><th>Status</th></tr>`}</thead>
         <tbody>${rows || `<tr class="empty-row"><td colspan="${isLoggedIn?5:3}">${isFiltering?'Tidak ditemukan.':'Belum ada anggota.'}</td></tr>`}</tbody>
       </table>

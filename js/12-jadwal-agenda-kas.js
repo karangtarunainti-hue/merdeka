@@ -30,6 +30,18 @@ function renderJadwal(){
       statusClass = 'perlengkapan';
     }
 
+    // Entri yang otomatis dibuat/di-sync dari menu Lomba (lihat syncAgendaLomba di
+    // 10-lomba.js) dikunci di sini — judul/tanggal/jam-nya SELALU mengikuti data
+    // lomba sumbernya, jadi edit/hapus manual di sini akan ditimpa/bikin bingung.
+    // Status selesai/aktif tetap boleh diubah bebas karena field itu tidak disentuh
+    // oleh sinkronisasi.
+    const lombaLink = getLombaForJadwal(j.id);
+    const lockBadge = lombaLink ? `<span class="lomba-badge" style="margin-left:6px;" title="Judul/tanggal/jam otomatis mengikuti data Lomba">🔗 Auto Lomba</span>` : '';
+    const editAction = lombaLink ? `bukaLombaDariJadwal('${lombaLink.id}')` : `openJadwalModal('${j.id}')`;
+    const hapusAction = lombaLink ? `hapusJadwalLombaLocked('${lombaLink.id}')` : `hapusJadwal('${j.id}')`;
+    const editTitle = lombaLink ? 'Edit lewat menu Lomba' : 'Edit';
+    const hapusTitle = lombaLink ? 'Kelola lewat menu Lomba' : 'Hapus';
+
     return `
     <div class="jadwal-item ${j.status==='selesai'?'selesai':''} ${j.status!=='selesai'&&diffDays<0?'terlambat':''}">
       <div class="jadwal-item-top">
@@ -39,13 +51,13 @@ function renderJadwal(){
         </div>
         <span class="badge ${statusClass}">${statusLabel}</span>
       </div>
-      <div class="jadwal-item-title">${esc(j.judul)}</div>
+      <div class="jadwal-item-title">${esc(j.judul)}${lockBadge}</div>
       <div class="jadwal-item-meta"><span class="kategori-pill">${labelKategoriJadwal(j.kategori)}</span></div>
       ${j.deskripsi?`<div class="jadwal-item-desc">${esc(j.deskripsi)}</div>`:''}
       <div class="jadwal-item-actions">
         <button class="btn secondary small" onclick="toggleJadwalStatus('${j.id}')" ${!isLoggedIn ? 'disabled' : ''}>${j.status === 'selesai' ? 'Buka' : 'Selesai'}</button>
-        <button class="icon-btn" onclick="openJadwalModal('${j.id}')" ${!isLoggedIn ? 'disabled' : ''} title="Edit">✎</button>
-        <button class="icon-btn" onclick="hapusJadwal('${j.id}')" ${!isLoggedIn ? 'disabled' : ''} title="Hapus">🗑</button>
+        <button class="icon-btn" onclick="${editAction}" ${!isLoggedIn ? 'disabled' : ''} title="${editTitle}">✎</button>
+        <button class="icon-btn" onclick="${hapusAction}" ${!isLoggedIn ? 'disabled' : ''} title="${hapusTitle}">🗑</button>
       </div>
     </div>`;
   }).join('');
@@ -131,11 +143,35 @@ function toggleJadwalStatus(id){
 
 function hapusJadwal(id){
   if (!canEditSection('jadwal')) { toast('⛔ Login untuk mengedit data'); return; }
+  // Guard lapis kedua: kalau ada yang memanggil hapusJadwal langsung (bukan lewat
+  // tombol di kartu, yang sudah dialihkan ke hapusJadwalLombaLocked), tetap cegah
+  // penghapusan entri auto-lomba supaya tidak jadi referensi rusak di lomba.jadwal_id.
+  const lombaLink = getLombaForJadwal(id);
+  if(lombaLink){ hapusJadwalLombaLocked(lombaLink.id); return; }
   if(!confirm('Hapus jadwal ini?')) return;
   const j = db.jadwal.find(x=>x.id===id);
   db.jadwal = db.jadwal.filter(j=>j.id!==id);
   saveDB(); renderContent(); toast('Jadwal dihapus');
   if(j) notifyTelegram(`🗑️ Hapus jadwal: ${j.judul}`, `Jadwal: ${fmtDateJam(j.tanggal, j.jam)}`);
+}
+
+// Dipanggil dari tombol Edit kartu jadwal auto-lomba: pindah ke menu Lomba dan
+// langsung buka form edit lomba sumbernya, supaya user tidak perlu cari manual.
+function bukaLombaDariJadwal(lombaId){
+  goSection('lomba');
+  setTimeout(()=>{ openLombaIds.add(lombaId); renderContent(); openLombaModal(lombaId); }, 60);
+}
+
+// Dipanggil dari tombol Hapus kartu jadwal auto-lomba. Tidak menghapus apa-apa —
+// cuma menjelaskan kenapa dan menawarkan jalan pintas ke form lomba, supaya user
+// bisa mengosongkan tanggal lomba (yang otomatis akan menghapus entri jadwal ini,
+// lihat syncAgendaLomba) atau menghapus lombanya kalau memang sudah tidak dipakai.
+function hapusJadwalLombaLocked(lombaId){
+  const l = db.lomba.find(x=>x.id===lombaId);
+  const nama = l ? `"${l.nama}"` : 'ini';
+  if(confirm(`🔗 Jadwal ini otomatis mengikuti data Lomba ${nama} dan tidak bisa dihapus langsung dari sini.\n\nUntuk menghapusnya: buka form Lomba lalu kosongkan tanggalnya (atau hapus lombanya kalau sudah tidak dipakai).\n\nBuka form Lomba sekarang?`)){
+    if(l) bukaLombaDariJadwal(lombaId); else goSection('lomba');
+  }
 }
 
 /* ============================================================

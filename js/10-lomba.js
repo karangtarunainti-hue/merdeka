@@ -313,12 +313,16 @@ function hapusKoordinatorLomba(lombaId, anggotaId){
 // tidak terikat event sama sekali).
 function syncAgendaLomba(lomba){
   const judul = `Lomba: ${lomba.nama}`;
+  const deskripsi = `Otomatis dibuat dari data lomba (kategori: ${labelPeserta(lomba.kategori_peserta)}).`;
   if(lomba.tanggal){
     const existing = lomba.jadwal_id ? db.jadwal.find(j=>j.id===lomba.jadwal_id) : null;
     if(existing){
-      existing.judul = judul; existing.tanggal = lomba.tanggal; existing.jam = lomba.jam || null;
+      // Refresh semua field yang bersumber dari lomba (termasuk deskripsi, supaya
+      // tidak basi kalau kategori_peserta lomba diganti belakangan). Field yang
+      // BUKAN milik lomba (mis. status selesai/aktif) sengaja tidak disentuh di sini.
+      existing.judul = judul; existing.tanggal = lomba.tanggal; existing.jam = lomba.jam || null; existing.deskripsi = deskripsi;
     } else {
-      const jadwalEntry = {id:uid(), event_id:lomba.event_id, judul, tanggal:lomba.tanggal, jam:lomba.jam || null, kategori:'acara', deskripsi:`Otomatis dibuat dari data lomba (kategori: ${labelPeserta(lomba.kategori_peserta)}).`, status:'aktif'};
+      const jadwalEntry = {id:uid(), event_id:lomba.event_id, judul, tanggal:lomba.tanggal, jam:lomba.jam || null, kategori:'acara', deskripsi, status:'aktif'};
       db.jadwal.push(jadwalEntry);
       lomba.jadwal_id = jadwalEntry.id;
     }
@@ -326,6 +330,14 @@ function syncAgendaLomba(lomba){
     db.jadwal = db.jadwal.filter(j=>j.id!==lomba.jadwal_id);
     lomba.jadwal_id = null;
   }
+}
+
+// Reverse lookup: entri Jadwal mana yang otomatis mengikuti lomba tertentu.
+// Dipakai di menu Jadwal Kegiatan untuk mengunci edit/hapus entri auto ini,
+// supaya tidak ada drift antara data Lomba dan Jadwal (lihat catatan di
+// syncAgendaLomba di atas — sinkronisasi selalu satu arah: Lomba -> Jadwal).
+function getLombaForJadwal(jadwalId){
+  return db.lomba.find(l=>l.jadwal_id===jadwalId) || null;
 }
 
 function openLombaModal(id){

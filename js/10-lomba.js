@@ -497,8 +497,12 @@ function turunkanStokHadiahKeKebutuhan(hadiahId, itemId){
 }
 function renderHadiah(){
   const list = gHadiahKategori();
-  let total = 0;
-  list.forEach(h => h.items.forEach(item => total += Number(item.harga_satuan||0) * Number(item.qty_dibeli||0)));
+  // Pakai hitungHargaAktualHadiahLomba() (di 11-belanja.js) supaya "Total
+  // Belanja Hadiah" di sini konsisten dengan Belanja Hadiah — rumus flat
+  // harga_satuan*qty_dibeli mengabaikan harga_eceran untuk sisa pcs yang
+  // dibeli satuan (lihat Bug #2).
+  const hadiahAktual = hitungHargaAktualHadiahLomba();
+  const total = hadiahAktual.total;
   const isLoggedIn = !!getCurrentUser();
   const semuaLomba = gLomba();
 
@@ -517,7 +521,7 @@ function renderHadiah(){
       // dihapus atau qty_per_paket diturunkan, qty_dibeli bisa nyangkut lebih tinggi dari
       // kebutuhan riil tanpa disadari panitia. Deteksi ini supaya ada sinyal juga, bukan cuma "kurang".
       const lebihItems = kebutuhan!=null ? h.items.filter(item => Number(item.qty_dibeli||0) > hitungTargetQtyItem(item, kebutuhan)) : [];
-      const totalItem = h.items.reduce((s, item) => s + (Number(item.harga_satuan||0) * Number(item.qty_dibeli||0)), 0);
+      const totalItem = h.items.reduce((s, item) => s + (hadiahAktual.perItem[`${h.id}_${item.id}`]?.subtotal ?? 0), 0);
       // Harga SATU paket saja (isi paket × qty/paket) — dipakai untuk dibandingkan
       // dengan budget, karena budget diatur per paket/per pemenang, bukan akumulasi
       // seluruh lomba di kategori ini (yang jumlahnya beda-beda tiap kategori).

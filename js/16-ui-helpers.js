@@ -98,12 +98,13 @@ function hitungBukuUtama(){
   const kebutuhanLomba = kebutuhanLombaList
     .reduce((s,k)=> s + (Number(k.harga_realisasi ?? k.harga_estimasi ?? 0) * Number(k.qty||0)), 0);
 
-  let hadiahLomba = 0; let jumlahItemHadiahLomba = 0;
+  // Pakai hitungHargaAktualHadiahLomba() (di 11-belanja.js) supaya konsisten
+  // dengan Belanja Hadiah — rumus flat harga_satuan*qty_dibeli mengabaikan
+  // harga_eceran untuk sisa pcs yang dibeli satuan (lihat Bug #2).
+  const hadiahAktual = hitungHargaAktualHadiahLomba();
+  let hadiahLomba = hadiahAktual.total; let jumlahItemHadiahLomba = 0;
   gHadiahKategori().forEach(h => {
-    h.items.forEach(item => {
-      hadiahLomba += Number(item.harga_satuan||0) * Number(item.qty_dibeli||0);
-      jumlahItemHadiahLomba++;
-    });
+    h.items.forEach(() => { jumlahItemHadiahLomba++; });
   });
 
   const hadiahJalanList = gHadiahJalanSantai();

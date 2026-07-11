@@ -52,13 +52,22 @@ function renderLPJ(){
   const hadiahRows = [];
   const urutanKategori = KATEGORI_PESERTA.map(k=>k.v);
   const urutanJuara = JUARA_LIST.map(j=>j.v);
+  // Pakai hitungHargaAktualHadiahLomba() (di 11-belanja.js) supaya rincian per
+  // item di LPJ konsisten dengan Belanja Hadiah & ringkasan b.hadiahLomba —
+  // rumus flat harga_satuan*qty_dibeli mengabaikan harga_eceran untuk sisa pcs
+  // yang dibeli satuan (lihat Bug #2). "harga" di sini jadi harga efektif per
+  // pcs (hasil subtotal/qty) supaya qty × harga tetap sama dengan subtotal.
+  const hadiahAktual = hitungHargaAktualHadiahLomba();
   gHadiahKategori().slice().sort((a,b)=>{
     const ka = urutanKategori.indexOf(a.kategori_peserta), kb = urutanKategori.indexOf(b.kategori_peserta);
     if(ka !== kb) return ka - kb;
     return urutanJuara.indexOf(a.juara_ke) - urutanJuara.indexOf(b.juara_ke);
   }).forEach(h=>{
     (h.items||[]).forEach(item=>{
-      hadiahRows.push({ kategori:labelPeserta(h.kategori_peserta), juara:labelJuara(h.juara_ke), nama:item.nama, qty:item.qty_dibeli, harga:item.harga_satuan, subtotal:Number(item.harga_satuan||0)*Number(item.qty_dibeli||0) });
+      const alokasi = hadiahAktual.perItem[`${h.id}_${item.id}`];
+      const subtotal = alokasi ? alokasi.subtotal : 0;
+      const harga = alokasi ? alokasi.hargaEfektif : Number(item.harga_satuan||0);
+      hadiahRows.push({ kategori:labelPeserta(h.kategori_peserta), juara:labelJuara(h.juara_ke), nama:item.nama, qty:item.qty_dibeli, harga, subtotal });
     });
   });
 

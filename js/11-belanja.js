@@ -1,4 +1,76 @@
 /* ============================================================
+   PERHITUNGAN HARGA AKTUAL HADIAH LOMBA — sumber kebenaran tunggal
+   untuk total belanja hadiah, dipakai bersama oleh Dashboard
+   (hitungBukuUtama di 16-ui-helpers.js), Kebutuhan Hadiah (renderHadiah
+   di 10-lomba.js), dan LPJ (renderLPJ di 13-lpj.js).
+   ------------------------------------------------------------
+   Bug #2: sebelumnya ketiga tempat itu menghitung total hadiah lomba
+   dengan rumus flat (harga_satuan * qty_dibeli) yang mengabaikan
+   harga_eceran. Begitu panitia mengatur harga eceran berbeda untuk
+   sisa pcs yang tidak genap 1 pack (lewat "✎ Update harga & kemasan"
+   di Belanja Hadiah), Dashboard/Kebutuhan Hadiah/LPJ jadi under-estimate
+   dibanding pengeluaran riil yang sudah benar dihitung di
+   renderBelanjaHadiah(). Fungsi ini meniru PERSIS rumus pack+eceran
+   di renderBelanjaHadiah (pengelompokan per nama barang lintas kategori
+   peserta/juara, packRef = item dgn isi_per_pack terbesar dalam grup),
+   supaya semua tempat menampilkan angka yang sama.
+   ============================================================ */
+function hitungHargaAktualHadiahLomba(){
+  const items = [];
+  gHadiahKategori().forEach(h => {
+    h.items.forEach(item => {
+      if (Number(item.qty_dibeli||0) <= 0) return;
+      items.push({
+        hadiahId: h.id, itemId: item.id, itemNama: item.nama,
+        itemHarga: item.harga_satuan,
+        itemHargaEceran: (item.harga_eceran!=null ? item.harga_eceran : item.harga_satuan),
+        itemQtyDibeli: item.qty_dibeli,
+        isi_per_pack: item.isi_per_pack||1
+      });
+    });
+  });
+
+  // Kelompokkan per NAMA barang (gabungan lintas kategori peserta & juara),
+  // sama seperti renderBelanjaHadiah, karena harga pack/eceran disepakati
+  // per barang, bukan per paket kategori/juara.
+  const nameMap = {};
+  items.forEach(item => {
+    const key = item.itemNama.trim().toLowerCase();
+    if(!nameMap[key]) nameMap[key] = [];
+    nameMap[key].push(item);
+  });
+
+  let total = 0;
+  const perItem = {};
+  Object.values(nameMap).forEach(list => {
+    const totalQty = list.reduce((s,i)=>s+Number(i.itemQtyDibeli||0),0);
+    const packRef = list.reduce((best, cur) => Number(cur.isi_per_pack||1) > Number(best.isi_per_pack||1) ? cur : best, list[0]);
+    const isiPerPack = Math.max(1, Number(packRef.isi_per_pack||1));
+    const jumlahPackUtuh = isiPerPack > 1 ? Math.floor(totalQty / isiPerPack) : 0;
+    const sisaSatuan = isiPerPack > 1 ? totalQty % isiPerPack : 0;
+    const hargaPerPcsPack = Number(packRef.itemHarga||0);
+    const hargaEceran = Number(packRef.itemHargaEceran!=null ? packRef.itemHargaEceran : hargaPerPcsPack);
+    const totalHarga = isiPerPack > 1
+      ? (jumlahPackUtuh * isiPerPack * hargaPerPcsPack) + (sisaSatuan * hargaEceran)
+      : totalQty * hargaPerPcsPack;
+
+    total += totalHarga;
+
+    // Alokasikan totalHarga grup ini proporsional ke tiap item (by qty),
+    // supaya rincian per kategori/juara (Kebutuhan Hadiah, LPJ) tetap
+    // sinkron dengan total gabungan di Belanja Hadiah, walau barang yang
+    // sama dipakai di beberapa paket kategori/juara berbeda.
+    list.forEach(i => {
+      const qty = Number(i.itemQtyDibeli||0);
+      const subtotal = totalQty > 0 ? totalHarga * (qty / totalQty) : 0;
+      perItem[`${i.hadiahId}_${i.itemId}`] = { subtotal, hargaEfektif: qty > 0 ? subtotal / qty : 0 };
+    });
+  });
+
+  return { total, perItem };
+}
+
+/* ============================================================
    KATEGORI TOKO — pengelompokan otomatis daftar belanja hadiah
    berdasarkan nama item, supaya barang sejenis (alat tulis,
    kebutuhan dapur, makanan, kamar mandi) tidak campur dan bisa

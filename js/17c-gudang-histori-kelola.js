@@ -195,17 +195,7 @@ function renderGudangKelola(){
   </div>
   <div class="panel">
     <div class="panel-head">
-      <div><h3>Data Gudang</h3><div class="desc">Export/import cadangan data inventaris &amp; riwayat peminjaman (JSON).</div></div>
-      <div style="display:flex; gap:8px;">
-        <button class="btn secondary small" onclick="gudangExportJSON()">⬇ Export JSON</button>
-        <button class="btn secondary small" onclick="document.getElementById('gudang-import-input').click()">⬆ Import JSON</button>
-        <input type="file" id="gudang-import-input" accept=".json" style="display:none" onchange="gudangImportJSON(this)">
-      </div>
-    </div>
-  </div>
-  <div class="panel">
-    <div class="panel-head">
-      <div><h3>Inventory Terkini</h3></div>
+      <div><h3>Inventory Terkini</h3><div class="desc">Export/import cadangan data Gudang kini terpusat di menu Pengaturan &gt; Cadangan Data.</div></div>
       <button class="btn" onclick="openGudangStokModal()">+ Tambah Aset</button>
     </div>
     <div class="panel-body">
@@ -347,7 +337,11 @@ async function gudangAktifkanStok(id){
   }
 }
 
-function gudangExportJSON(){
+async function gudangExportJSON(){
+  // Dipanggil juga dari menu Pengaturan (backup terpusat), yang bisa diakses tanpa
+  // pernah membuka menu Gudang dulu -> gudangInventory/gudangTransactions bisa masih
+  // kosong (belum di-load). Pastikan data terbaru ter-load dulu sebelum diekspor.
+  if(!gudangLoaded){ await loadGudangData(); }
   const payload = {exportedAt: new Date().toISOString(), inventory: gudangInventory, transactions: gudangTransactions};
   const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
   const a = document.createElement('a');

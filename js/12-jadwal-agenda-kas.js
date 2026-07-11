@@ -488,3 +488,58 @@ function hapusKas(id){
   if(k) notifyTelegram(`🗑️ Hapus kas: ${k.keterangan}`);
 }
 
+function kasExportJSON(){
+  const payload = {exportedAt: new Date().toISOString(), kas: db.kas};
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `kas-backup-${todayISO()}.json`;
+  a.click();
+  toast('✅ Backup Kas berhasil diekspor.');
+}
+
+// Sama seperti gudangImportJSON: menulis langsung ke tabel kt_kas lewat upsert
+// (bukan lewat saveDB()/syncArrayTable biasa), lalu memuat ulang kt_kas dari
+// server supaya db.kas + _lastKnownIds/_lastKnownUpdatedAt (dipakai syncArrayTable
+// buat deteksi konflik & delete-diff, lihat 03-db-core.js) tetap konsisten dengan
+// server — bukan sekadar push ke memori lokal begitu saja.
+function kasImportJSON(input){
+  if(!canEditSection('kas')){ toast('🔒 Anda tidak memiliki akses untuk mengimpor data Kas.'); input.value=''; return; }
+  const file = input.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = async (e)=>{
+    try{
+      const parsed = JSON.parse(e.target.result);
+      if(!Array.isArray(parsed.kas)) throw new Error('Format file backup tidak dikenali.');
+      if(!confirm(`Import akan MENAMBAH ${parsed.kas.length} transaksi baru ke Kas Karang Taruna (data lama tidak dihapus). Lanjutkan?`)) return;
+      toast('⏳ Mengimpor data...');
+      const rows = parsed.kas.map(k => ({
+        id: k.id || uid(),
+        tanggal: k.tanggal || todayISO(),
+        keterangan: k.keterangan || '',
+        debit: Number(k.debit||0),
+        kredit: Number(k.kredit||0),
+        created_at: k.created_at || new Date().toISOString(),
+      }));
+      const ins = await sb.from('kt_kas').upsert(rows, {onConflict:'id'});
+      if(ins.error) throw new Error(ins.error.message);
+
+      const res = await sb.from('kt_kas').select('*');
+      if(res.error) throw new Error(res.error.message);
+      db.kas = res.data || [];
+      _lastKnownIds['kt_kas'] = new Set(db.kas.map(r=>r.id));
+      _lastKnownUpdatedAt['kt_kas'] = new Map(db.kas.map(r=>[r.id, r.updated_at||null]));
+
+      toast('✅ Import selesai.');
+      renderContent();
+    }catch(err){
+      console.error(err);
+      toast('⛔ Gagal import: ' + err.message);
+    }
+    input.value = '';
+  };
+  reader.readAsText(file);
+}
+
+

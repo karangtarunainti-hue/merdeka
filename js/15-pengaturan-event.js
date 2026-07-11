@@ -102,6 +102,20 @@ function renderPengaturan(){
         <label class="btn secondary" style="margin:0;${!activeEvent()?'opacity:.5;pointer-events:none;':''}">⬆ Impor sebagai Event Baru<input type="file" accept=".json" style="display:none;" onchange="importDataEvent(event)"></label>
       </div>
     </div>
+    <div class="panel-body" style="border-top:1px solid var(--garis);">
+      <div class="hint" style="margin-bottom:8px;">Backup Gudang Aset (inventaris + riwayat peminjaman). Data ini eventless, tidak ikut Backup Per-Event di atas. Impor akan MENAMBAH data, tidak menimpa.</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn secondary" onclick="gudangExportJSON()">⬇ Ekspor Gudang Aset</button>
+        <label class="btn secondary" style="margin:0;">⬆ Impor Gudang Aset<input type="file" accept=".json" style="display:none;" onchange="gudangImportJSON(this)"></label>
+      </div>
+    </div>
+    <div class="panel-body" style="border-top:1px solid var(--garis);">
+      <div class="hint" style="margin-bottom:8px;">Backup Kas Karang Taruna (transaksi debit/kredit). Data ini eventless, tidak ikut Backup Per-Event di atas — tapi IKUT ke dalam Backup Semua Data. Impor akan MENAMBAH data, tidak menimpa.</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn secondary" onclick="kasExportJSON()">⬇ Ekspor Kas Karang Taruna</button>
+        <label class="btn secondary" style="margin:0;">⬆ Impor Kas Karang Taruna<input type="file" accept=".json" style="display:none;" onchange="kasImportJSON(this)"></label>
+      </div>
+    </div>
   </div>`;
 }
 

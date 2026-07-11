@@ -8,7 +8,7 @@ function renderJadwal(){
   const isLoggedIn = !!getCurrentUser();
 
   const today = new Date();
-  const rows = list.map(j => {
+  const cards = list.map(j => {
     const jDate = new Date(j.tanggal + 'T00:00:00');
     const diffDays = Math.ceil((jDate - today) / (1000 * 60 * 60 * 24));
     let statusLabel = '';
@@ -31,18 +31,23 @@ function renderJadwal(){
     }
 
     return `
-    <tr class="${j.status === 'selesai' ? '' : (diffDays < 0 ? 'belum-bayar' : '')}">
-      <td data-label="Tanggal">${fmtDateHariShort(j.tanggal)}${j.jam?`<div class="hint" style="margin-top:2px;">⏰ ${j.jam}</div>`:''}</td>
-      <td data-label="Status"><span class="badge ${statusClass}">${statusLabel}</span></td>
-      <td data-label="Kategori"><span class="kategori-pill">${labelKategoriJadwal(j.kategori)}</span></td>
-      <td data-label="Judul">${esc(j.judul)}</td>
-      <td data-label="Deskripsi">${esc(j.deskripsi||'-')}</td>
-      <td data-label="Aksi" class="jadwal-actions" style="text-align:right; white-space:nowrap;">
+    <div class="jadwal-item ${j.status==='selesai'?'selesai':''} ${j.status!=='selesai'&&diffDays<0?'terlambat':''}">
+      <div class="jadwal-item-top">
+        <div class="jadwal-item-date">
+          <span class="jadwal-item-date-main">${fmtDateHariShort(j.tanggal)}</span>
+          ${j.jam?`<span class="jadwal-item-jam">⏰ ${esc(j.jam)}</span>`:''}
+        </div>
+        <span class="badge ${statusClass}">${statusLabel}</span>
+      </div>
+      <div class="jadwal-item-title">${esc(j.judul)}</div>
+      <div class="jadwal-item-meta"><span class="kategori-pill">${labelKategoriJadwal(j.kategori)}</span></div>
+      ${j.deskripsi?`<div class="jadwal-item-desc">${esc(j.deskripsi)}</div>`:''}
+      <div class="jadwal-item-actions">
         <button class="btn secondary small" onclick="toggleJadwalStatus('${j.id}')" ${!isLoggedIn ? 'disabled' : ''}>${j.status === 'selesai' ? 'Buka' : 'Selesai'}</button>
         <button class="icon-btn" onclick="openJadwalModal('${j.id}')" ${!isLoggedIn ? 'disabled' : ''} title="Edit">✎</button>
         <button class="icon-btn" onclick="hapusJadwal('${j.id}')" ${!isLoggedIn ? 'disabled' : ''} title="Hapus">🗑</button>
-      </td>
-    </tr>`;
+      </div>
+    </div>`;
   }).join('');
 
   const total = list.length;
@@ -62,16 +67,13 @@ function renderJadwal(){
   </div>
   <div class="panel">
     <div class="panel-head">
-      <div><h3>📅 Jadwal & Reminder</h3>
+      <div><h3>📅 Jadwal Kegiatan</h3>
         <div class="desc">Kelola jadwal kegiatan dan pengingat</div>
       </div>
       ${isLoggedIn ? `<button class="btn" onclick="openJadwalModal()">+ Tambah Jadwal</button>` : ''}
     </div>
-    <div class="panel-body flush">
-      <table class="general-table jadwal-table">
-        <thead><tr><th>Tanggal</th><th>Status</th><th>Kategori</th><th>Judul</th><th>Deskripsi</th><th></th></tr></thead>
-        <tbody>${rows || `<tr class="empty-row"><td colspan="6">Belum ada jadwal. ${isLoggedIn ? 'Tambahkan jadwal untuk mendapatkan pengingat.' : 'Login untuk menambah jadwal.'}</td></tr>`}</tbody>
-      </table>
+    <div class="panel-body">
+      <div class="jadwal-item-list">${cards || `<div class="empty-row" style="padding:30px;text-align:center;">Belum ada jadwal. ${isLoggedIn ? 'Tambahkan jadwal untuk mendapatkan pengingat.' : 'Login untuk menambah jadwal.'}</div>`}</div>
     </div>
   </div>`;
 }

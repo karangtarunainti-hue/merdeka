@@ -1072,6 +1072,44 @@
   .jadwal-group-body .lomba-card{ margin-bottom:12px; }
   .jadwal-group-body .lomba-card:last-child{ margin-bottom:0; }
 
+  /* ===== Jadwal Kegiatan: kartu per-jadwal (bukan tabel) ===== */
+  .jadwal-item-list{ display:flex; flex-direction:column; gap:10px; }
+  .jadwal-item{
+    border:1px solid var(--garis); border-radius:10px;
+    padding:12px 14px;
+    background:var(--surface);
+  }
+  .jadwal-item.terlambat{ border-left:3px solid var(--bahaya); }
+  .jadwal-item.selesai{ opacity:.7; }
+  .jadwal-item-top{
+    display:flex; align-items:flex-start; justify-content:space-between; gap:10px;
+    margin-bottom:6px;
+  }
+  .jadwal-item-date{ display:flex; flex-direction:column; gap:2px; }
+  .jadwal-item-date-main{ font-weight:700; font-size:13px; color:var(--ink-soft); }
+  .jadwal-item-jam{
+    font-size:11.5px; color:var(--ink-soft);
+    font-family:'JetBrains Mono',monospace;
+  }
+  .jadwal-item-title{ font-weight:700; font-size:15px; line-height:1.35; word-break:break-word; margin-bottom:6px; }
+  .jadwal-item.selesai .jadwal-item-title{ text-decoration:line-through; text-decoration-color:var(--abu); }
+  .jadwal-item-meta{ margin-bottom:6px; }
+  .jadwal-item-desc{
+    font-size:13px; color:var(--ink-soft); line-height:1.45;
+    word-break:break-word; white-space:pre-wrap;
+    padding-top:6px; margin-top:2px; border-top:1px dashed var(--garis);
+  }
+  .jadwal-item-actions{
+    display:flex; align-items:center; justify-content:flex-end; gap:8px;
+    margin-top:10px; padding-top:10px; border-top:1px dashed var(--garis);
+  }
+  @media (max-width:600px){
+    .jadwal-item{ padding:11px 12px; }
+    .jadwal-item-title{ font-size:14px; }
+    .jadwal-item-actions{ justify-content:space-between; }
+    .jadwal-item-actions .btn.secondary.small{ flex:1; }
+  }
+
   .hadiah-group{
     background:var(--cream-card);
     border:1px solid var(--garis);

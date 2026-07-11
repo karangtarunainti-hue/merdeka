@@ -1254,6 +1254,35 @@
   }
   .reminder-card .card-footer .btn{width:100%; justify-content:center;}
 
+  .reminder-card .card-body .lomba-detail-card{
+    padding:8px 0 10px;
+    border-bottom:1px dashed var(--garis);
+  }
+  .reminder-card .card-body .lomba-detail-card:last-child{border-bottom:none; padding-bottom:0;}
+  .reminder-card .card-body .lomba-detail-card:first-child{padding-top:0;}
+  .reminder-card .card-body .lomba-detail-row{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    gap:10px;
+    padding:3px 0;
+    flex-wrap:wrap;
+  }
+  .reminder-card .card-body .lomba-detail-row .lbl{
+    flex:0 0 auto;
+    font-weight:600;
+    color:var(--ink);
+    font-size:12px;
+  }
+  .reminder-card .card-body .lomba-detail-row .val{
+    text-align:right;
+    font-size:12.5px;
+    color:var(--ink-soft);
+    overflow-wrap:break-word;
+    word-break:break-word;
+    max-width:65%;
+  }
+
   .reminder-empty{
     text-align:center;
     padding:20px;

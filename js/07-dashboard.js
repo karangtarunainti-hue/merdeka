@@ -111,6 +111,49 @@ function generateReminders(){
     });
   }
 
+  // Lomba Hari Ini — saat tanggal lomba tiba, tampilkan kartu detail lengkap:
+  // hari/tanggal/waktu, nama lomba, kegiatan (kategori peserta), perlengkapan
+  // (dari Kebutuhan Barang lomba), dan nama koordinator (dari Database Anggota).
+  const lombaHariIniIds = new Set(); // dipakai untuk exclude dari kartu "Jadwal Mendatang" biar tidak dobel
+  const lombaListHariIni = isMenuAktif('lomba') ? gLomba() : [];
+  const lombaHariIni = lombaListHariIni.filter(l => {
+    if (!l.tanggal) return false;
+    const lDate = new Date(l.tanggal + 'T00:00:00');
+    return lDate.toDateString() === today.toDateString();
+  }).sort((a,b) => String(a.jam||'').localeCompare(String(b.jam||'')));
+
+  if (lombaHariIni.length > 0) {
+    const lombaCardsHtml = lombaHariIni.map(l => {
+      if (l.jadwal_id) lombaHariIniIds.add(l.jadwal_id);
+      const kebutuhan = gKebutuhan(l.id);
+      const perlengkapanText = kebutuhan.length
+        ? kebutuhan.map(k => `${k.nama_item} (${k.qty})`).join(', ')
+        : 'Belum ada data perlengkapan';
+      const koordinatorNama = getKoordinatorIds(l)
+        .map(id => (db.anggota.find(a=>a.id===id)||{}).nama)
+        .filter(Boolean);
+      const koordinatorText = koordinatorNama.length ? koordinatorNama.join(', ') : 'Belum ada koordinator';
+      return `
+      <div class="lomba-detail-card">
+        <div class="lomba-detail-row"><span class="lbl">🗓️ Hari &amp; Tanggal</span><span class="val">${fmtDateHari(l.tanggal)}</span></div>
+        <div class="lomba-detail-row"><span class="lbl">⏰ Waktu</span><span class="val">${l.jam?esc(l.jam):'Belum ditentukan'}</span></div>
+        <div class="lomba-detail-row"><span class="lbl">🏆 Nama Lomba</span><span class="val">${esc(l.nama)}</span></div>
+        <div class="lomba-detail-row"><span class="lbl">🎯 Kegiatan Lomba</span><span class="val">${esc(labelPeserta(l.kategori_peserta))}</span></div>
+        <div class="lomba-detail-row"><span class="lbl">📦 Perlengkapan</span><span class="val">${esc(perlengkapanText)}</span></div>
+        <div class="lomba-detail-row"><span class="lbl">👤 Koordinator</span><span class="val">${esc(koordinatorText)}</span></div>
+      </div>`;
+    }).join('');
+
+    reminders.push({
+      type: 'warning',
+      icon: '🏆',
+      title: 'Lomba Hari Ini!',
+      count: lombaHariIni.length,
+      itemsHtml: lombaCardsHtml,
+      action: {label: 'Lihat Semua Lomba →', link: 'lomba'}
+    });
+  }
+
   const jadwalList = isMenuAktif('jadwal') ? gJadwal().filter(j => j.status !== 'selesai') : [];
   const upcomingJadwal = jadwalList.filter(j => {
     const jDate = new Date(j.tanggal + 'T00:00:00');
@@ -121,7 +164,7 @@ function generateReminders(){
   if (upcomingJadwal.length > 0) {
     const todayJadwal = upcomingJadwal.filter(j => {
       const jDate = new Date(j.tanggal + 'T00:00:00');
-      return jDate.toDateString() === today.toDateString();
+      return jDate.toDateString() === today.toDateString() && !lombaHariIniIds.has(j.id);
     });
     const soonJadwal = upcomingJadwal.filter(j => {
       const jDate = new Date(j.tanggal + 'T00:00:00');
@@ -142,14 +185,16 @@ function generateReminders(){
       items.push({label: '📅 Mendatang:', value: soonText});
     }
 
-    reminders.push({
-      type: 'info',
-      icon: '📅',
-      title: 'Jadwal Mendatang',
-      count: upcomingJadwal.length,
-      items: items,
-      action: {label: 'Lihat Semua →', link: 'jadwal'}
-    });
+    if (items.length > 0) {
+      reminders.push({
+        type: 'info',
+        icon: '📅',
+        title: 'Jadwal Mendatang',
+        count: upcomingJadwal.length,
+        items: items,
+        action: {label: 'Lihat Semua →', link: 'jadwal'}
+      });
+    }
   }
 
   const hadiahItems = [];
@@ -288,7 +333,7 @@ function generateReminders(){
           <div class="count">${r.count}</div>
         </div>
         <div class="card-body">
-          ${r.items.map(item => `
+          ${r.itemsHtml ? r.itemsHtml : r.items.map(item => `
             <div class="item">
               <span class="label">${item.label}</span>
               <span class="value ${item.valueClass || ''}">${esc(item.value)}</span>

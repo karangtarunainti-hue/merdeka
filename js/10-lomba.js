@@ -176,29 +176,124 @@ function renderKoordinatorLombaBlock(lomba, isLoggedIn){
     </div>`).join('')}</div>` : `<div class="hint">Belum ada koordinator dipilih untuk lomba ini.</div>`;
 
   const addRow = !isLoggedIn ? '' : (sisaAnggota.length ? `
-  <div class="quick-add-row" style="max-width:420px;margin-top:10px;">
-    <select id="koordinator-add-${lomba.id}" style="flex:1;">${`<option value="">-- Pilih Anggota --</option>` + sisaAnggota.map(a=>`<option value="${a.id}">${esc(a.nama)}${a.rt?` (${labelRT(getRT(a))})`:''}</option>`).join('')}</select>
-    <button class="btn secondary small" onclick="tambahKoordinatorLomba('${lomba.id}')">+ Tambah Koordinator</button>
+  <div class="field combo" style="max-width:360px;margin-top:12px;margin-bottom:0;position:relative;">
+    <button type="button" id="koordinator-add-trigger-${lomba.id}" class="combo-trigger placeholder" onclick="toggleKoordinatorCombo('${lomba.id}')">
+      <span class="combo-trigger-label">-- Pilih Anggota --</span>
+      ${comboIconChevron()}
+    </button>
   </div>` : `<div class="hint" style="margin-top:10px;">Semua anggota sudah jadi koordinator lomba ini.</div>`);
 
   return `${listHtml}${addRow}`;
 }
-function tambahKoordinatorLomba(lombaId){
+
+// ===== Combo dropdown pencarian anggota (untuk pilih koordinator lomba) =====
+function comboIconChevron(){
+  return `<svg class="combo-chevron" width="15" height="15" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+}
+function comboIconSearch(){
+  return `<svg width="15" height="15" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2" fill="none"/><path d="M21 21l-3.8-3.8" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>`;
+}
+let _koordComboLombaId = null;
+let _koordComboPanelEl = null;
+let _koordComboSearch = '';
+function koordComboPositionPanel(trigger, panel){
+  const rect = trigger.getBoundingClientRect();
+  const vw = window.innerWidth, vh = window.innerHeight;
+  const panelWidth = Math.min(vw - 16, Math.max(rect.width, 280));
+  panel.style.left = Math.max(8, rect.left) + 'px';
+  panel.style.width = panelWidth + 'px';
+  const panelH = panel.offsetHeight || 300;
+  const spaceBelow = vh - rect.bottom;
+  const spaceAbove = rect.top;
+  if(spaceBelow < panelH + 12 && spaceAbove > spaceBelow){
+    panel.style.top = Math.max(8, rect.top - panelH - 6) + 'px';
+  } else {
+    panel.style.top = (rect.bottom + 6) + 'px';
+  }
+  const maxLeft = vw - panelWidth - 8;
+  if(parseFloat(panel.style.left) > maxLeft) panel.style.left = Math.max(8, maxLeft) + 'px';
+}
+function koordComboOptionsHtml(lombaId){
+  const lomba = db.lomba.find(l=>l.id===lombaId);
+  if(!lomba) return '';
+  const koordinatorIds = getKoordinatorIds(lomba);
+  const anggotaList = gAnggota().slice().sort((a,b)=>(a.nama||'').localeCompare(b.nama||'', 'id', {sensitivity:'base'}));
+  const sisaAnggota = anggotaList.filter(a=>!koordinatorIds.includes(a.id));
+  const key = _koordComboSearch.trim().toLowerCase();
+  const filtered = key ? sisaAnggota.filter(a=>(a.nama||'').toLowerCase().includes(key)) : sisaAnggota;
+  const optionsHtml = filtered.map(a=>`<button type="button" class="combo-option" onclick="pilihKoordinatorCombo('${lombaId}','${a.id}')">
+      <span class="combo-option-main"><span class="combo-option-name">${esc(a.nama)}</span></span>
+      ${a.rt?`<span class="combo-option-side"><span class="combo-option-sisa">${esc(labelRT(getRT(a)))}</span></span>`:''}
+    </button>`).join('');
+  return optionsHtml || `<div class="combo-empty">${sisaAnggota.length ? 'Tidak ditemukan.' : 'Semua anggota sudah jadi koordinator.'}</div>`;
+}
+function koordComboPanelHtml(lombaId){
+  return `
+    <div class="combo-search-wrap">
+      <span class="combo-search-icon">${comboIconSearch()}</span>
+      <input type="text" class="combo-search-input" placeholder="Cari nama anggota..." value="${esc(_koordComboSearch)}" oninput="onKoordComboSearch('${lombaId}', this.value)">
+    </div>
+    <div class="combo-list" data-combo-list>${koordComboOptionsHtml(lombaId)}</div>`;
+}
+function toggleKoordinatorCombo(lombaId){
+  const trigger = document.getElementById(`koordinator-add-trigger-${lombaId}`);
+  if(!trigger) return;
+  if(_koordComboLombaId === lombaId){ closeKoordinatorCombo(); return; }
+  closeKoordinatorCombo();
+  _koordComboSearch = '';
+  const panel = document.createElement('div');
+  panel.className = 'combo-panel combo-panel-floating';
+  panel.id = 'koordinator-combo-floating';
+  panel.innerHTML = koordComboPanelHtml(lombaId);
+  document.body.appendChild(panel);
+  koordComboPositionPanel(trigger, panel);
+  requestAnimationFrame(()=>{
+    panel.classList.add('show');
+    const input = panel.querySelector('.combo-search-input');
+    if(input) input.focus();
+  });
+  trigger.classList.add('open');
+  _koordComboLombaId = lombaId;
+  _koordComboPanelEl = panel;
+}
+function closeKoordinatorCombo(){
+  if(_koordComboPanelEl){ _koordComboPanelEl.remove(); _koordComboPanelEl = null; }
+  if(_koordComboLombaId!==null){
+    const trigger = document.getElementById(`koordinator-add-trigger-${_koordComboLombaId}`);
+    if(trigger) trigger.classList.remove('open');
+  }
+  _koordComboLombaId = null;
+}
+function onKoordComboSearch(lombaId, value){
+  _koordComboSearch = value;
+  if(!_koordComboPanelEl) return;
+  const list = _koordComboPanelEl.querySelector('[data-combo-list]');
+  if(list) list.innerHTML = koordComboOptionsHtml(lombaId);
+}
+function pilihKoordinatorCombo(lombaId, anggotaId){
   if (!canEditSection('lomba')) { toast('⛔ Login untuk mengedit data'); return; }
   const lomba = db.lomba.find(l=>l.id===lombaId);
   if(!lomba) return;
-  const sel = document.getElementById(`koordinator-add-${lombaId}`);
-  const anggotaId = sel && sel.value;
-  if(!anggotaId){ toast('Pilih anggota dulu'); return; }
   const ids = getKoordinatorIds(lomba);
   if(ids.includes(anggotaId)){ toast('Sudah jadi koordinator'); return; }
   ids.push(anggotaId);
   lomba.koordinator_anggota_ids = ids;
   lomba.koordinator_anggota_id = ids[0] || null;
+  closeKoordinatorCombo();
   saveDB(); renderContent(); toast('Koordinator ditambahkan');
   const anggota = db.anggota.find(a=>a.id===anggotaId);
   notifyTelegram(`👤 Koordinator lomba ditambahkan: ${lomba.nama}`, anggota ? `Koordinator: ${anggota.nama}` : '');
 }
+document.addEventListener('click', (e)=>{
+  if(e.target.closest('.combo-panel-floating') || e.target.closest('[id^="koordinator-add-trigger-"]')) return;
+  closeKoordinatorCombo();
+});
+window.addEventListener('resize', ()=>{
+  if(_koordComboLombaId===null || !_koordComboPanelEl) return;
+  const trigger = document.getElementById(`koordinator-add-trigger-${_koordComboLombaId}`);
+  if(!trigger || !document.body.contains(trigger)){ closeKoordinatorCombo(); return; }
+  koordComboPositionPanel(trigger, _koordComboPanelEl);
+});
 function hapusKoordinatorLomba(lombaId, anggotaId){
   if (!canEditSection('lomba')) { toast('⛔ Login untuk mengedit data'); return; }
   const lomba = db.lomba.find(l=>l.id===lombaId);

@@ -223,15 +223,29 @@ function renderGudangKelola(){
 }
 let gudangSearchKelola = '';
 
-// Lokasi gudang mengikuti penamaan yang sudah dipakai di data lama ("Gudang RT 1" dst),
-// bukan daftar RT umum (RT_LIST) yang dipakai di menu Anggota — supaya aset baru
-// masuk ke grup yang sama dengan data lama, bukan bikin grup terpisah.
-const GUDANG_LOKASI_LIST = ['Gudang RT 1', 'Gudang RT 2', 'Gudang RT 3', 'Gudang Karang Taruna'];
+// Lokasi gudang DINAMIS — diambil dari lokasi yang sudah pernah dipakai di
+// data inventaris (aktif maupun nonaktif), bukan daftar statis lagi. Ini
+// dipertahankan hanya sebagai seed default ("Gudang RT 1" dst.) supaya
+// pengalaman pertama kali (inventaris masih kosong) tetap punya pilihan
+// yang masuk akal, sebelum admin mulai menambah aset sendiri.
+const GUDANG_LOKASI_SEED_DEFAULT = ['Gudang RT 1', 'Gudang RT 2', 'Gudang RT 3', 'Gudang Karang Taruna'];
+function gudangKnownLokasiList(){
+  const set = new Set();
+  gudangInventory.forEach(i=>{ if(i.gudang) set.add(i.gudang); });
+  if(set.size===0){ GUDANG_LOKASI_SEED_DEFAULT.forEach(l=>set.add(l)); }
+  return Array.from(set).sort((a,b)=>a.localeCompare(b,'id'));
+}
 function gudangLokasiOptions(selectedGudang){
-  const known = GUDANG_LOKASI_LIST.map(l=>`<option value="${esc(l)}" ${selectedGudang===l?'selected':''}>${esc(l)}</option>`).join('');
-  const legacy = (selectedGudang && !GUDANG_LOKASI_LIST.includes(selectedGudang))
-    ? `<option value="${esc(selectedGudang)}" selected>${esc(selectedGudang)} (lama)</option>` : '';
-  return `<option value="">-- Pilih Lokasi --</option>${known}${legacy}`;
+  const known = gudangKnownLokasiList().map(l=>`<option value="${esc(l)}" ${selectedGudang===l?'selected':''}>${esc(l)}</option>`).join('');
+  return `<option value="">-- Pilih Lokasi --</option>${known}<option value="__baru__">+ Lokasi Baru...</option>`;
+}
+// Toggle input teks "Lokasi Baru" saat opsi __baru__ dipilih di dropdown —
+// dipanggil langsung dari onchange select, tidak perlu render ulang modal.
+function gudangToggleLokasiBaru(val){
+  const wrap = document.getElementById('gs-gudang-baru-wrap');
+  if(!wrap) return;
+  wrap.style.display = (val==='__baru__') ? 'block' : 'none';
+  if(val==='__baru__'){ const inp=document.getElementById('gs-gudang-baru'); if(inp) setTimeout(()=>inp.focus(), 30); }
 }
 function openGudangStokModal(id){
   const item = id ? gudangInventory.find(i=>i.id===id) : null;
@@ -239,7 +253,11 @@ function openGudangStokModal(id){
   const body = `
     <div class="field"><label>Nama Barang</label><input type="text" id="gs-nama" placeholder="Kursi Plastik Hijau" value="${item?esc(item.nama):''}"></div>
     <div class="field"><label>Lokasi / Gudang</label>
-      <select id="gs-gudang">${gudangLokasiOptions(item?item.gudang:'')}</select>
+      <select id="gs-gudang" onchange="gudangToggleLokasiBaru(this.value)">${gudangLokasiOptions(item?item.gudang:'')}</select>
+    </div>
+    <div class="field" id="gs-gudang-baru-wrap" style="display:none;">
+      <label>Nama Lokasi Baru</label>
+      <input type="text" id="gs-gudang-baru" placeholder="Contoh: Gudang Balai Desa">
     </div>
     <div class="field"><label>Total Unit</label><input type="number" min="0" id="gs-total" value="${item?item.total:''}"></div>
     ${item ? `<div class="hint" style="margin:-6px 0 14px;">Sedang dipinjam: <b>${dipinjam}</b> unit. Stok tersedia otomatis dihitung dari Total Unit dikurangi yang sedang dipinjam.</div>` : ''}`;
@@ -251,8 +269,12 @@ function openGudangStokModal(id){
 async function gudangSaveStok(id){
   if(!gudangCanKelola()){ toast('🔒 Hanya admin yang dapat mengelola aset.'); closeModal(); return; }
   const nama = document.getElementById('gs-nama').value.trim();
-  const gudang = document.getElementById('gs-gudang').value.trim();
+  const gudangSel = document.getElementById('gs-gudang').value;
+  const gudang = gudangSel==='__baru__'
+    ? (document.getElementById('gs-gudang-baru')?.value || '').trim()
+    : gudangSel.trim();
   const total = parseInt(document.getElementById('gs-total').value, 10);
+  if(gudangSel==='__baru__' && !gudang){ toast('⛔ Isi nama lokasi baru.'); return; }
   if(!nama || !gudang){ toast('⛔ Nama & lokasi wajib diisi.'); return; }
   if(isNaN(total) || total<0){ toast('⛔ Total unit harus angka valid.'); return; }
   const now = todayISO();

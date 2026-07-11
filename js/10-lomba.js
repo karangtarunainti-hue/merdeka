@@ -42,14 +42,16 @@ function renderLomba(){
     return `
     <div class="lomba-card ${isOpen?'open':''}">
       <div class="lomba-card-head" onclick="toggleLombaCard('${l.id}')" style="cursor:pointer;">
-        <div><span class="nomor-badge kategori-${l.kategori_peserta}">${idx}</span><span class="name">${esc(l.nama)}</span><span class="kategori-pill" style="margin-left:8px;">${labelPeserta(l.kategori_peserta)}</span>${l.jam?`<span class="jam-pill" style="margin-left:6px;">🕐 ${esc(l.jam)}</span>`:''}${Number(l.jumlah_anggota_regu||1)>1?`<span class="kategori-pill khusus" style="margin-left:6px;">👥 Beregu ×${l.jumlah_anggota_regu}${l.hadiah_per_regu?' · 1 hadiah/regu':''}</span>`:''}</div>
-        <div style="display:flex;align-items:center;gap:14px;">
+        <div class="lomba-head-title"><span class="nomor-badge kategori-${l.kategori_peserta}">${idx}</span><span class="name">${esc(l.nama)}</span><span class="lomba-head-tags"><span class="kategori-pill">${labelPeserta(l.kategori_peserta)}</span>${l.jam?`<span class="jam-pill">🕐 ${esc(l.jam)}</span>`:''}${Number(l.jumlah_anggota_regu||1)>1?`<span class="kategori-pill khusus">👥 Beregu ×${l.jumlah_anggota_regu}${l.hadiah_per_regu?' · 1 hadiah/regu':''}</span>`:''}</span></div>
+        <div class="lomba-head-meta">
           <span class="lomba-badge">${items.length} item</span>
           ${hadiahBadge}
-          <span class="mono" style="font-size:13px;">${fmtRp(subtotal)}</span>
-          <button class="icon-btn" onclick="event.stopPropagation(); openLombaModal('${l.id}')" ${!isLoggedIn ? 'disabled' : ''}>✎</button>
-          <button class="icon-btn" onclick="event.stopPropagation(); hapusLomba('${l.id}')" ${!isLoggedIn ? 'disabled' : ''}>🗑</button>
-          <svg class="chevron" width="16" height="16" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span class="mono lomba-head-subtotal">${fmtRp(subtotal)}</span>
+          <span class="lomba-head-actions">
+            <button class="icon-btn" onclick="event.stopPropagation(); openLombaModal('${l.id}')" ${!isLoggedIn ? 'disabled' : ''}>✎</button>
+            <button class="icon-btn" onclick="event.stopPropagation(); hapusLomba('${l.id}')" ${!isLoggedIn ? 'disabled' : ''}>🗑</button>
+            <svg class="chevron" width="16" height="16" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
         </div>
       </div>
       <div class="lomba-card-body">

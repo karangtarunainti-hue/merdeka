@@ -42,7 +42,7 @@ function renderLomba(){
     return `
     <div class="lomba-card ${isOpen?'open':''}">
       <div class="lomba-card-head" onclick="toggleLombaCard('${l.id}')" style="cursor:pointer;">
-        <div><span class="nomor-badge kategori-${l.kategori_peserta}">${idx}</span><span class="name">${esc(l.nama)}</span><span class="kategori-pill" style="margin-left:8px;">${labelPeserta(l.kategori_peserta)}</span>${Number(l.jumlah_anggota_regu||1)>1?`<span class="kategori-pill khusus" style="margin-left:6px;">👥 Beregu ×${l.jumlah_anggota_regu}${l.hadiah_per_regu?' · 1 hadiah/regu':''}</span>`:''}${l.jam?`<div class="hint" style="margin-top:4px;">🕐 ${esc(l.jam)}</div>`:''}</div>
+        <div><span class="nomor-badge kategori-${l.kategori_peserta}">${idx}</span><span class="name">${esc(l.nama)}</span><span class="kategori-pill" style="margin-left:8px;">${labelPeserta(l.kategori_peserta)}</span>${l.jam?`<span class="jam-pill" style="margin-left:6px;">🕐 ${esc(l.jam)}</span>`:''}${Number(l.jumlah_anggota_regu||1)>1?`<span class="kategori-pill khusus" style="margin-left:6px;">👥 Beregu ×${l.jumlah_anggota_regu}${l.hadiah_per_regu?' · 1 hadiah/regu':''}</span>`:''}</div>
         <div style="display:flex;align-items:center;gap:14px;">
           <span class="lomba-badge">${items.length} item</span>
           ${hadiahBadge}

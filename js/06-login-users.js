@@ -68,13 +68,14 @@ function renderUsers() {
   
   const users = getUsers();
   const roleLabel = {admin:'Admin', user:'User', petugas:'Petugas'};
+  const roleBadgeClass = u => u.role === 'admin' ? 'lunas' : (u.role === 'petugas' ? 'khusus' : 'dibeli');
   const bidangHtml = u => u.role === 'petugas'
     ? ((u.allowed_sections && u.allowed_sections.length) ? u.allowed_sections.map(k=>esc((SECTIONS.find(s=>s.key===k)||{}).label || k)).join(', ') : '<span style="color:var(--ink-soft);">Belum ada bidang</span>')
     : '<span style="color:var(--ink-soft);">Semua bidang</span>';
   const rows = users.map((u, idx) => `
     <tr>
       <td data-label="Nama">${esc(u.name)}</td>
-      <td data-label="Role"><span class="badge ${u.role === 'admin' ? 'lunas' : (u.role === 'petugas' ? 'khusus' : 'dibeli')}">${roleLabel[u.role] || u.role}</span></td>
+      <td data-label="Role"><span class="badge ${roleBadgeClass(u)}">${roleLabel[u.role] || u.role}</span></td>
       <td data-label="Username">${esc(u.username)}</td>
       <td data-label="Bidang">${bidangHtml(u)}</td>
       <td data-label="Password">******</td>
@@ -85,6 +86,25 @@ function renderUsers() {
     </tr>
   `).join('');
 
+  // Kartu khusus HP — lewat .users-mobile-wrap (lihat media query max-width:820px
+  // di style.css), tampilan komputer TETAP pakai tabel di atas (.users-table-wrap)
+  // dan tidak berubah. Password disembunyikan di kartu HP karena selalu tampil
+  // "******" (tidak informatif) — ganti password tetap lewat tombol Edit.
+  const cards = users.map(u => `
+    <div class="jadwal-item">
+      <div class="jadwal-item-top">
+        <div class="jadwal-item-title" style="margin-bottom:0;">${esc(u.name)}</div>
+        <span class="badge ${roleBadgeClass(u)}">${roleLabel[u.role] || u.role}</span>
+      </div>
+      <div class="lomba-detail-row"><span class="lbl">👤 Username</span><span class="val">${esc(u.username)}</span></div>
+      <div class="lomba-detail-row"><span class="lbl">🛠️ Bidang</span><span class="val">${bidangHtml(u)}</span></div>
+      <div class="jadwal-item-actions">
+        <button class="btn secondary small" onclick="openUserModal('${u.id}')">✎ Edit</button>
+        <button class="icon-btn" onclick="hapusUser('${u.id}')" ${users.length <= 1 ? 'disabled' : ''}>🗑</button>
+      </div>
+    </div>
+  `).join('');
+
   return `
   <div class="panel">
     <div class="panel-head">
@@ -93,11 +113,14 @@ function renderUsers() {
       </div>
       <button class="btn" onclick="openUserModal()">+ Tambah User</button>
     </div>
-    <div class="panel-body flush">
+    <div class="panel-body flush users-table-wrap">
       <table class="users-table">
         <thead><tr><th>Nama</th><th>Role</th><th>Username</th><th>Bidang</th><th>Password</th><th></th></tr></thead>
         <tbody>${rows || `<tr class="empty-row"><td colspan="6">Belum ada user.</td></tr>`}</tbody>
       </table>
+    </div>
+    <div class="panel-body users-mobile-wrap">
+      <div class="jadwal-item-list">${cards || `<div class="empty-row" style="padding:30px;text-align:center;">Belum ada user.</div>`}</div>
     </div>
   </div>
   <div class="panel">

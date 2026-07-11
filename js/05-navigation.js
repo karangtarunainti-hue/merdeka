@@ -2,6 +2,7 @@
    NAV / ROUTING
    ============================================================ */
 const SECTIONS = [
+  {key:'jadwal', label:'Jadwal Kegiatan', sub:'Kelola jadwal dan pengingat', icon:'calendar', adminOnly: false},
   {key:'dashboard', label:'Buku Kegiatan', sub:'Rekap & Reminder', icon:'grid', adminOnly: false},
   {key:'anggota', label:'Iuran Anggota', sub:'Kelola iuran anggota', icon:'users', adminOnly: false},
   {key:'donatur', label:'Donatur', sub:'Sumbangan tunai dari donatur', icon:'heart', adminOnly: false},
@@ -18,7 +19,6 @@ const SECTIONS = [
   {key:'pengaturan', label:'Pengaturan', sub:'Tarif iuran & event', icon:'gear', adminOnly: true},
   {key:'database-anggota', label:'Database Anggota', sub:'Cek & filter semua anggota', icon:'database', adminOnly: false},
   {key:'users', label:'Manajemen User', sub:'Kelola akun pengguna', icon:'users', adminOnly: true},
-  {key:'jadwal', label:'Jadwal & Reminder', sub:'Kelola jadwal dan pengingat', icon:'calendar', adminOnly: false},
   {key:'agenda', label:'Agenda Kegiatan', sub:'', icon:'calendar', adminOnly: true},
   {key:'gudang', label:'Gudang Aset', sub:'Inventaris & pinjam aset desa', icon:'package', adminOnly: false},
   {key:'dokumen', label:'Surat & Dokumen', sub:'Undangan, proposal & absensi', icon:'clipboard', adminOnly: false},
@@ -44,7 +44,7 @@ const FITUR_OPSIONAL = [
   {key:'lomba', label:'Lomba & Perlengkapan', menus:['lomba','belanja-perlengkapan']},
   {key:'hadiah', label:'Hadiah Lomba', menus:['hadiah','belanja-hadiah']},
   {key:'jalan_santai', label:'Hadiah Jalan Santai', menus:['hadiah-jalan','belanja-jalan']},
-  {key:'jadwal', label:'Jadwal & Reminder', menus:['jadwal']},
+  {key:'jadwal', label:'Jadwal Kegiatan', menus:['jadwal']},
 ];
 // Preset dipakai di modal event supaya tidak perlu centang satu-satu tiap bikin event baru.
 // Catatan: "dokumen" (Surat & Dokumen) sengaja TIDAK ada di sini lagi — sejak

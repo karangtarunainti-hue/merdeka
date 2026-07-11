@@ -116,6 +116,20 @@ function migrasiItemIdHadiah(result){
   return changed;
 }
 
+// Migrasi satu-kali: sebelum ada fix di hapusLomba/hapusKebutuhan (10-lomba.js),
+// menghapus item kebutuhan lomba (atau seluruh lomba) TIDAK ikut menghapus baris
+// status belanja perlengkapan (kt_daftar_belanja_perlengkapan) yang mereferensikannya
+// lewat kebutuhan_id — jadi baris itu jadi sampah/orphan yang tetap tersinkron
+// selamanya. Fungsi ini membersihkan baris yang kebutuhan_id-nya sudah tidak ada
+// lagi di lombaKebutuhan manapun (lintas semua event, bukan cuma event aktif, biar
+// tuntas sekali jalan).
+function bersihkanOrphanBelanjaPerlengkapan(result){
+  const kebutuhanIds = new Set((result.lombaKebutuhan||[]).map(k=>k.id));
+  const before = (result.daftarBelanjaPerlengkapan||[]).length;
+  result.daftarBelanjaPerlengkapan = (result.daftarBelanjaPerlengkapan||[]).filter(b=>kebutuhanIds.has(b.kebutuhan_id));
+  return result.daftarBelanjaPerlengkapan.length !== before;
+}
+
 async function loadDB(){
   const result = defaultDB();
   try{
@@ -215,11 +229,14 @@ async function loadDB(){
     // bisa menimpa data yang sudah ada di layar dengan tampilan KOSONG.
     result._loadFailed = true;
   }
-  if(migrasiItemIdHadiah(result)){
+  const migrasiHadiahBerubah = migrasiItemIdHadiah(result);
+  const orphanBelanjaDibersihkan = bersihkanOrphanBelanjaPerlengkapan(result);
+  if(migrasiHadiahBerubah || orphanBelanjaDibersihkan){
     // Ada item hadiah lama yang baru saja diberi `id` + record belanja yang baru
-    // ditautkan via `item_id` — simpan sekarang juga supaya migrasi ini benar-benar
-    // jalan sekali dan tidak hilang kalau user langsung hapus/reorder item sebelum
-    // ada perubahan lain yang memicu saveDB().
+    // ditautkan via `item_id`, dan/atau baris belanja perlengkapan orphan yang baru
+    // dibersihkan — simpan sekarang juga supaya migrasi ini benar-benar jalan sekali
+    // dan tidak hilang kalau user langsung hapus/reorder item sebelum ada perubahan
+    // lain yang memicu saveDB().
     db = result;
     saveDB();
   }

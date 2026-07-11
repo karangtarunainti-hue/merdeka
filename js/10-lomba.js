@@ -384,7 +384,12 @@ function hapusLomba(id){
   if(!confirm('Hapus lomba ini?')) return; 
   const l = db.lomba.find(x=>x.id===id);
   db.lombaHadiah=db.lombaHadiah.filter(lh=>lh.lomba_id!==id); 
+  // Ambil dulu id kebutuhan sebelum di-filter, supaya baris status belanja
+  // perlengkapan yang mereferensikannya bisa ikut dibersihkan (kalau tidak,
+  // baris itu jadi orphan permanen di kt_daftar_belanja_perlengkapan).
+  const kebutuhanIds = db.lombaKebutuhan.filter(k=>k.lomba_id===id).map(k=>k.id);
   db.lombaKebutuhan=db.lombaKebutuhan.filter(k=>k.lomba_id!==id); 
+  db.daftarBelanjaPerlengkapan = db.daftarBelanjaPerlengkapan.filter(b=>!kebutuhanIds.includes(b.kebutuhan_id));
   // Catatan: menghapus lomba TIDAK menurunkan qty_dibeli hadiah secara otomatis —
   // stok yang sudah disiapkan/dibeli tetap ada, bisa dikurangi manual lewat menu Kebutuhan Hadiah kalau perlu.
   if(l && l.jadwal_id){ db.jadwal = db.jadwal.filter(j=>j.id!==l.jadwal_id); }
@@ -425,6 +430,9 @@ function hapusKebutuhan(id){
   if(!confirm('Hapus item?')) return; 
   const k=db.lombaKebutuhan.find(x=>x.id===id); 
   db.lombaKebutuhan=db.lombaKebutuhan.filter(x=>x.id!==id); 
+  // Ikut hapus baris status belanja perlengkapan yang mereferensikan item ini,
+  // supaya tidak jadi orphan di kt_daftar_belanja_perlengkapan.
+  db.daftarBelanjaPerlengkapan = db.daftarBelanjaPerlengkapan.filter(b=>b.kebutuhan_id!==id);
   saveDB(); if(k) openLombaIds.add(k.lomba_id); renderContent(); renderTopbarSaldo();
   if(k) notifyTelegram(`🗑️ Hapus item kebutuhan: ${k.nama_item}`, `Lomba: ${db.lomba.find(x=>x.id===k.lomba_id)?.nama || k.lomba_id}`);
 }

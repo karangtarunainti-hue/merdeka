@@ -2127,3 +2127,21 @@ table.absensi-table th:nth-child(1), table.absensi-table td:nth-child(1){text-al
     padding-top:8px; border-top:1px dashed var(--garis);
   }
 }
+
+/* ============================================================
+   LUCIDE ICONS — ukuran & alignment icon pengganti emoji
+   (lihat js/21-icons-lucide.js)
+   ============================================================ */
+.inline-icon{
+  width:1em; height:1em;
+  vertical-align:-0.15em;
+  stroke-width:2.2;
+  flex-shrink:0;
+}
+h1 .inline-icon, h2 .inline-icon, h3 .inline-icon{
+  width:0.85em; height:0.85em;
+}
+.btn .inline-icon{
+  vertical-align:-0.2em;
+  margin-right:2px;
+}

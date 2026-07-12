@@ -8,7 +8,7 @@
    NAIKKAN CACHE_VERSION setiap kali index.html/style.css/js/*
    diupdate, supaya HP pengguna otomatis ambil versi baru.
    ============================================================ */
-const CACHE_VERSION = 'v28';
+const CACHE_VERSION = 'v29';
 const CACHE_NAME = `kt-shell-${CACHE_VERSION}`;
 
 // script.js lama sudah dipecah jadi banyak file per modul di folder js/
@@ -46,6 +46,7 @@ const APP_SHELL = [
   './manifest.json',
   './icons/icon-192.png',
   './icons/icon-512.png',
+  './icons/lucide-icons.local.js',
 ];
 
 self.addEventListener('install', (event) => {

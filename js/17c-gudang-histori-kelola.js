@@ -106,7 +106,12 @@ async function gudangPruneOldHistory(){
   if(selesai.length <= GUDANG_HIST_KEEP) return;
   const toDelete = selesai.slice(GUDANG_HIST_KEEP);
   const idList = toDelete.map(t=>t.id);
-  try{ await sb.from('kt_gudang_transaction_items').delete().in('transaction_id', idList); }catch(e){}
+  // Best-effort: kalau baris item-nya gagal terhapus di sini, baris transaksi
+  // induk di bawah tetap dicoba dihapus — kalau itu juga gagal (mis. karena FK
+  // masih nunjuk ke item yang belum kehapus), akan ketangkep & dilog di catch
+  // blok kedua. Tidak di-toast ke user karena ini cuma pruning riwayat lama di
+  // background, bukan aksi yang baru saja diminta user.
+  try{ await sb.from('kt_gudang_transaction_items').delete().in('transaction_id', idList); }catch(e){ console.warn('Gagal prune item riwayat gudang:', e); }
   try{
     await sb.from('kt_gudang_transactions').delete().in('id', idList);
     const delIds = new Set(idList);

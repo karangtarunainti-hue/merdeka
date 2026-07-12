@@ -20,6 +20,9 @@ const GUDANG_HIST_KEEP = 10;
 
 function gudangCanKelola(){ return isAdmin(); }
 
+// Return value: true = berhasil, false = gagal (dipakai caller supaya tidak
+// diam-diam menampilkan toast "berhasil" padahal load-nya gagal — lihat
+// gudangRefresh di bawah, ini bug lama yang sempat kejadian).
 async function loadGudangData(){
   try{
     const [invRes, trxRes, itemsRes] = await Promise.all([
@@ -27,9 +30,13 @@ async function loadGudangData(){
       sb.from('kt_gudang_transactions').select('*').order('created_at', {ascending:false}),
       sb.from('kt_gudang_transaction_items').select('*'),
     ]);
-    if(invRes.error){ console.error('Gagal memuat kt_gudang_inventory:', invRes.error); return; }
-    if(trxRes.error){ console.error('Gagal memuat kt_gudang_transactions:', trxRes.error); return; }
-    if(itemsRes.error){ console.error('Gagal memuat kt_gudang_transaction_items:', itemsRes.error); return; }
+    // sb.from(...).select() TIDAK melempar exception kalau query-nya gagal —
+    // error muncul lewat field `.error`, bukan lewat throw. Makanya tiap error
+    // di sini harus dilempar manual (throw) supaya ketangkep catch di bawah dan
+    // konsisten dilaporkan ke user lewat toast, bukan cuma console.error diam-diam.
+    if(invRes.error) throw new Error(`Gagal memuat data stok: ${invRes.error.message}`);
+    if(trxRes.error) throw new Error(`Gagal memuat data transaksi: ${trxRes.error.message}`);
+    if(itemsRes.error) throw new Error(`Gagal memuat detail transaksi: ${itemsRes.error.message}`);
 
     gudangInventory = (invRes.data||[]).map(r=>({
       id:r.id, nama:r.nama, gudang:r.gudang, total:r.total, tersedia:r.tersedia,
@@ -42,17 +49,21 @@ async function loadGudangData(){
       items: items.filter(it=>it.transaction_id===r.id).map(it=>({itemId:it.item_id, nama:it.nama, gudang:it.gudang, qty:it.qty})),
     }));
     gudangLoaded = true;
+    return true;
   }catch(e){
     console.error('Gagal memuat data Gudang:', e);
-    toast('⚠️ Gagal memuat data Gudang Aset.');
+    toast('⛔ Gagal memuat data Gudang Aset: ' + (e.message || 'periksa koneksi lalu coba lagi'));
+    return false;
   }
 }
 
 async function gudangRefresh(){
   toast('⏳ Menyegarkan data Gudang...');
-  await loadGudangData();
+  const ok = await loadGudangData();
   if(currentSection==='gudang'){ renderContent(); }
-  toast('✅ Data Gudang diperbarui.');
+  if(ok) toast('✅ Data Gudang diperbarui.');
+  // kalau gagal (ok===false), toast error dari loadGudangData sendiri sudah
+  // cukup — tidak perlu ditimpa toast sukses.
 }
 
 function gudangGroupByLokasi(list){

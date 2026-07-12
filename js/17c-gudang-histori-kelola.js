@@ -364,29 +364,26 @@ function gudangImportJSON(input){
     try{
       const parsed = JSON.parse(e.target.result);
       if(!parsed.inventory || !parsed.transactions) throw new Error('Format file backup tidak dikenali.');
-      if(!confirm(`Import akan MENAMBAH ${parsed.inventory.length} aset dan ${parsed.transactions.length} transaksi baru ke database (data lama tidak dihapus). Lanjutkan?`)) return;
+      if(!confirm(`Import akan menambah/menimpa ${parsed.inventory.length} aset dan ${parsed.transactions.length} transaksi ke database. Lanjutkan?`)) return;
       toast('⏳ Mengimpor data...');
-      for(const inv of parsed.inventory){
-        await sb.from('kt_gudang_inventory').upsert({
-          id: inv.id||uid(), nama:inv.nama, gudang:inv.gudang, total:inv.total, tersedia:inv.tersedia,
-          is_active: inv.isActive!==false, last_updated: inv.lastUpdated||null,
-        }, {onConflict:'id'});
-      }
-      for(const trx of parsed.transactions){
-        await sb.from('kt_gudang_transactions').upsert({
-          id: trx.id||uid(), resi:trx.resi, nama:trx.nama, alamat:trx.alamat, wa:trx.wa,
-          tgl_pinjam:trx.tglPinjam||null, tgl_kembali:trx.tglKembali||null, status:trx.status||'aktif',
-        }, {onConflict:'id'});
-        for(const it of (trx.items||[])){
-          await sb.from('kt_gudang_transaction_items').insert({transaction_id: trx.id, item_id: it.itemId, nama: it.nama, gudang: it.gudang, qty: it.qty});
-        }
-      }
+
+      // Seluruh proses import (semua aset + transaksi + item) dilakukan ATOMIK
+      // di server lewat satu RPC — kalau ada baris mana pun yang gagal (format
+      // rusak dll), PostgreSQL otomatis rollback SEMUANYA. Tidak ada lagi
+      // kemungkinan "setengah ke-import" seperti kalau dikirim satu-satu dari JS.
+      // Lihat supabase-gudang-import-atomic-migration.sql.
+      const r = await sb.rpc('kt_gudang_import_backup', {
+        p_inventory: parsed.inventory, p_transactions: parsed.transactions,
+      });
+      if(r.error) throw new Error(r.error.message);
+      const summary = (r.data && r.data[0]) || {inventory_count:0, transaction_count:0, item_count:0};
+
       await loadGudangData();
-      toast('✅ Import selesai.');
       renderContent();
+      toast(`✅ Import selesai: ${summary.inventory_count} aset, ${summary.transaction_count} transaksi, ${summary.item_count} item.`);
     }catch(err){
       console.error(err);
-      toast('⛔ Gagal import: ' + err.message);
+      toast('⛔ Gagal import (tidak ada data yang tersimpan): ' + err.message, 6000);
     }
     input.value = '';
   };

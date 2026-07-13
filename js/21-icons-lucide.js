@@ -37,7 +37,7 @@ const EMOJI_ICON_MAP = {
 
 const EMOJI_REGEX = new RegExp(
   '[' + Object.keys(EMOJI_ICON_MAP).map(e => e.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('') + ']',
-  'g'
+  'gu'
 );
 
 function iconifyRoot(root){

@@ -785,7 +785,15 @@ function openHadiahModal(id){
         const qty_dibeli = matched ? Number(matched.qty_dibeli||0) : (kebutuhan!=null ? kebutuhan*qty_per_paket : qty_per_paket);
         const qty_terpakai = matched ? (matched.qty_terpakai||0) : 0;
         const id = matched ? matched.id : uid();
-        items.push({id,nama,harga_satuan,qty_dibeli,qty_per_paket,qty_terpakai});}}); if(items.length===0){toast('Minimal 1 item');return;}
+        items.push({id,nama,harga_satuan,qty_dibeli,qty_per_paket,qty_terpakai});}});
+      if(items.length===0){
+        if(!editing){ toast('Minimal 1 item'); return; }
+        if(!confirm(`Semua item dikosongkan. Paket hadiah ${labelPeserta(kategori_peserta)} - ${labelJuara(juara_ke)} akan DIHAPUS. Lanjutkan?`)) return;
+        db.hadiahKategori = db.hadiahKategori.filter(x=>x.id!==editing.id);
+        saveDB(); closeModal(); renderContent(); renderTopbarSaldo(); toast('🗑️ Paket hadiah dihapus');
+        notifyTelegram(`🗑️ Hapus paket hadiah ${labelPeserta(kategori_peserta)} - ${labelJuara(juara_ke)}`, 'Semua item dikosongkan dari form edit');
+        return;
+      }
       let actionMsg = editing ? `✏️ Edit paket hadiah ${labelPeserta(kategori_peserta)} - ${labelJuara(juara_ke)}` : `➕ Paket hadiah baru ${labelPeserta(kategori_peserta)} - ${labelJuara(juara_ke)}`;
       if(editing){ Object.assign(editing,{kategori_peserta,juara_ke,items});}
       else{ db.hadiahKategori.push({id:uid(),event_id:eid(),kategori_peserta,juara_ke,items}); }
@@ -811,7 +819,7 @@ function addItemRow(){ const container=document.getElementById('items-container'
   // (setiap listener dibuat sebagai fungsi anonim baru sehingga browser tidak men-dedupe-nya).
   row.querySelectorAll('.currency-input').forEach(setupCurrencyInput);
 }
-function removeItemRow(element){ if(!element) return; const rows=document.querySelectorAll('#items-container .item-fields-row'); if(rows.length>1) element.remove(); else toast('Minimal 1 item'); }
+function removeItemRow(element){ if(!element) return; element.remove(); const container=document.getElementById('items-container'); if(container && container.querySelectorAll('.item-fields-row').length===0){ container.innerHTML='<div class="hint" style="padding:8px 0;">Belum ada item. Klik "+ Tambah Item", atau langsung Simpan untuk menghapus paket ini.</div>'; } }
 // Menyamakan harga_satuan semua item hadiah (lintas semua paket kategori+juara,
 // dalam event yang sama) yang namanya SAMA (dibandingkan tanpa peduli besar/kecil
 // huruf & spasi berlebih) dengan harga yang baru saja diisi/diedit user di satu

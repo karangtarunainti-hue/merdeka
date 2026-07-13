@@ -2036,6 +2036,7 @@ table.absensi-table th:nth-child(1), table.absensi-table td:nth-child(1){text-al
   table.anggota-table-guest th:nth-child(3),
   table.anggota-table-guest td:nth-child(3){
     width:28%; min-width:0; white-space:nowrap; padding:8px 10px 8px 6px;
+    text-align:right;
   }
 }
 

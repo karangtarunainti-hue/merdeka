@@ -139,7 +139,14 @@ function tambahKebutuhanCepat(lombaId){
 
 // Paket hadiah tidak lagi dipilih manual per lomba — otomatis mengikuti kategori peserta lomba.
 // Blok ini menampilkan (read-only) rincian item + qty dari paket yang otomatis berlaku untuk lomba ini.
-const JUARA_MEDAL = {'1':'🥇','2':'🥈','3':'🥉','partisipasi':'🎗️'};
+// Ikon dipilih dari emoji yang SUDAH dipetakan di EMOJI_ICON_MAP (js/21-icons-lucide.js)
+// supaya otomatis dikonversi jadi SVG Lucide selaras dengan seluruh icon lain di app —
+// BUKAN emoji medali (🥇🥈🥉) yang tidak ada di peta itu dan akan tampil sebagai emoji
+// bawaan OS (beda gaya/warna tiap perangkat, tidak seragam dengan icon system app).
+// Juara 1-3 pakai icon yang SAMA (trophy), dibedakan lewat warna teks (emas/perak/
+// perunggu di CSS .juara-tag-1/2/3) — Partisipasi pakai icon "users" karena hadiahnya
+// untuk semua peserta, bukan pemenang.
+const JUARA_MEDAL = {'1':'🏆','2':'🏆','3':'🏆','partisipasi':'👥'};
 function renderHadiahLombaBlock(lomba){
   const rows = JUARA_LIST.map(j=>{
     const opsi = gHadiahKategori().filter(h=> h.kategori_peserta===lomba.kategori_peserta && h.juara_ke===j.v);

@@ -112,6 +112,15 @@ function gantiTahunDanaSosial(v){
   renderContent();
 }
 
+// Tab aktif di halaman Dana Sosial: 'daftar' (Daftar Anggota & Status Bayar)
+// atau 'rekap' (Rekap Bulanan). Reset ke 'daftar' tiap kali halaman dimuat
+// ulang (tidak perlu disimpan permanen), sama seperti pola tab di renderLomba().
+let danaSosialActiveTab = 'daftar';
+function setDanaSosialTab(tab){
+  danaSosialActiveTab = tab;
+  renderContent();
+}
+
 function renderDanaSosial(){
   const canEdit = canEditSection('dana-sosial');
   const tahun = danaSosialTahunAktif;
@@ -171,6 +180,12 @@ function renderDanaSosial(){
     <div class="stat-card ${saldoTotal<0?'defisit':'saldo'}"><div class="lbl">Saldo Dana Sosial</div><div class="val">${fmtRp(saldoTotal)}</div></div>
   </div>
 
+  <div class="lomba-tabs">
+    <button type="button" class="lomba-tabbtn ${danaSosialActiveTab==='daftar'?'active':''}" onclick="setDanaSosialTab('daftar')">Daftar Anggota &amp; Status Bayar</button>
+    <button type="button" class="lomba-tabbtn ${danaSosialActiveTab==='rekap'?'active':''}" onclick="setDanaSosialTab('rekap')">Rekap Bulanan</button>
+  </div>
+
+  <div style="display:${danaSosialActiveTab==='daftar'?'block':'none'};">
   <div class="panel">
     <div class="panel-head">
       <div><h3>Daftar Anggota &amp; Status Bayar</h3>
@@ -190,11 +205,16 @@ function renderDanaSosial(){
       </div>
     </div>
   </div>
+  </div>
 
+  <div style="display:${danaSosialActiveTab==='rekap'?'block':'none'};">
   <div class="panel">
     <div class="panel-head">
       <div><h3>Rekap Bulanan ${tahun}</h3>
         <div class="desc">Terkumpul dikurangi potongan konsumsi pertemuan (flat ${fmtRp(DANA_SOSIAL_POTONGAN_KONSUMSI)}/bulan)</div>
+      </div>
+      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+        <select id="ds-tahun-select-rekap" onchange="gantiTahunDanaSosial(this.value)">${tahunOptions}</select>
       </div>
     </div>
     <div class="panel-body flush">
@@ -207,6 +227,7 @@ function renderDanaSosial(){
       </div>
       <div class="ds-footnote">* Saldo bulan yang belum terlewati bersifat proyeksi (asumsi potongan konsumsi tetap berlaku).</div>
     </div>
+  </div>
   </div>`;
 }
 

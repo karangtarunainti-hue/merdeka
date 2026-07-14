@@ -2186,18 +2186,24 @@ h1 .inline-icon, h2 .inline-icon, h3 .inline-icon{
 
 /* ============================================================
    DANA SOSIAL — grid Nama x Bulan (js/22-dana-sosial.js)
+   Sengaja TIDAK pakai class .general-table di sini — aturan
+   nth-child(1..5) milik .general-table didesain utk tabel 5 kolom
+   dan akan bentrok kalau dipakai di tabel 13 kolom (Nama + 12
+   bulan), bikin 4 kolom pertama makan hampir semua lebar tabel.
    ============================================================ */
 table.ds-table{ table-layout:fixed; }
-table.ds-table th, table.ds-table td{ width:auto; text-align:center; padding:6px 4px; }
+table.ds-table thead th{ padding:8px 4px; text-align:center; }
+table.ds-table th:first-child{ text-align:left; padding-left:14px; }
+table.ds-table td{ padding:4px; text-align:center; border-bottom:1px solid var(--garis); }
 table.ds-table th:first-child, table.ds-table td.ds-nama{
-  text-align:left; width:150px; min-width:130px;
+  width:150px; min-width:130px;
+  text-align:left; padding:8px 6px 8px 14px;
   white-space:normal; word-break:break-word;
   position:sticky; left:0; background:var(--surface); z-index:1;
   box-shadow:1px 0 0 var(--garis);
 }
+table.ds-table thead th:first-child{ background:var(--table-head); z-index:3; }
 table.ds-table td.ds-nama .icon-btn{ margin-left:4px; }
-table.ds-table thead th{ position:sticky; top:0; background:var(--cream-card); z-index:2; }
-table.ds-table thead th:first-child{ z-index:3; }
 td.ds-cell{ padding:4px !important; }
 .ds-toggle{
   width:28px; height:28px; border-radius:7px; border:1.5px solid var(--garis);
@@ -2212,6 +2218,7 @@ td.ds-cell{ padding:4px !important; }
   border:none; background:transparent; color:var(--abu); cursor:default; font-weight:400;
 }
 .ds-toggle:disabled{ cursor:default; opacity:.85; }
+table.ds-rekap-table{ table-layout:auto; }
 table.ds-rekap-table td, table.ds-rekap-table th{ text-align:left; }
 table.ds-rekap-table td.num, table.ds-rekap-table th:not(:first-child){ text-align:right; }
 .ds-rekap-kosong td{ color:var(--ink-soft); font-style:italic; }

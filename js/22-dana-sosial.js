@@ -183,7 +183,7 @@ function renderDanaSosial(){
     </div>
     <div class="panel-body flush">
       <div style="overflow-x:auto; -webkit-overflow-scrolling:touch;">
-        <table class="general-table ds-table">
+        <table class="ds-table">
           <thead><tr><th>Nama</th>${theadBulan}</tr></thead>
           <tbody>${rows || `<tr class="empty-row"><td colspan="13">Belum ada anggota Dana Sosial. ${canEdit?'Klik + Tambah Anggota untuk mulai.':'Hanya role tertentu yang bisa menambah anggota.'}</td></tr>`}</tbody>
         </table>
@@ -199,7 +199,7 @@ function renderDanaSosial(){
     </div>
     <div class="panel-body flush">
       <div style="overflow-x:auto; -webkit-overflow-scrolling:touch;">
-        <table class="general-table ds-rekap-table">
+        <table class="ds-rekap-table">
           <thead><tr><th>Bulan</th><th>Wajib</th><th>Lunas</th><th>Terkumpul</th><th>Potongan</th><th>Saldo Bersih</th></tr></thead>
           <tbody>${rekapRows}</tbody>
           <tfoot><tr class="ds-rekap-total"><td>Total ${tahun}</td><td></td><td></td><td class="num">${fmtRp(totalTerkumpulTahun)}</td><td class="num">${fmtRp(totalPotonganTahun)}</td><td class="num ${totalSaldoTahun<0?'ds-minus':''}">${fmtRp(totalSaldoTahun)}</td></tr></tfoot>

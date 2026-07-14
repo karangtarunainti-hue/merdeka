@@ -32,7 +32,8 @@ const EMOJI_ICON_MAP = {
   '📡':'radio', '📤':'send', '🕐':'clock', '❔':'help-circle', '😅':'smile',
   '🚀':'rocket', '🧭':'compass', '📊':'bar-chart-3', '❤':'heart', '💼':'briefcase',
   '🚩':'flag', '🌐':'globe', '🗒':'sticky-note', '📄':'file', '👛':'shopping-bag',
-  '💡':'lightbulb', '💬':'message-circle', '🏬':'store'
+  '💡':'lightbulb', '💬':'message-circle', '🏬':'store',
+  'ℹ':'info', '⏰':'alarm-clock', '⏳':'hourglass', '▲':'chevron-up', '▼':'chevron-down'
 };
 
 const EMOJI_REGEX = new RegExp(

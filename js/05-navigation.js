@@ -24,12 +24,13 @@ const SECTIONS = [
   {key:'panduan', label:'Panduan', sub:'Cara pakai aplikasi ini', icon:'book', adminOnly: false},
   {key:'dokumen', label:'Surat & Dokumen', sub:'Undangan, proposal & absensi', icon:'clipboard', adminOnly: false},
   {key:'kas', label:'Kas Karang Taruna', sub:'', icon:'wallet', adminOnly: false},
+  {key:'dana-sosial', label:'Dana Sosial', sub:'Iuran bulanan Rp 5.000/anggota', icon:'coins', adminOnly: false},
 ];
 
 // Menu yang tidak terikat event tertentu (datanya global, bukan per-event).
 // Menu ini ditampilkan terpisah di atas, antara info login dan dropdown
 // Kegiatan Aktif, supaya jelas tidak berubah walau event aktif diganti.
-const GLOBAL_MENU_KEYS = ['kas', 'agenda', 'dokumen', 'database-anggota', 'gudang', 'panduan', 'users', 'pengaturan'];
+const GLOBAL_MENU_KEYS = ['kas', 'dana-sosial', 'agenda', 'dokumen', 'database-anggota', 'gudang', 'panduan', 'users', 'pengaturan'];
 
 /* ============================================================
    FITUR OPSIONAL PER EVENT
@@ -93,6 +94,7 @@ const ICONS = {
   report:'<path d="M6 3h9l3 3v15H6V3z" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linejoin="round"/><path d="M15 3v3h3" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linejoin="round"/><path d="M9 12h6M9 15h6M9 9h3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
   clipboard:'<rect x="5" y="4" width="14" height="17" rx="2" stroke="currentColor" stroke-width="1.6" fill="none"/><rect x="8.5" y="2.5" width="7" height="3.5" rx="1" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M8.5 11h7M8.5 14.5h7M8.5 18h4.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
   wallet:'<path d="M3 7a2 2 0 0 1 2-2h13a1 1 0 0 1 1 1v3H5" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linejoin="round"/><path d="M3 7v11a2 2 0 0 0 2 2h14a1 1 0 0 0 1-1V9a1 1 0 0 0-1-1H4a1 1 0 0 1-1-1z" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linejoin="round"/><circle cx="16.5" cy="14" r="1.4" fill="currentColor"/>',
+  coins:'<circle cx="9" cy="9" r="6" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M14.5 9c2.8.5 4.5 2 4.5 4.5 0 3-3.4 5.5-7.5 5.5-2.7 0-5-1.1-6.3-2.7" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round"/><path d="M7 9h4M9 6.5v5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>',
   book:'<path d="M4 5.5c0-1 .8-1.8 1.8-1.8H12v15.6H5.8c-1 0-1.8.8-1.8 1.8V5.5z" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linejoin="round"/><path d="M20 5.5c0-1-.8-1.8-1.8-1.8H12v15.6h6.2c1 0 1.8.8 1.8 1.8V5.5z" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linejoin="round"/>'
 };
 function icon(name){ return `<svg viewBox="0 0 24 24">${ICONS[name]||''}</svg>`; }
@@ -204,7 +206,7 @@ function goSection(key, opts){
 // saldo proyeksi kegiatan/event tidak ikut nongol di menu yang memang tidak
 // terikat event tersebut — chip itu punya arti khusus untuk event aktif,
 // jadi kalau ditampilkan di menu eventless malah bikin salah paham).
-const EVENTLESS_SECTIONS = ['gudang', 'dokumen', 'agenda', 'kas', 'dashboard', 'pengaturan', 'users', 'panduan'];
+const EVENTLESS_SECTIONS = ['gudang', 'dokumen', 'agenda', 'kas', 'dana-sosial', 'dashboard', 'pengaturan', 'users', 'panduan'];
 
 function renderTopbarSaldo(){
   const chip = document.getElementById('saldo-chip');
@@ -284,6 +286,7 @@ function renderContent(){
     case 'gudang': el.innerHTML = renderGudang(); break;
     case 'dokumen': el.innerHTML = renderDokumen(); break;
     case 'kas': el.innerHTML = renderKas(); break;
+    case 'dana-sosial': el.innerHTML = renderDanaSosial(); break;
     case 'lpj': el.innerHTML = renderLPJ(); break;
     case 'daftar-anggota': el.innerHTML = renderDaftarAnggota(); break;
     case 'pengaturan': el.innerHTML = renderPengaturan(); break;

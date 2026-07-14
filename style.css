@@ -2183,3 +2183,42 @@ h1 .inline-icon, h2 .inline-icon, h3 .inline-icon{
   vertical-align:-0.2em;
   margin-right:2px;
 }
+
+/* ============================================================
+   DANA SOSIAL — grid Nama x Bulan (js/22-dana-sosial.js)
+   ============================================================ */
+table.ds-table{ table-layout:fixed; }
+table.ds-table th, table.ds-table td{ width:auto; text-align:center; padding:6px 4px; }
+table.ds-table th:first-child, table.ds-table td.ds-nama{
+  text-align:left; width:150px; min-width:130px;
+  white-space:normal; word-break:break-word;
+  position:sticky; left:0; background:var(--surface); z-index:1;
+  box-shadow:1px 0 0 var(--garis);
+}
+table.ds-table td.ds-nama .icon-btn{ margin-left:4px; }
+table.ds-table thead th{ position:sticky; top:0; background:var(--cream-card); z-index:2; }
+table.ds-table thead th:first-child{ z-index:3; }
+td.ds-cell{ padding:4px !important; }
+.ds-toggle{
+  width:28px; height:28px; border-radius:7px; border:1.5px solid var(--garis);
+  background:var(--surface); color:var(--hijau); font-weight:700; font-size:14px;
+  cursor:pointer; display:inline-flex; align-items:center; justify-content:center;
+  transition:background .12s, border-color .12s;
+}
+.ds-toggle:hover:not(:disabled){ border-color:var(--hijau); }
+.ds-toggle.lunas{ background:var(--hijau-tint); border-color:#bfd8c6; color:var(--hijau); }
+.ds-toggle.belum{ background:var(--bahaya-tint); border-color:#e3c3c1; }
+.ds-toggle.ds-muted{
+  border:none; background:transparent; color:var(--abu); cursor:default; font-weight:400;
+}
+.ds-toggle:disabled{ cursor:default; opacity:.85; }
+table.ds-rekap-table td, table.ds-rekap-table th{ text-align:left; }
+table.ds-rekap-table td.num, table.ds-rekap-table th:not(:first-child){ text-align:right; }
+.ds-rekap-kosong td{ color:var(--ink-soft); font-style:italic; }
+.ds-minus{ color:var(--bahaya); }
+.ds-rekap-total{ font-weight:700; border-top:2px solid var(--garis); }
+.ds-footnote{ font-size:12px; color:var(--ink-soft); padding:10px 16px 4px; }
+@media (max-width:640px){
+  table.ds-table th:first-child, table.ds-table td.ds-nama{ width:110px; min-width:100px; font-size:12.5px; }
+  .ds-toggle{ width:24px; height:24px; font-size:12px; }
+}

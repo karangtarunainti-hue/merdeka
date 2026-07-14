@@ -42,6 +42,12 @@ function defaultDB(){
     // saldo dihitung berjalan (running balance) saat render, tidak disimpan
     // di DB. Disimpan di tabel kt_kas (lihat supabase-kas-migration.sql).
     kas: [],
+    // Dana Sosial — iuran bulanan Rp 5.000/anggota, TIDAK terikat event
+    // manapun (sama seperti Kas/Agenda). Daftar anggota MASTER terpisah
+    // total dari kt_anggota (iuran per-event) — lihat js/22-dana-sosial.js
+    // dan supabase-dana-sosial-migration.sql.
+    danaSosialAnggota: [],
+    danaSosialBayar: [],
     users: [...DEFAULT_USERS_FALLBACK],
     telegram: {
       botToken: '',
@@ -87,6 +93,8 @@ const ARRAY_TABLE_MAP = {
   jadwal: 'kt_jadwal',
   agenda: 'kt_agenda',
   kas: 'kt_kas',
+  danaSosialAnggota: 'kt_dana_sosial_anggota',
+  danaSosialBayar: 'kt_dana_sosial_bayar',
 };
 
 // Migrasi satu-kali: dulu status "dibeli" di daftarBelanjaHadiah dilacak pakai
@@ -538,8 +546,8 @@ async function _flushSaveDB(){
     // tabel-tabel ini disinkron bertahap per "level" (menunggu level sebelumnya
     // selesai), bukan semua sekaligus. Di dalam satu level tetap paralel karena
     // tidak saling bergantung.
-    const LEVEL_1_KEYS = ['anggota','donatur','transaksiLain','operasional','lomba','hadiahKategori','hadiahJalanSantai','jadwal','agenda','kas'];
-    const LEVEL_2_KEYS = ['lombaKebutuhan','lombaHadiah','daftarBelanjaHadiah','daftarBelanjaJalanSantai'];
+    const LEVEL_1_KEYS = ['anggota','donatur','transaksiLain','operasional','lomba','hadiahKategori','hadiahJalanSantai','jadwal','agenda','kas','danaSosialAnggota'];
+    const LEVEL_2_KEYS = ['lombaKebutuhan','lombaHadiah','daftarBelanjaHadiah','daftarBelanjaJalanSantai','danaSosialBayar'];
     const LEVEL_3_KEYS = ['daftarBelanjaPerlengkapan'];
     const otherEntries = arrayEntries.filter(([key]) => key !== 'events');
     const byKey = key => otherEntries.find(([k]) => k === key);

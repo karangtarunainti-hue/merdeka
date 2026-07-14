@@ -49,7 +49,7 @@ function renderAnggota(){
       <select id="filter-kategori-anggota" onchange="applyFilterAnggota()"><option value="semua" ${filterKategoriAnggota==='semua'?'selected':''}>Semua</option>${KATEGORI_ANGGOTA.map(k=>`<option value="${k.v}" ${filterKategoriAnggota===k.v?'selected':''}>${k.l}</option>`).join('')}</select></div>
     <div class="field" style="margin-bottom:0;min-width:150px;"><label style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;">Status</label>
       <select id="filter-status-anggota" onchange="applyFilterAnggota()"><option value="semua" ${filterStatusAnggota==='semua'?'selected':''}>Semua</option><option value="lunas" ${filterStatusAnggota==='lunas'?'selected':''}>Lunas</option><option value="belum_lunas" ${filterStatusAnggota==='belum_lunas'?'selected':''}>Belum Lunas</option></select></div>
-    <div class="search-box" style="flex:1;min-width:200px;"><input type="text" id="search-input-anggota" placeholder="🔍 Cari nama..." value="${esc(searchQueryAnggota)}" oninput="applySearchAnggota()">${searchQueryAnggota?`<button class="btn secondary small" onclick="clearSearchAnggota()">✕</button>`:''}</div>
+    <div class="search-box" style="flex:1;min-width:200px;"><div class="search-input-wrap"><i data-lucide="search" class="inline-icon search-input-icon"></i><input type="text" id="search-input-anggota" placeholder="Cari nama..." value="${esc(searchQueryAnggota)}" oninput="applySearchAnggota()"></div>${searchQueryAnggota?`<button class="btn secondary small" onclick="clearSearchAnggota()">✕</button>`:''}</div>
     ${isFiltering?`<button class="btn secondary small" onclick="resetFilterAnggota()">↺ Reset</button>`:''}
   </div>`;
 
@@ -379,7 +379,7 @@ function renderDatabaseAnggota(){
       <select id="filter-gender" onchange="applyFilter()"><option value="semua" ${filterGender==='semua'?'selected':''}>Semua</option><option value="pria" ${filterGender==='pria'?'selected':''}>Laki-Laki</option><option value="wanita" ${filterGender==='wanita'?'selected':''}>Perempuan</option><option value="tidak_diketahui" ${filterGender==='tidak_diketahui'?'selected':''}>Tidak diketahui</option></select></div>
     <div class="field" style="margin-bottom:0;min-width:150px;"><label style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;">RT</label>
       <select id="filter-rt" onchange="applyFilter()"><option value="semua" ${filterRT==='semua'?'selected':''}>Semua</option>${RT_LIST.map(r=>`<option value="${r.v}" ${filterRT===r.v?'selected':''}>${r.l}</option>`).join('')}</select></div>
-    <div class="search-box" style="flex:1;min-width:200px;"><input type="text" id="search-input" placeholder="🔍 Cari nama..." value="${esc(searchQuery)}" oninput="applySearch()">${searchQuery?`<button class="btn secondary small" onclick="clearSearch()">✕</button>`:''}</div>
+    <div class="search-box" style="flex:1;min-width:200px;"><div class="search-input-wrap"><i data-lucide="search" class="inline-icon search-input-icon"></i><input type="text" id="search-input" placeholder="Cari nama..." value="${esc(searchQuery)}" oninput="applySearch()"></div>${searchQuery?`<button class="btn secondary small" onclick="clearSearch()">✕</button>`:''}</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;"><button class="btn small" onclick="exportAnggotaCSV()">⬇ Ekspor CSV</button><button class="btn secondary small" onclick="resetFilter()">↺ Reset</button></div>
   </div>`;
 

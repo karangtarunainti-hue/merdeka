@@ -104,7 +104,7 @@ function renderJadwal(){
     // Status selesai/aktif tetap boleh diubah bebas karena field itu tidak disentuh
     // oleh sinkronisasi.
     const lombaLink = getLombaForJadwal(j.id);
-    const lockBadge = lombaLink ? `<span class="lomba-badge" style="margin-left:6px;" title="Judul/tanggal/jam otomatis mengikuti data Lomba">🔗 Auto Lomba</span>` : '';
+    const lockBadge = lombaLink ? `<span class="lomba-badge" style="margin-left:6px;" title="Judul/tanggal/jam otomatis mengikuti data Lomba"><i data-lucide="link" class="inline-icon"></i> Otomatis</span>` : '';
     const editAction = lombaLink ? `bukaLombaDariJadwal('${lombaLink.id}')` : `openJadwalModal('${j.id}')`;
     const hapusAction = lombaLink ? `hapusJadwalLombaLocked('${lombaLink.id}')` : `hapusJadwal('${j.id}')`;
     const editTitle = lombaLink ? 'Edit lewat menu Lomba' : 'Edit';
@@ -115,7 +115,7 @@ function renderJadwal(){
       <div class="jadwal-item-top">
         <div class="jadwal-item-date">
           <span class="jadwal-item-date-main">${fmtDateHariShort(j.tanggal)}</span>
-          ${j.jam?`<span class="jadwal-item-jam">⏰ ${esc(j.jam)}</span>`:''}
+          ${j.jam?`<span class="jadwal-item-jam"><i data-lucide="clock" class="inline-icon"></i>${esc(j.jam)}</span>`:''}
         </div>
         <span class="badge ${statusClass}">${statusLabel}</span>
       </div>

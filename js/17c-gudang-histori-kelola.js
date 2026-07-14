@@ -43,7 +43,7 @@ function renderGudangHistori(){
     </div>
     <div class="panel-body">
       <div class="filter-row">
-        <div class="search-box" style="flex:1;min-width:180px;"><input type="text" id="gudang-search-histori" placeholder="🔍 Cari resi / nama..." value="${esc(gudangSearchHistori)}" oninput="gudangSearchHistori=this.value; renderContent();"></div>
+        <div class="search-box" style="flex:1;min-width:180px;"><div class="search-input-wrap"><i data-lucide="search" class="inline-icon search-input-icon"></i><input type="text" id="gudang-search-histori" placeholder="Cari resi / nama..." value="${esc(gudangSearchHistori)}" oninput="gudangSearchHistori=this.value; renderContent();"></div></div>
         <div class="field" style="margin-bottom:0;">
           <select onchange="gudangFilterHistori=this.value; renderContent();">
             <option value="">Semua Status</option>
@@ -205,7 +205,7 @@ function renderGudangKelola(){
     </div>
     <div class="panel-body">
       <div class="filter-row">
-        <div class="search-box" style="flex:1;"><input type="text" id="gudang-search-kelola" placeholder="🔍 Cari nama barang atau gudang..." value="${esc(gudangSearchKelola||'')}" oninput="gudangSearchKelola=this.value; renderContent();"></div>
+        <div class="search-box" style="flex:1;"><div class="search-input-wrap"><i data-lucide="search" class="inline-icon search-input-icon"></i><input type="text" id="gudang-search-kelola" placeholder="Cari nama barang atau gudang..." value="${esc(gudangSearchKelola||'')}" oninput="gudangSearchKelola=this.value; renderContent();"></div></div>
       </div>
       <div style="overflow-x:auto;">
       <table class="anggota-table">

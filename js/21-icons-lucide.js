@@ -56,7 +56,6 @@ function iconifyRoot(root){
   const targets = [];
   let n;
   while((n = walker.nextNode())) targets.push(n);
-  if(!targets.length) return;
 
   targets.forEach(node=>{
     const text = node.nodeValue;

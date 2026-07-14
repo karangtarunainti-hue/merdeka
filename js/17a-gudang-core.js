@@ -154,7 +154,7 @@ function renderGudangStok(){
     <div class="panel-body">
       <div class="filter-row">
         <div class="search-box" style="flex:1;min-width:200px;">
-          <input type="text" id="gudang-search-stok" placeholder="🔍 Cari nama barang..." value="${esc(gudangSearchStok)}" oninput="gudangSearchStok=this.value; renderContent();">
+          <div class="search-input-wrap"><i data-lucide="search" class="inline-icon search-input-icon"></i><input type="text" id="gudang-search-stok" placeholder="Cari nama barang..." value="${esc(gudangSearchStok)}" oninput="gudangSearchStok=this.value; renderContent();"></div>
         </div>
       </div>
       ${aktif.length ? sections : `<div class="empty-state"><h3>Tidak ada aset</h3><p>${q?'Tidak ditemukan aset yang cocok dengan pencarian.':'Belum ada aset tercatat.'}</p></div>`}

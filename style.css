@@ -2193,16 +2193,22 @@ h1 .inline-icon, h2 .inline-icon, h3 .inline-icon{
    ============================================================ */
 table.ds-table{ table-layout:fixed; }
 table.ds-table thead th{ padding:8px 4px; text-align:center; }
-table.ds-table th:first-child{ text-align:left; padding-left:14px; }
 table.ds-table td{ padding:4px; text-align:center; border-bottom:1px solid var(--garis); }
-table.ds-table th:first-child, table.ds-table td.ds-nama{
+table.ds-table th.ds-no-h, table.ds-table td.ds-no{
+  width:34px; min-width:30px; text-align:center; padding:8px 2px;
+  position:sticky; left:0; background:var(--surface); z-index:2;
+  box-shadow:1px 0 0 var(--garis);
+}
+table.ds-table thead th.ds-no-h{ background:var(--table-head); z-index:4; }
+table.ds-table th.ds-nama-h, table.ds-table td.ds-nama{
   width:150px; min-width:130px;
   text-align:left; padding:8px 6px 8px 14px;
   white-space:normal; word-break:break-word;
   position:sticky; left:0; background:var(--surface); z-index:1;
   box-shadow:1px 0 0 var(--garis);
 }
-table.ds-table thead th:first-child{ background:var(--table-head); z-index:3; }
+table.ds-table.ds-has-no th.ds-nama-h, table.ds-table.ds-has-no td.ds-nama{ left:34px; }
+table.ds-table thead th.ds-nama-h{ background:var(--table-head); z-index:3; }
 table.ds-table td.ds-nama .icon-btn{ margin-left:4px; }
 td.ds-cell{ padding:4px !important; }
 .ds-toggle{
@@ -2226,6 +2232,8 @@ table.ds-rekap-table td.num, table.ds-rekap-table th:not(:first-child){ text-ali
 .ds-rekap-total{ font-weight:700; border-top:2px solid var(--garis); }
 .ds-footnote{ font-size:12px; color:var(--ink-soft); padding:10px 16px 4px; }
 @media (max-width:640px){
-  table.ds-table th:first-child, table.ds-table td.ds-nama{ width:110px; min-width:100px; font-size:12.5px; }
+  table.ds-table th.ds-nama-h, table.ds-table td.ds-nama{ width:110px; min-width:100px; font-size:12.5px; }
+  table.ds-table th.ds-no-h, table.ds-table td.ds-no{ width:26px; min-width:24px; font-size:12px; }
+  table.ds-table.ds-has-no th.ds-nama-h, table.ds-table.ds-has-no td.ds-nama{ left:26px; }
   .ds-toggle{ width:24px; height:24px; font-size:12px; }
 }

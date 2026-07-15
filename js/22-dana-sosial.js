@@ -133,7 +133,7 @@ function renderDanaSosial(){
   const tahunOptions = danaSosialTahunList().map(t => `<option value="${t}" ${t===tahun?'selected':''}>${t}</option>`).join('');
   const theadBulan = DANA_SOSIAL_BULAN_LABEL.map(l => `<th>${l}</th>`).join('');
 
-  const rows = anggotaList.map(a => {
+  const rows = anggotaList.map((a, idx) => {
     const cells = DANA_SOSIAL_BULAN_LABEL.map((_, i) => {
       const bulan = i + 1;
       if (!isWajibDanaSosial(a, tahun, bulan)){
@@ -145,13 +145,14 @@ function renderDanaSosial(){
       return `<td class="ds-cell"><button type="button" class="ds-toggle ${lunas?'lunas':'belum'}" ${canEdit?`onclick="toggleDanaSosialBayar('${a.id}',${tahun},${bulan})"`:'disabled'} title="${titleTxt}">${lunas?'✓':''}</button></td>`;
     }).join('');
     return `<tr>
+      <td class="ds-no">${idx+1}</td>
       <td class="ds-nama">${esc(a.nama)}</td>
       ${cells}
     </tr>`;
   }).join('');
 
   const kelolaRows = anggotaList.map(a => `<tr>
-    <td class="ds-nama">${esc(a.nama)}</td>
+    <td>${esc(a.nama)}</td>
     <td>${fmtDate(a.tanggal_gabung)}</td>
     <td style="text-align:right; white-space:nowrap;">
       ${canEdit?`<button class="icon-btn" onclick="openDanaSosialAnggotaModal('${a.id}')" title="Edit">✎</button>
@@ -191,7 +192,7 @@ function renderDanaSosial(){
   </div>
 
   <div class="lomba-tabs">
-    <button type="button" class="lomba-tabbtn ${danaSosialActiveTab==='daftar'?'active':''}" onclick="setDanaSosialTab('daftar')">Daftar Anggota &amp; Status Bayar</button>
+    <button type="button" class="lomba-tabbtn ${danaSosialActiveTab==='daftar'?'active':''}" onclick="setDanaSosialTab('daftar')">Daftar Bayar</button>
     <button type="button" class="lomba-tabbtn ${danaSosialActiveTab==='kelola'?'active':''}" onclick="setDanaSosialTab('kelola')">Kelola Anggota</button>
     <button type="button" class="lomba-tabbtn ${danaSosialActiveTab==='rekap'?'active':''}" onclick="setDanaSosialTab('rekap')">Rekap Bulanan</button>
   </div>
@@ -199,7 +200,7 @@ function renderDanaSosial(){
   <div style="display:${danaSosialActiveTab==='daftar'?'block':'none'};">
   <div class="panel">
     <div class="panel-head">
-      <div><h3>Daftar Anggota &amp; Status Bayar</h3>
+      <div><h3>Daftar Bayar</h3>
         <div class="desc">Iuran ${fmtRp(DANA_SOSIAL_IURAN_PER_ORANG)}/orang/bulan · klik sel bulan untuk tandai lunas/belum</div>
       </div>
       <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
@@ -208,9 +209,9 @@ function renderDanaSosial(){
     </div>
     <div class="panel-body flush">
       <div style="overflow-x:auto; -webkit-overflow-scrolling:touch;">
-        <table class="ds-table">
-          <thead><tr><th>Nama</th>${theadBulan}</tr></thead>
-          <tbody>${rows || `<tr class="empty-row"><td colspan="13">Belum ada anggota Dana Sosial. ${canEdit?'Buka tab Kelola Anggota untuk mulai.':'Hanya role tertentu yang bisa menambah anggota.'}</td></tr>`}</tbody>
+        <table class="ds-table ds-has-no">
+          <thead><tr><th class="ds-no-h">No</th><th class="ds-nama-h">Nama</th>${theadBulan}</tr></thead>
+          <tbody>${rows || `<tr class="empty-row"><td colspan="14">Belum ada anggota Dana Sosial. ${canEdit?'Buka tab Kelola Anggota untuk mulai.':'Hanya role tertentu yang bisa menambah anggota.'}</td></tr>`}</tbody>
         </table>
       </div>
     </div>
@@ -230,7 +231,7 @@ function renderDanaSosial(){
     </div>
     <div class="panel-body flush">
       <div style="overflow-x:auto; -webkit-overflow-scrolling:touch;">
-        <table class="ds-table">
+        <table>
           <thead><tr><th>Nama</th><th>Tanggal Gabung</th><th style="text-align:right;">Aksi</th></tr></thead>
           <tbody>${kelolaRows || `<tr class="empty-row"><td colspan="3">Belum ada anggota Dana Sosial. ${canEdit?'Klik + Tambah Anggota atau Ambil dari Database Anggota untuk mulai.':'Hanya role tertentu yang bisa menambah anggota.'}</td></tr>`}</tbody>
         </table>

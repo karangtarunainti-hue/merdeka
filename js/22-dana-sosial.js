@@ -229,13 +229,19 @@ function hitungSaldoDanaSosialTotal(){
 // Bayar yang juga per tahun.
 function hitungTunggakanDanaSosial(anggota, tahun){
   let bulanBelum = 0;
+  let adaBulanJatuhTempo = false; // apakah ada bulan wajib yang SUDAH berjalan di tahun ini
   for (let b = 1; b <= 12; b++){
     if (!isWajibDanaSosial(anggota, tahun, b)) continue;
     if (!danaSosialSudahBerjalan(tahun, b)) continue; // bulan depan belum dihitung nunggak
+    adaBulanJatuhTempo = true;
     const rec = getDanaSosialBayar(anggota.id, tahun, b);
     if (!(rec && rec.lunas)) bulanBelum++;
   }
-  return { bulanBelum, total: bulanBelum * DANA_SOSIAL_IURAN_PER_ORANG };
+  // PENTING: bulanBelum === 0 BUKAN berarti "sudah lunas" kalau belum ada satupun
+  // bulan yang jatuh tempo (mis. tahun sepenuhnya di masa depan). adaBulanJatuhTempo
+  // membedakan dua kondisi ini supaya UI tidak salah menampilkan "Lunas" padahal
+  // belum ada kewajiban apapun yang jatuh tempo.
+  return { bulanBelum, total: bulanBelum * DANA_SOSIAL_IURAN_PER_ORANG, adaBulanJatuhTempo };
 }
 
 function gantiTahunDanaSosial(v){
@@ -389,12 +395,16 @@ function renderDanaSosial(){
         return `<td class="ds-cell"><button type="button" class="ds-toggle ${lunas?'lunas':'belum'}" ${canEdit?`onclick="toggleDanaSosialBayar('${a.id}',${tahun},${bulan})"`:'disabled'} title="${titleTxt}"><span class="ds-toggle-mark">${lunas?'✓':''}</span><span class="ds-toggle-label">${lunas?'Sudah':'Belum'}</span></button></td>`;
       }).join('');
       const tunggakan = hitungTunggakanDanaSosial(a, tahun);
-      const tunggakanTitle = tunggakan.bulanBelum === 0
-        ? 'Tidak ada tunggakan'
-        : `Nunggak ${tunggakan.bulanBelum} bulan × ${fmtRp(DANA_SOSIAL_IURAN_PER_ORANG)}`;
-      const tunggakanCell = tunggakan.bulanBelum === 0
-        ? `<span class="ds-lunas-tag">Lunas</span>`
-        : `<span class="${tunggakan.bulanBelum>1?'ds-tunggakan-angka lebih':'ds-tunggakan-angka'}">${fmtRp(tunggakan.total)}</span>`;
+      const tunggakanTitle = !tunggakan.adaBulanJatuhTempo
+        ? 'Belum ada bulan yang jatuh tempo di tahun ini'
+        : (tunggakan.bulanBelum === 0
+          ? 'Tidak ada tunggakan'
+          : `Nunggak ${tunggakan.bulanBelum} bulan × ${fmtRp(DANA_SOSIAL_IURAN_PER_ORANG)}`);
+      const tunggakanCell = !tunggakan.adaBulanJatuhTempo
+        ? `<span class="ds-toggle-mono ds-muted" style="font-size:12px;">Belum jatuh tempo</span>`
+        : (tunggakan.bulanBelum === 0
+          ? `<span class="ds-lunas-tag">Lunas</span>`
+          : `<span class="${tunggakan.bulanBelum>1?'ds-tunggakan-angka lebih':'ds-tunggakan-angka'}">${fmtRp(tunggakan.total)}</span>`);
       return `<tr>
         <td class="ds-no">${idx+1}</td>
         <td class="ds-nama">${esc(a.nama)}</td>

@@ -168,7 +168,7 @@ function renderDanaSosial(){
   const kelolaRows = anggotaList.map((a, idx) => `<tr>
     <td class="ds-no">${idx+1}</td>
     <td class="ds-nama">${esc(a.nama)}${a.perantauan?' <span class="kategori-pill khusus">Perantauan</span>':''}</td>
-    <td>${fmtDate(a.tanggal_gabung)}</td>
+    <td style="text-align:left; padding-left:10px;">${fmtDate(a.tanggal_gabung)}</td>
     <td style="text-align:right; white-space:nowrap;">
       ${canEdit?`<button class="icon-btn" onclick="openDanaSosialAnggotaModal('${a.id}')" title="Edit">✎</button>
       <button class="icon-btn" onclick="hapusDanaSosialAnggota('${a.id}')" title="Hapus">🗑</button>`:''}
@@ -256,15 +256,17 @@ function renderDanaSosial(){
         <div class="desc">Tambah, ubah, atau hapus anggota master Dana Sosial</div>
       </div>
       <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-        ${canEdit?`<button class="btn secondary" onclick="sinkronkanPerantauanDanaSosial()">🔄 Sinkronkan Status Perantauan</button>`:''}
         ${canEdit?`<button class="btn secondary" onclick="openImporDanaSosialModal()">📥 Ambil dari Database Anggota</button>`:''}
         ${canEdit?`<button class="btn" onclick="openDanaSosialAnggotaModal()">+ Tambah Anggota</button>`:''}
       </div>
     </div>
+    ${canEdit?`<div style="padding:10px 18px; border-bottom:1px solid var(--garis); display:flex; justify-content:flex-end;">
+      <button class="btn secondary small" onclick="sinkronkanPerantauanDanaSosial()">🔄 Sinkronkan Status Perantauan</button>
+    </div>`:''}
     <div class="panel-body flush">
       <div style="overflow-x:auto; -webkit-overflow-scrolling:touch;">
         <table class="ds-table ds-has-no">
-          <thead><tr><th class="ds-no-h">No</th><th class="ds-nama-h">Nama</th><th>Tanggal Gabung</th><th style="text-align:right;">Aksi</th></tr></thead>
+          <thead><tr><th class="ds-no-h">No</th><th class="ds-nama-h">Nama</th><th style="text-align:left; padding-left:10px;">Tanggal Gabung</th><th style="text-align:right;">Aksi</th></tr></thead>
           <tbody>${kelolaRows || `<tr class="empty-row"><td colspan="4">Belum ada anggota Dana Sosial. ${canEdit?'Klik + Tambah Anggota atau Ambil dari Database Anggota untuk mulai.':'Hanya role tertentu yang bisa menambah anggota.'}</td></tr>`}</tbody>
         </table>
       </div>

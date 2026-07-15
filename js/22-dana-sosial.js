@@ -165,8 +165,9 @@ function renderDanaSosial(){
   const rowsReguler = buatBarisBayar(anggotaReguler);
   const rowsPerantauan = buatBarisBayar(anggotaPerantauan);
 
-  const kelolaRows = anggotaList.map(a => `<tr>
-    <td>${esc(a.nama)}${a.perantauan?' <span class="kategori-pill khusus">Perantauan</span>':''}</td>
+  const kelolaRows = anggotaList.map((a, idx) => `<tr>
+    <td class="ds-no">${idx+1}</td>
+    <td class="ds-nama">${esc(a.nama)}${a.perantauan?' <span class="kategori-pill khusus">Perantauan</span>':''}</td>
     <td>${fmtDate(a.tanggal_gabung)}</td>
     <td style="text-align:right; white-space:nowrap;">
       ${canEdit?`<button class="icon-btn" onclick="openDanaSosialAnggotaModal('${a.id}')" title="Edit">✎</button>
@@ -262,9 +263,9 @@ function renderDanaSosial(){
     </div>
     <div class="panel-body flush">
       <div style="overflow-x:auto; -webkit-overflow-scrolling:touch;">
-        <table>
-          <thead><tr><th>Nama</th><th>Tanggal Gabung</th><th style="text-align:right;">Aksi</th></tr></thead>
-          <tbody>${kelolaRows || `<tr class="empty-row"><td colspan="3">Belum ada anggota Dana Sosial. ${canEdit?'Klik + Tambah Anggota atau Ambil dari Database Anggota untuk mulai.':'Hanya role tertentu yang bisa menambah anggota.'}</td></tr>`}</tbody>
+        <table class="ds-table ds-has-no">
+          <thead><tr><th class="ds-no-h">No</th><th class="ds-nama-h">Nama</th><th>Tanggal Gabung</th><th style="text-align:right;">Aksi</th></tr></thead>
+          <tbody>${kelolaRows || `<tr class="empty-row"><td colspan="4">Belum ada anggota Dana Sosial. ${canEdit?'Klik + Tambah Anggota atau Ambil dari Database Anggota untuk mulai.':'Hanya role tertentu yang bisa menambah anggota.'}</td></tr>`}</tbody>
         </table>
       </div>
     </div>

@@ -181,8 +181,26 @@ function danaSosialSudahBerjalan(tahun, bulan){
 // tidak mencerminkan pola iuran bulanan yang sebenarnya.
 function hitungRekapBulanDanaSosial(tahun, bulan){
   const anggotaWajib = db.danaSosialAnggota.filter(a => !a.perantauan && isWajibDanaSosial(a, tahun, bulan));
+  // "Lunas"/"Belum" tetap dilihat dari kewajiban bulan ini (status kepatuhan
+  // iuran per bulan wajib) — ini TIDAK berubah walau tunggakan baru dilunasi
+  // belakangan, karena statusnya sendiri (rec.lunas pada bulan wajib itu)
+  // memang jadi true begitu dibayar, terlepas kapan.
   const lunasList = anggotaWajib.filter(a => { const r = getDanaSosialBayar(a.id, tahun, bulan); return r && r.lunas; });
-  const terkumpul = lunasList.length * DANA_SOSIAL_IURAN_PER_ORANG;
+  // "Terkumpul" (uang masuk) SENGAJA dihitung dari TANGGAL BAYAR AKTUAL
+  // (tanggal_bayar), bukan dari field `bulan` (bulan wajib) pada baris
+  // pembayaran. Jadi kalau anggota baru melunasi tunggakan bulan lama di
+  // bulan berjalan sekarang, uangnya masuk ke rekap BULAN INI (bulan saat
+  // fisik dibayar) — bukan menambah rekap bulan lama yang sudah lewat.
+  // Ini supaya rekap mencerminkan kas masuk riil untuk keperluan laporan.
+  const terkumpulList = db.danaSosialBayar.filter(b => {
+    if (!b.lunas || !b.tanggal_bayar) return false;
+    const a = db.danaSosialAnggota.find(x => x.id === b.anggota_id);
+    if (!a || a.perantauan) return false; // perantauan dihitung terpisah (rapel tahunan)
+    const ty = Number(String(b.tanggal_bayar).slice(0, 4));
+    const tm = Number(String(b.tanggal_bayar).slice(5, 7));
+    return ty === Number(tahun) && tm === Number(bulan);
+  });
+  const terkumpul = terkumpulList.length * DANA_SOSIAL_IURAN_PER_ORANG;
   const potongan = DANA_SOSIAL_POTONGAN_KONSUMSI;
   return {
     wajib: anggotaWajib.length,

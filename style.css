@@ -2281,12 +2281,25 @@ table.ds-rekap-table td.num, table.ds-rekap-table th:not(:first-child){ text-ali
 .ds-rekap-total{ font-weight:700; border-top:2px solid var(--garis); }
 .ds-footnote{ font-size:12px; color:var(--ink-soft); padding:10px 16px 4px; }
 @media (max-width:640px){
-  table.ds-table th.ds-nama-h, table.ds-table td.ds-nama{ width:190px; min-width:170px; font-size:12.5px; }
-  table.ds-table th.ds-no-h, table.ds-table td.ds-no{ width:34px; min-width:30px; font-size:12px; padding-left:8px; }
-  table.ds-table.ds-has-no th.ds-nama-h, table.ds-table.ds-has-no td.ds-nama{ left:34px; }
-  .ds-toggle{ width:24px; height:24px; font-size:12px; gap:0; }
+  table.ds-table th.ds-nama-h, table.ds-table td.ds-nama{ width:150px; min-width:130px; font-size:12.5px; }
+  table.ds-table th.ds-no-h, table.ds-table td.ds-no{ width:30px; min-width:26px; font-size:12px; padding-left:8px; }
+  table.ds-table.ds-has-no th.ds-nama-h, table.ds-table.ds-has-no td.ds-nama{ left:30px; }
   .ds-toggle-label{ display:none; }
   .ds-bulan-full{ display:none; }
   .ds-bulan-num{ display:inline; }
   table.ds-table th.ds-tunggakan-h, table.ds-table td.ds-tunggakan{ display:none; }
+  /* Kolom bulan (tombol centang bayar) diberi lebar TETAP dan seragam lewat
+     .ds-bulan-h (th) / td.ds-cell, bukan dibiarkan ikut table-layout:fixed
+     membagi rata sisa lebar layar — itulah sumber tombol yang tumpuk/pepet
+     di HP: kalau lebar tabel dipaksa muat di viewport, 12 kolom bulan bisa
+     terpepet sampai lebih sempit dari tombolnya sendiri. Solusinya: kasih
+     tiap kolom bulan lebar tetap 34px (cukup buat tombol 26px + jarak), lalu
+     kasih tabelnya min-width supaya browser TIDAK memampatkan kolom, dan
+     biarkan .panel-body.flush yang sudah overflow-x:auto (lihat di atas)
+     yang menangani scroll horizontal-nya. */
+  table.ds-table:has(th.ds-bulan-h){ width:588px; min-width:588px; }
+  table.ds-table th.ds-bulan-h, table.ds-table td.ds-cell:not(.ds-tunggakan):not(.ds-status){
+    width:34px; min-width:34px; padding:3px !important;
+  }
+  .ds-toggle{ width:26px; height:26px; font-size:12px; gap:0; margin:0 auto; padding:0; }
 }

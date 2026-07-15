@@ -398,7 +398,7 @@ function renderDanaSosial(){
   // Header kolom bulan disiapkan dua versi (nama & angka 1-12); yang
   // ditampilkan diatur lewat CSS (.ds-bulan-full/.ds-bulan-num) supaya di
   // layar sempit (HP) otomatis pindah ke angka biar kolom tidak kesempitan.
-  const theadBulan = DANA_SOSIAL_BULAN_LABEL.map((l,i) => `<th><span class="ds-bulan-full">${l}</span><span class="ds-bulan-num">${i+1}</span></th>`).join('');
+  const theadBulan = DANA_SOSIAL_BULAN_LABEL.map((l,i) => `<th class="ds-bulan-h"><span class="ds-bulan-full">${l}</span><span class="ds-bulan-num">${i+1}</span></th>`).join('');
 
   function buatBarisBayar(list){
     return list.map((a, idx) => {

@@ -2224,6 +2224,10 @@ td.ds-cell{ padding:4px !important; }
   border:none; background:transparent; color:var(--abu); cursor:default; font-weight:400;
 }
 .ds-toggle:disabled{ cursor:default; opacity:.85; }
+/* Header kolom bulan: default tampil nama (Jan, Feb, ...); di layar sempit
+   (lihat @media max-width:640px di bawah) diganti angka 1-12 supaya kolom
+   tetap muat tanpa harus scroll horizontal jauh-jauh. */
+.ds-bulan-num{ display:none; }
 table.ds-rekap-table{ table-layout:auto; }
 table.ds-rekap-table td, table.ds-rekap-table th{ text-align:left; }
 table.ds-rekap-table td.num, table.ds-rekap-table th:not(:first-child){ text-align:right; }
@@ -2236,4 +2240,6 @@ table.ds-rekap-table td.num, table.ds-rekap-table th:not(:first-child){ text-ali
   table.ds-table th.ds-no-h, table.ds-table td.ds-no{ width:34px; min-width:30px; font-size:12px; padding-left:8px; }
   table.ds-table.ds-has-no th.ds-nama-h, table.ds-table.ds-has-no td.ds-nama{ left:34px; }
   .ds-toggle{ width:24px; height:24px; font-size:12px; }
+  .ds-bulan-full{ display:none; }
+  .ds-bulan-num{ display:inline; }
 }

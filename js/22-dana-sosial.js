@@ -179,9 +179,11 @@ function gantiTahunDanaSosial(v){
 }
 
 // Tab aktif di halaman Dana Sosial: 'daftar' (list nama + centang bayar saja,
-// tanpa aksi kelola), 'kelola' (tambah/ubah/hapus/ambil dari Database Anggota),
-// atau 'rekap' (Rekap Bulanan). Reset ke 'daftar' tiap kali halaman dimuat
-// ulang (tidak perlu disimpan permanen), sama seperti pola tab di renderLomba().
+// tanpa aksi kelola), 'perantauan' (tabel anggota Perantauan, terpisah dari
+// tabel Daftar Bayar reguler karena bayarnya rapel setahun sekali),
+// 'kelola' (tambah/ubah/hapus/ambil dari Database Anggota), atau 'rekap'
+// (Rekap Bulanan). Reset ke 'daftar' tiap kali halaman dimuat ulang (tidak
+// perlu disimpan permanen), sama seperti pola tab di renderLomba().
 let danaSosialActiveTab = 'daftar';
 function setDanaSosialTab(tab){
   danaSosialActiveTab = tab;
@@ -204,7 +206,10 @@ function renderDanaSosial(){
   const saldoTotal = hitungSaldoDanaSosialTotal();
 
   const tahunOptions = danaSosialTahunList().map(t => `<option value="${t}" ${t===tahun?'selected':''}>${t}</option>`).join('');
-  const theadBulan = DANA_SOSIAL_BULAN_LABEL.map(l => `<th>${l}</th>`).join('');
+  // Header kolom bulan disiapkan dua versi (nama & angka 1-12); yang
+  // ditampilkan diatur lewat CSS (.ds-bulan-full/.ds-bulan-num) supaya di
+  // layar sempit (HP) otomatis pindah ke angka biar kolom tidak kesempitan.
+  const theadBulan = DANA_SOSIAL_BULAN_LABEL.map((l,i) => `<th><span class="ds-bulan-full">${l}</span><span class="ds-bulan-num">${i+1}</span></th>`).join('');
 
   function buatBarisBayar(list){
     return list.map((a, idx) => {
@@ -290,6 +295,7 @@ function renderDanaSosial(){
 
   <div class="lomba-tabs">
     <button type="button" class="lomba-tabbtn ${danaSosialActiveTab==='daftar'?'active':''}" onclick="setDanaSosialTab('daftar')">Daftar Bayar</button>
+    <button type="button" class="lomba-tabbtn ${danaSosialActiveTab==='perantauan'?'active':''}" onclick="setDanaSosialTab('perantauan')">Perantauan</button>
     <button type="button" class="lomba-tabbtn ${danaSosialActiveTab==='kelola'?'active':''}" onclick="setDanaSosialTab('kelola')">Kelola Anggota</button>
     <button type="button" class="lomba-tabbtn ${danaSosialActiveTab==='rekap'?'active':''}" onclick="setDanaSosialTab('rekap')">Rekap Bulanan</button>
   </div>
@@ -313,11 +319,16 @@ function renderDanaSosial(){
       </div>
     </div>
   </div>
+  </div>
 
-  <div class="panel" style="margin-top:20px;">
+  <div style="display:${danaSosialActiveTab==='perantauan'?'block':'none'};">
+  <div class="panel">
     <div class="panel-head">
       <div><h3>Anggota Perantauan</h3>
         <div class="desc">Bayar setahun sekali (rapel) saat pulang/nitip bayar · tandai Lunas kalau sudah bayar penuh tahun ${tahun}</div>
+      </div>
+      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+        <select id="ds-tahun-select-perantauan" onchange="gantiTahunDanaSosial(this.value)">${tahunOptions}</select>
       </div>
     </div>
     <div class="panel-body flush">

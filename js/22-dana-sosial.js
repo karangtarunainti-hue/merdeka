@@ -255,6 +255,7 @@ function renderDanaSosial(){
         <div class="desc">Tambah, ubah, atau hapus anggota master Dana Sosial</div>
       </div>
       <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+        ${canEdit?`<button class="btn secondary" onclick="sinkronkanPerantauanDanaSosial()">🔄 Sinkronkan Status Perantauan</button>`:''}
         ${canEdit?`<button class="btn secondary" onclick="openImporDanaSosialModal()">📥 Ambil dari Database Anggota</button>`:''}
         ${canEdit?`<button class="btn" onclick="openDanaSosialAnggotaModal()">+ Tambah Anggota</button>`:''}
       </div>
@@ -441,4 +442,34 @@ function konfirmasiImporDanaSosial(){
   saveDB(); closeModal(); renderContent();
   toast(`✓ ${count} anggota diambil dari Database Anggota`);
   notifyTelegram(`📥 Ambil ${count} anggota Dana Sosial dari Database Anggota`, `Tanggal gabung: ${fmtDate(tanggal_gabung)}`);
+}
+
+/* ============================================================
+   SINKRONISASI STATUS PERANTAUAN UNTUK DATA YANG SUDAH ADA
+   Anggota Dana Sosial yang ditambahkan sebelum fitur pemisahan
+   Perantauan ada, semuanya masih `perantauan=false` (tercampur
+   dengan reguler di tabel utama). Fungsi ini mencocokkan nama tiap
+   anggota Dana Sosial dengan Database Anggota (kt_anggota, semua
+   event) — kalau ADA salah satu baris dengan nama yang sama dan
+   kategori 'perantauan', anggota tsb otomatis ditandai Perantauan.
+   Nama yang sudah ditandai manual sebagai Perantauan tidak diutak-
+   atik lagi (hanya menambah, tidak pernah menghapus status).
+   ============================================================ */
+function sinkronkanPerantauanDanaSosial(){
+  if (!canEditSection('dana-sosial')) { toast('⛔ Anda tidak memiliki akses untuk mengedit Dana Sosial'); return; }
+  const namaPerantauan = new Set(
+    db.anggota.filter(a => a.kategori === 'perantauan').map(a => (a.nama||'').trim().toLowerCase())
+  );
+  if (namaPerantauan.size === 0){ toast('Tidak ada anggota berkategori Perantauan di Database Anggota'); return; }
+  let count = 0;
+  db.danaSosialAnggota.forEach(a => {
+    if (!a.perantauan && namaPerantauan.has((a.nama||'').trim().toLowerCase())){
+      a.perantauan = true;
+      count++;
+    }
+  });
+  if (count === 0){ toast('Semua anggota sudah sesuai — tidak ada yang perlu disesuaikan'); return; }
+  saveDB(); renderContent();
+  toast(`✓ ${count} anggota dipindah ke tabel Perantauan`);
+  notifyTelegram(`🔄 Sinkronkan status Perantauan Dana Sosial`, `${count} anggota ditandai Perantauan (dicocokkan dari Database Anggota)`);
 }

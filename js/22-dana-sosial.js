@@ -134,8 +134,15 @@ function danaSosialSudahBerjalan(tahun, bulan){
   return tKey <= nKey;
 }
 
+// Rekap ini (dan stat "Lunas Bulan Ini" + Saldo Dana Sosial di atas halaman,
+// yang keduanya pakai fungsi ini) SENGAJA cuma menghitung anggota REGULER
+// (bukan Perantauan). Anggota Perantauan bayar rapel setahun sekali lewat
+// toggleDanaSosialLunasTahunPerantauan (lihat catatan di atas file ini),
+// jadi kalau ikut dihitung per bulan di sini datanya akan melompat besar di
+// satu bulan tertentu (bulan saat mereka rapel) dan bikin rekap bulanan
+// tidak mencerminkan pola iuran bulanan yang sebenarnya.
 function hitungRekapBulanDanaSosial(tahun, bulan){
-  const anggotaWajib = db.danaSosialAnggota.filter(a => isWajibDanaSosial(a, tahun, bulan));
+  const anggotaWajib = db.danaSosialAnggota.filter(a => !a.perantauan && isWajibDanaSosial(a, tahun, bulan));
   const lunasList = anggotaWajib.filter(a => { const r = getDanaSosialBayar(a.id, tahun, bulan); return r && r.lunas; });
   const terkumpul = lunasList.length * DANA_SOSIAL_IURAN_PER_ORANG;
   const potongan = DANA_SOSIAL_POTONGAN_KONSUMSI;

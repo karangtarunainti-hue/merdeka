@@ -266,7 +266,7 @@ function renderDanaSosial(){
         const rec = getDanaSosialBayar(a.id, tahun, bulan);
         const lunas = !!(rec && rec.lunas);
         const titleTxt = `${esc(a.nama)} · ${DANA_SOSIAL_BULAN_LABEL[i]} ${tahun} — ${lunas ? 'Lunas (klik untuk batalkan)' : 'Belum bayar (klik untuk tandai lunas)'}${lunas && rec && rec.diubah_oleh ? ` · ditandai oleh ${esc(rec.diubah_oleh)}` : ''}`;
-        return `<td class="ds-cell"><button type="button" class="ds-toggle ${lunas?'lunas':'belum'}" ${canEdit?`onclick="toggleDanaSosialBayar('${a.id}',${tahun},${bulan})"`:'disabled'} title="${titleTxt}">${lunas?'✓':''}</button></td>`;
+        return `<td class="ds-cell"><button type="button" class="ds-toggle ${lunas?'lunas':'belum'}" ${canEdit?`onclick="toggleDanaSosialBayar('${a.id}',${tahun},${bulan})"`:'disabled'} title="${titleTxt}"><span class="ds-toggle-mark">${lunas?'✓':''}</span><span class="ds-toggle-label">${lunas?'Sudah':'Belum'}</span></button></td>`;
       }).join('');
       return `<tr>
         <td class="ds-no">${idx+1}</td>

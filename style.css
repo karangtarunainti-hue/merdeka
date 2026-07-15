@@ -2216,12 +2216,20 @@ table.ds-table td.ds-nama .icon-btn{ margin-left:4px; }
    kiri (lihat padding kiri 10px pada td.ds-no di atas). */
 table.ds-table th.ds-status-h, table.ds-table td.ds-status{ text-align:right; padding-right:14px; }
 td.ds-cell{ padding:4px !important; }
+/* Default (layar sedang/lebar): tombol dibuat mode "switch" selebar sel
+   (bukan kotak kecil 28px tetap) dengan label Sudah/Belum, supaya di layar
+   lebar — di mana kolom bulan jadi jauh lebih lebar dari tombolnya — sel
+   tidak kelihatan kosong/nganggur di kanan-kiri tombol. Di layar sempit
+   (lihat @media max-width:640px di bawah) dibalik ke mode ikon kecil polos
+   spt semula supaya kolom tetap muat. */
 .ds-toggle{
-  width:28px; height:28px; border-radius:7px; border:1.5px solid var(--garis);
-  background:var(--surface); color:var(--hijau); font-weight:700; font-size:14px;
-  cursor:pointer; display:inline-flex; align-items:center; justify-content:center;
+  width:100%; height:30px; border-radius:7px; border:1.5px solid var(--garis);
+  background:var(--surface); color:var(--hijau); font-weight:700; font-size:11.5px;
+  cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:5px;
   transition:background .12s, border-color .12s;
 }
+.ds-toggle-mark{ font-size:13px; line-height:1; }
+.ds-toggle-label{ letter-spacing:.1px; }
 .ds-toggle:hover:not(:disabled){ border-color:var(--hijau); }
 .ds-toggle.lunas{ background:var(--hijau-tint); border-color:#bfd8c6; color:var(--hijau); }
 .ds-toggle.belum{ background:var(--bahaya-tint); border-color:#e3c3c1; }
@@ -2248,7 +2256,8 @@ table.ds-rekap-table td.num, table.ds-rekap-table th:not(:first-child){ text-ali
   table.ds-table th.ds-nama-h, table.ds-table td.ds-nama{ width:190px; min-width:170px; font-size:12.5px; }
   table.ds-table th.ds-no-h, table.ds-table td.ds-no{ width:34px; min-width:30px; font-size:12px; padding-left:8px; }
   table.ds-table.ds-has-no th.ds-nama-h, table.ds-table.ds-has-no td.ds-nama{ left:34px; }
-  .ds-toggle{ width:24px; height:24px; font-size:12px; }
+  .ds-toggle{ width:24px; height:24px; font-size:12px; gap:0; }
+  .ds-toggle-label{ display:none; }
   .ds-bulan-full{ display:none; }
   .ds-bulan-num{ display:inline; }
 }

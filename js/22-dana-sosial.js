@@ -243,6 +243,107 @@ function gantiTahunDanaSosial(v){
   renderContent();
 }
 
+/* ============================================================
+   DROPDOWN TAHUN (pengganti <select> native)
+   Sebelumnya <select> polos — kotaknya sudah dipercantik lewat CSS
+   (appearance:none + panah custom), TAPI daftar pilihan yang muncul saat
+   diklik tetap dirender native oleh OS/browser dan sama sekali di luar
+   jangkauan CSS. Makanya diganti total jadi dropdown buatan sendiri
+   (tombol trigger + panel melayang), mengikuti pola yang sama dipakai
+   combo pilih Barang Gudang (js/17b-gudang-pinjam.js) dan combo pilih
+   Koordinator Lomba (js/10-lomba.js) — supaya kotak DAN daftar
+   pilihannya full custom, senada tema app.
+   Dipakai di 3 tempat (tab Daftar Bayar/Perantauan/Rekap), semuanya
+   mengubah tahun aktif yang SAMA (danaSosialTahunAktif) lewat
+   gantiTahunDanaSosial() yang sudah ada di atas — jadi cukup satu set
+   fungsi generik, dibedakan lewat idSuffix trigger-nya saja
+   ('daftar'/'perantauan'/'rekap').
+   ============================================================ */
+function dsComboIconChevron(){
+  return `<svg class="combo-chevron" width="15" height="15" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+}
+function dsComboIconCheck(){
+  return `<svg class="combo-check" width="15" height="15" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+}
+function dsTahunTriggerHtml(idSuffix){
+  return `<button type="button" id="ds-tahun-trigger-${idSuffix}" class="combo-trigger ds-tahun-trigger" onclick="toggleDsTahunCombo('${idSuffix}')">
+    <span class="combo-trigger-label">${danaSosialTahunAktif}</span>
+    ${dsComboIconChevron()}
+  </button>`;
+}
+function dsTahunComboPanelHtml(){
+  const tahun = danaSosialTahunAktif;
+  const optionsHtml = danaSosialTahunList().map(t=>{
+    const selected = t === tahun;
+    return `<button type="button" class="combo-option${selected?' selected':''}" onclick="selectDsTahun(${t})">
+      <span class="combo-option-main"><span class="combo-option-name">${t}</span></span>
+      <span class="combo-option-side">${selected ? dsComboIconCheck() : ''}</span>
+    </button>`;
+  }).join('');
+  return `<div class="combo-list" data-combo-list>${optionsHtml}</div>`;
+}
+let _dsTahunComboOpenId = null;
+let _dsTahunComboPanelEl = null;
+function dsTahunComboPositionPanel(trigger, panel){
+  const rect = trigger.getBoundingClientRect();
+  const vw = window.innerWidth, vh = window.innerHeight;
+  const panelWidth = Math.max(rect.width, 120);
+  panel.style.left = Math.max(8, rect.left) + 'px';
+  panel.style.width = panelWidth + 'px';
+  const panelH = panel.offsetHeight || 240;
+  const spaceBelow = vh - rect.bottom;
+  const spaceAbove = rect.top;
+  if(spaceBelow < panelH + 12 && spaceAbove > spaceBelow){
+    panel.style.top = Math.max(8, rect.top - panelH - 6) + 'px';
+  } else {
+    panel.style.top = (rect.bottom + 6) + 'px';
+  }
+  const maxLeft = vw - panelWidth - 8;
+  if(parseFloat(panel.style.left) > maxLeft) panel.style.left = Math.max(8, maxLeft) + 'px';
+}
+function toggleDsTahunCombo(idSuffix){
+  const trigger = document.getElementById(`ds-tahun-trigger-${idSuffix}`);
+  if(!trigger) return;
+  if(_dsTahunComboOpenId === idSuffix){ closeDsTahunCombo(); return; }
+  closeDsTahunCombo();
+  const panel = document.createElement('div');
+  panel.className = 'combo-panel combo-panel-floating';
+  panel.id = 'ds-tahun-combo-floating';
+  panel.innerHTML = dsTahunComboPanelHtml();
+  document.body.appendChild(panel);
+  dsTahunComboPositionPanel(trigger, panel);
+  requestAnimationFrame(()=>panel.classList.add('show'));
+  trigger.classList.add('open');
+  _dsTahunComboOpenId = idSuffix;
+  _dsTahunComboPanelEl = panel;
+}
+function closeDsTahunCombo(){
+  if(_dsTahunComboPanelEl){ _dsTahunComboPanelEl.remove(); _dsTahunComboPanelEl = null; }
+  document.querySelectorAll('.ds-tahun-trigger.open').forEach(t=>t.classList.remove('open'));
+  _dsTahunComboOpenId = null;
+}
+function selectDsTahun(tahun){
+  // Tutup dulu sebelum ganti tahun — gantiTahunDanaSosial() memanggil
+  // renderContent() yang merender ulang seluruh halaman (termasuk tombol
+  // trigger-nya), jadi panel lama harus sudah dilepas dari body duluan
+  // supaya tidak nyangkut nunjuk ke trigger yang sudah tidak ada lagi.
+  closeDsTahunCombo();
+  gantiTahunDanaSosial(tahun);
+}
+document.addEventListener('click', (e)=>{
+  if(e.target.closest('.combo-panel-floating') || e.target.closest('.ds-tahun-trigger')) return;
+  closeDsTahunCombo();
+});
+document.addEventListener('keydown', (e)=>{
+  if(e.key==='Escape') closeDsTahunCombo();
+});
+window.addEventListener('resize', ()=>{
+  if(_dsTahunComboOpenId===null || !_dsTahunComboPanelEl) return;
+  const trigger = document.getElementById(`ds-tahun-trigger-${_dsTahunComboOpenId}`);
+  if(!trigger || !document.body.contains(trigger)){ closeDsTahunCombo(); return; }
+  dsTahunComboPositionPanel(trigger, _dsTahunComboPanelEl);
+});
+
 // Tab aktif di halaman Dana Sosial: 'daftar' (list nama + centang bayar saja,
 // tanpa aksi kelola), 'perantauan' (tabel anggota Perantauan, terpisah dari
 // tabel Daftar Bayar reguler karena bayarnya rapel setahun sekali),
@@ -270,7 +371,6 @@ function renderDanaSosial(){
   const rekapBulanIni = hitungRekapBulanDanaSosial(now.getFullYear(), now.getMonth() + 1);
   const saldoTotal = hitungSaldoDanaSosialTotal();
 
-  const tahunOptions = danaSosialTahunList().map(t => `<option value="${t}" ${t===tahun?'selected':''}>${t}</option>`).join('');
   // Header kolom bulan disiapkan dua versi (nama & angka 1-12); yang
   // ditampilkan diatur lewat CSS (.ds-bulan-full/.ds-bulan-num) supaya di
   // layar sempit (HP) otomatis pindah ke angka biar kolom tidak kesempitan.
@@ -380,7 +480,7 @@ function renderDanaSosial(){
         <div class="desc">Iuran ${fmtRp(DANA_SOSIAL_IURAN_PER_ORANG)}/orang/bulan · klik sel bulan untuk tandai lunas/belum · kolom Harus Bayar menumpuk kalau ada bulan sebelumnya yang belum dilunasi</div>
       </div>
       <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-        <select id="ds-tahun-select" onchange="gantiTahunDanaSosial(this.value)">${tahunOptions}</select>
+        ${dsTahunTriggerHtml('daftar')}
       </div>
     </div>
     <div class="panel-body flush">
@@ -401,7 +501,7 @@ function renderDanaSosial(){
         <div class="desc">Bayar setahun sekali (rapel) saat pulang/nitip bayar · tandai Lunas kalau sudah bayar penuh tahun ${tahun}</div>
       </div>
       <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-        <select id="ds-tahun-select-perantauan" onchange="gantiTahunDanaSosial(this.value)">${tahunOptions}</select>
+        ${dsTahunTriggerHtml('perantauan')}
       </div>
     </div>
     <div class="panel-body flush">
@@ -422,7 +522,7 @@ function renderDanaSosial(){
         <div class="desc">Terkumpul dikurangi potongan konsumsi pertemuan (flat ${fmtRp(DANA_SOSIAL_POTONGAN_KONSUMSI)}/bulan)</div>
       </div>
       <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-        <select id="ds-tahun-select-rekap" onchange="gantiTahunDanaSosial(this.value)">${tahunOptions}</select>
+        ${dsTahunTriggerHtml('rekap')}
       </div>
     </div>
     <div class="panel-body flush">

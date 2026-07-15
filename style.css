@@ -2192,6 +2192,16 @@ h1 .inline-icon, h2 .inline-icon, h3 .inline-icon{
    dan akan bentrok kalau dipakai di tabel 13 kolom (Nama + 12
    bulan), bikin 4 kolom pertama makan hampir semua lebar tabel.
    ============================================================ */
+/* Dropdown pilih tahun (Daftar Bayar/Perantauan/Rekap) SEKARANG dropdown
+   custom (bukan <select> native lagi) — pakai class .combo-trigger/
+   .combo-panel/.combo-option yang sudah ada (lihat blok "Custom combo
+   dropdown" di atas), jadi kotak trigger DAN daftar pilihannya full
+   custom senada tema app. .ds-tahun-trigger cuma dipersempit (tidak
+   selebar 100% seperti combo-trigger lain yang dipakai di form) supaya
+   pas jadi tombol filter kecil di pojok kanan panel-head. Lihat
+   js/22-dana-sosial.js untuk logic buka/tutup panelnya. */
+.ds-tahun-trigger{ width:auto; min-width:88px; gap:10px; font-weight:600; }
+
 table.ds-table{ table-layout:fixed; }
 table.ds-table thead th{ padding:8px 4px; text-align:center; }
 table.ds-table td{ padding:4px; text-align:center; border-bottom:1px solid var(--garis); }

@@ -257,13 +257,11 @@ function renderDanaSosial(){
       </div>
       <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
         ${canEdit?`<button class="btn secondary" onclick="openImporDanaSosialModal()">📥 Ambil dari Database Anggota</button>`:''}
+        ${canEdit?`<button class="btn secondary" onclick="sinkronkanPerantauanDanaSosial()">🔄 Sinkronkan Status Perantauan</button>`:''}
         ${canEdit?`<button class="btn" onclick="openDanaSosialAnggotaModal()">+ Tambah Anggota</button>`:''}
       </div>
     </div>
-    ${canEdit?`<div style="padding:10px 18px; border-bottom:1px solid var(--garis); display:flex; justify-content:flex-end;">
-      <button class="btn secondary small" onclick="sinkronkanPerantauanDanaSosial()">🔄 Sinkronkan Status Perantauan</button>
-    </div>`:''}
-    <div class="panel-body flush">
+    <div class="panel-body flush" style="padding-top:12px;">
       <div style="overflow-x:auto; -webkit-overflow-scrolling:touch;">
         <table class="ds-table ds-has-no">
           <thead><tr><th class="ds-no-h">No</th><th class="ds-nama-h">Nama</th><th style="text-align:left; padding-left:10px;">Tanggal Gabung</th><th style="text-align:right;">Aksi</th></tr></thead>

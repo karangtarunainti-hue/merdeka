@@ -900,6 +900,7 @@
 
   .lomba-tabs{display:flex; gap:18px; border-bottom:1px solid var(--garis); margin-bottom:14px;}
   .lomba-tabbtn{background:none; border:none; border-bottom:2px solid transparent; padding:8px 2px; font-size:13px; font-weight:600; color:var(--ink-soft); cursor:pointer; margin-bottom:-1px;}
+  .lomba-tabbtn .inline-icon{ margin-right:4px; }
   .lomba-tabbtn.active{color:var(--merah-dark); border-bottom-color:var(--merah-dark);}
 
   .quick-add-row{display:flex; gap:8px; margin-top:10px; padding-top:10px; border-top:1px dashed var(--garis); flex-wrap:wrap;}

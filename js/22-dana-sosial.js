@@ -294,10 +294,10 @@ function renderDanaSosial(){
   </div>
 
   <div class="lomba-tabs">
-    <button type="button" class="lomba-tabbtn ${danaSosialActiveTab==='daftar'?'active':''}" onclick="setDanaSosialTab('daftar')">Daftar Bayar</button>
-    <button type="button" class="lomba-tabbtn ${danaSosialActiveTab==='perantauan'?'active':''}" onclick="setDanaSosialTab('perantauan')">Perantauan</button>
-    <button type="button" class="lomba-tabbtn ${danaSosialActiveTab==='kelola'?'active':''}" onclick="setDanaSosialTab('kelola')">Kelola Anggota</button>
-    <button type="button" class="lomba-tabbtn ${danaSosialActiveTab==='rekap'?'active':''}" onclick="setDanaSosialTab('rekap')">Rekap Bulanan</button>
+    <button type="button" class="lomba-tabbtn ${danaSosialActiveTab==='daftar'?'active':''}" onclick="setDanaSosialTab('daftar')"><i data-lucide="wallet" class="inline-icon"></i> Daftar Bayar</button>
+    <button type="button" class="lomba-tabbtn ${danaSosialActiveTab==='perantauan'?'active':''}" onclick="setDanaSosialTab('perantauan')"><i data-lucide="compass" class="inline-icon"></i> Perantauan</button>
+    <button type="button" class="lomba-tabbtn ${danaSosialActiveTab==='rekap'?'active':''}" onclick="setDanaSosialTab('rekap')"><i data-lucide="bar-chart-3" class="inline-icon"></i> Rekap Bulanan</button>
+    <button type="button" class="lomba-tabbtn ${danaSosialActiveTab==='kelola'?'active':''}" onclick="setDanaSosialTab('kelola')"><i data-lucide="users" class="inline-icon"></i> Kelola Anggota</button>
   </div>
 
   <div style="display:${danaSosialActiveTab==='daftar'?'block':'none'};">
@@ -342,29 +342,6 @@ function renderDanaSosial(){
   </div>
   </div>
 
-  <div style="display:${danaSosialActiveTab==='kelola'?'block':'none'};">
-  <div class="panel">
-    <div class="panel-head">
-      <div><h3>Kelola Anggota Dana Sosial</h3>
-        <div class="desc">Tambah, ubah, atau hapus anggota master Dana Sosial</div>
-      </div>
-      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-        ${canEdit?`<button class="btn secondary" onclick="sinkronkanPerantauanDanaSosial()">🔄 Sinkronkan Status Perantauan</button>`:''}
-        ${canEdit?`<button class="btn" onclick="openImporDanaSosialModal()">📥+ Tambah dari Database Anggota</button>`:''}
-      </div>
-    </div>
-    <div class="field-hint" style="color:var(--ink-soft); font-size:12px; padding:10px 18px 0;">Nama anggota baru wajib ditambahkan lewat <a href="#" onclick="goSection('anggota'); return false;">Database Anggota</a> terlebih dahulu, lalu diambil ke sini — supaya hanya ada satu master data anggota.</div>
-    <div class="panel-body flush" style="padding-top:12px;">
-      <div style="overflow-x:auto; -webkit-overflow-scrolling:touch;">
-        <table class="ds-table ds-has-no">
-          <thead><tr><th class="ds-no-h">No</th><th class="ds-nama-h">Nama</th><th style="text-align:left; padding-left:10px;">Tanggal Gabung</th><th style="text-align:right;">Aksi</th></tr></thead>
-          <tbody>${kelolaRows || `<tr class="empty-row"><td colspan="4">Belum ada anggota Dana Sosial. ${canEdit?'Klik + Tambah dari Database Anggota untuk mulai.':'Hanya role tertentu yang bisa menambah anggota.'}</td></tr>`}</tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-  </div>
-
   <div style="display:${danaSosialActiveTab==='rekap'?'block':'none'};">
   <div class="panel">
     <div class="panel-head">
@@ -384,6 +361,29 @@ function renderDanaSosial(){
         </table>
       </div>
       <div class="ds-footnote">* Saldo bulan yang belum terlewati bersifat proyeksi (asumsi potongan konsumsi tetap berlaku).</div>
+    </div>
+  </div>
+  </div>
+
+  <div style="display:${danaSosialActiveTab==='kelola'?'block':'none'};">
+  <div class="panel">
+    <div class="panel-head">
+      <div><h3>Kelola Anggota Dana Sosial</h3>
+        <div class="desc">Tambah, ubah, atau hapus anggota master Dana Sosial</div>
+      </div>
+      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+        ${canEdit?`<button class="btn secondary" onclick="sinkronkanPerantauanDanaSosial()">🔄 Sinkronkan Status Perantauan</button>`:''}
+        ${canEdit?`<button class="btn" onclick="openImporDanaSosialModal()">📥+ Tambah dari Database Anggota</button>`:''}
+      </div>
+    </div>
+    <div class="field-hint" style="color:var(--ink-soft); font-size:12px; padding:10px 18px 0;">Nama anggota baru wajib ditambahkan lewat <a href="#" onclick="goSection('anggota'); return false;">Database Anggota</a> terlebih dahulu, lalu diambil ke sini — supaya hanya ada satu master data anggota.</div>
+    <div class="panel-body flush" style="padding-top:12px;">
+      <div style="overflow-x:auto; -webkit-overflow-scrolling:touch;">
+        <table class="ds-table ds-has-no">
+          <thead><tr><th class="ds-no-h">No</th><th class="ds-nama-h">Nama</th><th style="text-align:left; padding-left:10px;">Tanggal Gabung</th><th style="text-align:right;">Aksi</th></tr></thead>
+          <tbody>${kelolaRows || `<tr class="empty-row"><td colspan="4">Belum ada anggota Dana Sosial. ${canEdit?'Klik + Tambah dari Database Anggota untuk mulai.':'Hanya role tertentu yang bisa menambah anggota.'}</td></tr>`}</tbody>
+        </table>
+      </div>
     </div>
   </div>
   </div>`;

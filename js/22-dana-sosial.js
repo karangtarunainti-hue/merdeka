@@ -43,6 +43,16 @@ const DANA_SOSIAL_IURAN_PER_ORANG = 5000;
 const DANA_SOSIAL_POTONGAN_KONSUMSI = 80000;
 const DANA_SOSIAL_BULAN_LABEL = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
 
+// Dipakai untuk jejak audit "siapa yang tandai/batalkan lunas" (lihat
+// PENGAMANAN TANDAI LUNAS di bawah). Ambil dari user yang sedang login;
+// kalau entah kenapa tidak ada (harusnya tidak mungkin karena toggle sudah
+// digerbang canEditSection), fallback ke label netral supaya tetap ada
+// catatan daripada kosong sama sekali.
+function namaUserDanaSosial(){
+  const u = (typeof getCurrentUser === 'function') ? getCurrentUser() : null;
+  return (u && (u.name || u.username)) || 'Tidak diketahui';
+}
+
 // Tahun yang lagi dilihat di tabel/rekap. Reset ke tahun berjalan tiap kali
 // halaman dimuat ulang (tidak perlu disimpan permanen) — cukup dropdown di
 // halaman utk pindah ke tahun sebelumnya/berikutnya.
@@ -93,16 +103,36 @@ function danaSosialBulanWajibList(anggota, tahun){
 
 function statusLunasTahunPerantauan(anggota, tahun){
   const wajib = danaSosialBulanWajibList(anggota, tahun);
-  if (wajib.length === 0) return { wajib: 0, lunasSemua: false, tanggalTerakhir: null };
-  let tanggalTerakhir = null;
+  if (wajib.length === 0) return { wajib: 0, lunasSemua: false, tanggalTerakhir: null, diubahOleh: null };
+  let tanggalTerakhir = null, diubahOleh = null;
   const lunasSemua = wajib.every(b => {
     const r = getDanaSosialBayar(anggota.id, tahun, b);
-    if (r && r.lunas && r.tanggal_bayar && (!tanggalTerakhir || r.tanggal_bayar > tanggalTerakhir)) tanggalTerakhir = r.tanggal_bayar;
+    if (r && r.lunas && r.tanggal_bayar && (!tanggalTerakhir || r.tanggal_bayar > tanggalTerakhir)){
+      tanggalTerakhir = r.tanggal_bayar;
+      diubahOleh = r.diubah_oleh || null;
+    }
     return r && r.lunas;
   });
-  return { wajib: wajib.length, lunasSemua, tanggalTerakhir };
+  return { wajib: wajib.length, lunasSemua, tanggalTerakhir, diubahOleh };
 }
 
+/* ============================================================
+   PENGAMANAN TANDAI LUNAS
+   Menandai lunas (dari kosong/belum → lunas) risikonya rendah — cuma
+   mencatat orang sudah bayar, gampang dikoreksi kalau salah pencet.
+   Yang risikonya TINGGI dan rawan disalahgunakan adalah arah SEBALIKNYA:
+   MEMBATALKAN status lunas yang sudah tercatat (bisa dipakai buat
+   "menghapus" bukti seseorang sudah bayar). Makanya arah ini sengaja
+   diberi 2 lapis pengamanan:
+   1) Wajib konfirmasi eksplisit (tidak bisa kepencet tanpa sengaja),
+      dan dialognya menampilkan SIAPA yang menandai lunas terakhir kali
+      supaya kelihatan kalau ada yang aneh (mis. dibatalkan oleh orang
+      lain, bukan yang menandainya).
+   2) Setiap toggle (baik menandai maupun membatalkan) dicatat jejaknya
+      (diubah_oleh + diubah_pada) di baris kt_dana_sosial_bayar — lihat
+      supabase-dana-sosial-audit-migration.sql — supaya ada riwayat kalau
+      suatu saat perlu ditelusuri.
+   ============================================================ */
 function toggleDanaSosialLunasTahunPerantauan(anggotaId, tahun){
   if (!canEditSection('dana-sosial')) { toast('⛔ Anda tidak memiliki akses untuk mengedit Dana Sosial'); return; }
   const anggota = db.danaSosialAnggota.find(a => a.id === anggotaId);
@@ -111,14 +141,22 @@ function toggleDanaSosialLunasTahunPerantauan(anggotaId, tahun){
   if (wajib.length === 0) return;
   const status = statusLunasTahunPerantauan(anggota, tahun);
   const jadiLunas = !status.lunasSemua;
+  if (!jadiLunas){
+    const jejak = status.diubahOleh ? ` Terakhir ditandai oleh ${status.diubahOleh}${status.tanggalTerakhir?` (${fmtDate(status.tanggalTerakhir)})`:''}.` : '';
+    if (!confirm(`Batalkan status Lunas Tahun ${tahun} untuk "${anggota.nama}"?${jejak}\n\nSemua bulan wajib di tahun ini ikut dibatalkan sekaligus. Tindakan ini tercatat atas nama Anda.`)) return;
+  }
   const tgl = jadiLunas ? todayISO() : null;
+  const pengubah = namaUserDanaSosial();
+  const waktuUbah = new Date().toISOString();
   wajib.forEach(bulan => {
     let rec = getDanaSosialBayar(anggotaId, tahun, bulan);
     if (rec){
       rec.lunas = jadiLunas;
       rec.tanggal_bayar = tgl;
+      rec.diubah_oleh = pengubah;
+      rec.diubah_pada = waktuUbah;
     } else if (jadiLunas){
-      db.danaSosialBayar.push({ id: uid(), anggota_id: anggotaId, tahun: Number(tahun), bulan, lunas: true, tanggal_bayar: tgl, created_at: new Date().toISOString() });
+      db.danaSosialBayar.push({ id: uid(), anggota_id: anggotaId, tahun: Number(tahun), bulan, lunas: true, tanggal_bayar: tgl, diubah_oleh: pengubah, diubah_pada: waktuUbah, created_at: new Date().toISOString() });
     }
   });
   saveDB(); renderContent();
@@ -227,7 +265,7 @@ function renderDanaSosial(){
         }
         const rec = getDanaSosialBayar(a.id, tahun, bulan);
         const lunas = !!(rec && rec.lunas);
-        const titleTxt = `${esc(a.nama)} · ${DANA_SOSIAL_BULAN_LABEL[i]} ${tahun} — ${lunas ? 'Lunas (klik untuk batalkan)' : 'Belum bayar (klik untuk tandai lunas)'}`;
+        const titleTxt = `${esc(a.nama)} · ${DANA_SOSIAL_BULAN_LABEL[i]} ${tahun} — ${lunas ? 'Lunas (klik untuk batalkan)' : 'Belum bayar (klik untuk tandai lunas)'}${lunas && rec && rec.diubah_oleh ? ` · ditandai oleh ${esc(rec.diubah_oleh)}` : ''}`;
         return `<td class="ds-cell"><button type="button" class="ds-toggle ${lunas?'lunas':'belum'}" ${canEdit?`onclick="toggleDanaSosialBayar('${a.id}',${tahun},${bulan})"`:'disabled'} title="${titleTxt}">${lunas?'✓':''}</button></td>`;
       }).join('');
       return `<tr>
@@ -245,7 +283,7 @@ function renderDanaSosial(){
       const status = statusLunasTahunPerantauan(a, tahun);
       const cell = status.wajib === 0
         ? `<span class="ds-toggle ds-toggle-mono ds-muted" style="width:auto; padding:0 10px;" title="Belum jadi anggota di tahun ${tahun}">·</span>`
-        : `<button type="button" class="ds-toggle ds-toggle-mono ${status.lunasSemua?'lunas':'belum'}" style="width:auto; min-width:110px; padding:0 12px; white-space:nowrap;" ${canEdit?`onclick="toggleDanaSosialLunasTahunPerantauan('${a.id}',${tahun})"`:'disabled'} title="${status.lunasSemua?`Lunas ${tahun}${status.tanggalTerakhir?` · dibayar ${fmtDate(status.tanggalTerakhir)}`:''} (klik untuk batalkan)`:`Belum lunas ${tahun} (klik untuk tandai lunas)`}">${status.lunasSemua?'✓ Lunas':'Belum Lunas'}</button>`;
+        : `<button type="button" class="ds-toggle ds-toggle-mono ${status.lunasSemua?'lunas':'belum'}" style="width:auto; min-width:110px; padding:0 12px; white-space:nowrap;" ${canEdit?`onclick="toggleDanaSosialLunasTahunPerantauan('${a.id}',${tahun})"`:'disabled'} title="${status.lunasSemua?`Lunas ${tahun}${status.tanggalTerakhir?` · dibayar ${fmtDate(status.tanggalTerakhir)}`:''}${status.diubahOleh?` · ditandai oleh ${esc(status.diubahOleh)}`:''} (klik untuk batalkan)`:`Belum lunas ${tahun} (klik untuk tandai lunas)`}">${status.lunasSemua?'✓ Lunas':'Belum Lunas'}</button>`;
       return `<tr>
         <td class="ds-no">${idx+1}</td>
         <td class="ds-nama">${esc(a.nama)}</td>
@@ -396,17 +434,31 @@ function renderDanaSosial(){
   </div>`;
 }
 
+// Pengamanan sama seperti toggleDanaSosialLunasTahunPerantauan di atas:
+// membatalkan lunas (rec.lunas true → false) wajib konfirmasi + tampilkan
+// siapa yang menandainya terakhir, dan setiap toggle dicatat jejaknya.
+// Menandai lunas (belum → lunas) tetap satu klik, tidak dipersulit, karena
+// itu arah yang risikonya rendah (cuma mencatat orang sudah bayar).
 async function toggleDanaSosialBayar(anggotaId, tahun, bulan){
   if (!canEditSection('dana-sosial')) { toast('⛔ Anda tidak memiliki akses untuk mengedit Dana Sosial'); return; }
   const anggota = db.danaSosialAnggota.find(a => a.id === anggotaId);
   if (!anggota) return;
   if (!isWajibDanaSosial(anggota, tahun, bulan)) return;
   let rec = getDanaSosialBayar(anggotaId, tahun, bulan);
-  if (rec){
-    rec.lunas = !rec.lunas;
-    rec.tanggal_bayar = rec.lunas ? todayISO() : null;
+  if (rec && rec.lunas){
+    const jejak = rec.diubah_oleh ? ` Terakhir ditandai oleh ${rec.diubah_oleh}${rec.tanggal_bayar?` (${fmtDate(rec.tanggal_bayar)})`:''}.` : '';
+    if (!confirm(`Batalkan status LUNAS "${anggota.nama}" untuk ${DANA_SOSIAL_BULAN_LABEL[bulan-1]} ${tahun}?${jejak}\n\nTindakan ini tercatat atas nama Anda.`)) return;
+    rec.lunas = false;
+    rec.tanggal_bayar = null;
+    rec.diubah_oleh = namaUserDanaSosial();
+    rec.diubah_pada = new Date().toISOString();
+  } else if (rec){
+    rec.lunas = true;
+    rec.tanggal_bayar = todayISO();
+    rec.diubah_oleh = namaUserDanaSosial();
+    rec.diubah_pada = new Date().toISOString();
   } else {
-    rec = { id: uid(), anggota_id: anggotaId, tahun: Number(tahun), bulan: Number(bulan), lunas: true, tanggal_bayar: todayISO(), created_at: new Date().toISOString() };
+    rec = { id: uid(), anggota_id: anggotaId, tahun: Number(tahun), bulan: Number(bulan), lunas: true, tanggal_bayar: todayISO(), diubah_oleh: namaUserDanaSosial(), diubah_pada: new Date().toISOString(), created_at: new Date().toISOString() };
     db.danaSosialBayar.push(rec);
   }
   saveDB(); renderContent();

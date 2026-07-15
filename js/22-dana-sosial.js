@@ -237,12 +237,12 @@ function renderDanaSosial(){
     return list.map((a, idx) => {
       const status = statusLunasTahunPerantauan(a, tahun);
       const cell = status.wajib === 0
-        ? `<span class="ds-toggle ds-muted" style="width:auto; padding:0 10px;" title="Belum jadi anggota di tahun ${tahun}">·</span>`
-        : `<button type="button" class="ds-toggle ${status.lunasSemua?'lunas':'belum'}" style="width:auto; min-width:110px; padding:0 12px; white-space:nowrap;" ${canEdit?`onclick="toggleDanaSosialLunasTahunPerantauan('${a.id}',${tahun})"`:'disabled'} title="${status.lunasSemua?`Lunas ${tahun}${status.tanggalTerakhir?` · dibayar ${fmtDate(status.tanggalTerakhir)}`:''} (klik untuk batalkan)`:`Belum lunas ${tahun} (klik untuk tandai lunas)`}">${status.lunasSemua?'✓ Lunas':'Belum Lunas'}</button>`;
+        ? `<span class="ds-toggle ds-toggle-mono ds-muted" style="width:auto; padding:0 10px;" title="Belum jadi anggota di tahun ${tahun}">·</span>`
+        : `<button type="button" class="ds-toggle ds-toggle-mono ${status.lunasSemua?'lunas':'belum'}" style="width:auto; min-width:110px; padding:0 12px; white-space:nowrap;" ${canEdit?`onclick="toggleDanaSosialLunasTahunPerantauan('${a.id}',${tahun})"`:'disabled'} title="${status.lunasSemua?`Lunas ${tahun}${status.tanggalTerakhir?` · dibayar ${fmtDate(status.tanggalTerakhir)}`:''} (klik untuk batalkan)`:`Belum lunas ${tahun} (klik untuk tandai lunas)`}">${status.lunasSemua?'✓ Lunas':'Belum Lunas'}</button>`;
       return `<tr>
         <td class="ds-no">${idx+1}</td>
         <td class="ds-nama">${esc(a.nama)}</td>
-        <td class="ds-cell">${cell}</td>
+        <td class="ds-cell ds-status">${cell}</td>
       </tr>`;
     }).join('');
   }
@@ -334,7 +334,7 @@ function renderDanaSosial(){
     <div class="panel-body flush">
       <div style="overflow-x:auto; -webkit-overflow-scrolling:touch;">
         <table class="ds-table ds-has-no">
-          <thead><tr><th class="ds-no-h">No</th><th class="ds-nama-h">Nama</th><th>Lunas Tahun ${tahun}</th></tr></thead>
+          <thead><tr><th class="ds-no-h">No</th><th class="ds-nama-h">Nama</th><th class="ds-status-h">Lunas Tahun ${tahun}</th></tr></thead>
           <tbody>${rowsPerantauan || `<tr class="empty-row"><td colspan="3">Belum ada anggota Perantauan. ${canEdit?'Tandai anggota sebagai Perantauan di tab Kelola Anggota.':''}</td></tr>`}</tbody>
         </table>
       </div>

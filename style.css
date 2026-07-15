@@ -2210,6 +2210,10 @@ table.ds-table th.ds-nama-h, table.ds-table td.ds-nama{
 table.ds-table.ds-has-no th.ds-nama-h, table.ds-table.ds-has-no td.ds-nama{ left:42px; }
 table.ds-table thead th.ds-nama-h{ background:var(--table-head); z-index:3; }
 table.ds-table td.ds-nama .icon-btn{ margin-left:4px; }
+/* Kolom "Lunas Tahun ..." di tabel Anggota Perantauan: rata kanan dengan
+   jarak dari tepi kanan tabel yang seimbang dengan jarak kolom No dari tepi
+   kiri (lihat padding kiri 10px pada td.ds-no di atas). */
+table.ds-table th.ds-status-h, table.ds-table td.ds-status{ text-align:right; padding-right:14px; }
 td.ds-cell{ padding:4px !important; }
 .ds-toggle{
   width:28px; height:28px; border-radius:7px; border:1.5px solid var(--garis);
@@ -2224,6 +2228,10 @@ td.ds-cell{ padding:4px !important; }
   border:none; background:transparent; color:var(--abu); cursor:default; font-weight:400;
 }
 .ds-toggle:disabled{ cursor:default; opacity:.85; }
+/* Dipakai khusus di tabel Anggota Perantauan: warna teks tombol
+   "✓ Lunas"/"Belum Lunas" dibuat gelap/hitam, bukan ikut warna hijau/merah
+   status seperti tombol centang bulanan di tabel Daftar Bayar reguler. */
+.ds-toggle.ds-toggle-mono{ color:var(--ink) !important; }
 /* Header kolom bulan: default tampil nama (Jan, Feb, ...); di layar sempit
    (lihat @media max-width:640px di bawah) diganti angka 1-12 supaya kolom
    tetap muat tanpa harus scroll horizontal jauh-jauh. */

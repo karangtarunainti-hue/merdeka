@@ -218,6 +218,26 @@ function hitungSaldoDanaSosialTotal(){
   return total;
 }
 
+// Total yang HARUS dibayar anggota reguler di tahun ini: dihitung dari
+// jumlah bulan wajib yang sudah terjadi/berjalan (bukan bulan depan) tapi
+// belum ditandai lunas, dikali iuran per bulan. Kalau anggota rutin bayar
+// tiap bulan, nilainya selalu pas 1x iuran (bulan berjalan saja). Kalau ada
+// bulan sebelumnya yang kelewat belum dibayar, nilainya ikut menumpuk
+// (2x, 3x, dst iuran) sampai semua bulan yang nunggak itu dilunasi satu-
+// satu. Sengaja dihitung per TAHUN yang sedang dilihat saja (tidak
+// menumpuk lintas tahun) supaya angkanya konsisten dengan tabel Daftar
+// Bayar yang juga per tahun.
+function hitungTunggakanDanaSosial(anggota, tahun){
+  let bulanBelum = 0;
+  for (let b = 1; b <= 12; b++){
+    if (!isWajibDanaSosial(anggota, tahun, b)) continue;
+    if (!danaSosialSudahBerjalan(tahun, b)) continue; // bulan depan belum dihitung nunggak
+    const rec = getDanaSosialBayar(anggota.id, tahun, b);
+    if (!(rec && rec.lunas)) bulanBelum++;
+  }
+  return { bulanBelum, total: bulanBelum * DANA_SOSIAL_IURAN_PER_ORANG };
+}
+
 function gantiTahunDanaSosial(v){
   danaSosialTahunAktif = Number(v);
   renderContent();
@@ -268,10 +288,18 @@ function renderDanaSosial(){
         const titleTxt = `${esc(a.nama)} · ${DANA_SOSIAL_BULAN_LABEL[i]} ${tahun} — ${lunas ? 'Lunas (klik untuk batalkan)' : 'Belum bayar (klik untuk tandai lunas)'}${lunas && rec && rec.diubah_oleh ? ` · ditandai oleh ${esc(rec.diubah_oleh)}` : ''}`;
         return `<td class="ds-cell"><button type="button" class="ds-toggle ${lunas?'lunas':'belum'}" ${canEdit?`onclick="toggleDanaSosialBayar('${a.id}',${tahun},${bulan})"`:'disabled'} title="${titleTxt}"><span class="ds-toggle-mark">${lunas?'✓':''}</span><span class="ds-toggle-label">${lunas?'Sudah':'Belum'}</span></button></td>`;
       }).join('');
+      const tunggakan = hitungTunggakanDanaSosial(a, tahun);
+      const tunggakanTitle = tunggakan.bulanBelum === 0
+        ? 'Tidak ada tunggakan'
+        : `Nunggak ${tunggakan.bulanBelum} bulan × ${fmtRp(DANA_SOSIAL_IURAN_PER_ORANG)}`;
+      const tunggakanCell = tunggakan.bulanBelum === 0
+        ? `<span class="ds-lunas-tag">Lunas</span>`
+        : `<span class="${tunggakan.bulanBelum>1?'ds-tunggakan-angka lebih':'ds-tunggakan-angka'}">${fmtRp(tunggakan.total)}</span>`;
       return `<tr>
         <td class="ds-no">${idx+1}</td>
         <td class="ds-nama">${esc(a.nama)}</td>
         ${cells}
+        <td class="ds-cell ds-tunggakan" title="${tunggakanTitle}">${tunggakanCell}</td>
       </tr>`;
     }).join('');
   }
@@ -349,7 +377,7 @@ function renderDanaSosial(){
   <div class="panel">
     <div class="panel-head">
       <div><h3>Daftar Bayar</h3>
-        <div class="desc">Iuran ${fmtRp(DANA_SOSIAL_IURAN_PER_ORANG)}/orang/bulan · klik sel bulan untuk tandai lunas/belum</div>
+        <div class="desc">Iuran ${fmtRp(DANA_SOSIAL_IURAN_PER_ORANG)}/orang/bulan · klik sel bulan untuk tandai lunas/belum · kolom Harus Bayar menumpuk kalau ada bulan sebelumnya yang belum dilunasi</div>
       </div>
       <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
         <select id="ds-tahun-select" onchange="gantiTahunDanaSosial(this.value)">${tahunOptions}</select>
@@ -358,8 +386,8 @@ function renderDanaSosial(){
     <div class="panel-body flush">
       <div style="overflow-x:auto; -webkit-overflow-scrolling:touch;">
         <table class="ds-table ds-has-no">
-          <thead><tr><th class="ds-no-h">No</th><th class="ds-nama-h">Nama</th>${theadBulan}</tr></thead>
-          <tbody>${rowsReguler || `<tr class="empty-row"><td colspan="14">Belum ada anggota Dana Sosial. ${canEdit?'Buka tab Kelola Anggota untuk mulai.':'Hanya role tertentu yang bisa menambah anggota.'}</td></tr>`}</tbody>
+          <thead><tr><th class="ds-no-h">No</th><th class="ds-nama-h">Nama</th>${theadBulan}<th class="ds-tunggakan-h">Harus Bayar</th></tr></thead>
+          <tbody>${rowsReguler || `<tr class="empty-row"><td colspan="15">Belum ada anggota Dana Sosial. ${canEdit?'Buka tab Kelola Anggota untuk mulai.':'Hanya role tertentu yang bisa menambah anggota.'}</td></tr>`}</tbody>
         </table>
       </div>
     </div>

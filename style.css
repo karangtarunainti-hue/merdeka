@@ -2201,7 +2201,7 @@ table.ds-table th.ds-no-h, table.ds-table td.ds-no{
 }
 table.ds-table thead th.ds-no-h{ background:var(--table-head); z-index:4; }
 table.ds-table th.ds-nama-h, table.ds-table td.ds-nama{
-  width:190px; min-width:160px;
+  width:260px; min-width:220px;
   text-align:left; padding:8px 10px 8px 14px;
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   position:sticky; left:0; background:var(--surface); z-index:1;
@@ -2232,7 +2232,7 @@ table.ds-rekap-table td.num, table.ds-rekap-table th:not(:first-child){ text-ali
 .ds-rekap-total{ font-weight:700; border-top:2px solid var(--garis); }
 .ds-footnote{ font-size:12px; color:var(--ink-soft); padding:10px 16px 4px; }
 @media (max-width:640px){
-  table.ds-table th.ds-nama-h, table.ds-table td.ds-nama{ width:140px; min-width:120px; font-size:12.5px; }
+  table.ds-table th.ds-nama-h, table.ds-table td.ds-nama{ width:190px; min-width:170px; font-size:12.5px; }
   table.ds-table th.ds-no-h, table.ds-table td.ds-no{ width:34px; min-width:30px; font-size:12px; padding-left:8px; }
   table.ds-table.ds-has-no th.ds-nama-h, table.ds-table.ds-has-no td.ds-nama{ left:34px; }
   .ds-toggle{ width:24px; height:24px; font-size:12px; }

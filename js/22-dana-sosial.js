@@ -62,6 +62,12 @@ function danaSosialTahunList(){
 // Anggota wajib bayar bulan ini kalau tanggal gabungnya <= bulan yang dicek.
 // Bulan-bulan SEBELUM gabung otomatis tidak wajib (dikosongkan di tabel).
 function isWajibDanaSosial(anggota, tahun, bulan){
+  // `aktif` (default true, lihat kt_dana_sosial_anggota) menandai anggota
+  // yang dinonaktifkan lewat "Nonaktifkan" di tab Kelola Anggota — biasanya
+  // karena pindah/keluar tapi datanya tetap disimpan (bukan dihapus, supaya
+  // riwayat bayar lama tidak hilang). Anggota nonaktif tidak lagi wajib
+  // bayar bulan manapun sejak dinonaktifkan.
+  if (anggota.aktif === false) return false;
   if (!anggota.tanggal_gabung) return true;
   const g = new Date(anggota.tanggal_gabung + 'T00:00:00');
   const gKey = g.getFullYear() * 12 + g.getMonth(); // bulan 0-11
@@ -186,8 +192,13 @@ function renderDanaSosial(){
   const canEdit = canEditSection('dana-sosial');
   const tahun = danaSosialTahunAktif;
   const anggotaList = gDanaSosialAnggota();
-  const anggotaReguler = anggotaList.filter(a => !a.perantauan);
-  const anggotaPerantauan = anggotaList.filter(a => a.perantauan);
+  // Tabel Daftar Bayar & stat "Total Anggota" cuma menghitung yang masih
+  // aktif — anggota yang dinonaktifkan (lihat isWajibDanaSosial) tetap ada
+  // di tab Kelola Anggota supaya datanya tidak hilang, tapi disembunyikan
+  // dari tabel bayar/rekap harian.
+  const anggotaAktifList = anggotaList.filter(a => a.aktif !== false);
+  const anggotaReguler = anggotaAktifList.filter(a => !a.perantauan);
+  const anggotaPerantauan = anggotaAktifList.filter(a => a.perantauan);
   const now = new Date();
   const rekapBulanIni = hitungRekapBulanDanaSosial(now.getFullYear(), now.getMonth() + 1);
   const saldoTotal = hitungSaldoDanaSosialTotal();
@@ -232,15 +243,19 @@ function renderDanaSosial(){
   }
   const rowsPerantauan = buatBarisPerantauanTahunan(anggotaPerantauan);
 
-  const kelolaRows = anggotaList.map((a, idx) => `<tr>
+  const kelolaRows = anggotaList.map((a, idx) => {
+    const nonaktif = a.aktif === false;
+    return `<tr ${nonaktif?'style="opacity:.55;"':''}>
     <td class="ds-no">${idx+1}</td>
-    <td class="ds-nama">${esc(a.nama)}${a.perantauan?' <span class="kategori-pill khusus">Perantauan</span>':''}</td>
+    <td class="ds-nama">${esc(a.nama)}${a.perantauan?' <span class="kategori-pill khusus">Perantauan</span>':''}${nonaktif?' <span class="kategori-pill">Nonaktif</span>':''}</td>
     <td style="text-align:left; padding-left:10px;">${fmtDate(a.tanggal_gabung)}</td>
     <td style="text-align:right; white-space:nowrap;">
-      ${canEdit?`<button class="icon-btn" onclick="openDanaSosialAnggotaModal('${a.id}')" title="Edit">✎</button>
+      ${canEdit?`<button class="icon-btn" onclick="toggleAktifDanaSosialAnggota('${a.id}')" title="${nonaktif?'Aktifkan kembali':'Nonaktifkan (tanpa hapus data)'}">${nonaktif?'↩️':'⏸'}</button>
+      <button class="icon-btn" onclick="openDanaSosialAnggotaModal('${a.id}')" title="Edit">✎</button>
       <button class="icon-btn" onclick="hapusDanaSosialAnggota('${a.id}')" title="Hapus">🗑</button>`:''}
     </td>
-  </tr>`).join('');
+  </tr>`;
+  }).join('');
 
   const rekapRows = DANA_SOSIAL_BULAN_LABEL.map((l, i) => {
     const bulan = i + 1;
@@ -268,7 +283,7 @@ function renderDanaSosial(){
 
   return `
   <div class="stat-grid-ringkasan" style="margin-bottom:26px;">
-    <div class="stat-card"><div class="lbl">Total Anggota</div><div class="val">${anggotaList.length}</div></div>
+    <div class="stat-card"><div class="lbl">Total Anggota</div><div class="val">${anggotaAktifList.length}</div></div>
     <div class="stat-card pemasukan"><div class="lbl">Lunas Bulan Ini (${DANA_SOSIAL_BULAN_LABEL[now.getMonth()]} ${now.getFullYear()})</div><div class="val">${rekapBulanIni.lunas} / ${rekapBulanIni.wajib}</div></div>
     <div class="stat-card ${saldoTotal<0?'defisit':'saldo'}"><div class="lbl">Saldo Dana Sosial</div><div class="val">${fmtRp(saldoTotal)}</div></div>
   </div>
@@ -415,6 +430,22 @@ function openDanaSosialAnggotaModal(id){
   ]);
 }
 
+// Nonaktifkan (bukan hapus): dipakai untuk anggota yang pindah/keluar tapi
+// riwayat bayarnya tetap mau disimpan. Anggota nonaktif otomatis hilang dari
+// tabel Daftar Bayar & Rekap Bulanan (lihat isWajibDanaSosial), tapi masih
+// kelihatan (pudar + label "Nonaktif") di tab Kelola Anggota dan bisa
+// diaktifkan lagi kapan saja lewat tombol yang sama.
+function toggleAktifDanaSosialAnggota(id){
+  if (!canEditSection('dana-sosial')) { toast('⛔ Anda tidak memiliki akses untuk mengedit Dana Sosial'); return; }
+  const a = db.danaSosialAnggota.find(x => x.id === id); if (!a) return;
+  const jadiAktif = a.aktif === false; // sebelumnya nonaktif -> aktifkan, sebaliknya nonaktifkan
+  if (!jadiAktif && !confirm(`Nonaktifkan "${a.nama}" dari Dana Sosial? Anggota ini akan hilang dari tabel Daftar Bayar & Rekap Bulanan, tapi riwayat bayarnya tetap tersimpan dan bisa diaktifkan lagi kapan saja.`)) return;
+  a.aktif = jadiAktif;
+  saveDB(); renderContent();
+  toast(jadiAktif ? `✓ ${a.nama} diaktifkan kembali` : `⏸ ${a.nama} dinonaktifkan`);
+  notifyTelegram(jadiAktif ? `↩️ Aktifkan kembali anggota Dana Sosial: ${a.nama}` : `⏸ Nonaktifkan anggota Dana Sosial: ${a.nama}`);
+}
+
 function hapusDanaSosialAnggota(id){
   if (!canEditSection('dana-sosial')) { toast('⛔ Anda tidak memiliki akses untuk mengedit Dana Sosial'); return; }
   const a = db.danaSosialAnggota.find(x => x.id === id); if (!a) return;
@@ -434,17 +465,35 @@ function hapusDanaSosialAnggota(id){
    Nama diambil dari SEMUA event (unik per nama, tidak peduli event
    mana), lalu nama yang sudah terdaftar di Dana Sosial dilewati
    otomatis (anti dobel).
+
+   PENTING soal urutan dedup: nama yang sama bisa muncul di lebih dari
+   satu tahun event dengan kategori berbeda (mis. dulu 'Sekolah',
+   sekarang 'Perantauan'). Baris yang "menang" saat dedup dipakai untuk
+   pre-centang checkbox Perantauan di modal impor, jadi harus baris dari
+   TAHUN EVENT TERBARU orang itu — bukan menang cuma karena kebetulan
+   duluan secara abjad. Makanya diurutkan tahun (desc) dulu, baru nama
+   sebagai tie-breaker dalam tahun yang sama.
    ============================================================ */
 function daftarNamaUnikDariDatabaseAnggota(){
+  const tahunEvent = new Map(db.events.map(e => [e.id, Number(e.tahun) || 0]));
   const seen = new Set();
   const out = [];
-  db.anggota.slice().sort((a,b)=>a.nama.localeCompare(b.nama,'id',{sensitivity:'base'})).forEach(a=>{
-    const key = (a.nama||'').trim().toLowerCase();
-    if (!key || seen.has(key)) return;
-    seen.add(key);
-    out.push(a);
-  });
-  return out;
+  db.anggota.slice()
+    .sort((a,b)=>{
+      const ta = tahunEvent.get(a.event_id) || 0;
+      const tb = tahunEvent.get(b.event_id) || 0;
+      if (tb !== ta) return tb - ta; // tahun terbaru duluan
+      return a.nama.localeCompare(b.nama,'id',{sensitivity:'base'});
+    })
+    .forEach(a=>{
+      const key = (a.nama||'').trim().toLowerCase();
+      if (!key || seen.has(key)) return;
+      seen.add(key);
+      out.push(a);
+    });
+  // Baris yang dipakai (kategori dari tahun terbaru) sudah terpilih di atas;
+  // urutan TAMPILAN di modal tetap abjad seperti semula.
+  return out.sort((a,b)=>a.nama.localeCompare(b.nama,'id',{sensitivity:'base'}));
 }
 
 function openImporDanaSosialModal(){
@@ -527,21 +576,43 @@ function konfirmasiImporDanaSosial(){
    Nama yang sudah ditandai manual sebagai Perantauan tidak diutak-
    atik lagi (hanya menambah, tidak pernah menghapus status).
    ============================================================ */
+// Logika inti (dipakai baik oleh tombol manual maupun auto-sync di bawah):
+// tandai perantauan=true untuk anggota Dana Sosial yang namanya (huruf
+// kecil, sudah di-trim) ada di set yang diberikan. Tidak pernah menghapus
+// status yang sudah ditandai manual — hanya menambah. Tidak memanggil
+// saveDB()/render/notifyTelegram(); itu tanggung jawab pemanggil.
+function terapkanStatusPerantauanDanaSosial(namaSetLower){
+  let count = 0;
+  db.danaSosialAnggota.forEach(a => {
+    if (!a.perantauan && namaSetLower.has((a.nama||'').trim().toLowerCase())){
+      a.perantauan = true;
+      count++;
+    }
+  });
+  return count;
+}
+
 function sinkronkanPerantauanDanaSosial(){
   if (!canEditSection('dana-sosial')) { toast('⛔ Anda tidak memiliki akses untuk mengedit Dana Sosial'); return; }
   const namaPerantauan = new Set(
     db.anggota.filter(a => a.kategori === 'perantauan').map(a => (a.nama||'').trim().toLowerCase())
   );
   if (namaPerantauan.size === 0){ toast('Tidak ada anggota berkategori Perantauan di Database Anggota'); return; }
-  let count = 0;
-  db.danaSosialAnggota.forEach(a => {
-    if (!a.perantauan && namaPerantauan.has((a.nama||'').trim().toLowerCase())){
-      a.perantauan = true;
-      count++;
-    }
-  });
+  const count = terapkanStatusPerantauanDanaSosial(namaPerantauan);
   if (count === 0){ toast('Semua anggota sudah sesuai — tidak ada yang perlu disesuaikan'); return; }
   saveDB(); renderContent();
   toast(`✓ ${count} anggota dipindah ke tabel Perantauan`);
   notifyTelegram(`🔄 Sinkronkan status Perantauan Dana Sosial`, `${count} anggota ditandai Perantauan (dicocokkan dari Database Anggota)`);
+}
+
+// Dipanggil OTOMATIS dari Database Anggota (js/08-anggota.js) tiap kali
+// seseorang ditambah/diedit dengan kategori 'perantauan' — supaya status
+// Perantauan di Dana Sosial tidak ketinggalan cuma karena tombol
+// "Sinkronkan Status Perantauan" di atas lupa/belum diklik. Sengaja SILENT
+// (tanpa toast/notifyTelegram sendiri) karena cuma efek samping dari save
+// Database Anggota yang sedang berjalan — saveDB() dipanggil di sana.
+// Tombol manual tetap dipertahankan untuk sinkron massal data lama.
+function autoSinkronkanPerantauanUntukNama(nama){
+  if (!nama) return;
+  terapkanStatusPerantauanDanaSosial(new Set([nama.trim().toLowerCase()]));
 }

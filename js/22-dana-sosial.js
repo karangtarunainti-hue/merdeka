@@ -3,11 +3,15 @@
    Iuran bulanan Rp 5.000/anggota — TIDAK terikat event 17-an
    manapun (sama seperti Kas Karang Taruna/Agenda/Gudang).
 
-   Daftar anggota di sini adalah daftar MASTER TERPISAH TOTAL dari
-   kt_anggota (Iuran Anggota per-event) — lihat kt_dana_sosial_anggota
-   di supabase-dana-sosial-migration.sql. Anggota baru yang gabung di
-   tengah tahun disimpan `tanggal_gabung`-nya; bulan-bulan SEBELUM itu
-   otomatis dikosongkan di tabel (bukan dianggap "belum bayar").
+   Daftar anggota di sini disimpan terpisah secara teknis dari kt_anggota
+   (Iuran Anggota per-event) — lihat kt_dana_sosial_anggota di
+   supabase-dana-sosial-migration.sql — TAPI Database Anggota (kt_anggota)
+   tetap jadi SATU-SATUNYA master nama anggota. Anggota Dana Sosial baru
+   HANYA bisa masuk lewat "Ambil dari Database Anggota" (import nama yang
+   sudah ada di kt_anggota); tidak ada lagi jalur tambah-manual bebas ketik
+   nama di tab Kelola Anggota, supaya nama tidak dobel-master. Anggota baru
+   yang gabung di tengah tahun disimpan `tanggal_gabung`-nya; bulan-bulan
+   SEBELUM itu otomatis dikosongkan di tabel (bukan dianggap "belum bayar").
 
    Setiap bulan direkap: jumlah anggota yang lunas dikali Rp 5.000,
    dikurangi potongan konsumsi pertemuan flat Rp 80.000 (tidak bisa
@@ -27,8 +31,12 @@
    supabase-dana-sosial-perantauan-migration.sql) ditampilkan di tabel
    TERPISAH di tab Daftar Bayar, karena mereka biasanya tidak bayar
    bulanan seperti anggota reguler — baru bayar/rapel setahun sekali
-   saat pulang. Struktur datanya tetap sama persis (baris
-   kt_dana_sosial_bayar per bulan), cuma dipisah tampilannya saja.
+   saat pulang. Tabelnya cuma satu kolom toggle "Lunas Tahun Ini" (bukan
+   12 kolom bulan seperti reguler), tapi di balik layar tetap menulis ke
+   SEMUA baris kt_dana_sosial_bayar per bulan yang wajib di tahun itu
+   sekaligus (lihat toggleDanaSosialLunasTahunPerantauan), supaya rekap
+   bulanan tetap konsisten dan menghitung anggota Perantauan sama seperti
+   anggota reguler.
    ============================================================ */
 
 const DANA_SOSIAL_IURAN_PER_ORANG = 5000;
@@ -63,6 +71,51 @@ function isWajibDanaSosial(anggota, tahun, bulan){
 
 function getDanaSosialBayar(anggotaId, tahun, bulan){
   return db.danaSosialBayar.find(b => b.anggota_id === anggotaId && Number(b.tahun) === Number(tahun) && Number(b.bulan) === Number(bulan));
+}
+
+// Anggota Perantauan cuma bayar SEKALI setahun (rapel), jadi tabelnya tidak
+// perlu 12 kolom bulan seperti anggota reguler — cukup satu status
+// "Lunas Tahun Ini". Di baliknya, data tetap disimpan per-bulan di
+// kt_dana_sosial_bayar (supaya rekap bulanan tetap konsisten dengan
+// anggota reguler); menandai "Lunas" sekali klik otomatis mengisi SEMUA
+// bulan wajib di tahun itu sekaligus, dan membatalkannya mengosongkan semua.
+function danaSosialBulanWajibList(anggota, tahun){
+  const list = [];
+  for (let b = 1; b <= 12; b++){ if (isWajibDanaSosial(anggota, tahun, b)) list.push(b); }
+  return list;
+}
+
+function statusLunasTahunPerantauan(anggota, tahun){
+  const wajib = danaSosialBulanWajibList(anggota, tahun);
+  if (wajib.length === 0) return { wajib: 0, lunasSemua: false, tanggalTerakhir: null };
+  let tanggalTerakhir = null;
+  const lunasSemua = wajib.every(b => {
+    const r = getDanaSosialBayar(anggota.id, tahun, b);
+    if (r && r.lunas && r.tanggal_bayar && (!tanggalTerakhir || r.tanggal_bayar > tanggalTerakhir)) tanggalTerakhir = r.tanggal_bayar;
+    return r && r.lunas;
+  });
+  return { wajib: wajib.length, lunasSemua, tanggalTerakhir };
+}
+
+function toggleDanaSosialLunasTahunPerantauan(anggotaId, tahun){
+  if (!canEditSection('dana-sosial')) { toast('⛔ Anda tidak memiliki akses untuk mengedit Dana Sosial'); return; }
+  const anggota = db.danaSosialAnggota.find(a => a.id === anggotaId);
+  if (!anggota) return;
+  const wajib = danaSosialBulanWajibList(anggota, tahun);
+  if (wajib.length === 0) return;
+  const status = statusLunasTahunPerantauan(anggota, tahun);
+  const jadiLunas = !status.lunasSemua;
+  const tgl = jadiLunas ? todayISO() : null;
+  wajib.forEach(bulan => {
+    let rec = getDanaSosialBayar(anggotaId, tahun, bulan);
+    if (rec){
+      rec.lunas = jadiLunas;
+      rec.tanggal_bayar = tgl;
+    } else if (jadiLunas){
+      db.danaSosialBayar.push({ id: uid(), anggota_id: anggotaId, tahun: Number(tahun), bulan, lunas: true, tanggal_bayar: tgl, created_at: new Date().toISOString() });
+    }
+  });
+  saveDB(); renderContent();
 }
 
 // Bulan ini sudah "terlewati" (sudah terjadi atau sedang berjalan)? Dipakai
@@ -163,7 +216,21 @@ function renderDanaSosial(){
   }
 
   const rowsReguler = buatBarisBayar(anggotaReguler);
-  const rowsPerantauan = buatBarisBayar(anggotaPerantauan);
+
+  function buatBarisPerantauanTahunan(list){
+    return list.map((a, idx) => {
+      const status = statusLunasTahunPerantauan(a, tahun);
+      const cell = status.wajib === 0
+        ? `<span class="ds-toggle ds-muted" style="width:auto; padding:0 10px;" title="Belum jadi anggota di tahun ${tahun}">·</span>`
+        : `<button type="button" class="ds-toggle ${status.lunasSemua?'lunas':'belum'}" style="width:auto; min-width:110px; padding:0 12px; white-space:nowrap;" ${canEdit?`onclick="toggleDanaSosialLunasTahunPerantauan('${a.id}',${tahun})"`:'disabled'} title="${status.lunasSemua?`Lunas ${tahun}${status.tanggalTerakhir?` · dibayar ${fmtDate(status.tanggalTerakhir)}`:''} (klik untuk batalkan)`:`Belum lunas ${tahun} (klik untuk tandai lunas)`}">${status.lunasSemua?'✓ Lunas':'Belum Lunas'}</button>`;
+      return `<tr>
+        <td class="ds-no">${idx+1}</td>
+        <td class="ds-nama">${esc(a.nama)}</td>
+        <td class="ds-cell">${cell}</td>
+      </tr>`;
+    }).join('');
+  }
+  const rowsPerantauan = buatBarisPerantauanTahunan(anggotaPerantauan);
 
   const kelolaRows = anggotaList.map((a, idx) => `<tr>
     <td class="ds-no">${idx+1}</td>
@@ -235,14 +302,14 @@ function renderDanaSosial(){
   <div class="panel" style="margin-top:20px;">
     <div class="panel-head">
       <div><h3>Anggota Perantauan</h3>
-        <div class="desc">Biasanya bayar setahun sekali (rapel beberapa bulan) saat pulang/nitip bayar</div>
+        <div class="desc">Bayar setahun sekali (rapel) saat pulang/nitip bayar · tandai Lunas kalau sudah bayar penuh tahun ${tahun}</div>
       </div>
     </div>
     <div class="panel-body flush">
       <div style="overflow-x:auto; -webkit-overflow-scrolling:touch;">
         <table class="ds-table ds-has-no">
-          <thead><tr><th class="ds-no-h">No</th><th class="ds-nama-h">Nama</th>${theadBulan}</tr></thead>
-          <tbody>${rowsPerantauan || `<tr class="empty-row"><td colspan="14">Belum ada anggota Perantauan. ${canEdit?'Tandai anggota sebagai Perantauan di tab Kelola Anggota.':''}</td></tr>`}</tbody>
+          <thead><tr><th class="ds-no-h">No</th><th class="ds-nama-h">Nama</th><th>Lunas Tahun ${tahun}</th></tr></thead>
+          <tbody>${rowsPerantauan || `<tr class="empty-row"><td colspan="3">Belum ada anggota Perantauan. ${canEdit?'Tandai anggota sebagai Perantauan di tab Kelola Anggota.':''}</td></tr>`}</tbody>
         </table>
       </div>
     </div>
@@ -256,16 +323,16 @@ function renderDanaSosial(){
         <div class="desc">Tambah, ubah, atau hapus anggota master Dana Sosial</div>
       </div>
       <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-        ${canEdit?`<button class="btn secondary" onclick="openImporDanaSosialModal()">📥 Ambil dari Database Anggota</button>`:''}
         ${canEdit?`<button class="btn secondary" onclick="sinkronkanPerantauanDanaSosial()">🔄 Sinkronkan Status Perantauan</button>`:''}
-        ${canEdit?`<button class="btn" onclick="openDanaSosialAnggotaModal()">+ Tambah Anggota</button>`:''}
+        ${canEdit?`<button class="btn" onclick="openImporDanaSosialModal()">📥+ Tambah dari Database Anggota</button>`:''}
       </div>
     </div>
+    <div class="field-hint" style="color:var(--ink-soft); font-size:12px; padding:10px 18px 0;">Nama anggota baru wajib ditambahkan lewat <a href="#" onclick="goSection('anggota'); return false;">Database Anggota</a> terlebih dahulu, lalu diambil ke sini — supaya hanya ada satu master data anggota.</div>
     <div class="panel-body flush" style="padding-top:12px;">
       <div style="overflow-x:auto; -webkit-overflow-scrolling:touch;">
         <table class="ds-table ds-has-no">
           <thead><tr><th class="ds-no-h">No</th><th class="ds-nama-h">Nama</th><th style="text-align:left; padding-left:10px;">Tanggal Gabung</th><th style="text-align:right;">Aksi</th></tr></thead>
-          <tbody>${kelolaRows || `<tr class="empty-row"><td colspan="4">Belum ada anggota Dana Sosial. ${canEdit?'Klik + Tambah Anggota atau Ambil dari Database Anggota untuk mulai.':'Hanya role tertentu yang bisa menambah anggota.'}</td></tr>`}</tbody>
+          <tbody>${kelolaRows || `<tr class="empty-row"><td colspan="4">Belum ada anggota Dana Sosial. ${canEdit?'Klik + Tambah dari Database Anggota untuk mulai.':'Hanya role tertentu yang bisa menambah anggota.'}</td></tr>`}</tbody>
         </table>
       </div>
     </div>
@@ -312,33 +379,37 @@ async function toggleDanaSosialBayar(anggotaId, tahun, bulan){
   saveDB(); renderContent();
 }
 
+// Anggota Dana Sosial baru HANYA boleh masuk lewat "Ambil dari Database
+// Anggota" (openImporDanaSosialModal) — supaya Database Anggota (kt_anggota)
+// tetap jadi satu-satunya master nama anggota. Fungsi ini jadi khusus EDIT
+// (tanggal gabung & status perantauan) untuk anggota yang sudah ada di sini;
+// kalau terpanggil tanpa id (jalur lama), arahkan ke Database Anggota saja.
 function openDanaSosialAnggotaModal(id){
   if (!canEditSection('dana-sosial')) { toast('⛔ Anda tidak memiliki akses untuk mengedit Dana Sosial'); return; }
   const editing = id ? db.danaSosialAnggota.find(a => a.id === id) : null;
-  setModal(editing ? 'Edit Anggota Dana Sosial' : 'Tambah Anggota Dana Sosial', `
-    <div class="field"><label>Nama</label><input id="f-ds-nama" value="${editing?esc(editing.nama):''}" placeholder="Nama lengkap"></div>
-    <div class="field"><label>Tanggal Gabung</label><input id="f-ds-gabung" type="date" value="${editing?editing.tanggal_gabung:todayISO()}"></div>
+  if (!editing){
+    toast('➡️ Tambahkan nama anggota baru di Database Anggota, lalu ambil ke sini');
+    goSection('anggota');
+    return;
+  }
+  setModal('Edit Anggota Dana Sosial', `
+    <div class="field"><label>Nama</label><input id="f-ds-nama" value="${esc(editing.nama)}" disabled style="opacity:.6; cursor:not-allowed;"></div>
+    <div class="field-hint" style="color:var(--ink-soft); font-size:12px; margin:-8px 0 10px;">Nama diambil dari Database Anggota dan tidak bisa diubah di sini. Kalau salah ketik, perbaiki dulu di <a href="#" onclick="closeModal(); goSection('anggota'); return false;">Database Anggota</a>, lalu hapus &amp; ambil ulang anggota ini.</div>
+    <div class="field"><label>Tanggal Gabung</label><input id="f-ds-gabung" type="date" value="${editing.tanggal_gabung}"></div>
     <div class="hint">Bulan sebelum tanggal gabung otomatis dikosongkan di tabel (dianggap belum wajib bayar).</div>
     <label style="display:flex; align-items:center; gap:8px; margin-top:10px; cursor:pointer;">
-      <input type="checkbox" id="f-ds-perantauan" ${editing&&editing.perantauan?'checked':''}> Perantauan
+      <input type="checkbox" id="f-ds-perantauan" ${editing.perantauan?'checked':''}> Perantauan
     </label>
     <div class="hint">Anggota Perantauan ditampilkan di tabel terpisah (biasanya bayar setahun sekali/rapel).</div>
   `, [
     {label:'Batal', cls:'secondary', onclick:()=>closeModal()},
-    ...(editing ? [{label:'Hapus', cls:'danger', onclick:()=>{ closeModal(); hapusDanaSosialAnggota(editing.id); }}] : []),
-    {label: editing?'Simpan':'Tambah', cls:'', onclick:()=>{
-      const nama = document.getElementById('f-ds-nama').value.trim();
+    {label:'Hapus', cls:'danger', onclick:()=>{ closeModal(); hapusDanaSosialAnggota(editing.id); }},
+    {label:'Simpan', cls:'', onclick:()=>{
       const tanggal_gabung = document.getElementById('f-ds-gabung').value || todayISO();
       const perantauan = document.getElementById('f-ds-perantauan').checked;
-      if (!nama){ toast('Nama wajib diisi'); return; }
       closeModal();
-      if (editing){
-        editing.nama = nama; editing.tanggal_gabung = tanggal_gabung; editing.perantauan = perantauan;
-        notifyTelegram(`✏️ Edit anggota Dana Sosial: ${nama}`);
-      } else {
-        db.danaSosialAnggota.push({ id: uid(), nama, tanggal_gabung, perantauan, aktif: true, created_at: new Date().toISOString() });
-        notifyTelegram(`➕ Anggota Dana Sosial baru: ${nama}`, `Tanggal gabung: ${fmtDate(tanggal_gabung)}`);
-      }
+      editing.tanggal_gabung = tanggal_gabung; editing.perantauan = perantauan;
+      notifyTelegram(`✏️ Edit anggota Dana Sosial: ${editing.nama}`);
       saveDB(); renderContent();
     }}
   ]);

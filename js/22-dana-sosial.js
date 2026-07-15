@@ -112,7 +112,8 @@ function gantiTahunDanaSosial(v){
   renderContent();
 }
 
-// Tab aktif di halaman Dana Sosial: 'daftar' (Daftar Anggota & Status Bayar)
+// Tab aktif di halaman Dana Sosial: 'daftar' (list nama + centang bayar saja,
+// tanpa aksi kelola), 'kelola' (tambah/ubah/hapus/ambil dari Database Anggota),
 // atau 'rekap' (Rekap Bulanan). Reset ke 'daftar' tiap kali halaman dimuat
 // ulang (tidak perlu disimpan permanen), sama seperti pola tab di renderLomba().
 let danaSosialActiveTab = 'daftar';
@@ -144,10 +145,19 @@ function renderDanaSosial(){
       return `<td class="ds-cell"><button type="button" class="ds-toggle ${lunas?'lunas':'belum'}" ${canEdit?`onclick="toggleDanaSosialBayar('${a.id}',${tahun},${bulan})"`:'disabled'} title="${titleTxt}">${lunas?'✓':''}</button></td>`;
     }).join('');
     return `<tr>
-      <td class="ds-nama">${esc(a.nama)}${canEdit?` <button class="icon-btn" onclick="openDanaSosialAnggotaModal('${a.id}')" title="Edit">✎</button>`:''}</td>
+      <td class="ds-nama">${esc(a.nama)}</td>
       ${cells}
     </tr>`;
   }).join('');
+
+  const kelolaRows = anggotaList.map(a => `<tr>
+    <td class="ds-nama">${esc(a.nama)}</td>
+    <td>${fmtDate(a.tanggal_gabung)}</td>
+    <td style="text-align:right; white-space:nowrap;">
+      ${canEdit?`<button class="icon-btn" onclick="openDanaSosialAnggotaModal('${a.id}')" title="Edit">✎</button>
+      <button class="icon-btn" onclick="hapusDanaSosialAnggota('${a.id}')" title="Hapus">🗑</button>`:''}
+    </td>
+  </tr>`).join('');
 
   const rekapRows = DANA_SOSIAL_BULAN_LABEL.map((l, i) => {
     const bulan = i + 1;
@@ -182,6 +192,7 @@ function renderDanaSosial(){
 
   <div class="lomba-tabs">
     <button type="button" class="lomba-tabbtn ${danaSosialActiveTab==='daftar'?'active':''}" onclick="setDanaSosialTab('daftar')">Daftar Anggota &amp; Status Bayar</button>
+    <button type="button" class="lomba-tabbtn ${danaSosialActiveTab==='kelola'?'active':''}" onclick="setDanaSosialTab('kelola')">Kelola Anggota</button>
     <button type="button" class="lomba-tabbtn ${danaSosialActiveTab==='rekap'?'active':''}" onclick="setDanaSosialTab('rekap')">Rekap Bulanan</button>
   </div>
 
@@ -193,6 +204,26 @@ function renderDanaSosial(){
       </div>
       <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
         <select id="ds-tahun-select" onchange="gantiTahunDanaSosial(this.value)">${tahunOptions}</select>
+      </div>
+    </div>
+    <div class="panel-body flush">
+      <div style="overflow-x:auto; -webkit-overflow-scrolling:touch;">
+        <table class="ds-table">
+          <thead><tr><th>Nama</th>${theadBulan}</tr></thead>
+          <tbody>${rows || `<tr class="empty-row"><td colspan="13">Belum ada anggota Dana Sosial. ${canEdit?'Buka tab Kelola Anggota untuk mulai.':'Hanya role tertentu yang bisa menambah anggota.'}</td></tr>`}</tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  </div>
+
+  <div style="display:${danaSosialActiveTab==='kelola'?'block':'none'};">
+  <div class="panel">
+    <div class="panel-head">
+      <div><h3>Kelola Anggota Dana Sosial</h3>
+        <div class="desc">Tambah, ubah, atau hapus anggota master Dana Sosial</div>
+      </div>
+      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
         ${canEdit?`<button class="btn secondary" onclick="openImporDanaSosialModal()">📥 Ambil dari Database Anggota</button>`:''}
         ${canEdit?`<button class="btn" onclick="openDanaSosialAnggotaModal()">+ Tambah Anggota</button>`:''}
       </div>
@@ -200,8 +231,8 @@ function renderDanaSosial(){
     <div class="panel-body flush">
       <div style="overflow-x:auto; -webkit-overflow-scrolling:touch;">
         <table class="ds-table">
-          <thead><tr><th>Nama</th>${theadBulan}</tr></thead>
-          <tbody>${rows || `<tr class="empty-row"><td colspan="13">Belum ada anggota Dana Sosial. ${canEdit?'Klik + Tambah Anggota untuk mulai.':'Hanya role tertentu yang bisa menambah anggota.'}</td></tr>`}</tbody>
+          <thead><tr><th>Nama</th><th>Tanggal Gabung</th><th style="text-align:right;">Aksi</th></tr></thead>
+          <tbody>${kelolaRows || `<tr class="empty-row"><td colspan="3">Belum ada anggota Dana Sosial. ${canEdit?'Klik + Tambah Anggota atau Ambil dari Database Anggota untuk mulai.':'Hanya role tertentu yang bisa menambah anggota.'}</td></tr>`}</tbody>
         </table>
       </div>
     </div>

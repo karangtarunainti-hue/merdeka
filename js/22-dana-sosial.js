@@ -22,6 +22,13 @@
    master (BUKAN untuk tiap toggle lunas/belum per sel — itu bisa
    terjadi puluhan kali dalam semenit saat rekap pertemuan bulanan,
    jadi sengaja tidak dikirim ke Telegram supaya tidak spam).
+
+   Anggota dengan flag `perantauan` (lihat
+   supabase-dana-sosial-perantauan-migration.sql) ditampilkan di tabel
+   TERPISAH di tab Daftar Bayar, karena mereka biasanya tidak bayar
+   bulanan seperti anggota reguler — baru bayar/rapel setahun sekali
+   saat pulang. Struktur datanya tetap sama persis (baris
+   kt_dana_sosial_bayar per bulan), cuma dipisah tampilannya saja.
    ============================================================ */
 
 const DANA_SOSIAL_IURAN_PER_ORANG = 5000;
@@ -126,6 +133,8 @@ function renderDanaSosial(){
   const canEdit = canEditSection('dana-sosial');
   const tahun = danaSosialTahunAktif;
   const anggotaList = gDanaSosialAnggota();
+  const anggotaReguler = anggotaList.filter(a => !a.perantauan);
+  const anggotaPerantauan = anggotaList.filter(a => a.perantauan);
   const now = new Date();
   const rekapBulanIni = hitungRekapBulanDanaSosial(now.getFullYear(), now.getMonth() + 1);
   const saldoTotal = hitungSaldoDanaSosialTotal();
@@ -133,26 +142,31 @@ function renderDanaSosial(){
   const tahunOptions = danaSosialTahunList().map(t => `<option value="${t}" ${t===tahun?'selected':''}>${t}</option>`).join('');
   const theadBulan = DANA_SOSIAL_BULAN_LABEL.map(l => `<th>${l}</th>`).join('');
 
-  const rows = anggotaList.map((a, idx) => {
-    const cells = DANA_SOSIAL_BULAN_LABEL.map((_, i) => {
-      const bulan = i + 1;
-      if (!isWajibDanaSosial(a, tahun, bulan)){
-        return `<td class="ds-cell"><span class="ds-toggle ds-muted" title="Belum gabung">·</span></td>`;
-      }
-      const rec = getDanaSosialBayar(a.id, tahun, bulan);
-      const lunas = !!(rec && rec.lunas);
-      const titleTxt = `${esc(a.nama)} · ${DANA_SOSIAL_BULAN_LABEL[i]} ${tahun} — ${lunas ? 'Lunas (klik untuk batalkan)' : 'Belum bayar (klik untuk tandai lunas)'}`;
-      return `<td class="ds-cell"><button type="button" class="ds-toggle ${lunas?'lunas':'belum'}" ${canEdit?`onclick="toggleDanaSosialBayar('${a.id}',${tahun},${bulan})"`:'disabled'} title="${titleTxt}">${lunas?'✓':''}</button></td>`;
+  function buatBarisBayar(list){
+    return list.map((a, idx) => {
+      const cells = DANA_SOSIAL_BULAN_LABEL.map((_, i) => {
+        const bulan = i + 1;
+        if (!isWajibDanaSosial(a, tahun, bulan)){
+          return `<td class="ds-cell"><span class="ds-toggle ds-muted" title="Belum gabung">·</span></td>`;
+        }
+        const rec = getDanaSosialBayar(a.id, tahun, bulan);
+        const lunas = !!(rec && rec.lunas);
+        const titleTxt = `${esc(a.nama)} · ${DANA_SOSIAL_BULAN_LABEL[i]} ${tahun} — ${lunas ? 'Lunas (klik untuk batalkan)' : 'Belum bayar (klik untuk tandai lunas)'}`;
+        return `<td class="ds-cell"><button type="button" class="ds-toggle ${lunas?'lunas':'belum'}" ${canEdit?`onclick="toggleDanaSosialBayar('${a.id}',${tahun},${bulan})"`:'disabled'} title="${titleTxt}">${lunas?'✓':''}</button></td>`;
+      }).join('');
+      return `<tr>
+        <td class="ds-no">${idx+1}</td>
+        <td class="ds-nama">${esc(a.nama)}</td>
+        ${cells}
+      </tr>`;
     }).join('');
-    return `<tr>
-      <td class="ds-no">${idx+1}</td>
-      <td class="ds-nama">${esc(a.nama)}</td>
-      ${cells}
-    </tr>`;
-  }).join('');
+  }
+
+  const rowsReguler = buatBarisBayar(anggotaReguler);
+  const rowsPerantauan = buatBarisBayar(anggotaPerantauan);
 
   const kelolaRows = anggotaList.map(a => `<tr>
-    <td>${esc(a.nama)}</td>
+    <td>${esc(a.nama)}${a.perantauan?' <span class="kategori-pill khusus">Perantauan</span>':''}</td>
     <td>${fmtDate(a.tanggal_gabung)}</td>
     <td style="text-align:right; white-space:nowrap;">
       ${canEdit?`<button class="icon-btn" onclick="openDanaSosialAnggotaModal('${a.id}')" title="Edit">✎</button>
@@ -211,7 +225,23 @@ function renderDanaSosial(){
       <div style="overflow-x:auto; -webkit-overflow-scrolling:touch;">
         <table class="ds-table ds-has-no">
           <thead><tr><th class="ds-no-h">No</th><th class="ds-nama-h">Nama</th>${theadBulan}</tr></thead>
-          <tbody>${rows || `<tr class="empty-row"><td colspan="14">Belum ada anggota Dana Sosial. ${canEdit?'Buka tab Kelola Anggota untuk mulai.':'Hanya role tertentu yang bisa menambah anggota.'}</td></tr>`}</tbody>
+          <tbody>${rowsReguler || `<tr class="empty-row"><td colspan="14">Belum ada anggota Dana Sosial. ${canEdit?'Buka tab Kelola Anggota untuk mulai.':'Hanya role tertentu yang bisa menambah anggota.'}</td></tr>`}</tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-top:20px;">
+    <div class="panel-head">
+      <div><h3>Anggota Perantauan</h3>
+        <div class="desc">Biasanya bayar setahun sekali (rapel beberapa bulan) saat pulang/nitip bayar</div>
+      </div>
+    </div>
+    <div class="panel-body flush">
+      <div style="overflow-x:auto; -webkit-overflow-scrolling:touch;">
+        <table class="ds-table ds-has-no">
+          <thead><tr><th class="ds-no-h">No</th><th class="ds-nama-h">Nama</th>${theadBulan}</tr></thead>
+          <tbody>${rowsPerantauan || `<tr class="empty-row"><td colspan="14">Belum ada anggota Perantauan. ${canEdit?'Tandai anggota sebagai Perantauan di tab Kelola Anggota.':''}</td></tr>`}</tbody>
         </table>
       </div>
     </div>
@@ -287,19 +317,24 @@ function openDanaSosialAnggotaModal(id){
     <div class="field"><label>Nama</label><input id="f-ds-nama" value="${editing?esc(editing.nama):''}" placeholder="Nama lengkap"></div>
     <div class="field"><label>Tanggal Gabung</label><input id="f-ds-gabung" type="date" value="${editing?editing.tanggal_gabung:todayISO()}"></div>
     <div class="hint">Bulan sebelum tanggal gabung otomatis dikosongkan di tabel (dianggap belum wajib bayar).</div>
+    <label style="display:flex; align-items:center; gap:8px; margin-top:10px; cursor:pointer;">
+      <input type="checkbox" id="f-ds-perantauan" ${editing&&editing.perantauan?'checked':''}> Perantauan
+    </label>
+    <div class="hint">Anggota Perantauan ditampilkan di tabel terpisah (biasanya bayar setahun sekali/rapel).</div>
   `, [
     {label:'Batal', cls:'secondary', onclick:()=>closeModal()},
     ...(editing ? [{label:'Hapus', cls:'danger', onclick:()=>{ closeModal(); hapusDanaSosialAnggota(editing.id); }}] : []),
     {label: editing?'Simpan':'Tambah', cls:'', onclick:()=>{
       const nama = document.getElementById('f-ds-nama').value.trim();
       const tanggal_gabung = document.getElementById('f-ds-gabung').value || todayISO();
+      const perantauan = document.getElementById('f-ds-perantauan').checked;
       if (!nama){ toast('Nama wajib diisi'); return; }
       closeModal();
       if (editing){
-        editing.nama = nama; editing.tanggal_gabung = tanggal_gabung;
+        editing.nama = nama; editing.tanggal_gabung = tanggal_gabung; editing.perantauan = perantauan;
         notifyTelegram(`✏️ Edit anggota Dana Sosial: ${nama}`);
       } else {
-        db.danaSosialAnggota.push({ id: uid(), nama, tanggal_gabung, aktif: true, created_at: new Date().toISOString() });
+        db.danaSosialAnggota.push({ id: uid(), nama, tanggal_gabung, perantauan, aktif: true, created_at: new Date().toISOString() });
         notifyTelegram(`➕ Anggota Dana Sosial baru: ${nama}`, `Tanggal gabung: ${fmtDate(tanggal_gabung)}`);
       }
       saveDB(); renderContent();
@@ -365,9 +400,10 @@ function renderImporDanaSosialList(){
   const sumber = daftarNamaUnikDariDatabaseAnggota();
   listEl.innerHTML = sumber.map(a=>{
     const dobel = namaSekarang.has(a.nama.trim().toLowerCase());
+    const isPerantauan = a.kategori === 'perantauan';
     return `<label style="display:flex; align-items:center; gap:8px; padding:6px 2px; ${dobel?'opacity:.5;':''} border-bottom:1px solid var(--line);">
-      <input type="checkbox" class="impor-ds-chk" value="${esc(a.nama)}" ${dobel?'disabled':'checked'} onchange="updateImporDanaSosialCountLabel()">
-      <span style="flex:1;">${esc(a.nama)}</span>
+      <input type="checkbox" class="impor-ds-chk" value="${esc(a.nama)}" data-perantauan="${isPerantauan?'1':'0'}" ${dobel?'disabled':'checked'} onchange="updateImporDanaSosialCountLabel()">
+      <span style="flex:1;">${esc(a.nama)} ${isPerantauan?'<span class="kategori-pill khusus">Perantauan</span>':''}</span>
       ${dobel?'<span style="font-size:11px;color:var(--ink-soft);">sudah ada</span>':''}
     </label>`;
   }).join('');
@@ -398,7 +434,8 @@ function konfirmasiImporDanaSosial(){
   checked.forEach(chk=>{
     const nama = chk.value.trim();
     if (!nama) return;
-    db.danaSosialAnggota.push({ id: uid(), nama, tanggal_gabung, aktif: true, created_at: new Date().toISOString() });
+    const perantauan = chk.dataset.perantauan === '1';
+    db.danaSosialAnggota.push({ id: uid(), nama, tanggal_gabung, perantauan, aktif: true, created_at: new Date().toISOString() });
     count++;
   });
   saveDB(); closeModal(); renderContent();

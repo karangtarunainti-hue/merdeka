@@ -193,6 +193,7 @@ function renderDanaSosial(){
       </div>
       <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
         <select id="ds-tahun-select" onchange="gantiTahunDanaSosial(this.value)">${tahunOptions}</select>
+        ${canEdit?`<button class="btn secondary" onclick="openImporDanaSosialModal()">📥 Ambil dari Database Anggota</button>`:''}
         ${canEdit?`<button class="btn" onclick="openDanaSosialAnggotaModal()">+ Tambah Anggota</button>`:''}
       </div>
     </div>
@@ -282,4 +283,93 @@ function hapusDanaSosialAnggota(id){
   db.danaSosialBayar = db.danaSosialBayar.filter(b => b.anggota_id !== id);
   saveDB(); renderContent();
   notifyTelegram(`🗑️ Hapus anggota Dana Sosial: ${a.nama}`);
+}
+
+/* ============================================================
+   IMPOR ANGGOTA DARI DATABASE ANGGOTA (kt_anggota)
+   Dana Sosial punya daftar anggota MASTER TERPISAH dari kt_anggota
+   (lihat catatan di atas file ini), jadi fitur ini cuma cara CEPAT
+   mengisi anggota Dana Sosial dari nama-nama yang sudah ada di
+   Database Anggota (iuran per-event) — bukan sinkronisasi permanen.
+   Nama diambil dari SEMUA event (unik per nama, tidak peduli event
+   mana), lalu nama yang sudah terdaftar di Dana Sosial dilewati
+   otomatis (anti dobel).
+   ============================================================ */
+function daftarNamaUnikDariDatabaseAnggota(){
+  const seen = new Set();
+  const out = [];
+  db.anggota.slice().sort((a,b)=>a.nama.localeCompare(b.nama,'id',{sensitivity:'base'})).forEach(a=>{
+    const key = (a.nama||'').trim().toLowerCase();
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    out.push(a);
+  });
+  return out;
+}
+
+function openImporDanaSosialModal(){
+  if (!canEditSection('dana-sosial')) { toast('⛔ Anda tidak memiliki akses untuk mengedit Dana Sosial'); return; }
+  const sumber = daftarNamaUnikDariDatabaseAnggota();
+  if (sumber.length === 0){ toast('Database Anggota masih kosong'); return; }
+  setModal('📥 Ambil Anggota dari Database Anggota', `
+    <div class="field-hint" style="color:var(--ink-soft); font-size:12.5px; margin:-2px 0 10px;">Nama diambil dari Database Anggota (semua event, tanpa duplikat). Nama yang sudah terdaftar di Dana Sosial otomatis dilewati. Tanggal gabung diisi hari ini untuk semua yang dipilih.</div>
+    <div class="field"><label>Tanggal Gabung</label><input id="impor-ds-gabung" type="date" value="${todayISO()}"></div>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+      <label style="font-size:12px; display:flex; align-items:center; gap:6px; cursor:pointer;"><input type="checkbox" id="impor-ds-pilih-semua" onchange="toggleImporDanaSosialPilihSemua(this.checked)"> Pilih Semua</label>
+      <span id="impor-ds-count-label" style="font-size:12px; color:var(--ink-soft);"></span>
+    </div>
+    <div id="impor-ds-list" style="max-height:320px; overflow-y:auto; border:1px solid var(--line); border-radius:8px; padding:4px 8px;"></div>
+  `, [
+    {label:'Batal', cls:'secondary', onclick:closeModal},
+    {label:'Ambil Anggota Terpilih', cls:'', onclick:konfirmasiImporDanaSosial}
+  ]);
+  setTimeout(renderImporDanaSosialList, 0);
+}
+
+function renderImporDanaSosialList(){
+  const listEl = document.getElementById('impor-ds-list');
+  if (!listEl) return;
+  const namaSekarang = new Set(db.danaSosialAnggota.map(a=>a.nama.trim().toLowerCase()));
+  const sumber = daftarNamaUnikDariDatabaseAnggota();
+  listEl.innerHTML = sumber.map(a=>{
+    const dobel = namaSekarang.has(a.nama.trim().toLowerCase());
+    return `<label style="display:flex; align-items:center; gap:8px; padding:6px 2px; ${dobel?'opacity:.5;':''} border-bottom:1px solid var(--line);">
+      <input type="checkbox" class="impor-ds-chk" value="${esc(a.nama)}" ${dobel?'disabled':'checked'} onchange="updateImporDanaSosialCountLabel()">
+      <span style="flex:1;">${esc(a.nama)}</span>
+      ${dobel?'<span style="font-size:11px;color:var(--ink-soft);">sudah ada</span>':''}
+    </label>`;
+  }).join('');
+  const selectableCount = document.querySelectorAll('.impor-ds-chk:not(:disabled)').length;
+  const pilihSemuaEl = document.getElementById('impor-ds-pilih-semua');
+  if (pilihSemuaEl) pilihSemuaEl.checked = selectableCount > 0;
+  updateImporDanaSosialCountLabel();
+}
+
+function toggleImporDanaSosialPilihSemua(checked){
+  document.querySelectorAll('.impor-ds-chk:not(:disabled)').forEach(c=>c.checked=checked);
+  updateImporDanaSosialCountLabel();
+}
+
+function updateImporDanaSosialCountLabel(){
+  const label = document.getElementById('impor-ds-count-label');
+  if (!label) return;
+  const total = document.querySelectorAll('.impor-ds-chk').length;
+  const checked = document.querySelectorAll('.impor-ds-chk:checked').length;
+  label.textContent = total ? `${checked} dari ${total} dipilih` : '';
+}
+
+function konfirmasiImporDanaSosial(){
+  const checked = Array.from(document.querySelectorAll('.impor-ds-chk:checked'));
+  if (checked.length === 0){ toast('Pilih minimal satu anggota untuk diambil'); return; }
+  const tanggal_gabung = document.getElementById('impor-ds-gabung').value || todayISO();
+  let count = 0;
+  checked.forEach(chk=>{
+    const nama = chk.value.trim();
+    if (!nama) return;
+    db.danaSosialAnggota.push({ id: uid(), nama, tanggal_gabung, aktif: true, created_at: new Date().toISOString() });
+    count++;
+  });
+  saveDB(); closeModal(); renderContent();
+  toast(`✓ ${count} anggota diambil dari Database Anggota`);
+  notifyTelegram(`📥 Ambil ${count} anggota Dana Sosial dari Database Anggota`, `Tanggal gabung: ${fmtDate(tanggal_gabung)}`);
 }

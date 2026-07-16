@@ -172,13 +172,22 @@ function danaSosialSudahBerjalan(tahun, bulan){
   return tKey <= nKey;
 }
 
-// Rekap ini (dan stat "Lunas Bulan Ini" + Saldo Dana Sosial di atas halaman,
-// yang keduanya pakai fungsi ini) SENGAJA cuma menghitung anggota REGULER
-// (bukan Perantauan). Anggota Perantauan bayar rapel setahun sekali lewat
+// Rekap ini (dan stat "Lunas Bulan Ini" di atas halaman) SENGAJA cuma
+// menghitung anggota REGULER (bukan Perantauan) untuk kolom Wajib/Lunas/
+// Belum — Anggota Perantauan bayar rapel setahun sekali lewat
 // toggleDanaSosialLunasTahunPerantauan (lihat catatan di atas file ini),
 // jadi kalau ikut dihitung per bulan di sini datanya akan melompat besar di
-// satu bulan tertentu (bulan saat mereka rapel) dan bikin rekap bulanan
-// tidak mencerminkan pola iuran bulanan yang sebenarnya.
+// satu bulan tertentu (bulan saat mereka rapel) dan bikin pola kepatuhan
+// bulanan reguler jadi salah baca.
+//
+// TAPI uang yang mereka bayar tetap uang sungguhan yang harus masuk ke
+// kas — jadi `terkumpulPerantauan` dihitung TERPISAH di bawah (supaya tetap
+// kelihatan sebagai baris/kolom sendiri di UI, bukan disamarkan sebagai
+// setoran reguler) dan tetap ditambahkan ke `saldoBersih` supaya "Saldo
+// Dana Sosial" mencerminkan kas riil, bukan cuma kas dari anggota reguler.
+// (Riwayat: sebelumnya uang Perantauan sama sekali tidak pernah dijumlahkan
+// di mana pun di UI meski tercatat lunas di DB — treasurer bisa mengira
+// saldo lebih kecil dari kas fisik yang sebenarnya.)
 function hitungRekapBulanDanaSosial(tahun, bulan){
   const anggotaWajib = db.danaSosialAnggota.filter(a => !a.perantauan && isWajibDanaSosial(a, tahun, bulan));
   // "Lunas"/"Belum" tetap dilihat dari kewajiban bulan ini (status kepatuhan
@@ -192,22 +201,34 @@ function hitungRekapBulanDanaSosial(tahun, bulan){
   // bulan berjalan sekarang, uangnya masuk ke rekap BULAN INI (bulan saat
   // fisik dibayar) — bukan menambah rekap bulan lama yang sudah lewat.
   // Ini supaya rekap mencerminkan kas masuk riil untuk keperluan laporan.
-  const terkumpulList = db.danaSosialBayar.filter(b => {
+  const cocokBulanBayar = (b) => {
     if (!b.lunas || !b.tanggal_bayar) return false;
-    const a = db.danaSosialAnggota.find(x => x.id === b.anggota_id);
-    if (!a || a.perantauan) return false; // perantauan dihitung terpisah (rapel tahunan)
     const ty = Number(String(b.tanggal_bayar).slice(0, 4));
     const tm = Number(String(b.tanggal_bayar).slice(5, 7));
     return ty === Number(tahun) && tm === Number(bulan);
+  };
+  const terkumpulList = db.danaSosialBayar.filter(b => {
+    if (!cocokBulanBayar(b)) return false;
+    const a = db.danaSosialAnggota.find(x => x.id === b.anggota_id);
+    return a && !a.perantauan;
+  });
+  // Uang rapel Perantauan: dihitung terpisah supaya tetap kelihatan sebagai
+  // kolom sendiri ("Perantauan") di tabel Rekap Bulanan, tapi tetap masuk ke
+  // saldoBersih di bawah supaya totalnya benar.
+  const terkumpulPerantauanList = db.danaSosialBayar.filter(b => {
+    if (!cocokBulanBayar(b)) return false;
+    const a = db.danaSosialAnggota.find(x => x.id === b.anggota_id);
+    return a && a.perantauan;
   });
   const terkumpul = terkumpulList.length * DANA_SOSIAL_IURAN_PER_ORANG;
+  const terkumpulPerantauan = terkumpulPerantauanList.length * DANA_SOSIAL_IURAN_PER_ORANG;
   const potongan = DANA_SOSIAL_POTONGAN_KONSUMSI;
   return {
     wajib: anggotaWajib.length,
     lunas: lunasList.length,
     belum: anggotaWajib.length - lunasList.length,
-    terkumpul, potongan,
-    saldoBersih: terkumpul - potongan,
+    terkumpul, terkumpulPerantauan, potongan,
+    saldoBersih: (terkumpul + terkumpulPerantauan) - potongan,
     sudahBerjalan: danaSosialSudahBerjalan(tahun, bulan),
   };
 }
@@ -230,7 +251,10 @@ function hitungSaldoDanaSosialTotal(){
     const bulanAkhir = (y === now.getFullYear()) ? (now.getMonth() + 1) : 12;
     for (let b = 1; b <= bulanAkhir; b++){
       const r = hitungRekapBulanDanaSosial(y, b);
-      if (r.wajib > 0) total += r.saldoBersih;
+      // Ikutkan bulan yang punya kewajiban reguler ATAU ada uang Perantauan
+      // yang masuk bulan itu (jarang, tapi bisa terjadi kalau anggota
+      // Perantauan sudah gabung sebelum ada anggota reguler sama sekali).
+      if (r.wajib > 0 || r.terkumpulPerantauan > 0) total += r.saldoBersih;
     }
   }
   return total;
@@ -466,26 +490,33 @@ function renderDanaSosial(){
   const rekapRows = DANA_SOSIAL_BULAN_LABEL.map((l, i) => {
     const bulan = i + 1;
     const r = hitungRekapBulanDanaSosial(tahun, bulan);
-    if (r.wajib === 0){
-      return `<tr class="ds-rekap-kosong"><td>${l} ${tahun}</td><td colspan="5" class="hint">Belum ada anggota wajib bayar</td></tr>`;
+    // Kalau tidak ada kewajiban reguler DAN tidak ada uang Perantauan masuk
+    // bulan ini, baris tampil kosong seperti semula. Tapi kalau ada uang
+    // Perantauan (rapel) yang kebetulan masuk di bulan tanpa anggota reguler
+    // wajib, tetap tampilkan barisnya — supaya uang itu tidak "hilang" dari
+    // rekap sama sekali.
+    if (r.wajib === 0 && r.terkumpulPerantauan === 0){
+      return `<tr class="ds-rekap-kosong"><td>${l} ${tahun}</td><td colspan="6" class="hint">Belum ada anggota wajib bayar</td></tr>`;
     }
     return `<tr>
       <td>${l} ${tahun}</td>
       <td class="num">${r.wajib}</td>
       <td class="num">${r.lunas}</td>
       <td class="num">${fmtRp(r.terkumpul)}</td>
+      <td class="num" title="Uang rapel dari anggota Perantauan, dihitung terpisah dari kepatuhan bulanan reguler tapi tetap masuk ke Saldo Bersih">${r.terkumpulPerantauan>0?fmtRp(r.terkumpulPerantauan):'–'}</td>
       <td class="num">${fmtRp(r.potongan)}</td>
       <td class="num ${r.saldoBersih<0?'ds-minus':''}">${fmtRp(r.saldoBersih)}${!r.sudahBerjalan?' <span class="hint">(proyeksi)</span>':''}</td>
     </tr>`;
   }).join('');
 
-  let totalTerkumpulTahun = 0, totalPotonganTahun = 0;
+  let totalTerkumpulTahun = 0, totalTerkumpulPerantauanTahun = 0, totalPotonganTahun = 0;
   for (let b = 1; b <= 12; b++){
     const r = hitungRekapBulanDanaSosial(tahun, b);
     totalTerkumpulTahun += r.terkumpul;
+    totalTerkumpulPerantauanTahun += r.terkumpulPerantauan;
     if (r.wajib > 0) totalPotonganTahun += r.potongan;
   }
-  const totalSaldoTahun = totalTerkumpulTahun - totalPotonganTahun;
+  const totalSaldoTahun = (totalTerkumpulTahun + totalTerkumpulPerantauanTahun) - totalPotonganTahun;
 
   return `
   <div class="stat-grid-ringkasan" style="margin-bottom:26px;">
@@ -547,7 +578,7 @@ function renderDanaSosial(){
   <div class="panel">
     <div class="panel-head">
       <div><h3>Rekap Bulanan ${tahun}</h3>
-        <div class="desc">Terkumpul dikurangi potongan konsumsi pertemuan (flat ${fmtRp(DANA_SOSIAL_POTONGAN_KONSUMSI)}/bulan)</div>
+        <div class="desc">Terkumpul (reguler) + Perantauan (rapel), dikurangi potongan konsumsi pertemuan (flat ${fmtRp(DANA_SOSIAL_POTONGAN_KONSUMSI)}/bulan)</div>
       </div>
       <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
         ${dsTahunTriggerHtml('rekap')}
@@ -556,9 +587,9 @@ function renderDanaSosial(){
     <div class="panel-body flush">
       <div style="overflow-x:auto; -webkit-overflow-scrolling:touch;">
         <table class="ds-rekap-table">
-          <thead><tr><th>Bulan</th><th>Wajib</th><th>Lunas</th><th>Terkumpul</th><th>Potongan</th><th>Saldo Bersih</th></tr></thead>
+          <thead><tr><th>Bulan</th><th>Wajib</th><th>Lunas</th><th>Terkumpul</th><th>Perantauan</th><th>Potongan</th><th>Saldo Bersih</th></tr></thead>
           <tbody>${rekapRows}</tbody>
-          <tfoot><tr class="ds-rekap-total"><td>Total ${tahun}</td><td></td><td></td><td class="num">${fmtRp(totalTerkumpulTahun)}</td><td class="num">${fmtRp(totalPotonganTahun)}</td><td class="num ${totalSaldoTahun<0?'ds-minus':''}">${fmtRp(totalSaldoTahun)}</td></tr></tfoot>
+          <tfoot><tr class="ds-rekap-total"><td>Total ${tahun}</td><td></td><td></td><td class="num">${fmtRp(totalTerkumpulTahun)}</td><td class="num">${fmtRp(totalTerkumpulPerantauanTahun)}</td><td class="num">${fmtRp(totalPotonganTahun)}</td><td class="num ${totalSaldoTahun<0?'ds-minus':''}">${fmtRp(totalSaldoTahun)}</td></tr></tfoot>
         </table>
       </div>
       <div class="ds-footnote">* Saldo bulan yang belum terlewati bersifat proyeksi (asumsi potongan konsumsi tetap berlaku).</div>

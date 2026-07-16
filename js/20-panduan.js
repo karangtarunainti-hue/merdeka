@@ -106,6 +106,7 @@ function renderPanduan(){
         <div class="role-info-card"><div class="ric-title">📦 Gudang Aset</div><div class="ric-desc">Inventaris barang/aset milik desa/organisasi, lengkap sama fitur pinjam-kembalikan.</div></div>
         <div class="role-info-card"><div class="ric-title">📖 Panduan</div><div class="ric-desc">Halaman yang lagi kamu baca ini!</div></div>
         <div class="role-info-card"><div class="ric-title">👛 Kas Karang Taruna</div><div class="ric-desc">Buku kas umum organisasi, terpisah dari kas per event.</div></div>
+        <div class="role-info-card"><div class="ric-title">🪙 Dana Sosial</div><div class="ric-desc">Iuran bulanan Rp 5.000/anggota, terpisah dari Kas Karang Taruna. Ada tabel khusus untuk anggota Perantauan yang bayarnya rapel setahun sekali.</div></div>
         ${isAdminUser ? `<div class="role-info-card"><div class="ric-title">⚙️ Pengaturan</div><div class="ric-desc">Atur tarif iuran, kelola daftar event, dan pengaturan lain (khusus Admin).</div></div>` : ''}
         ${isAdminUser ? `<div class="role-info-card"><div class="ric-title">👥 Manajemen User</div><div class="ric-desc">Tambah/atur akun pengguna beserta perannya (khusus Admin).</div></div>` : ''}
       </div>
@@ -153,6 +154,7 @@ function renderPanduan(){
         <div class="panduan-tip"><span class="tip-icon">🎯</span><span>Nomor <b>Kebutuhan Hadiah/Lomba</b> itu cuma target, sedangkan <b>Belanja</b> itu catatan realisasi — dua-duanya perlu diisi biar kelihatan progres belanjanya.</span></div>
         <div class="panduan-tip"><span class="tip-icon">📚</span><span>Jangan lupa cek menu <b>Database Anggota</b> secara berkala biar data warga tetap update, soalnya dipakai di banyak menu lain (Iuran, Daftar Anggota, dll).</span></div>
         <div class="panduan-tip"><span class="tip-icon">🔑</span><span>Kalau ragu soal siapa yang boleh akses apa, cek lagi bagian "Siapa Boleh Ngapain?" di atas atau tanya Admin.</span></div>
+        <div class="panduan-tip"><span class="tip-icon">🪙</span><span><b>Saldo Dana Sosial</b> sudah menghitung gabungan setoran bulanan anggota reguler DAN rapel tahunan anggota Perantauan — kalau mau lihat rinciannya per bulan, cek kolom "Perantauan" di tab Rekap Bulanan.</span></div>
       </div>
     </div>
   </div>

@@ -467,6 +467,7 @@ function renderBelanjaPerlengkapan(){
           <span>📋 ${esc(item.lombaNama)} · ${labelPeserta(item.lombaKategori)}</span>
           <span class="sub-qty">${item.qty} · ${fmtRp(item.hargaTotal)}</span>
         </div>
+        <button class="btn-small-icon" title="Edit item" onclick="event.stopPropagation(); ${isLoggedIn ? `editBelanjaPerlengkapan('${item.id}')` : `toast('⛔ Login untuk mengedit')`}" ${!isLoggedIn ? 'disabled' : ''}>${icon('pen')}</button>
       </div>`).join('')}</div>`;
 
     return `<div class="belanja-item ${semuaDibeli?'dibeli':''}">
@@ -477,7 +478,10 @@ function renderBelanjaPerlengkapan(){
         <div class="detail">${!isExpanded ? tagHtml : ''}${semuaDibeli&&tglTerbaru?`<span>✓ Dibeli: ${fmtDate(tglTerbaru)}</span>`:(groupBelum.length && groupBelum.length<groupItems.length ? `<span style="color:var(--orange);">Sebagian belum (${groupBelum.length}/${groupItems.length})</span>` : '')}</div>
         ${subRows}
       </div>
-      <div class="harga">${fmtRp(totalHarga)}</div>
+      <div class="harga" style="display:flex; align-items:center; gap:4px;">
+        <span>${fmtRp(totalHarga)}</span>
+        ${!isMulti ? `<button class="btn-small-icon" title="Edit item" onclick="event.stopPropagation(); ${isLoggedIn ? `editBelanjaPerlengkapan('${groupItems[0].id}')` : `toast('⛔ Login untuk mengedit')`}" ${!isLoggedIn ? 'disabled' : ''}>${icon('pen')}</button>` : ''}
+      </div>
     </div>`;
   }).join('');
 

@@ -192,7 +192,7 @@ function openJadwalModal(id){
       if(editing){ Object.assign(editing, {judul, tanggal, jam, kategori, deskripsi, status}); }
       else{ db.jadwal.push({id:uid(), event_id:eid(), judul, tanggal, jam, kategori, deskripsi, status}); }
       saveDB(); closeModal(); renderContent(); renderTopbarSaldo(); toast('Jadwal disimpan');
-      notifyTelegram(actionMsg, `Jadwal: ${fmtDateJam(tanggal, jam)}\nKategori: ${labelKategoriJadwal(kategori)}\nDeskripsi: ${deskripsi || '-'}`);
+      notifyTelegram(actionMsg, `Jadwal: ${fmtDateJam(tanggal, jam)}\nKategori: ${labelKategoriJadwal(kategori)}\nDeskripsi: ${deskripsi || '-'}`, 'agenda');
     }}
   ]);
 }
@@ -205,7 +205,7 @@ function toggleJadwalStatus(id){
   saveDB(); renderContent(); 
   const action = j.status === 'selesai' ? '✅ Selesai' : '↩️ Dibuka kembali';
   toast(`Jadwal "${j.judul}" ${j.status === 'selesai' ? 'selesai' : 'diaktifkan kembali'}`);
-  notifyTelegram(`${action}: ${j.judul}`, `Jadwal: ${fmtDateJam(j.tanggal, j.jam)}`);
+  notifyTelegram(`${action}: ${j.judul}`, `Jadwal: ${fmtDateJam(j.tanggal, j.jam)}`, 'agenda');
 }
 
 function hapusJadwal(id){
@@ -219,7 +219,7 @@ function hapusJadwal(id){
   const j = db.jadwal.find(x=>x.id===id);
   db.jadwal = db.jadwal.filter(j=>j.id!==id);
   saveDB(); renderContent(); toast('Jadwal dihapus');
-  if(j) notifyTelegram(`🗑️ Hapus jadwal: ${j.judul}`, `Jadwal: ${fmtDateJam(j.tanggal, j.jam)}`);
+  if(j) notifyTelegram(`🗑️ Hapus jadwal: ${j.judul}`, `Jadwal: ${fmtDateJam(j.tanggal, j.jam)}`, 'agenda');
 }
 
 // Dipanggil dari tombol Edit kartu jadwal auto-lomba: pindah ke menu Lomba dan
@@ -388,7 +388,7 @@ function openAgendaModal(id){
       if(editing){ Object.assign(editing, {judul, tanggal, kategori, deskripsi, status}); }
       else{ db.agenda.push({id:uid(), judul, tanggal, kategori, deskripsi, status}); }
       saveDB(); closeModal(); renderContent(); toast('Agenda disimpan');
-      notifyTelegram(actionMsg, `Tanggal: ${fmtDate(tanggal)}\nKategori: ${labelKategoriJadwal(kategori)}\nDeskripsi: ${deskripsi || '-'}`);
+      notifyTelegram(actionMsg, `Tanggal: ${fmtDate(tanggal)}\nKategori: ${labelKategoriJadwal(kategori)}\nDeskripsi: ${deskripsi || '-'}`, 'agenda');
     }}
   ]);
 }
@@ -401,7 +401,7 @@ function toggleAgendaStatus(id){
   saveDB(); renderContent();
   const action = a.status === 'selesai' ? '✅ Selesai' : '↩️ Dibuka kembali';
   toast(`Agenda "${a.judul}" ${a.status === 'selesai' ? 'selesai' : 'diaktifkan kembali'}`);
-  notifyTelegram(`${action}: ${a.judul}`, `Tanggal: ${fmtDate(a.tanggal)}`);
+  notifyTelegram(`${action}: ${a.judul}`, `Tanggal: ${fmtDate(a.tanggal)}`, 'agenda');
 }
 
 function hapusAgenda(id){
@@ -410,7 +410,7 @@ function hapusAgenda(id){
   const a = db.agenda.find(x=>x.id===id);
   db.agenda = db.agenda.filter(x=>x.id!==id);
   saveDB(); renderContent(); toast('Agenda dihapus');
-  if(a) notifyTelegram(`🗑️ Hapus agenda: ${a.judul}`, `Tanggal: ${fmtDate(a.tanggal)}`);
+  if(a) notifyTelegram(`🗑️ Hapus agenda: ${a.judul}`, `Tanggal: ${fmtDate(a.tanggal)}`, 'agenda');
 }
 
 /* ============================================================
@@ -540,7 +540,7 @@ function openKasModal(id){
         db.kas.push({id:uid(), keterangan, debit, kredit, tanggal, created_at:new Date().toISOString()});
       }
       saveDB(); closeModal(); renderContent(); toast('Disimpan');
-      notifyTelegram(actionMsg, `${jenis==='masuk'?'Pemasukan':'Pengeluaran'}: ${fmtRp(jumlah)}\nTanggal: ${fmtDate(tanggal)}`);
+      notifyTelegram(actionMsg, `${jenis==='masuk'?'Pemasukan':'Pengeluaran'}: ${fmtRp(jumlah)}\nTanggal: ${fmtDate(tanggal)}`, 'kas');
     }}
   ]);
   setTimeout(setupAllCurrencyInputs, 50);
@@ -552,7 +552,7 @@ function hapusKas(id){
   const k = db.kas.find(x=>x.id===id);
   db.kas = db.kas.filter(x=>x.id!==id);
   saveDB(); renderContent();
-  if(k) notifyTelegram(`🗑️ Hapus kas: ${k.keterangan}`);
+  if(k) notifyTelegram(`🗑️ Hapus kas: ${k.keterangan}`, 'kas');
 }
 
 function kasExportJSON(){

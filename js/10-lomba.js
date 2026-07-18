@@ -134,7 +134,7 @@ function tambahKebutuhanCepat(lombaId){
   db.lombaKebutuhan.push({id:uid(), lomba_id:lombaId, nama_item, harga_estimasi, harga_realisasi:null, qty});
   saveDB(); openLombaIds.add(lombaId); lombaActiveTab[lombaId]='kebutuhan'; renderContent(); renderTopbarSaldo(); toast('Disimpan');
   const lomba = db.lomba.find(x=>x.id===lombaId);
-  notifyTelegram(`➕ Item kebutuhan baru: ${nama_item}`, `Lomba: ${lomba?.nama || lombaId}\nQty: ${qty}\nEstimasi: ${fmtRp(harga_estimasi)}`);
+  notifyTelegram(`➕ Item kebutuhan baru: ${nama_item}`, `Lomba: ${lomba?.nama || lombaId}\nQty: ${qty}\nEstimasi: ${fmtRp(harga_estimasi)}`, 'lomba');
 }
 
 // Paket hadiah tidak lagi dipilih manual per lomba — otomatis mengikuti kategori peserta lomba.
@@ -293,7 +293,7 @@ function pilihKoordinatorCombo(lombaId, anggotaId){
   closeKoordinatorCombo();
   saveDB(); renderContent(); toast('Koordinator ditambahkan');
   const anggota = db.anggota.find(a=>a.id===anggotaId);
-  notifyTelegram(`👤 Koordinator lomba ditambahkan: ${lomba.nama}`, anggota ? `Koordinator: ${anggota.nama}` : '');
+  notifyTelegram(`👤 Koordinator lomba ditambahkan: ${lomba.nama}`, anggota ? `Koordinator: ${anggota.nama}` : '', 'lomba');
 }
 document.addEventListener('click', (e)=>{
   if(e.target.closest('.combo-panel-floating') || e.target.closest('[id^="koordinator-add-trigger-"]')) return;
@@ -314,7 +314,7 @@ function hapusKoordinatorLomba(lombaId, anggotaId){
   lomba.koordinator_anggota_id = ids[0] || null;
   saveDB(); renderContent(); toast('Koordinator dihapus');
   const anggota = db.anggota.find(a=>a.id===anggotaId);
-  notifyTelegram(`🗑️ Koordinator lomba dihapus: ${lomba.nama}`, anggota ? `Koordinator: ${anggota.nama}` : '');
+  notifyTelegram(`🗑️ Koordinator lomba dihapus: ${lomba.nama}`, anggota ? `Koordinator: ${anggota.nama}` : '', 'lomba');
 }
 
 // Sinkronkan satu entri Jadwal & Reminder otomatis untuk lomba ini berdasarkan
@@ -381,7 +381,7 @@ function openLombaModal(id){
       // Lomba bertambah/berubah → kebutuhan paket hadiah berubah, sinkronkan stok yang harus dibeli.
       autoSyncHadiahStok(true);
       closeModal(); renderContent(); renderTopbarSaldo(); toast('Disimpan');
-      notifyTelegram(actionMsg, `Kategori: ${labelPeserta(kategori_peserta)}${tanggal?`\nJadwal: ${fmtDateJam(tanggal, jam)}`:''}\nAnggota/regu: ${jumlah_anggota_regu}${hadiah_per_regu?' (1 hadiah untuk seluruh regu)':''}${estimasi_peserta>0?`\nEstimasi peserta: ${estimasi_peserta}`:''}`);
+      notifyTelegram(actionMsg, `Kategori: ${labelPeserta(kategori_peserta)}${tanggal?`\nJadwal: ${fmtDateJam(tanggal, jam)}`:''}\nAnggota/regu: ${jumlah_anggota_regu}${hadiah_per_regu?' (1 hadiah untuk seluruh regu)':''}${estimasi_peserta>0?`\nEstimasi peserta: ${estimasi_peserta}`:''}`, 'lomba');
     }}
   ]);
 }
@@ -406,7 +406,7 @@ function hapusLomba(id){
   if(l && l.jadwal_id){ db.jadwal = db.jadwal.filter(j=>j.id!==l.jadwal_id); }
   db.lomba=db.lomba.filter(l=>l.id!==id); 
   saveDB(); renderContent(); renderTopbarSaldo();
-  if(l) notifyTelegram(`🗑️ Hapus lomba: ${l.nama}`, `Kategori: ${labelPeserta(l.kategori_peserta)}`);
+  if(l) notifyTelegram(`🗑️ Hapus lomba: ${l.nama}`, `Kategori: ${labelPeserta(l.kategori_peserta)}`, 'lomba');
 }
 function openKebutuhanModal(lombaId, kebutuhanId){ 
   if (!canEditSection('lomba')) { toast('⛔ Login untuk mengedit data'); return; }
@@ -431,7 +431,7 @@ function openKebutuhanModal(lombaId, kebutuhanId){
       else{db.lombaKebutuhan.push({id:uid(),lomba_id:lombaId,nama_item,harga_estimasi,harga_realisasi,qty});}
       saveDB(); closeModal(); openLombaIds.add(lombaId); renderContent(); renderTopbarSaldo(); toast('Disimpan');
       const lomba = db.lomba.find(x=>x.id===lombaId);
-      notifyTelegram(actionMsg, `Lomba: ${lomba?.nama || lombaId}\nItem: ${nama_item}\nQty: ${qty}\nEstimasi: ${fmtRp(harga_estimasi)}${harga_realisasi ? `\nRealisasi: ${fmtRp(harga_realisasi)}` : ''}`);
+      notifyTelegram(actionMsg, `Lomba: ${lomba?.nama || lombaId}\nItem: ${nama_item}\nQty: ${qty}\nEstimasi: ${fmtRp(harga_estimasi)}${harga_realisasi ? `\nRealisasi: ${fmtRp(harga_realisasi)}` : ''}`, 'lomba');
     }}
   ]);
   setTimeout(setupAllCurrencyInputs, 50);
@@ -445,7 +445,7 @@ function hapusKebutuhan(id){
   // supaya tidak jadi orphan di kt_daftar_belanja_perlengkapan.
   db.daftarBelanjaPerlengkapan = db.daftarBelanjaPerlengkapan.filter(b=>b.kebutuhan_id!==id);
   saveDB(); if(k) openLombaIds.add(k.lomba_id); renderContent(); renderTopbarSaldo();
-  if(k) notifyTelegram(`🗑️ Hapus item kebutuhan: ${k.nama_item}`, `Lomba: ${db.lomba.find(x=>x.id===k.lomba_id)?.nama || k.lomba_id}`);
+  if(k) notifyTelegram(`🗑️ Hapus item kebutuhan: ${k.nama_item}`, `Lomba: ${db.lomba.find(x=>x.id===k.lomba_id)?.nama || k.lomba_id}`, 'lomba');
 }
 
 /* ============================================================
@@ -510,7 +510,7 @@ function turunkanStokHadiahKeKebutuhan(hadiahId, itemId){
   item.qty_dibeli = target;
   saveDB(); renderContent(); renderTopbarSaldo();
   toast(`✓ "${item.nama}" diturunkan dari ${dibeliSebelum} → ${target} pcs`);
-  notifyTelegram(`↓ Turunkan stok lebih hadiah: ${item.nama}`, `Paket: ${labelPeserta(h.kategori_peserta)} - ${labelJuara(h.juara_ke)}\n${dibeliSebelum} → ${target} pcs`);
+  notifyTelegram(`↓ Turunkan stok lebih hadiah: ${item.nama}`, `Paket: ${labelPeserta(h.kategori_peserta)} - ${labelJuara(h.juara_ke)}\n${dibeliSebelum} → ${target} pcs`, 'lomba');
 }
 function renderHadiah(){
   const list = gHadiahKategori();
@@ -716,7 +716,7 @@ function autoSyncHadiahStok(silent){
   if(totalDiubah>0){
     saveDB();
     if(!silent) toast(`⚡ Stok hadiah disinkronkan (${totalDiubah} item)`);
-    notifyTelegram(`⚡ Stok hadiah auto-sync`, detail.join('\n'));
+    notifyTelegram(`⚡ Stok hadiah auto-sync`, detail.join('\n'), 'lomba');
   }
   return totalDiubah;
 }
@@ -778,7 +778,7 @@ function simpanHadiahBudget(){
   s.hadiahBudget = newBudget;
   saveDB(); closeModal(); renderContent();
   toast('💾 Budget hadiah disimpan');
-  notifyTelegram(`🎯 Update budget hadiah per kategori`, detailLines.length ? detailLines.join('\n') : 'Semua budget diset Rp0');
+  notifyTelegram(`🎯 Update budget hadiah per kategori`, detailLines.length ? detailLines.join('\n') : 'Semua budget diset Rp0', 'lomba');
 }
 
 function openHadiahModal(id){
@@ -811,7 +811,7 @@ function openHadiahModal(id){
         if(!confirm(`Semua item dikosongkan. Paket hadiah ${labelPeserta(kategori_peserta)} - ${labelJuara(juara_ke)} akan DIHAPUS. Lanjutkan?`)) return;
         db.hadiahKategori = db.hadiahKategori.filter(x=>x.id!==editing.id);
         saveDB(); closeModal(); renderContent(); renderTopbarSaldo(); toast('🗑️ Paket hadiah dihapus');
-        notifyTelegram(`🗑️ Hapus paket hadiah ${labelPeserta(kategori_peserta)} - ${labelJuara(juara_ke)}`, 'Semua item dikosongkan dari form edit');
+        notifyTelegram(`🗑️ Hapus paket hadiah ${labelPeserta(kategori_peserta)} - ${labelJuara(juara_ke)}`, 'Semua item dikosongkan dari form edit', 'lomba');
         return;
       }
       let actionMsg = editing ? `✏️ Edit paket hadiah ${labelPeserta(kategori_peserta)} - ${labelJuara(juara_ke)}` : `➕ Paket hadiah baru ${labelPeserta(kategori_peserta)} - ${labelJuara(juara_ke)}`;
@@ -827,7 +827,7 @@ function openHadiahModal(id){
       autoSyncHadiahStok(true);
       saveDB(); closeModal(); renderContent(); renderTopbarSaldo(); toast(totalSama>0?`Disimpan, harga disamakan ke ${totalSama} item lain`:'Disimpan');
       const detail = items.map(i => `${i.nama} (${i.qty_dibeli} × ${fmtRp(i.harga_satuan)})`).join('\n');
-      notifyTelegram(actionMsg, detail);
+      notifyTelegram(actionMsg, detail, 'lomba');
     }}
   ]);
   if(editing) openHadiahGroups.add(id);
@@ -928,7 +928,7 @@ async function editHadiahItem(hadiahId,itemId){
   item.nama=newNama.trim(); item.harga_satuan=Number(newHarga)||0; item.qty_per_paket=Math.max(1,Number(newPerPaket)||1); item.qty_dibeli=Number(newQty)||0;
   const samaCount = samakanHargaItemSejenis(item.nama, item.harga_satuan, item.id);
   saveDB(); renderContent(); toast(samaCount>0?`Diupdate, harga disamakan ke ${samaCount} item "${item.nama}" lainnya`:'Diupdate'); 
-  notifyTelegram(`✏️ Edit item hadiah: ${item.nama}`, `Paket: ${labelPeserta(h.kategori_peserta)} - ${labelJuara(h.juara_ke)}\nHarga: ${fmtRp(item.harga_satuan)}\nQty: ${item.qty_dibeli}${item.qty_per_paket>1?` (${item.qty_per_paket} buah per paket)`:''}`);
+  notifyTelegram(`✏️ Edit item hadiah: ${item.nama}`, `Paket: ${labelPeserta(h.kategori_peserta)} - ${labelJuara(h.juara_ke)}\nHarga: ${fmtRp(item.harga_satuan)}\nQty: ${item.qty_dibeli}${item.qty_per_paket>1?` (${item.qty_per_paket} buah per paket)`:''}`, 'lomba');
 }
 function hapusHadiahItem(hadiahId,itemId){ 
   if (!canEditSection('hadiah')) { toast('⛔ Login untuk mengedit data'); return; }
@@ -938,14 +938,14 @@ function hapusHadiahItem(hadiahId,itemId){
   // di kt_daftar_belanja_hadiah.
   db.daftarBelanjaHadiah = db.daftarBelanjaHadiah.filter(b=> !(b.hadiah_kategori_id===hadiahId && (b.item_id===itemId || paketHabis)));
   saveDB(); renderContent(); toast('Dihapus'); 
-  notifyTelegram(`🗑️ Hapus item hadiah: ${itemName}`, `Paket: ${labelPeserta(h.kategori_peserta)} - ${labelJuara(h.juara_ke)}`);
+  notifyTelegram(`🗑️ Hapus item hadiah: ${itemName}`, `Paket: ${labelPeserta(h.kategori_peserta)} - ${labelJuara(h.juara_ke)}`, 'lomba');
 }
 function tambahItemHadiah(hadiahId, kebutuhan){ 
   if (!canEditSection('hadiah')) { toast('⛔ Login untuk mengedit data'); return; }
   const h=db.hadiahKategori.find(x=>x.id===hadiahId); if(!h) return; const nama=document.getElementById(`add-item-name-${hadiahId}`).value.trim(); const harga=getCurrencyValue(document.getElementById(`add-item-price-${hadiahId}`)); const perPaketEl=document.getElementById(`add-item-perpaket-${hadiahId}`); const qtyPerPaket=Math.max(1,Number((perPaketEl&&perPaketEl.value)||1)); if(!nama){toast('Nama wajib diisi');return;} const qty = (kebutuhan!=null&&kebutuhan!=='null') ? Number(kebutuhan)*qtyPerPaket : qtyPerPaket; const newItem = {id:uid(),nama,harga_satuan:harga,qty_dibeli:qty,qty_per_paket:qtyPerPaket}; h.items.push(newItem);
   const samaCount = samakanHargaItemSejenis(nama, harga, newItem.id);
   document.getElementById(`add-item-name-${hadiahId}`).value=''; document.getElementById(`add-item-price-${hadiahId}`).value=''; if(perPaketEl) perPaketEl.value='1'; saveDB(); renderContent(); toast(samaCount>0?`Item ditambahkan, harga disamakan ke ${samaCount} item "${nama}" lainnya`:'Item ditambahkan'); 
-  notifyTelegram(`➕ Item hadiah baru: ${nama}`, `Paket: ${labelPeserta(h.kategori_peserta)} - ${labelJuara(h.juara_ke)}\nHarga: ${fmtRp(harga)}\nQty: ${qty}${qtyPerPaket>1?` (${qtyPerPaket} buah per paket)`:''}`);
+  notifyTelegram(`➕ Item hadiah baru: ${nama}`, `Paket: ${labelPeserta(h.kategori_peserta)} - ${labelJuara(h.juara_ke)}\nHarga: ${fmtRp(harga)}\nQty: ${qty}${qtyPerPaket>1?` (${qtyPerPaket} buah per paket)`:''}`, 'lomba');
 }
 function hapusHadiah(id){ 
   if (!canEditSection('hadiah')) { toast('⛔ Login untuk mengedit data'); return; }
@@ -954,5 +954,5 @@ function hapusHadiah(id){
   // permanen di kt_daftar_belanja_hadiah.
   db.daftarBelanjaHadiah = db.daftarBelanjaHadiah.filter(b=>b.hadiah_kategori_id!==id);
   saveDB(); renderContent(); renderTopbarSaldo(); 
-  notifyTelegram(`🗑️ Hapus paket hadiah`, `Kategori: ${labelPeserta(h.kategori_peserta)}\nJuara: ${labelJuara(h.juara_ke)}`);
+  notifyTelegram(`🗑️ Hapus paket hadiah`, `Kategori: ${labelPeserta(h.kategori_peserta)}\nJuara: ${labelJuara(h.juara_ke)}`, 'lomba');
 }

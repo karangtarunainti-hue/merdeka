@@ -135,4 +135,12 @@ initOfflineGuard();
   document.addEventListener('visibilitychange', () => {
     if(document.visibilityState === 'visible') refreshFromServer();
   });
+
+  // Antrian notifikasi Telegram (gagal kirim / kena Jam Tenang) — coba kirim
+  // ulang otomatis: sekali saat app baru dibuka, tiap kali koneksi online
+  // lagi, dan berkala tiap 5 menit (untuk kasus Jam Tenang yang baru saja
+  // berakhir). Lihat flushTelegramQueue() di js/04-event-settings.js.
+  flushTelegramQueue();
+  window.addEventListener('online', flushTelegramQueue);
+  setInterval(flushTelegramQueue, 5 * 60 * 1000);
 })();

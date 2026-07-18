@@ -681,7 +681,7 @@ function openDanaSosialAnggotaModal(id){
       const perantauan = document.getElementById('f-ds-perantauan').checked;
       closeModal();
       editing.tanggal_gabung = tanggal_gabung; editing.perantauan = perantauan;
-      notifyTelegram(`✏️ Edit anggota Dana Sosial: ${editing.nama}`);
+      notifyTelegram(`✏️ Edit anggota Dana Sosial: ${editing.nama}`, 'dana_sosial');
       saveDB(); renderContent();
     }}
   ]);
@@ -700,7 +700,7 @@ function toggleAktifDanaSosialAnggota(id){
   a.aktif = jadiAktif;
   saveDB(); renderContent();
   toast(jadiAktif ? `✓ ${a.nama} diaktifkan kembali` : `⏸ ${a.nama} dinonaktifkan`);
-  notifyTelegram(jadiAktif ? `↩️ Aktifkan kembali anggota Dana Sosial: ${a.nama}` : `⏸ Nonaktifkan anggota Dana Sosial: ${a.nama}`);
+  notifyTelegram(jadiAktif ? `↩️ Aktifkan kembali anggota Dana Sosial: ${a.nama}` : `⏸ Nonaktifkan anggota Dana Sosial: ${a.nama}`, 'dana_sosial');
 }
 
 function hapusDanaSosialAnggota(id){
@@ -710,7 +710,7 @@ function hapusDanaSosialAnggota(id){
   db.danaSosialAnggota = db.danaSosialAnggota.filter(x => x.id !== id);
   db.danaSosialBayar = db.danaSosialBayar.filter(b => b.anggota_id !== id);
   saveDB(); renderContent();
-  notifyTelegram(`🗑️ Hapus anggota Dana Sosial: ${a.nama}`);
+  notifyTelegram(`🗑️ Hapus anggota Dana Sosial: ${a.nama}`, 'dana_sosial');
 }
 
 /* ============================================================
@@ -819,7 +819,7 @@ function konfirmasiImporDanaSosial(){
   });
   saveDB(); closeModal(); renderContent();
   toast(`✓ ${count} anggota diambil dari Database Anggota`);
-  notifyTelegram(`📥 Ambil ${count} anggota Dana Sosial dari Database Anggota`, `Tanggal gabung: ${fmtDate(tanggal_gabung)}`);
+  notifyTelegram(`📥 Ambil ${count} anggota Dana Sosial dari Database Anggota`, `Tanggal gabung: ${fmtDate(tanggal_gabung)}`, 'dana_sosial');
 }
 
 /* ============================================================
@@ -859,7 +859,7 @@ function sinkronkanPerantauanDanaSosial(){
   if (count === 0){ toast('Semua anggota sudah sesuai — tidak ada yang perlu disesuaikan'); return; }
   saveDB(); renderContent();
   toast(`✓ ${count} anggota dipindah ke tabel Perantauan`);
-  notifyTelegram(`🔄 Sinkronkan status Perantauan Dana Sosial`, `${count} anggota ditandai Perantauan (dicocokkan dari Database Anggota)`);
+  notifyTelegram(`🔄 Sinkronkan status Perantauan Dana Sosial`, `${count} anggota ditandai Perantauan (dicocokkan dari Database Anggota)`, 'dana_sosial');
 }
 
 // Dipanggil OTOMATIS dari Database Anggota (js/08-anggota.js) tiap kali

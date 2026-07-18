@@ -66,7 +66,11 @@ function defaultDB(){
     telegram: {
       botToken: '',
       chatId: '',
-      enabled: false
+      enabled: false,
+      // Kontrol on/off per kategori & jam tenang — lihat TELEGRAM_CATEGORIES
+      // dan defaultTelegramQuietHours() di js/04-event-settings.js.
+      categories: defaultTelegramCategories(),
+      quietHours: defaultTelegramQuietHours()
     },
     // Menu yang TIDAK boleh dilihat guest (belum login). Section yang tidak
     // disebut di sini otomatis dianggap boleh dilihat guest (default true).
@@ -226,6 +230,11 @@ async function loadDB(){
           botToken: telegramRes.data.bot_token || '',
           chatId: telegramRes.data.chat_id || '',
           enabled: !!telegramRes.data.enabled,
+          // Digabung dengan default supaya kategori BARU yang ditambahkan di
+          // kode belakangan (setelah admin pertama kali simpan pengaturan)
+          // otomatis AKTIF, bukan hilang/undefined di data lama.
+          categories: { ...defaultTelegramCategories(), ...(telegramRes.data.categories || {}) },
+          quietHours: { ...defaultTelegramQuietHours(), ...(telegramRes.data.quiet_hours || {}) },
         };
       }
       // Dicatat terlepas dari ada/tidaknya baris 'main' (null kalau belum ada baris
@@ -496,6 +505,8 @@ async function syncTelegram(){
     bot_token: db.telegram.botToken,
     chat_id: db.telegram.chatId,
     enabled: db.telegram.enabled,
+    categories: db.telegram.categories || defaultTelegramCategories(),
+    quiet_hours: db.telegram.quietHours || defaultTelegramQuietHours(),
   }, _lastKnownTelegramUpdatedAt, v => { _lastKnownTelegramUpdatedAt = v; });
   return r.conflict ? [r.conflict] : [];
 }

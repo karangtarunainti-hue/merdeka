@@ -68,9 +68,60 @@ function getHadiahBudget(kategoriPeserta, juaraKe){
 
 /* ============================================================
    TELEGRAM NOTIFICATION
+   ============================================================
+   "Dimaksimalkan" lewat 3 hal (lihat masing-masing bagian di bawah):
+   1. KATEGORI — admin bisa matikan notifikasi jenis tertentu (mis. Gudang)
+      tanpa mematikan semua notifikasi sekaligus (lihat TELEGRAM_CATEGORIES).
+   2. KEANDALAN — kalau gagal kirim (internet putus, error Telegram, kena
+      rate limit) pesan di-retry otomatis beberapa kali, dan kalau tetap
+      gagal disimpan ke antrian offline (localStorage) untuk dicoba lagi
+      otomatis nanti — bukan hilang diam-diam seperti sebelumnya (dulu
+      cuma console.error, user tidak pernah tahu ada notifikasi gagal).
+   3. JAM TENANG — admin bisa atur rentang jam supaya tidak spam notifikasi
+      tengah malam; pesan yang masuk saat jam tenang otomatis ditahan di
+      antrian yang sama dan baru dikirim begitu jam tenang berakhir.
    ============================================================ */
+
+// Kategori notifikasi — key HARUS sama persis dengan argumen `category` yang
+// dikirim tiap pemanggil notifyTelegram() di seluruh app (lihat js/06, 08, 09,
+// 10, 11, 12, 15, 22). Menambah kategori baru di sini otomatis default AKTIF
+// untuk pengaturan lama yang belum pernah menyimpan kategori ini (lihat
+// getTelegramSettings() & loadDB() di js/03-db-core.js).
+const TELEGRAM_CATEGORIES = [
+  {key:'anggota',     label:'Anggota & Iuran',                icon:'👥'},
+  {key:'donasi',      label:'Donasi',                          icon:'🎁'},
+  {key:'transaksi',   label:'Transaksi Kas Utama',             icon:'💵'},
+  {key:'operasional', label:'Biaya Operasional',               icon:'🧾'},
+  {key:'lomba',       label:'Lomba',                           icon:'🏆'},
+  {key:'belanja',     label:'Belanja Hadiah & Perlengkapan',   icon:'🛒'},
+  {key:'agenda',      label:'Jadwal & Agenda',                 icon:'📅'},
+  {key:'kas',         label:'Kas Karang Taruna',               icon:'🏦'},
+  {key:'dana_sosial', label:'Dana Sosial',                     icon:'🤝'},
+  {key:'login',       label:'Login User',                      icon:'🔑'},
+  {key:'sistem',      label:'Sistem & Event',                  icon:'⚙️'},
+  {key:'umum',        label:'Umum / Lainnya',                  icon:'📋'},
+];
+function defaultTelegramCategories(){
+  const o = {};
+  TELEGRAM_CATEGORIES.forEach(c => { o[c.key] = true; });
+  return o;
+}
+function defaultTelegramQuietHours(){
+  return { enabled:false, start:'22:00', end:'06:00' };
+}
+
+// Selalu kembalikan bentuk LENGKAP (categories & quietHours tergabung dengan
+// default) supaya pemanggil lain tidak perlu tahu soal migrasi data lama yang
+// belum punya field ini — sama seperti pola getSettings()/getHadiahBudget().
 function getTelegramSettings(){
-  return db.telegram;
+  const t = db.telegram || {};
+  return {
+    botToken: t.botToken || '',
+    chatId: t.chatId || '',
+    enabled: !!t.enabled,
+    categories: { ...defaultTelegramCategories(), ...(t.categories||{}) },
+    quietHours: { ...defaultTelegramQuietHours(), ...(t.quietHours||{}) },
+  };
 }
 
 /* ============================================================
@@ -118,37 +169,124 @@ function saveTelegramSettings(settings){
   saveDB();
 }
 
+/* ------------------------------------------------------------
+   KEANDALAN: retry otomatis + antrian offline
+   ------------------------------------------------------------
+   Dulu kalau sendTelegramNotification() gagal (koneksi putus/error Telegram),
+   pesan langsung hilang — cuma console.error, tidak ada jejak sama sekali.
+   Sekarang: setiap kegagalan dicoba lagi beberapa kali (dengan jeda), dan
+   kalau tetap gagal disimpan ke antrian di localStorage supaya bisa dicoba
+   lagi otomatis nanti (lihat flushTelegramQueue(), dipanggil dari
+   js/19-init.js saat online lagi / berkala / saat app dibuka).
+   ------------------------------------------------------------ */
+const TELEGRAM_RETRY_DELAYS_MS = [0, 1500, 4000]; // percobaan ke-1 langsung, lalu jeda makin lama
+const TELEGRAM_QUEUE_KEY = 'kt_telegram_pending_queue';
+const TELEGRAM_QUEUE_MAX = 50; // batasi ukuran antrian supaya tidak numpuk tak terbatas kalau offline lama
+const TELEGRAM_QUEUE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // buang pesan lebih basi dari 7 hari
+
+function _sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
+
+async function _telegramApiCall(settings, message){
+  const url = `https://api.telegram.org/bot${settings.botToken}/sendMessage`;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chat_id: settings.chatId, text: message, parse_mode: 'HTML' })
+  });
+  const result = await response.json();
+  return { ok: !!result.ok, result };
+}
+
+function _loadTelegramQueue(){
+  try{
+    const raw = localStorage.getItem(TELEGRAM_QUEUE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  }catch(e){ return []; }
+}
+function _saveTelegramQueue(queue){
+  // localStorage bisa penuh/diblokir (mode privat dsb) — kalau gagal simpan,
+  // antrian cuma hidup di memori untuk sesi ini, tidak perlu sampai crash app.
+  try{ localStorage.setItem(TELEGRAM_QUEUE_KEY, JSON.stringify(queue)); }catch(e){}
+}
+function _queueTelegramMessage(message){
+  let queue = _loadTelegramQueue();
+  queue.push({ message, ts: Date.now() });
+  if(queue.length > TELEGRAM_QUEUE_MAX) queue = queue.slice(queue.length - TELEGRAM_QUEUE_MAX);
+  _saveTelegramQueue(queue);
+}
+// Dipakai di UI Pengaturan untuk kasih tahu admin ada berapa notifikasi yang
+// masih menunggu dikirim (gagal/kena jam tenang), plus tombol kirim ulang manual.
+function getTelegramQueueCount(){ return _loadTelegramQueue().length; }
+
+let _telegramFlushInProgress = false;
+async function flushTelegramQueue(){
+  if(_telegramFlushInProgress) return;
+  const settings = getTelegramSettings();
+  if(!settings.enabled || !settings.botToken || !settings.chatId) return;
+  // Jangan kirim antrian selagi masih jam tenang — coba lagi otomatis lewat
+  // interval berkala setelah jam tenang berakhir (lihat js/19-init.js).
+  if(isWithinQuietHours(settings)) return;
+  let queue = _loadTelegramQueue();
+  if(!queue.length) return;
+  const now = Date.now();
+  const beforeFilter = queue.length;
+  queue = queue.filter(item => (now - item.ts) < TELEGRAM_QUEUE_MAX_AGE_MS);
+  if(queue.length !== beforeFilter) _saveTelegramQueue(queue);
+  if(!queue.length) return;
+  _telegramFlushInProgress = true;
+  try{
+    while(queue.length){
+      let sentOk = false;
+      try{
+        const { ok } = await _telegramApiCall(settings, queue[0].message);
+        sentOk = ok;
+      }catch(e){ sentOk = false; }
+      if(!sentOk) break; // masih gagal — hentikan, sisanya dicoba lagi nanti (urutan tetap terjaga)
+      queue.shift();
+      _saveTelegramQueue(queue);
+    }
+  } finally {
+    _telegramFlushInProgress = false;
+  }
+}
+
 async function sendTelegramNotification(message, isTest = false){
   const settings = getTelegramSettings();
   if(!settings.enabled || !settings.botToken || !settings.chatId){
     if(isTest) toast('⚠️ Telegram belum dikonfigurasi. Atur di Pengaturan.');
     return false;
   }
-  try{
-    const url = `https://api.telegram.org/bot${settings.botToken}/sendMessage`;
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: settings.chatId,
-        text: message,
-        parse_mode: 'HTML'
-      })
-    });
-    const result = await response.json();
-    if(result.ok){
-      if(isTest) toast('✅ Notifikasi Telegram berhasil dikirim!');
-      return true;
-    }else{
+  for(let attempt = 0; attempt < TELEGRAM_RETRY_DELAYS_MS.length; attempt++){
+    if(TELEGRAM_RETRY_DELAYS_MS[attempt] > 0) await _sleep(TELEGRAM_RETRY_DELAYS_MS[attempt]);
+    try{
+      const { ok, result } = await _telegramApiCall(settings, message);
+      if(ok){
+        if(isTest) toast('✅ Notifikasi Telegram berhasil dikirim!');
+        return true;
+      }
+      // Kena rate limit Telegram — tunggu sesuai retry_after (dibatasi maks 10
+      // detik supaya tidak menggantung lama), lalu coba lagi di iterasi berikutnya.
+      if(result?.error_code === 429 && result?.parameters?.retry_after){
+        await _sleep(Math.min(result.parameters.retry_after * 1000, 10000));
+        continue;
+      }
       console.error('Telegram error:', result);
-      if(isTest) toast('❌ Gagal kirim notifikasi. Cek token & chat ID.');
-      return false;
+      // Error selain rate-limit (token/chat id salah dsb) besar kemungkinan akan
+      // gagal lagi kalau di-retry — hentikan percobaan, tidak perlu buang waktu.
+      break;
+    }catch(e){
+      console.error('Telegram send error:', e);
+      // Kemungkinan cuma masalah koneksi sesaat — lanjut ke percobaan berikutnya.
     }
-  }catch(e){
-    console.error('Telegram send error:', e);
-    if(isTest) toast('❌ Gagal kirim notifikasi. Periksa koneksi internet.');
+  }
+  if(isTest){
+    toast('❌ Gagal kirim notifikasi. Cek token, chat ID, atau koneksi internet.');
     return false;
   }
+  // Semua percobaan gagal — simpan ke antrian offline supaya dicoba lagi
+  // otomatis nanti (lihat flushTelegramQueue()), bukan hilang begitu saja.
+  _queueTelegramMessage(message);
+  return false;
 }
 
 // Telegram parse_mode 'HTML' hanya mengizinkan tag tertentu; karakter < > & pada teks dinamis
@@ -191,13 +329,45 @@ function formatNotificationMessage(action, data, eventName){
   return msg;
 }
 
-async function notifyTelegram(action, data = ''){
+/* ------------------------------------------------------------
+   JAM TENANG
+   ------------------------------------------------------------
+   Rentang start/end format "HH:MM". Mendukung rentang yang melewati
+   tengah malam (mis. 22:00–06:00) maupun rentang biasa dalam hari yang
+   sama (mis. 13:00–15:00).
+   ------------------------------------------------------------ */
+function isWithinQuietHours(settings){
+  const qh = settings?.quietHours;
+  if(!qh || !qh.enabled || !qh.start || !qh.end) return false;
+  const [sh, sm] = qh.start.split(':').map(Number);
+  const [eh, em] = qh.end.split(':').map(Number);
+  if([sh,sm,eh,em].some(n => Number.isNaN(n))) return false;
+  const startMin = sh*60 + sm, endMin = eh*60 + em;
+  if(startMin === endMin) return false; // rentang kosong, anggap tidak aktif
+  const now = new Date();
+  const curMin = now.getHours()*60 + now.getMinutes();
+  if(startMin < endMin) return curMin >= startMin && curMin < endMin;
+  // Rentang melewati tengah malam, mis. 22:00–06:00
+  return curMin >= startMin || curMin < endMin;
+}
+
+async function notifyTelegram(action, data = '', category = 'umum'){
   const settings = getTelegramSettings();
   if(!settings.enabled) return;
+  // Kategori dimatikan admin lewat Pengaturan → lewati sepenuhnya, tidak
+  // dikirim maupun diantrikan.
+  if(settings.categories && settings.categories[category] === false) return;
   // Only notify if user is logged in (not guest)
   if(!getCurrentUser()) return;
   const eventName = activeEvent()?.nama || 'Tidak ada event aktif';
   const message = formatNotificationMessage(action, data, eventName);
+  if(isWithinQuietHours(settings)){
+    // Jam tenang aktif — tahan pesan di antrian yang sama dengan antrian
+    // retry gagal-kirim; otomatis terkirim begitu jam tenang berakhir
+    // (lihat flushTelegramQueue(), dipanggil berkala dari js/19-init.js).
+    _queueTelegramMessage(message);
+    return;
+  }
   await sendTelegramNotification(message);
 }
 

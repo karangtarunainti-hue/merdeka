@@ -45,7 +45,7 @@ async function manualLogin() {
       renderContent();
       const roleLabel = {admin:'Admin', user:'User', petugas:'Petugas'}[user.role] || user.role;
       toast(`✅ Login sebagai ${user.name} (${roleLabel})`);
-      notifyTelegram(`🔑 User login: ${user.name}`, `Role: ${roleLabel}`);
+      notifyTelegram(`🔑 User login: ${user.name}`, `Role: ${roleLabel}`, 'login');
     } else {
       toast('❌ Login gagal');
     }

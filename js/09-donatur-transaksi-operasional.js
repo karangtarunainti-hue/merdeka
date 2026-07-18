@@ -39,7 +39,7 @@ function openDonaturModal(id){
         db.donatur.push({id:uid(),event_id:eid(),nama_donatur:nama,jumlah,tanggal,keterangan:ket}); 
       }
       saveDB(); closeModal(); renderContent(); renderTopbarSaldo(); toast('Disimpan');
-      notifyTelegram(actionMsg, `Nama: ${nama}\nJumlah: ${fmtRp(jumlah)}\nTanggal: ${fmtDate(tanggal)}\nKeterangan: ${ket || '-'}`);
+      notifyTelegram(actionMsg, `Nama: ${nama}\nJumlah: ${fmtRp(jumlah)}\nTanggal: ${fmtDate(tanggal)}\nKeterangan: ${ket || '-'}`, 'donasi');
     }}
   ]);
   setTimeout(setupAllCurrencyInputs, 50);
@@ -50,7 +50,7 @@ function hapusDonatur(id){
   const d = db.donatur.find(x=>x.id===id);
   db.donatur=db.donatur.filter(d=>d.id!==id); 
   saveDB(); renderContent(); renderTopbarSaldo();
-  if(d) notifyTelegram(`🗑️ Hapus donasi dari ${d.nama_donatur}`, `Jumlah: ${fmtRp(d.jumlah)}`);
+  if(d) notifyTelegram(`🗑️ Hapus donasi dari ${d.nama_donatur}`, `Jumlah: ${fmtRp(d.jumlah)}`, 'donasi');
 }
 
 function renderTransaksi(){
@@ -83,7 +83,7 @@ function openTransaksiModal(id){
       if(editing){ actionMsg = `✏️ Edit transaksi: ${ket}`; Object.assign(editing,{jumlah,tanggal,keterangan:ket}); }
       else{ actionMsg = `➕ Transaksi baru: ${ket}`; db.transaksiLain.push({id:uid(),event_id:eid(),jumlah,tanggal,keterangan:ket}); }
       saveDB(); closeModal(); renderContent(); renderTopbarSaldo(); toast('Disimpan');
-      notifyTelegram(actionMsg, `Jumlah: ${fmtRp(jumlah)}\nTanggal: ${fmtDate(tanggal)}\nKeterangan: ${ket || '-'}`);
+      notifyTelegram(actionMsg, `Jumlah: ${fmtRp(jumlah)}\nTanggal: ${fmtDate(tanggal)}\nKeterangan: ${ket || '-'}`, 'transaksi');
     }}
   ]);
   setTimeout(setupAllCurrencyInputs, 50);
@@ -94,7 +94,7 @@ function hapusTransaksi(id){
   const t = db.transaksiLain.find(x=>x.id===id);
   db.transaksiLain=db.transaksiLain.filter(t=>t.id!==id); 
   saveDB(); renderContent(); renderTopbarSaldo();
-  if(t) notifyTelegram(`🗑️ Hapus transaksi: ${t.keterangan||'-'}`, `Jumlah: ${fmtRp(t.jumlah)}`);
+  if(t) notifyTelegram(`🗑️ Hapus transaksi: ${t.keterangan||'-'}`, `Jumlah: ${fmtRp(t.jumlah)}`, 'transaksi');
 }
 
 function renderOperasional(){
@@ -143,7 +143,7 @@ function openOperasionalModal(id){
       if(editing){ actionMsg = `✏️ Edit biaya operasional: ${editing.keterangan} → ${ket}`; Object.assign(editing,{keterangan:ket,satuan,qty,jumlah,tanggal}); }
       else{ actionMsg = `➕ Biaya operasional baru: ${ket}`; db.operasional.push({id:uid(),event_id:eid(),keterangan:ket,satuan,qty,jumlah,tanggal,created_at:new Date().toISOString()}); }
       saveDB(); closeModal(); renderContent(); renderTopbarSaldo(); toast('Disimpan');
-      notifyTelegram(actionMsg, `Keterangan: ${ket}\nHarga Satuan: ${fmtRp(satuan)}\nQTY: ${qty}\nJumlah: ${fmtRp(jumlah)}\nTanggal: ${fmtDate(tanggal)}`);
+      notifyTelegram(actionMsg, `Keterangan: ${ket}\nHarga Satuan: ${fmtRp(satuan)}\nQTY: ${qty}\nJumlah: ${fmtRp(jumlah)}\nTanggal: ${fmtDate(tanggal)}`, 'operasional');
     }}
   ]);
   setTimeout(setupAllCurrencyInputs, 50);
@@ -154,6 +154,6 @@ function hapusOperasional(id){
   const o = db.operasional.find(x=>x.id===id);
   db.operasional=db.operasional.filter(o=>o.id!==id); 
   saveDB(); renderContent(); renderTopbarSaldo();
-  if(o) notifyTelegram(`🗑️ Hapus biaya operasional: ${o.keterangan}`, `Jumlah: ${fmtRp(o.jumlah)}`);
+  if(o) notifyTelegram(`🗑️ Hapus biaya operasional: ${o.keterangan}`, `Jumlah: ${fmtRp(o.jumlah)}`, 'operasional');
 }
 

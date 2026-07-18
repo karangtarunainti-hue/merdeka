@@ -192,7 +192,7 @@ function openAnggotaModal(id){
       // di halaman Dana Sosial belum diklik. Lihat js/22-dana-sosial.js.
       if (kategori === 'perantauan') autoSinkronkanPerantauanUntukNama(nama);
       saveDB(); closeModal(); renderContent(); renderTopbarSaldo(); toast('Data anggota disimpan');
-      notifyTelegram(actionMsg, `Nama: ${nama}\nKategori: ${labelKategori(kategori)}\nRT: ${labelRT(rt)}\nJenis Kelamin: ${labelGender(gender)}\nNominal: ${fmtRp(nominal)}`);
+      notifyTelegram(actionMsg, `Nama: ${nama}\nKategori: ${labelKategori(kategori)}\nRT: ${labelRT(rt)}\nJenis Kelamin: ${labelGender(gender)}\nNominal: ${fmtRp(nominal)}`, 'anggota');
     }}
   ]);
   setTimeout(updateNominalPreview, 0);
@@ -241,9 +241,9 @@ function toggleLunas(id){
   a.tanggal_bayar = a.status==='lunas' ? todayISO() : null;
   saveDB(); renderContent(); renderTopbarSaldo();
   if(statusBaru === 'lunas'){
-    notifyTelegram(`✅ Anggota LUNAS: ${a.nama}`, `Nama: ${a.nama}\nKategori: ${labelKategori(a.kategori)}\nNominal: ${fmtRp(a.nominal_wajib)}\nTanggal Bayar: ${fmtDate(a.tanggal_bayar)}`);
+    notifyTelegram(`✅ Anggota LUNAS: ${a.nama}`, `Nama: ${a.nama}\nKategori: ${labelKategori(a.kategori)}\nNominal: ${fmtRp(a.nominal_wajib)}\nTanggal Bayar: ${fmtDate(a.tanggal_bayar)}`, 'anggota');
   }else{
-    notifyTelegram(`↩️ Anggota dibatalkan lunas: ${a.nama}`, `Nama: ${a.nama}\nKategori: ${labelKategori(a.kategori)}`);
+    notifyTelegram(`↩️ Anggota dibatalkan lunas: ${a.nama}`, `Nama: ${a.nama}\nKategori: ${labelKategori(a.kategori)}`, 'anggota');
   }
 }
 function updateAnggotaField(id, field, value){
@@ -265,7 +265,7 @@ function hapusAnggota(id){
   const a = db.anggota.find(x=>x.id===id);
   db.anggota = db.anggota.filter(a=>a.id!==id); 
   saveDB(); renderContent(); renderTopbarSaldo();
-  if(a) notifyTelegram(`🗑️ Hapus anggota: ${a.nama}`, `Nama: ${a.nama}\nKategori: ${labelKategori(a.kategori)}`);
+  if(a) notifyTelegram(`🗑️ Hapus anggota: ${a.nama}`, `Nama: ${a.nama}\nKategori: ${labelKategori(a.kategori)}`, 'anggota');
 }
 
 /* ============================================================
@@ -423,7 +423,7 @@ function tandaiSemuaLunas(){
   saveDB(); renderContent(); renderTopbarSaldo(); 
   toast(`✓ ${list.length} anggota ditandai lunas`);
   const detail = list.map(a => `${a.nama} (${labelKategori(a.kategori)}) - ${fmtRp(a.nominal_wajib)}`).join('\n');
-  notifyTelegram(`✅ ${list.length} anggota ditandai LUNAS`, detail);
+  notifyTelegram(`✅ ${list.length} anggota ditandai LUNAS`, detail, 'anggota');
 }
 function exportAnggotaCSV(){ const list=gAnggota(); if(list.length===0){ toast('Tidak ada data'); return; } let csv='No,Nama,Kategori,RT,Jenis Kelamin,Nominal,Status,Tanggal Bayar\n'; list.forEach((a,i)=>{const status=a.status==='lunas'?'Lunas':'Belum Bayar'; const tgl=a.tanggal_bayar?fmtDate(a.tanggal_bayar):'-'; csv+=`${i+1},"${a.nama}",${labelKategori(a.kategori)},${labelRT(getRT(a))},${labelGender(getGender(a))},${a.nominal_wajib},${status},${tgl}\n`;}); const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}); const link=document.createElement('a'); link.href=URL.createObjectURL(blob); link.download=`database-anggota-${todayISO()}.csv`; link.click(); toast('CSV berhasil diekspor'); }
 
@@ -508,6 +508,6 @@ function konfirmasiSalinAnggota(){
   });
   saveDB(); closeModal(); renderContent(); renderTopbarSaldo();
   toast(`✓ ${count} anggota disalin dari ${sourceEvent?sourceEvent.nama:'event lain'}`);
-  notifyTelegram(`📥 Salin ${count} anggota dari event lain`, `Dari: ${sourceEvent?sourceEvent.nama:'-'}\nKe event aktif: ${(activeEvent()||{}).nama||'-'}`);
+  notifyTelegram(`📥 Salin ${count} anggota dari event lain`, `Dari: ${sourceEvent?sourceEvent.nama:'-'}\nKe event aktif: ${(activeEvent()||{}).nama||'-'}`, 'anggota');
 }
 

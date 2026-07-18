@@ -87,6 +87,42 @@ function renderPengaturan(){
         <span class="spacer"></span>
         <button class="btn telegram" onclick="simpanTelegram()">💾 Simpan</button>
       </div>
+
+      <!-- KATEGORI NOTIFIKASI -->
+      <div class="field" style="margin-top:18px;">
+        <label>Kategori Notifikasi <span style="font-weight:400;color:var(--ink-soft);">(matikan yang tidak perlu tanpa nonaktifkan semua)</span></label>
+        <div class="toggle-grid">
+          ${TELEGRAM_CATEGORIES.map(c=>`
+            <label class="toggle-chip">
+              <input type="checkbox" class="telegram-category-check" data-key="${c.key}" ${telegram.categories[c.key] !== false ? 'checked' : ''} hidden>
+              <span class="toggle-box"></span>
+              <span class="toggle-icon">${c.icon}</span>
+              <span class="toggle-text">${esc(c.label)}</span>
+            </label>`).join('')}
+        </div>
+      </div>
+
+      <!-- JAM TENANG -->
+      <div class="field" style="margin-top:18px;">
+        <label>🌙 Jam Tenang <span style="font-weight:400;color:var(--ink-soft);">(tunda kirim notifikasi di jam tertentu, mis. malam hari)</span></label>
+        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+          <label style="display:flex;align-items:center;gap:8px;font-weight:400;white-space:nowrap;">
+            <input type="checkbox" id="telegram-quiet-enabled" ${telegram.quietHours.enabled ? 'checked' : ''}> Aktifkan Jam Tenang
+          </label>
+          <div class="field" style="margin-bottom:0;"><label style="font-weight:400;">Mulai</label><input id="telegram-quiet-start" type="time" value="${esc(telegram.quietHours.start)}"></div>
+          <div class="field" style="margin-bottom:0;"><label style="font-weight:400;">Sampai</label><input id="telegram-quiet-end" type="time" value="${esc(telegram.quietHours.end)}"></div>
+        </div>
+        <div class="hint">Notifikasi yang masuk di jam tenang tidak hilang — ditahan dan otomatis dikirim begitu jam tenang berakhir.</div>
+      </div>
+
+      <!-- ANTRIAN / KEANDALAN -->
+      ${getTelegramQueueCount() > 0 ? `
+      <div class="field" style="margin-top:18px;">
+        <div style="padding:10px 12px;background:var(--cream);border:1px solid var(--garis);border-radius:8px;font-size:13px;color:var(--ink-soft);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+          <span>⏳ ${getTelegramQueueCount()} notifikasi menunggu dikirim (gagal terkirim / kena Jam Tenang).</span>
+          <button class="btn secondary small" onclick="retryTelegramQueue()">🔄 Kirim Ulang Sekarang</button>
+        </div>
+      </div>` : ``}
     </div>
   </div>
   
@@ -186,7 +222,7 @@ function simpanTarif(){
   s.tarif.bekerja = getCurrencyValue(document.getElementById('tarif-bekerja'));
   s.tarif.perantauan = getCurrencyValue(document.getElementById('tarif-perantauan'));
   saveDB(); toast('Tarif iuran disimpan');
-  notifyTelegram(`⚙️ Update tarif iuran`, `Sekolah: ${fmtRp(s.tarif.sekolah)}\nBekerja: ${fmtRp(s.tarif.bekerja)}\nPerantauan: ${fmtRp(s.tarif.perantauan)}\nKhusus: bebas (manual per anggota)`);
+  notifyTelegram(`⚙️ Update tarif iuran`, `Sekolah: ${fmtRp(s.tarif.sekolah)}\nBekerja: ${fmtRp(s.tarif.bekerja)}\nPerantauan: ${fmtRp(s.tarif.perantauan)}\nKhusus: bebas (manual per anggota)`, 'sistem');
 }
 
 // Dipegang sementara (belum disimpan ke db.orgProfile) begitu admin memilih
@@ -242,9 +278,31 @@ function simpanTelegram(){
   if (!isAdmin()) { toast('⛔ Hanya Admin'); return; }
   const botToken = document.getElementById('telegram-bot-token').value.trim();
   const chatId = document.getElementById('telegram-chat-id').value.trim();
-  const settings = { botToken, chatId, enabled: db.telegram?.enabled || false };
+  const categories = {};
+  document.querySelectorAll('.telegram-category-check').forEach(c => { categories[c.dataset.key] = c.checked; });
+  const quietHours = {
+    enabled: document.getElementById('telegram-quiet-enabled').checked,
+    start: document.getElementById('telegram-quiet-start').value || '22:00',
+    end: document.getElementById('telegram-quiet-end').value || '06:00',
+  };
+  const settings = { botToken, chatId, enabled: db.telegram?.enabled || false, categories, quietHours };
   saveTelegramSettings(settings);
   toast('✅ Pengaturan Telegram disimpan');
+  renderContent();
+}
+
+// Tombol "Kirim Ulang Sekarang" di panel Pengaturan — memicu flushTelegramQueue()
+// secara manual (di luar jadwal otomatisnya), berguna kalau admin baru saja
+// membetulkan token/koneksi dan tidak mau menunggu interval berkala.
+async function retryTelegramQueue(){
+  if (!isAdmin()) { toast('⛔ Hanya Admin'); return; }
+  const before = getTelegramQueueCount();
+  toast('🔄 Mengirim ulang notifikasi tertunda...');
+  await flushTelegramQueue();
+  const after = getTelegramQueueCount();
+  if(after === 0) toast('✅ Semua notifikasi tertunda berhasil dikirim');
+  else if(after < before) toast(`✅ ${before - after} terkirim, ${after} masih tertunda`);
+  else toast('⚠️ Masih gagal — cek token, chat ID, atau koneksi internet');
   renderContent();
 }
 
@@ -293,7 +351,7 @@ function setActiveEvent(id){
   applyTemaWarna(eventTema(db.events.find(e=>e.id===id)).key);
   saveDB(); renderSidebar();
   goSection(isMenuAktif(currentSection) ? currentSection : 'dashboard');
-  notifyTelegram(`📂 Buka event: ${db.events.find(e=>e.id===id)?.nama || id}`, '');
+  notifyTelegram(`📂 Buka event: ${db.events.find(e=>e.id===id)?.nama || id}`, '', 'sistem');
 }
 
 function hapusEvent(id){
@@ -318,7 +376,7 @@ function hapusEvent(id){
   db.jadwal = db.jadwal.filter(x=>x.event_id!==id);
   if(db.activeEventId===id) db.activeEventId = db.events[0]?.id || null;
   saveDB(); renderSidebar(); goSection(db.activeEventId ? currentSection : 'dashboard');
-  notifyTelegram(`🗑️ Hapus event: ${e.nama}`, '');
+  notifyTelegram(`🗑️ Hapus event: ${e.nama}`, '', 'sistem');
 }
 
 function exportData(){
@@ -332,7 +390,7 @@ function exportData(){
   a.download = `buku-keuangan-${todayISO()}.json`;
   a.click();
   toast('✅ Data diekspor (token Telegram tidak disertakan, atur ulang jika perlu)');
-  notifyTelegram(`⬇️ Ekspor data`, `File: buku-keuangan-${todayISO()}.json`);
+  notifyTelegram(`⬇️ Ekspor data`, `File: buku-keuangan-${todayISO()}.json`, 'sistem');
 }
 
 function importData(evt){
@@ -345,7 +403,7 @@ function importData(evt){
       if(!confirm('Impor akan MENIMPA data yang ada. Lanjutkan?')) return;
       db = Object.assign(defaultDB(), parsed);
       saveDB(); renderSidebar(); goSection('dashboard'); toast('Data diimpor');
-      notifyTelegram(`⬆️ Impor data`, `File: ${file.name}\nUkuran: ${(file.size/1024).toFixed(1)} KB`);
+      notifyTelegram(`⬆️ Impor data`, `File: ${file.name}\nUkuran: ${(file.size/1024).toFixed(1)} KB`, 'sistem');
     }catch(e){ toast('File tidak valid'); }
   };
   reader.readAsText(file);
@@ -392,7 +450,7 @@ function exportDataEvent(){
   a.download = `backup-${safeName}-${todayISO()}.json`;
   a.click();
   toast(`✅ Data event "${ev.nama}" diekspor`);
-  notifyTelegram(`⬇️ Ekspor data event`, `Event: ${ev.nama}\nFile: ${a.download}`);
+  notifyTelegram(`⬇️ Ekspor data event`, `Event: ${ev.nama}\nFile: ${a.download}`, 'sistem');
 }
 
 function importDataEvent(evt){
@@ -460,7 +518,7 @@ function importDataEvent(evt){
       db.activeEventId = newEventId;
       saveDB(); renderSidebar(); goSection('dashboard');
       toast(`✅ Event "${parsed.event.nama}" berhasil diimpor & diaktifkan`);
-      notifyTelegram(`⬆️ Impor data event`, `Event baru: ${parsed.event.nama}\nFile: ${file.name}\nUkuran: ${(file.size/1024).toFixed(1)} KB`);
+      notifyTelegram(`⬆️ Impor data event`, `Event baru: ${parsed.event.nama}\nFile: ${file.name}\nUkuran: ${(file.size/1024).toFixed(1)} KB`, 'sistem');
     }catch(e){
       console.error(e);
       toast('File tidak valid');
@@ -538,7 +596,7 @@ function openEventModal(id){
         editing.nama = nama; editing.tahun = tahun; editing.fitur = fitur; editing.warna_tema = warna_tema;
         if(db.activeEventId === editing.id) applyTemaWarna(warna_tema);
         saveDB(); closeModal(); renderSidebar(); renderContent(); toast('Event diperbarui');
-        notifyTelegram(`✏️ Edit event: ${namaLama} → ${nama}`, `Tahun: ${tahun}`);
+        notifyTelegram(`✏️ Edit event: ${namaLama} → ${nama}`, `Tahun: ${tahun}`, 'sistem');
       } else {
         const newId = uid();
         db.events.push({id:newId, nama, tahun, fitur, warna_tema, created_at:new Date().toISOString()});
@@ -555,7 +613,7 @@ function openEventModal(id){
         applyTemaWarna(warna_tema);
         saveDB(); closeModal(); renderSidebar(); goSection('pengaturan');
         toast(jumlahDisalin ? `Event dibuat, ${jumlahDisalin} anggota disalin` : 'Event dibuat');
-        notifyTelegram(`📂 Event baru: ${nama}`, `Tahun: ${tahun}${jumlahDisalin ? `\nAnggota disalin: ${jumlahDisalin}` : ''}`);
+        notifyTelegram(`📂 Event baru: ${nama}`, `Tahun: ${tahun}${jumlahDisalin ? `\nAnggota disalin: ${jumlahDisalin}` : ''}`, 'sistem');
       }
     }}
   ]);

@@ -135,9 +135,9 @@ function renderLPJ(){
   <div class="lpj-print-area" id="lpj-print-area">
     <div class="lpj-header">
       <div class="lpj-header-inner">
-        <img src="icons/logo-kop.png" alt="Logo Karang Taruna Inti" class="lpj-logo">
+        <img src="${esc(getOrgLogo())}" alt="Logo ${esc(getOrgNama())}" class="lpj-logo">
         <div class="lpj-header-text">
-          <div class="lpj-eyebrow">Karang Taruna Inti</div>
+          <div class="lpj-eyebrow">${esc(getOrgNama())}</div>
           <h2>LAPORAN PERTANGGUNGJAWABAN (LPJ)</h2>
           <div class="lpj-sub">Kegiatan: ${esc(ev.nama)} — Tahun ${esc(String(ev.tahun))}</div>
           <div class="lpj-meta">Dicetak: ${fmtDate(todayISO())}</div>
@@ -214,9 +214,9 @@ function renderDaftarAnggota(){
   <div class="lpj-print-area" id="lpj-print-area">
     <div class="lpj-header">
       <div class="lpj-header-inner">
-        <img src="icons/logo-kop.png" alt="Logo Karang Taruna Inti" class="lpj-logo">
+        <img src="${esc(getOrgLogo())}" alt="Logo ${esc(getOrgNama())}" class="lpj-logo">
         <div class="lpj-header-text">
-          <div class="lpj-eyebrow">Karang Taruna Inti</div>
+          <div class="lpj-eyebrow">${esc(getOrgNama())}</div>
           <h2>DAFTAR ANGGOTA</h2>
           <div class="lpj-sub">Kegiatan: ${esc(ev.nama)} — Tahun ${esc(String(ev.tahun))}</div>
           <div class="lpj-meta">Dicetak: ${fmtDate(todayISO())}</div>

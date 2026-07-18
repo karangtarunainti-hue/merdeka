@@ -51,9 +51,9 @@ function buildGudangNotaHtml({resi, nama, alamat, pencatat, tglPinjam, tglKembal
   return `
     <div class="nota-sheet" id="gudang-nota-sheet">
       <div class="nota-header">
-        <img src="icons/logo-kop.png" alt="Logo Karang Taruna Inti" class="nota-logo">
+        <img src="${esc(getOrgLogo())}" alt="Logo ${esc(getOrgNama())}" class="nota-logo">
         <div class="nota-header-text">
-          <div class="nota-org">Karang Taruna Inti</div>
+          <div class="nota-org">${esc(getOrgNama())}</div>
           <div class="nota-org-sub">Bagian Gudang &amp; Inventaris</div>
         </div>
         <div class="nota-title-wrap">

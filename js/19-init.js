@@ -110,6 +110,7 @@ initOfflineGuard();
   }
 
   applyTemaWarna(eventTema(activeEvent()).key);
+  applyOrgBranding();
   renderSidebar();
   renderTopbarSaldo();
   // Buka kembali halaman terakhir yang dikunjungi (tersimpan di localStorage)

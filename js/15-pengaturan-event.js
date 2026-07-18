@@ -8,8 +8,38 @@ function renderPengaturan(){
   
   const s = getSettings();
   const telegram = getTelegramSettings();
+  const org = getOrgProfil();
   
   return `
+  <!-- PROFIL ORGANISASI (white-label: ganti nama+logo di sini, tanpa sentuh kode) -->
+  <div class="panel">
+    <div class="panel-head">
+      <div><h3>🏷️ Profil Organisasi</h3><div class="desc">Nama, logo, dan nama buku kas ini dipakai otomatis di seluruh app (sidebar, kop surat, nota, pesan notifikasi, dll) — cukup diganti di sini, tanpa perlu ubah kode.</div></div>
+    </div>
+    <div class="panel-body">
+      <div class="field-row">
+        <div class="field">
+          <label>Nama Organisasi</label>
+          <input id="org-nama" type="text" value="${esc(org.nama)}" placeholder="Contoh: Karang Taruna Inti">
+        </div>
+        <div class="field">
+          <label>Nama Buku Kas <span style="font-weight:400;color:var(--ink-soft);">(opsional)</span></label>
+          <input id="org-nama-kas" type="text" value="${esc(org.namaKas)}" placeholder="Contoh: Kas Karang Taruna">
+        </div>
+      </div>
+      <div class="field">
+        <label>Logo (untuk kop surat & nota)</label>
+        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+          <img id="org-logo-preview" src="${esc(getOrgLogo())}" alt="Preview logo" style="width:64px;height:64px;object-fit:contain;border:1px solid var(--garis);border-radius:8px;background:#fff;">
+          <label class="btn secondary small">📷 Pilih Gambar<input type="file" accept="image/*" style="display:none;" onchange="pilihOrgLogo(event)"></label>
+          <button type="button" class="btn secondary small" onclick="hapusOrgLogo()">↺ Pakai Logo Bawaan</button>
+        </div>
+        <div class="hint">Format gambar bebas (PNG/JPG disarankan), disimpan langsung di database — tidak perlu upload ke server terpisah.</div>
+      </div>
+      <button class="btn" onclick="simpanOrgProfile()">💾 Simpan Profil Organisasi</button>
+    </div>
+  </div>
+
   <div class="panel">
     <div class="panel-head"><h3>Tarif Iuran Anggota</h3></div>
     <div class="panel-body">
@@ -72,7 +102,7 @@ function renderPengaturan(){
             <input type="checkbox" class="guest-menu-check" data-key="${s.key}" ${isGuestVisible(s.key) ? 'checked' : ''} hidden>
             <span class="toggle-box"></span>
             <span class="toggle-icon">${icon(s.icon)}</span>
-            <span class="toggle-text">${esc(s.label)}</span>
+            <span class="toggle-text">${esc(sectionLabel(s))}</span>
           </label>`).join('')}
       </div>
       <button class="btn" style="margin-top:14px;" onclick="simpanGuestMenu()">💾 Simpan Akses Guest</button>
@@ -138,7 +168,7 @@ function renderPengaturan(){
     </div>
     <div class="backup-row">
       <div class="backup-info">
-        <div class="backup-title">💰 Backup Kas Karang Taruna</div>
+        <div class="backup-title">💰 Backup ${esc(getOrgNamaKas())}</div>
         <div class="backup-desc">Transaksi debit/kredit. Eventless, tidak ikut Backup Per-Event — tapi IKUT ke Backup Semua Data. Impor akan <b>MENAMBAH</b> data, tidak menimpa.</div>
       </div>
       <div class="backup-actions">
@@ -157,6 +187,55 @@ function simpanTarif(){
   s.tarif.perantauan = getCurrencyValue(document.getElementById('tarif-perantauan'));
   saveDB(); toast('Tarif iuran disimpan');
   notifyTelegram(`⚙️ Update tarif iuran`, `Sekolah: ${fmtRp(s.tarif.sekolah)}\nBekerja: ${fmtRp(s.tarif.bekerja)}\nPerantauan: ${fmtRp(s.tarif.perantauan)}\nKhusus: bebas (manual per anggota)`);
+}
+
+// Dipegang sementara (belum disimpan ke db.orgProfile) begitu admin memilih
+// file logo baru, supaya tombol "Simpan Profil Organisasi" tetap satu-satunya
+// aksi yang benar-benar menyimpan (konsisten dengan field nama/nama kas di
+// panel yang sama, yang juga baru disimpan saat tombol itu diklik).
+let _pendingOrgLogo = undefined;
+
+function pilihOrgLogo(evt){
+  if (!isAdmin()) { toast('⛔ Hanya Admin'); return; }
+  const file = evt.target.files[0]; if(!file) return;
+  if(!file.type.startsWith('image/')){ toast('⚠️ File harus berupa gambar'); return; }
+  // Logo disimpan sebagai base64 langsung di kolom database (bukan upload ke
+  // storage terpisah), jadi dibatasi ukurannya supaya tidak bikin tiap
+  // save/load data jadi berat di seluruh app (logo ini ikut disinkron tiap
+  // kali saveDB() dipanggil, sama seperti profil organisasi lainnya).
+  if(file.size > 1.5 * 1024 * 1024){ toast('⚠️ Ukuran gambar maksimal 1.5 MB, coba kompres dulu'); return; }
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    _pendingOrgLogo = reader.result;
+    const preview = document.getElementById('org-logo-preview');
+    if(preview) preview.src = _pendingOrgLogo;
+  };
+  reader.onerror = ()=> toast('⚠️ Gagal membaca file gambar');
+  reader.readAsDataURL(file);
+}
+
+function hapusOrgLogo(){
+  if (!isAdmin()) { toast('⛔ Hanya Admin'); return; }
+  _pendingOrgLogo = ''; // string kosong = balik ke logo bawaan icons/logo-kop.png
+  const preview = document.getElementById('org-logo-preview');
+  if(preview) preview.src = 'icons/logo-kop.png';
+  toast('Logo akan dikembalikan ke bawaan setelah disimpan');
+}
+
+function simpanOrgProfile(){
+  if (!isAdmin()) { toast('⛔ Hanya Admin'); return; }
+  const nama = document.getElementById('org-nama').value.trim();
+  const namaKas = document.getElementById('org-nama-kas').value.trim();
+  if(!nama){ toast('⚠️ Nama Organisasi tidak boleh kosong'); return; }
+  const org = getOrgProfil();
+  org.nama = nama;
+  org.namaKas = namaKas || DEFAULT_ORG_PROFILE.namaKas;
+  if(_pendingOrgLogo !== undefined){ org.logo = _pendingOrgLogo; _pendingOrgLogo = undefined; }
+  saveDB();
+  applyOrgBranding();
+  toast('✅ Profil Organisasi disimpan');
+  renderSidebar();
+  renderContent();
 }
 
 function simpanTelegram(){
@@ -205,7 +284,7 @@ async function testTelegram(){
     settings.enabled = true;
     saveTelegramSettings(settings);
   }
-  await sendTelegramNotification(`🔔 <b>Test Notifikasi</b>\n\nHalo! Ini adalah pesan test dari Buku Keuangan Karang Taruna.\n\n✅ Notifikasi berhasil terkonfigurasi!\n\nWaktu: ${new Date().toLocaleString('id-ID')}`, true);
+  await sendTelegramNotification(`🔔 <b>Test Notifikasi</b>\n\nHalo! Ini adalah pesan test dari Buku Keuangan ${escTelegram(getOrgNama())}.\n\n✅ Notifikasi berhasil terkonfigurasi!\n\nWaktu: ${new Date().toLocaleString('id-ID')}`, true);
 }
 
 function setActiveEvent(id){ 

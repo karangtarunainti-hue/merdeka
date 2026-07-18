@@ -71,7 +71,7 @@ function renderUsers() {
   const roleBadgeClass = u => u.role === 'admin' ? 'role-admin' : (u.role === 'petugas' ? 'role-petugas' : 'role-user');
   const bidangHtml = u => u.role === 'petugas'
     ? ((u.allowed_sections && u.allowed_sections.length)
-        ? `<div class="mini-tag-list">${u.allowed_sections.map(k=>`<span class="mini-tag">${esc((SECTIONS.find(s=>s.key===k)||{}).label || k)}</span>`).join('')}</div>`
+        ? `<div class="mini-tag-list">${u.allowed_sections.map(k=>`<span class="mini-tag">${esc(sectionLabelByKey(k))}</span>`).join('')}</div>`
         : '<span class="mini-tag mini-tag-muted">Belum ada bidang</span>')
     : '<span class="mini-tag mini-tag-muted">Semua bidang</span>';
   const rows = users.map((u, idx) => `
@@ -176,7 +176,7 @@ function openUserModal(id) {
             <input type="checkbox" class="f-section-check" value="${s.key}" ${editingSections.includes(s.key) ? 'checked' : ''} hidden>
             <span class="toggle-box"></span>
             <span class="toggle-icon">${icon(s.icon)}</span>
-            <span class="toggle-text">${esc(s.label)}</span>
+            <span class="toggle-text">${esc(sectionLabel(s))}</span>
           </label>`).join('')}
       </div>
     </div>

@@ -13,6 +13,20 @@ function fmtDateHariShort(iso){ if(!iso) return '-'; const d=new Date(iso+'T00:0
 function fmtDateJam(iso, jam, {short}={}){ const tgl = short ? fmtDateHariShort(iso) : fmtDateHari(iso); return jam ? `${tgl} · ${jam}` : tgl; }
 function esc(s){ return String(s??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
+// Profil Organisasi — inilah SATU-SATUNYA tempat nama organisasi, logo, dan
+// nama buku kas "di-hardcode". Nilai di bawah ini cuma FALLBACK yang dipakai
+// kalau baris kt_organisasi_profil belum pernah diisi admin lewat halaman
+// Pengaturan > Profil Organisasi (lihat getOrgProfil() di bawah). Begitu
+// admin mengisi & menyimpan di sana, kode di seluruh app otomatis membaca
+// nilai baru itu — TIDAK ADA nama/logo yang tertanam permanen di JS manapun
+// selain default ini, supaya app bisa dipakai ulang organisasi lain (RT/RW
+// lain, karang taruna dusun sebelah, bahkan non-RT) cukup lewat Pengaturan.
+const DEFAULT_ORG_PROFILE = {
+  nama: 'Karang Taruna Inti',
+  namaKas: 'Kas Karang Taruna',
+  logo: '' // kosong = pakai file statis icons/logo-kop.png (lihat getOrgLogo())
+};
+
 function defaultDB(){
   return {
     events: [],
@@ -65,7 +79,10 @@ function defaultDB(){
     // event, sama seperti Gudang. Disimpan satu set global di tabel
     // kt_dokumen_global (lihat supabase-dokumen-global-migration.sql),
     // bukan lagi per event_id di kt_settings.dokumen.
-    dokumenGlobal: { undangan:{}, proposal:{}, absensi:{} }
+    dokumenGlobal: { undangan:{}, proposal:{}, absensi:{} },
+    // Profil Organisasi (nama, logo, nama buku kas) — satu baris global, sama
+    // seperti telegram/guestMenu (id='main'). Lihat DEFAULT_ORG_PROFILE & getOrgProfil().
+    orgProfile: { ...DEFAULT_ORG_PROFILE }
   };
 }
 
@@ -163,13 +180,14 @@ async function loadDB(){
   const result = defaultDB();
   try{
     const entries = Object.entries(ARRAY_TABLE_MAP);
-    const [arrayResults, settingsRes, telegramRes, usersRes, guestMenuRes, dokumenGlobalRes] = await Promise.all([
+    const [arrayResults, settingsRes, telegramRes, usersRes, guestMenuRes, dokumenGlobalRes, orgProfileRes] = await Promise.all([
       Promise.all(entries.map(([, table]) => sb.from(table).select('*'))),
       sb.from('kt_settings').select('*'),
       sb.from('kt_telegram_settings').select('*').eq('id', 'main').maybeSingle(),
       sb.rpc('rpc_list_users'),
       sb.from('kt_guest_menu_settings').select('*').eq('id', 'main').maybeSingle(),
       sb.from('kt_dokumen_global').select('*').eq('id', 'main').maybeSingle(),
+      sb.from('kt_organisasi_profil').select('*').eq('id', 'main').maybeSingle(),
     ]);
 
     const failedTables = [];
@@ -245,6 +263,21 @@ async function loadDB(){
         if(!result.dokumenGlobal.jadwal_sinoman) delete result.dokumenGlobal.jadwal_sinoman;
       }
       _lastKnownDokumenGlobalUpdatedAt = dokumenGlobalRes.data ? (dokumenGlobalRes.data.updated_at || null) : null;
+    }
+
+    if(orgProfileRes.error){ console.error('Gagal memuat kt_organisasi_profil:', orgProfileRes.error); }
+    else{
+      if(orgProfileRes.data){
+        result.orgProfile = {
+          nama: orgProfileRes.data.nama_organisasi || DEFAULT_ORG_PROFILE.nama,
+          namaKas: orgProfileRes.data.nama_kas || DEFAULT_ORG_PROFILE.namaKas,
+          logo: orgProfileRes.data.logo || '',
+        };
+      }
+      // Dicatat terlepas dari ada/tidaknya baris 'main' (null kalau belum ada baris
+      // sama sekali) — dipakai syncOrgProfile() untuk deteksi konflik singleton row,
+      // sama seperti _lastKnownTelegramUpdatedAt dkk.
+      _lastKnownOrgProfileUpdatedAt = orgProfileRes.data ? (orgProfileRes.data.updated_at || null) : null;
     }
 
     result.activeEventId = localStorage.getItem('kt_active_event') || (result.events[0] ? result.events[0].id : null);
@@ -488,6 +521,19 @@ async function syncDokumenGlobal(){
   return r.conflict ? [r.conflict] : [];
 }
 
+// Profil Organisasi (nama, logo, nama buku kas) — satu baris global, sama
+// seperti kt_telegram_settings/kt_guest_menu_settings/kt_dokumen_global (id='main').
+let _lastKnownOrgProfileUpdatedAt = null;
+async function syncOrgProfile(){
+  const r = await _syncSingletonRow('kt_organisasi_profil', 'Profil Organisasi', {
+    id: 'main',
+    nama_organisasi: (db.orgProfile && db.orgProfile.nama) || DEFAULT_ORG_PROFILE.nama,
+    nama_kas: (db.orgProfile && db.orgProfile.namaKas) || DEFAULT_ORG_PROFILE.namaKas,
+    logo: (db.orgProfile && db.orgProfile.logo) || '',
+  }, _lastKnownOrgProfileUpdatedAt, v => { _lastKnownOrgProfileUpdatedAt = v; });
+  return r.conflict ? [r.conflict] : [];
+}
+
 // saveDB() dipanggil di puluhan tempat setiap ada perubahan kecil. Sebelumnya setiap panggilan
 // langsung melakukan sync PENUH (select+upsert+delete-diff) ke 15+ tabel sekaligus, dan bisa
 // berjalan paralel tanpa lock kalau dipanggil beruntun cepat (race condition antar sync).
@@ -567,13 +613,14 @@ async function _flushSaveDB(){
       syncTelegram(),
       syncGuestMenu(),
       syncDokumenGlobal(),
+      syncOrgProfile(),
     ]);
     const level2Results = await Promise.all(level2Entries.map(([key, table]) => syncArrayTable(table, db[key], key)));
     const level3Results = await Promise.all(level3Entries.map(([key, table]) => syncArrayTable(table, db[key], key)));
 
     // Hasil konflik dari 'events' (disimpan terpisah di atas) digabung dengan hasil
-    // dari semua level lainnya. syncSettings/syncTelegram/syncGuestMenu/syncDokumenGlobal
-    // sekarang juga mengembalikan daftar konflik (array kosong kalau tidak ada) seperti
+    // dari semua level lainnya. syncSettings/syncTelegram/syncGuestMenu/syncDokumenGlobal/
+    // syncOrgProfile sekarang juga mengembalikan daftar konflik (array kosong kalau tidak ada) seperti
     // syncArrayTable, jadi seluruh isi level1Results (termasuk 4 fungsi settings di akhir
     // array Promise.all di atas) ikut dipakai langsung tanpa perlu di-slice lagi.
     const arrayConflictResults = [

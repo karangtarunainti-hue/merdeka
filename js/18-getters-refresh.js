@@ -64,6 +64,7 @@ async function refreshFromServer(){
     // sama: dilewati kalau ada modal terbuka/sedang menyimpan/offline) supaya
     // ikut ter-refresh tiap 20 detik seperti data lainnya.
     if(gudangLoaded) await loadGudangData();
+    applyOrgBranding();
     renderSidebar();
     renderTopbarSaldo();
     renderContent();

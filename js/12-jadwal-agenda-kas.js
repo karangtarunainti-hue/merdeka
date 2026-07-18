@@ -503,7 +503,7 @@ function renderKas(){
 }
 
 function openKasModal(id){
-  if (!canEditSection('kas')) { toast('⛔ Anda tidak memiliki akses untuk mengedit Kas Karang Taruna'); return; }
+  if (!canEditSection('kas')) { toast(`⛔ Anda tidak memiliki akses untuk mengedit ${getOrgNamaKas()}`); return; }
   const editing = id ? db.kas.find(k=>k.id===id) : null;
   const editingJenis = editing ? (Number(editing.kredit||0) > 0 ? 'keluar' : 'masuk') : 'masuk';
   const editingJumlah = editing ? (editingJenis === 'masuk' ? editing.debit : editing.kredit) : 0;
@@ -547,7 +547,7 @@ function openKasModal(id){
 }
 
 function hapusKas(id){
-  if (!canEditSection('kas')) { toast('⛔ Anda tidak memiliki akses untuk mengedit Kas Karang Taruna'); return; }
+  if (!canEditSection('kas')) { toast(`⛔ Anda tidak memiliki akses untuk mengedit ${getOrgNamaKas()}`); return; }
   if(!confirm('Hapus transaksi kas ini?')) return;
   const k = db.kas.find(x=>x.id===id);
   db.kas = db.kas.filter(x=>x.id!==id);
@@ -579,7 +579,7 @@ function kasImportJSON(input){
     try{
       const parsed = JSON.parse(e.target.result);
       if(!Array.isArray(parsed.kas)) throw new Error('Format file backup tidak dikenali.');
-      if(!confirm(`Import akan MENAMBAH ${parsed.kas.length} transaksi baru ke Kas Karang Taruna (data lama tidak dihapus). Lanjutkan?`)) return;
+      if(!confirm(`Import akan MENAMBAH ${parsed.kas.length} transaksi baru ke ${getOrgNamaKas()} (data lama tidak dihapus). Lanjutkan?`)) return;
       toast('⏳ Mengimpor data...');
       const rows = parsed.kas.map(k => ({
         id: k.id || uid(),

@@ -100,9 +100,9 @@ function renderSuratUndangan(ev){
   <div class="lpj-print-area surat-print-area" id="lpj-print-area">
     <div class="lpj-header">
       <div class="lpj-header-inner">
-        <img src="icons/logo-kop.png" alt="Logo Karang Taruna Inti" class="lpj-logo">
+        <img src="${esc(getOrgLogo())}" alt="Logo ${esc(getOrgNama())}" class="lpj-logo">
         <div class="lpj-header-text">
-          <div class="lpj-eyebrow">Karang Taruna Inti</div>
+          <div class="lpj-eyebrow">${esc(getOrgNama())}</div>
           <h2>SURAT UNDANGAN</h2>
           <div class="lpj-sub" id="und-prev-nomor">${d.nomor_surat ? `Nomor: ${esc(d.nomor_surat)}` : 'Nomor: -'}</div>
         </div>
@@ -211,9 +211,9 @@ function renderProposalKegiatan(ev){
   <div class="lpj-print-area surat-print-area" id="lpj-print-area">
     <div class="lpj-header">
       <div class="lpj-header-inner">
-        <img src="icons/logo-kop.png" alt="Logo Karang Taruna Inti" class="lpj-logo">
+        <img src="${esc(getOrgLogo())}" alt="Logo ${esc(getOrgNama())}" class="lpj-logo">
         <div class="lpj-header-text">
-          <div class="lpj-eyebrow">Karang Taruna Inti</div>
+          <div class="lpj-eyebrow">${esc(getOrgNama())}</div>
           <h2>PROPOSAL KEGIATAN</h2>
           <div class="lpj-sub" id="prop-prev-tema">${esc(temaDefault||'-')}${ev ? ` — Tahun ${esc(String(ev.tahun))}` : ''}</div>
         </div>
@@ -349,9 +349,9 @@ function renderFormAbsensi(ev){
   <div class="lpj-print-area surat-print-area" id="lpj-print-area">
     <div class="lpj-header">
       <div class="lpj-header-inner">
-        <img src="icons/logo-kop.png" alt="Logo Karang Taruna Inti" class="lpj-logo">
+        <img src="${esc(getOrgLogo())}" alt="Logo ${esc(getOrgNama())}" class="lpj-logo">
         <div class="lpj-header-text">
-          <div class="lpj-eyebrow">Karang Taruna Inti</div>
+          <div class="lpj-eyebrow">${esc(getOrgNama())}</div>
           <h2>DAFTAR HADIR</h2>
           <div class="lpj-sub" id="abs-prev-judul">${esc(judulDefault||'-')}</div>
           <div class="lpj-meta">Tanggal: <span id="abs-prev-tanggal">${fmtDate(d.tanggal||todayISO())}</span>${filterKategori?` · Kategori: ${esc(labelKategori(filterKategori))}`:''}${filterRT?` · ${esc(labelRT(filterRT))}`:''}</div>
@@ -445,9 +445,9 @@ function renderJadwalSinoman(ev){
   <div class="lpj-print-area surat-print-area" id="lpj-print-area">
     <div class="lpj-header">
       <div class="lpj-header-inner">
-        <img src="icons/logo-kop.png" alt="Logo Karang Taruna Inti" class="lpj-logo">
+        <img src="${esc(getOrgLogo())}" alt="Logo ${esc(getOrgNama())}" class="lpj-logo">
         <div class="lpj-header-text">
-          <div class="lpj-eyebrow">Karang Taruna Inti</div>
+          <div class="lpj-eyebrow">${esc(getOrgNama())}</div>
           <h2>JADWAL SINOMAN</h2>
           <div class="lpj-sub" id="js-prev-judul">${esc(judulDefault||'-')}</div>
           <div class="lpj-meta" id="js-prev-tempat">${d.tempat ? `Tempat: ${esc(d.tempat)}` : ''}</div>

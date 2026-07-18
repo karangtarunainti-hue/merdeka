@@ -21,7 +21,7 @@ function renderPanduan(){
     </div>
     <div class="panel-body">
       <div class="panduan-lead">
-        <p>Aplikasi ini dibuat buat bantu pengurus <b>Karang Taruna</b> ngurusin acara/kegiatan
+        <p>Aplikasi ini dibuat buat bantu pengurus <b>${esc(getOrgNama())}</b> ngurusin acara/kegiatan
         (17-an, jalan santai, lomba, dll) biar catatannya rapi, uangnya jelas keluar-masuknya,
         dan pas laporan pertanggungjawaban (LPJ) dibikin, semua tinggal cetak — nggak perlu
         rekap ulang dari nota-nota yang berserakan 😅.</p>
@@ -105,8 +105,8 @@ function renderPanduan(){
         <div class="role-info-card"><div class="ric-title">📚 Database Anggota</div><div class="ric-desc">Data master semua anggota — bisa dicek & difilter kapan aja.</div></div>
         <div class="role-info-card"><div class="ric-title">📦 Gudang Aset</div><div class="ric-desc">Inventaris barang/aset milik desa/organisasi, lengkap sama fitur pinjam-kembalikan.</div></div>
         <div class="role-info-card"><div class="ric-title">📖 Panduan</div><div class="ric-desc">Halaman yang lagi kamu baca ini!</div></div>
-        <div class="role-info-card"><div class="ric-title">👛 Kas Karang Taruna</div><div class="ric-desc">Buku kas umum organisasi, terpisah dari kas per event.</div></div>
-        <div class="role-info-card"><div class="ric-title">🪙 Dana Sosial</div><div class="ric-desc">Iuran bulanan Rp 5.000/anggota, terpisah dari Kas Karang Taruna. Ada tabel khusus untuk anggota Perantauan yang bayarnya rapel setahun sekali.</div></div>
+        <div class="role-info-card"><div class="ric-title">👛 ${esc(getOrgNamaKas())}</div><div class="ric-desc">Buku kas umum organisasi, terpisah dari kas per event.</div></div>
+        <div class="role-info-card"><div class="ric-title">🪙 Dana Sosial</div><div class="ric-desc">Iuran bulanan Rp 5.000/anggota, terpisah dari ${esc(getOrgNamaKas())}. Ada tabel khusus untuk anggota Perantauan yang bayarnya rapel setahun sekali.</div></div>
         ${isAdminUser ? `<div class="role-info-card"><div class="ric-title">⚙️ Pengaturan</div><div class="ric-desc">Atur tarif iuran, kelola daftar event, dan pengaturan lain (khusus Admin).</div></div>` : ''}
         ${isAdminUser ? `<div class="role-info-card"><div class="ric-title">👥 Manajemen User</div><div class="ric-desc">Tambah/atur akun pengguna beserta perannya (khusus Admin).</div></div>` : ''}
       </div>

@@ -74,6 +74,38 @@ function getTelegramSettings(){
 }
 
 /* ============================================================
+   PROFIL ORGANISASI
+   ============================================================
+   Satu-satunya sumber nama organisasi/logo/nama kas yang tampil di seluruh
+   app (sidebar, kop surat, nota, pesan Telegram, dll). Diatur admin lewat
+   Pengaturan > Profil Organisasi (lihat renderPengaturan() &
+   simpanOrgProfile() di js/15-pengaturan-event.js). Kalau belum pernah
+   diisi, otomatis fallback ke DEFAULT_ORG_PROFILE (lihat js/03-db-core.js)
+   supaya tampilan tetap seperti sebelumnya sampai admin ganti sendiri.
+   ============================================================ */
+function getOrgProfil(){
+  if(!db.orgProfile) db.orgProfile = { ...DEFAULT_ORG_PROFILE };
+  return db.orgProfile;
+}
+function getOrgNama(){ return getOrgProfil().nama || DEFAULT_ORG_PROFILE.nama; }
+function getOrgNamaKas(){ return getOrgProfil().namaKas || DEFAULT_ORG_PROFILE.namaKas; }
+// Kembalikan logo custom (base64 data URI) kalau admin sudah upload sendiri,
+// kalau belum, fallback ke file statis icons/logo-kop.png (logo bawaan app).
+function getOrgLogo(){ return getOrgProfil().logo || 'icons/logo-kop.png'; }
+
+// Dorong nama organisasi ke bagian-bagian statis di index.html yang dirender
+// SEBELUM data ter-load (judul tab browser & nama di sidebar) — satu-satunya
+// tempat "putih polos" yang tidak bisa dibaca langsung dari template string
+// seperti panel/render lain, jadi perlu diisi manual di sini. Dipanggil sekali
+// saat initApp() (js/19-init.js) dan lagi tiap kali Profil Organisasi disimpan.
+function applyOrgBranding(){
+  const nama = getOrgNama();
+  const brandTitle = document.querySelector('.sidebar .brand h1');
+  if(brandTitle) brandTitle.textContent = nama.toUpperCase();
+  document.title = nama;
+}
+
+/* ============================================================
    AKSES GUEST (menu apa saja yang boleh dilihat tanpa login)
    ============================================================ */
 function isGuestVisible(sectionKey){
@@ -130,7 +162,7 @@ function formatNotificationMessage(action, data, eventName){
   const user = getCurrentUser();
   const userName = user ? user.name : 'Guest (View Only)';
   const userRole = user ? user.role : 'guest';
-  let msg = `<b>📋 Karang Taruna - Buku Keuangan</b>\n\n`;
+  let msg = `<b>📋 ${escTelegram(getOrgNama())} - Buku Keuangan</b>\n\n`;
   msg += `<b>Event:</b> ${escTelegram(eventName)}\n`;
   msg += `<b>Waktu:</b> ${escTelegram(timestamp)}\n`;
   msg += `<b>👤 User:</b> ${escTelegram(userName)} (${escTelegram(userRole)})\n\n`;

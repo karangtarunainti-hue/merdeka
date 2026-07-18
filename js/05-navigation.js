@@ -27,6 +27,19 @@ const SECTIONS = [
   {key:'dana-sosial', label:'Dana Sosial', sub:'Iuran bulanan Rp 5.000/anggota', icon:'coins', adminOnly: false},
 ];
 
+// `SECTIONS` di atas adalah const statis (dievaluasi sebelum data organisasi
+// ter-load), jadi label menu "Kas Karang Taruna" TIDAK BISA langsung baca
+// nama kas dari Profil Organisasi di titik itu. Fungsi ini yang dipanggil
+// setiap kali menu dirender (bukan `s.label` langsung) supaya label section
+// 'kas' selalu ikut nama buku kas terbaru dari Pengaturan > Profil Organisasi.
+function sectionLabel(s){
+  return s.key === 'kas' ? getOrgNamaKas() : s.label;
+}
+function sectionLabelByKey(key){
+  const s = SECTIONS.find(s=>s.key===key);
+  return s ? sectionLabel(s) : key;
+}
+
 // Menu yang tidak terikat event tertentu (datanya global, bukan per-event).
 // Menu ini ditampilkan terpisah di atas, antara info login dan dropdown
 // Kegiatan Aktif, supaya jelas tidak berubah walau event aktif diganti.
@@ -143,7 +156,7 @@ function renderSidebar(){
 
   const renderNavItem = s => `
     <div class="nav-item ${s.key===currentSection?'active':''} ${!isLoggedIn && !s.adminOnly ? '' : ''}" data-nav="${s.key}">
-      ${icon(s.icon)} <span>${s.label}</span>
+      ${icon(s.icon)} <span>${esc(sectionLabel(s))}</span>
       ${s.adminOnly && !isAdminUser ? `<span class="lock-icon">🔒</span>` : ''}
     </div>`;
 

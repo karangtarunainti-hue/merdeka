@@ -199,7 +199,19 @@ function goSection(key, opts){
     if (key !== 'dashboard') return goSection('dashboard', {isFallback:true});
     return;
   }
+  const prevSection = currentSection;
   currentSection = key;
+  // Kalau admin sempat pilih logo baru di panel Profil Organisasi tapi TIDAK
+  // klik "Simpan" (mis. keburu pindah menu lain), buang draft logo itu begitu
+  // admin masuk LAGI ke halaman Pengaturan dari menu lain — supaya pilihan
+  // logo lama yang sudah dilupakan tidak diam-diam ikut tersimpan saat admin
+  // berikutnya cuma niat ganti Nama Organisasi/Nama Kas saja. Dicek lewat
+  // prevSection (bukan cuma "key==='pengaturan'") supaya draft yang MASIH
+  // sedang diisi tetap aman dari re-render auto-refresh (yang tidak lewat
+  // goSection, jadi tidak kena reset ini).
+  if(key === 'pengaturan' && prevSection !== 'pengaturan' && typeof _pendingOrgLogo !== 'undefined'){
+    _pendingOrgLogo = undefined;
+  }
   // Simpan halaman terakhir supaya bertahan walau halaman di-refresh.
   try { localStorage.setItem(LAST_SECTION_KEY, key); } catch(e){}
   const meta = SECTIONS.find(s=>s.key===key);

@@ -119,7 +119,7 @@ function renderPengaturan(){
       ${getTelegramQueueCount() > 0 ? `
       <div class="field" style="margin-top:18px;">
         <div style="padding:10px 12px;background:var(--cream);border:1px solid var(--garis);border-radius:8px;font-size:13px;color:var(--ink-soft);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
-          <span>⏳ ${getTelegramQueueCount()} notifikasi menunggu dikirim (gagal terkirim / kena Jam Tenang).</span>
+          <span>🔔 ${getTelegramQueueCount()} notifikasi menunggu dikirim (gagal terkirim / kena Jam Tenang).</span>
           <button class="btn secondary small" onclick="retryTelegramQueue()">🔄 Kirim Ulang Sekarang</button>
         </div>
       </div>` : ``}

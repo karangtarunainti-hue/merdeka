@@ -82,33 +82,9 @@ function getHadiahBudget(kategoriPeserta, juaraKe){
       antrian yang sama dan baru dikirim begitu jam tenang berakhir.
    ============================================================ */
 
-// Kategori notifikasi — key HARUS sama persis dengan argumen `category` yang
-// dikirim tiap pemanggil notifyTelegram() di seluruh app (lihat js/06, 08, 09,
-// 10, 11, 12, 15, 22). Menambah kategori baru di sini otomatis default AKTIF
-// untuk pengaturan lama yang belum pernah menyimpan kategori ini (lihat
-// getTelegramSettings() & loadDB() di js/03-db-core.js).
-const TELEGRAM_CATEGORIES = [
-  {key:'anggota',     label:'Anggota & Iuran',                icon:'👥'},
-  {key:'donasi',      label:'Donasi',                          icon:'🎁'},
-  {key:'transaksi',   label:'Transaksi Kas Utama',             icon:'💵'},
-  {key:'operasional', label:'Biaya Operasional',               icon:'🧾'},
-  {key:'lomba',       label:'Lomba',                           icon:'🏆'},
-  {key:'belanja',     label:'Belanja Hadiah & Perlengkapan',   icon:'🛒'},
-  {key:'agenda',      label:'Jadwal & Agenda',                 icon:'📅'},
-  {key:'kas',         label:'Kas Karang Taruna',               icon:'🏦'},
-  {key:'dana_sosial', label:'Dana Sosial',                     icon:'🤝'},
-  {key:'login',       label:'Login User',                      icon:'🔑'},
-  {key:'sistem',      label:'Sistem & Event',                  icon:'⚙️'},
-  {key:'umum',        label:'Umum / Lainnya',                  icon:'📋'},
-];
-function defaultTelegramCategories(){
-  const o = {};
-  TELEGRAM_CATEGORIES.forEach(c => { o[c.key] = true; });
-  return o;
-}
-function defaultTelegramQuietHours(){
-  return { enabled:false, start:'22:00', end:'06:00' };
-}
+// TELEGRAM_CATEGORIES, defaultTelegramCategories(), dan defaultTelegramQuietHours()
+// didefinisikan di js/03-db-core.js (bukan di sini) — lihat catatan di sana
+// soal kenapa (defaultDB() butuh fungsi ini sebelum file ini sempat dimuat).
 
 // Selalu kembalikan bentuk LENGKAP (categories & quietHours tergabung dengan
 // default) supaya pemanggil lain tidak perlu tahu soal migrasi data lama yang

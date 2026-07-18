@@ -27,6 +27,37 @@ const DEFAULT_ORG_PROFILE = {
   logo: '' // kosong = pakai file statis icons/logo-kop.png (lihat getOrgLogo())
 };
 
+// Kategori notifikasi Telegram & default Jam Tenang — didefinisikan DI SINI
+// (bukan di js/04-event-settings.js tempat logika notifikasi Telegram lainnya
+// berada) karena defaultDB() di bawah dipanggil LANGSUNG saat script ini
+// pertama kali dieksekusi (lihat `let db = defaultDB();` di akhir file),
+// sebelum js/04-event-settings.js sempat dimuat — jadi kalau didefinisikan
+// di sana akan kena ReferenceError "not defined". key HARUS sama persis
+// dengan argumen `category` yang dikirim tiap pemanggil notifyTelegram()
+// di seluruh app (lihat js/06, 08, 09, 10, 11, 12, 15, 22).
+const TELEGRAM_CATEGORIES = [
+  {key:'anggota',     label:'Anggota & Iuran',                icon:'👥'},
+  {key:'donasi',      label:'Donasi',                          icon:'🎁'},
+  {key:'transaksi',   label:'Transaksi Kas Utama',             icon:'💵'},
+  {key:'operasional', label:'Biaya Operasional',               icon:'🧾'},
+  {key:'lomba',       label:'Lomba',                           icon:'🏆'},
+  {key:'belanja',     label:'Belanja Hadiah & Perlengkapan',   icon:'🛒'},
+  {key:'agenda',      label:'Jadwal & Agenda',                 icon:'📅'},
+  {key:'kas',         label:'Kas Karang Taruna',               icon:'🏦'},
+  {key:'dana_sosial', label:'Dana Sosial',                     icon:'🤝'},
+  {key:'login',       label:'Login User',                      icon:'🔑'},
+  {key:'sistem',      label:'Sistem & Event',                  icon:'⚙️'},
+  {key:'umum',        label:'Umum / Lainnya',                  icon:'📋'},
+];
+function defaultTelegramCategories(){
+  const o = {};
+  TELEGRAM_CATEGORIES.forEach(c => { o[c.key] = true; });
+  return o;
+}
+function defaultTelegramQuietHours(){
+  return { enabled:false, start:'22:00', end:'06:00' };
+}
+
 function defaultDB(){
   return {
     events: [],

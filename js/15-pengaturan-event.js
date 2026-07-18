@@ -89,8 +89,8 @@ function renderPengaturan(){
       </div>
 
       <!-- KATEGORI NOTIFIKASI -->
-      <div class="field" style="margin-top:18px;">
-        <label>Kategori Notifikasi <span style="font-weight:400;color:var(--ink-soft);">(matikan yang tidak perlu tanpa nonaktifkan semua)</span></label>
+      <div style="margin-top:18px;">
+        <div class="settings-subhead">Kategori Notifikasi <span style="font-weight:400;color:var(--ink-soft);">(matikan yang tidak perlu tanpa nonaktifkan semua)</span></div>
         <div class="toggle-grid">
           ${TELEGRAM_CATEGORIES.map(c=>`
             <label class="toggle-chip">
@@ -103,8 +103,8 @@ function renderPengaturan(){
       </div>
 
       <!-- JAM TENANG -->
-      <div class="field" style="margin-top:18px;">
-        <label>🌙 Jam Tenang <span style="font-weight:400;color:var(--ink-soft);">(tunda kirim notifikasi di jam tertentu, mis. malam hari)</span></label>
+      <div style="margin-top:18px;">
+        <div class="settings-subhead">🌙 Jam Tenang <span style="font-weight:400;color:var(--ink-soft);">(tunda kirim notifikasi di jam tertentu, mis. malam hari)</span></div>
         <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
           <label style="display:flex;align-items:center;gap:8px;font-weight:400;white-space:nowrap;">
             <input type="checkbox" id="telegram-quiet-enabled" ${telegram.quietHours.enabled ? 'checked' : ''}> Aktifkan Jam Tenang

@@ -33,6 +33,20 @@ function setCurrentUser(user) {
   }
 }
 
+// Token sesi dari rpc_login, dikirim ulang di header `x-session-token` tiap
+// request (lihat override fetch di 00-config.js) supaya server bisa
+// memverifikasi caller benar-benar sudah login sebelum RPC/tabel sensitif
+// mengizinkan aksi (lihat supabase-session-auth-migration.sql).
+const SESSION_TOKEN_KEY = 'kt_session_token';
+
+function setSessionToken(token) {
+  if (token) {
+    localStorage.setItem(SESSION_TOKEN_KEY, token);
+  } else {
+    localStorage.removeItem(SESSION_TOKEN_KEY);
+  }
+}
+
 function isAdmin() {
   const user = getCurrentUser();
   return user && user.role === 'admin';
@@ -91,12 +105,20 @@ async function login(username, password) {
   const { data, error } = await sb.rpc('rpc_login', { p_username: username, p_password: password });
   if (error) { console.error('Login error:', error); return null; }
   if (!data || data.length === 0) return null;
-  const user = data[0];
+  const { session_token, ...user } = data[0];
+  setSessionToken(session_token || null);
   setCurrentUser(user);
   return user;
 }
 
-function logout() {
+async function logout() {
+  // Matikan sesi di SERVER dulu (bukan cuma hapus token di localStorage) --
+  // kalau token ini sempat bocor, logout beneran membuatnya tidak berlaku lagi.
+  const token = localStorage.getItem(SESSION_TOKEN_KEY);
+  if (token) {
+    try{ await sb.rpc('rpc_logout', { p_token: token }); }catch(e){ console.error('Logout RPC error:', e); }
+  }
+  setSessionToken(null);
   setCurrentUser(null);
   renderSidebar();
   renderTopbarSaldo();

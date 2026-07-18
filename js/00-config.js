@@ -27,6 +27,15 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       // pairs manapun) benar-benar ter-copy.
       const mergedHeaders = new Headers(options.headers || {});
       mergedHeaders.set('Cache-Control', 'no-cache');
+      // Kirim token sesi login (kalau ada) di setiap request Supabase, supaya
+      // RLS policy & RPC di server (session_is_logged_in()/session_is_admin())
+      // bisa memverifikasi siapa pemanggilnya. Tanpa ini, semua request tetap
+      // ikut header apikey/Authorization anon key seperti biasa -- token sesi
+      // ini murni tambahan, bukan pengganti anon key.
+      try{
+        const token = localStorage.getItem('kt_session_token');
+        if(token) mergedHeaders.set('x-session-token', token);
+      }catch(e){}
       return fetch(url, {
         ...options,
         cache: 'no-store',

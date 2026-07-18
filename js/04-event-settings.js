@@ -157,23 +157,36 @@ async function sendTelegramNotification(message, isTest = false){
 // pemberitahuan ke user (hanya console.error).
 function escTelegram(s){ return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
+// Buang semua ikon/emoji dari teks notifikasi Telegram (dipakai baik untuk
+// bagian statis pesan maupun `action`/`data` yang dikirim tiap pemanggil
+// notifyTelegram() — jadi cukup diterapkan SEKALI di sini, tidak perlu ubah
+// satu-satu di ~70 tempat pemanggilan yang tersebar di seluruh app). Rentang
+// unicode di bawah ini mencakup emoji pictograph, dingbat, simbol misc, dan
+// panah (↩️ ↓ dst) yang dipakai di action message app ini.
+function stripEmoji(s){
+  return String(s ?? '')
+    .replace(/[\u{1F1E6}-\u{1FFFF}\u{2190}-\u{21FF}\u{2300}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}\u{200D}]/gu, '')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim();
+}
+
 function formatNotificationMessage(action, data, eventName){
   const timestamp = new Date().toLocaleString('id-ID');
   const user = getCurrentUser();
   const userName = user ? user.name : 'Guest (View Only)';
   const userRole = user ? user.role : 'guest';
-  let msg = `<b>📋 ${escTelegram(getOrgNama())} - Buku Keuangan</b>\n\n`;
+  let msg = `<b>${escTelegram(getOrgNama())} - Buku Keuangan</b>\n\n`;
   msg += `<b>Event:</b> ${escTelegram(eventName)}\n`;
   msg += `<b>Waktu:</b> ${escTelegram(timestamp)}\n`;
-  msg += `<b>👤 User:</b> ${escTelegram(userName)} (${escTelegram(userRole)})\n\n`;
-  msg += `<b>📌 Aksi:</b> ${escTelegram(action)}\n`;
-  if(data) msg += `<b>📝 Detail:</b>\n${escTelegram(data)}\n`;
+  msg += `<b>User:</b> ${escTelegram(userName)} (${escTelegram(userRole)})\n\n`;
+  msg += `<b>Aksi:</b> ${escTelegram(stripEmoji(action))}\n`;
+  if(data) msg += `<b>Detail:</b>\n${escTelegram(stripEmoji(data))}\n`;
   
   if(activeEvent()){
     const {saldo, pemasukan, pengeluaran} = hitungBukuUtama();
-    msg += `\n<b>💰 Saldo Akhir:</b> ${fmtRp(saldo)}`;
-    msg += `\n<b>📈 Pemasukan:</b> ${fmtRp(pemasukan)}`;
-    msg += `\n<b>📉 Pengeluaran:</b> ${fmtRp(pengeluaran)}`;
+    msg += `\n<b>Saldo Akhir:</b> ${fmtRp(saldo)}`;
+    msg += `\n<b>Pemasukan:</b> ${fmtRp(pemasukan)}`;
+    msg += `\n<b>Pengeluaran:</b> ${fmtRp(pengeluaran)}`;
   }
   return msg;
 }

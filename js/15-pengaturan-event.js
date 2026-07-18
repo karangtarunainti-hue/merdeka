@@ -284,7 +284,7 @@ async function testTelegram(){
     settings.enabled = true;
     saveTelegramSettings(settings);
   }
-  await sendTelegramNotification(`🔔 <b>Test Notifikasi</b>\n\nHalo! Ini adalah pesan test dari Buku Keuangan ${escTelegram(getOrgNama())}.\n\n✅ Notifikasi berhasil terkonfigurasi!\n\nWaktu: ${new Date().toLocaleString('id-ID')}`, true);
+  await sendTelegramNotification(`<b>Test Notifikasi</b>\n\nHalo! Ini adalah pesan test dari Buku Keuangan ${escTelegram(getOrgNama())}.\n\nNotifikasi berhasil terkonfigurasi!\n\nWaktu: ${new Date().toLocaleString('id-ID')}`, true);
 }
 
 function setActiveEvent(id){ 

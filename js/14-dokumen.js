@@ -540,7 +540,7 @@ function renderJadwalBlockTableEdit(blockKey){
   const rowsEdit = d.rows.map((r,idx)=>{
     const cells = fields.map(f=>{
       const koordBadge = idx===0 ? `<span class="koord-badge">Koord</span>` : '';
-      return `<td style="display:flex; align-items:center; gap:0;">${blkComboTriggerHtml(blockKey, idx, f.key, r[f.key])}${koordBadge}</td>`;
+      return `<td><div style="display:flex; align-items:center; gap:6px; min-width:0;"><div style="flex:1; min-width:0;">${blkComboTriggerHtml(blockKey, idx, f.key, r[f.key])}</div>${koordBadge}</div></td>`;
     }).join('');
     return `
     <tr>
@@ -551,13 +551,13 @@ function renderJadwalBlockTableEdit(blockKey){
   }).join('');
 
   const hapusTabelBtn = isJadwalExtraKey(blockKey)
-    ? `<button class="icon-btn" onclick="jadwalRemoveExtraTable('${blockKey.slice(6)}')" title="Hapus tabel ini" style="float:right;">🗑️</button>`
+    ? `<button class="icon-btn" onclick="jadwalRemoveExtraTable('${blockKey.slice(6)}')" title="Hapus tabel ini">🗑️</button>`
     : '';
 
   return `
-    <div style="margin:18px 0 6px; overflow:auto;">
+    <div style="display:flex; align-items:center; gap:8px; margin:18px 0 6px;">
+      <input class="jadwal-subhead-input" id="doc-subhead-${blockKey}" value="${esc(jadwalSubLabel(blockKey))}" placeholder="Judul bagian, mis. Piket Sinoman" oninput="liveJadwalSubLabel('${blockKey}', this.value)" style="flex:1; min-width:0; font-weight:600; border:none; border-bottom:1px dashed var(--line); background:transparent; font-size:14px; font-family:inherit; color:inherit; padding:4px 0;">
       ${hapusTabelBtn}
-      <input class="jadwal-subhead-input" id="doc-subhead-${blockKey}" value="${esc(jadwalSubLabel(blockKey))}" placeholder="Judul bagian, mis. Piket Sinoman" oninput="liveJadwalSubLabel('${blockKey}', this.value)" style="display:block; font-weight:600; border:none; border-bottom:1px dashed var(--line); background:transparent; width:100%; font-size:14px; font-family:inherit; color:inherit; padding:4px 0;">
     </div>
     <table class="lpj-table js-edit-table">
       <colgroup><col style="width:36px;">${colgroupMiddle}<col style="width:36px;"></colgroup>

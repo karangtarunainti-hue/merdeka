@@ -493,7 +493,7 @@ function jadwalFieldLabel(blockKey, fieldKey){
 }
 
 function jadwalAddExtraTable(){
-  if (!canEditSection('dokumen')) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('jadwal-sinoman')) { toast('⛔ Login untuk mengedit data'); return; }
   const list = getJadwalExtraList();
   const emptyRow = {};
   JADWAL_EXTRA_FIELDS.forEach(f=>{ emptyRow[f.key] = ''; });
@@ -502,7 +502,7 @@ function jadwalAddExtraTable(){
   toast('✅ Tabel baru ditambahkan');
 }
 function jadwalRemoveExtraTable(id){
-  if (!canEditSection('dokumen')) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('jadwal-sinoman')) { toast('⛔ Login untuk mengedit data'); return; }
   if(!confirm('Hapus tabel tambahan ini beserta semua isinya?')) return;
   const s = getDokumenGlobal();
   s.jadwal_extra = getJadwalExtraList().filter(e=>e.id!==id);
@@ -514,7 +514,7 @@ function jadwalRemoveExtraTable(id){
 // tidak dibuang permanen, cuma ditandai .hidden supaya kalau suatu saat perlu
 // dikembalikan, isian lama (kalau ada) tidak hilang.
 function jadwalRemoveBuiltinBlock(blockKey){
-  if (!canEditSection('dokumen')) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('jadwal-sinoman')) { toast('⛔ Login untuk mengedit data'); return; }
   if(!confirm('Hapus tabel ini beserta semua isinya?')) return;
   const d = getJadwalBlockData(blockKey);
   if(!d) return;
@@ -697,7 +697,7 @@ function renderJadwalBlockTablePrint(blockKey){
 }
 
 function liveJadwalMerged(field, value){
-  if (!canEditSection('dokumen')) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('jadwal-sinoman')) { toast('⛔ Login untuk mengedit data'); return; }
   const s = getDokumenGlobal();
   s.jadwal_sinoman[field] = value;
   s.jadwal_petugas[field] = value;
@@ -709,7 +709,7 @@ function liveJadwalMerged(field, value){
   if(field === 'nama_ketua') setPrevText('js-prev-nama-ketua', value || '(.....................)');
 }
 function liveJadwalSubLabel(blockKey, value){
-  if (!canEditSection('dokumen')) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('jadwal-sinoman')) { toast('⛔ Login untuk mengedit data'); return; }
   const d = getJadwalBlockData(blockKey);
   if(!d) return;
   d.subLabel = value;
@@ -717,7 +717,7 @@ function liveJadwalSubLabel(blockKey, value){
   setPrevText(`js-print-subhead-${blockKey}`, value || '');
 }
 function liveJadwalFieldLabel(blockKey, fieldKey, value){
-  if (!canEditSection('dokumen')) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('jadwal-sinoman')) { toast('⛔ Login untuk mengedit data'); return; }
   const d = getJadwalBlockData(blockKey);
   if(!d) return;
   if(!d.fieldLabels) d.fieldLabels = {};
@@ -726,14 +726,14 @@ function liveJadwalFieldLabel(blockKey, fieldKey, value){
   setPrevText(`js-print-th-${blockKey}-${fieldKey}`, value || '');
 }
 function jadwalBlockSetCell(blockKey, idx, field, value){
-  if (!canEditSection('dokumen')) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('jadwal-sinoman')) { toast('⛔ Login untuk mengedit data'); return; }
   const d = getJadwalBlockData(blockKey);
   if(!d || !d.rows[idx]) return;
   d.rows[idx][field] = value;
   saveDB();
 }
 function jadwalBlockAddRow(blockKey){
-  if (!canEditSection('dokumen')) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('jadwal-sinoman')) { toast('⛔ Login untuk mengedit data'); return; }
   const fields = getJadwalBlockFields(blockKey);
   const d = getJadwalBlockData(blockKey);
   if(!d) return;
@@ -743,7 +743,7 @@ function jadwalBlockAddRow(blockKey){
   saveDB(); renderContent();
 }
 function jadwalBlockRemoveRow(blockKey, idx){
-  if (!canEditSection('dokumen')) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('jadwal-sinoman')) { toast('⛔ Login untuk mengedit data'); return; }
   const d = getJadwalBlockData(blockKey);
   if(!d || d.rows.length<=1) return;
   d.rows.splice(idx,1);

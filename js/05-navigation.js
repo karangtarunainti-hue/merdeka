@@ -21,7 +21,7 @@ const SECTIONS = [
   {key:'users', label:'Manajemen User', sub:'Kelola akun pengguna', icon:'users', adminOnly: true},
   {key:'agenda', label:'Agenda Kegiatan', sub:'', icon:'calendar', adminOnly: false},
   {key:'gudang', label:'Gudang Aset', sub:'Inventaris & pinjam aset desa', icon:'package', adminOnly: false},
-  {key:'jadwal-sinoman', label:'Jadwal Sinoman', sub:'Jadwal piket pagi/siang/sore', icon:'calendar', adminOnly: false},
+  {key:'jadwal-sinoman', label:'Sinoman', sub:'Jadwal piket pagi/siang/sore', icon:'calendar', adminOnly: false},
   {key:'panduan', label:'Panduan', sub:'Cara pakai aplikasi ini', icon:'book', adminOnly: false},
   {key:'dokumen', label:'Surat & Dokumen', sub:'Undangan, proposal & absensi', icon:'clipboard', adminOnly: false},
   {key:'kas', label:'Kas Karang Taruna', sub:'', icon:'wallet', adminOnly: false},

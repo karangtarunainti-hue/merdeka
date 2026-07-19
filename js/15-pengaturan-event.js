@@ -427,7 +427,7 @@ function exportDataEvent(){
     _version: 1,
     exported_at: new Date().toISOString(),
     event: { nama: ev.nama, tahun: ev.tahun, fitur: ev.fitur || null },
-    settings: db.settings[id] ? { tarif: db.settings[id].tarif, hadiahBudget: db.settings[id].hadiahBudget || {} } : { tarif:{sekolah:0,bekerja:0,perantauan:0,khusus:0}, hadiahBudget:{} },
+    settings: db.settings[id] ? { tarif: db.settings[id].tarif, hadiahBudget: db.settings[id].hadiahBudget || {}, kategoriToko: db.settings[id].kategoriToko || {customCategories:[],keywords:{}} } : { tarif:{sekolah:0,bekerja:0,perantauan:0,khusus:0}, hadiahBudget:{}, kategoriToko:{customCategories:[],keywords:{}} },
     anggota: db.anggota.filter(x=>x.event_id===id),
     donatur: db.donatur.filter(x=>x.event_id===id),
     transaksiLain: db.transaksiLain.filter(x=>x.event_id===id),
@@ -471,7 +471,8 @@ function importDataEvent(evt){
       db.events.push({ id:newEventId, nama: parsed.event.nama || 'Event Impor', tahun: parsed.event.tahun || new Date().getFullYear(), fitur: parsed.event.fitur || undefined, created_at: new Date().toISOString() });
       db.settings[newEventId] = {
         tarif: (parsed.settings && parsed.settings.tarif) ? {...parsed.settings.tarif} : {sekolah:0,bekerja:0,perantauan:0,khusus:0},
-        hadiahBudget: (parsed.settings && parsed.settings.hadiahBudget) ? JSON.parse(JSON.stringify(parsed.settings.hadiahBudget)) : {}
+        hadiahBudget: (parsed.settings && parsed.settings.hadiahBudget) ? JSON.parse(JSON.stringify(parsed.settings.hadiahBudget)) : {},
+        kategoriToko: (parsed.settings && parsed.settings.kategoriToko) ? JSON.parse(JSON.stringify(parsed.settings.kategoriToko)) : {customCategories:[],keywords:{}}
       };
 
       (parsed.anggota||[]).forEach(x=>{ db.anggota.push({...x, id:uid(), event_id:newEventId}); });

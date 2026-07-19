@@ -18,23 +18,39 @@ function normalisasiUrlBookmark(url){
   return `https://${u}`;
 }
 
+// Warna aksen bergiliran per kartu (pakai token warna yang sudah ada di
+// style.css) supaya grid tautan tidak terlihat monoton kalau isinya banyak.
+const BOOKMARK_ACCENTS = ['biru', 'ungu', 'pink', 'orange', 'gold', 'hijau'];
+
 function renderBookmark(){
   const list = gBookmark();
   const isLoggedIn = !!getCurrentUser();
   const canEdit = canEditSection('bookmark');
 
-  const cards = list.map(b => `
-    <div class="panel-body" style="display:flex; align-items:center; justify-content:space-between; gap:12px; border-bottom:1px solid var(--border,#eee);">
-      <a href="${esc(b.url)}" target="_blank" rel="noopener noreferrer" style="flex:1; min-width:0; text-decoration:none; color:inherit;">
-        <div style="font-weight:600;">🔗 ${esc(b.judul)}</div>
-        ${b.deskripsi ? `<div class="sub" style="opacity:.75; margin-top:2px;">${esc(b.deskripsi)}</div>` : ''}
-        <div class="mono" style="font-size:12px; opacity:.6; margin-top:2px; overflow-wrap:anywhere;">${esc(b.url)}</div>
-      </a>
-      <div style="white-space:nowrap;">
-        <button class="icon-btn" onclick="openBookmarkModal('${b.id}')" ${!canEdit ? 'disabled' : ''} title="Edit">✎</button>
-        <button class="icon-btn" onclick="hapusBookmark('${b.id}')" ${!canEdit ? 'disabled' : ''} title="Hapus">🗑</button>
+  const cards = list.map((b, idx) => {
+    const accent = BOOKMARK_ACCENTS[idx % BOOKMARK_ACCENTS.length];
+    // Ambil huruf pertama judul sebagai monogram di badge, cadangan kalau
+    // ikon tautan generik terasa terlalu polos untuk kartu sebanyak ini.
+    const monogram = (b.judul||'?').trim().charAt(0).toUpperCase() || '🔗';
+    let host = '';
+    try{ host = new URL(b.url).hostname.replace(/^www\./,''); }catch(e){ host = b.url; }
+    return `
+    <div class="bookmark-card accent-${accent}">
+      <div class="bookmark-card-top">
+        <div class="bookmark-badge">${esc(monogram)}</div>
+        <div class="bookmark-card-actions">
+          <button class="icon-btn" onclick="openBookmarkModal('${b.id}')" ${!canEdit ? 'disabled' : ''} title="Edit">✎</button>
+          <button class="icon-btn" onclick="hapusBookmark('${b.id}')" ${!canEdit ? 'disabled' : ''} title="Hapus">🗑</button>
+        </div>
       </div>
-    </div>`).join('');
+      <div class="bookmark-card-title">${esc(b.judul)}</div>
+      ${b.deskripsi ? `<div class="bookmark-card-desc">${esc(b.deskripsi)}</div>` : ''}
+      <a href="${esc(b.url)}" target="_blank" rel="noopener noreferrer" class="bookmark-card-link">
+        <span class="bookmark-card-host">${esc(host)}</span>
+        <span class="bookmark-card-cta">Buka Tautan <span aria-hidden="true">↗</span></span>
+      </a>
+    </div>`;
+  }).join('');
 
   return `
   <div class="panel">
@@ -43,8 +59,8 @@ function renderBookmark(){
       <div class="desc">Link penting organisasi — grup WA, form, rekening, dsb</div></div>
       ${canEdit ? `<button class="btn" onclick="openBookmarkModal()">+ Tambah Tautan</button>` : ''}
     </div>
-    <div class="panel-body flush">
-      ${cards || `<div class="empty-row" style="padding:30px;text-align:center;">Belum ada tautan. ${isLoggedIn ? 'Tambahkan tautan penting supaya mudah diakses semua orang.' : 'Login untuk menambah tautan.'}</div>`}
+    <div class="panel-body">
+      ${list.length ? `<div class="bookmark-grid">${cards}</div>` : `<div class="empty-row" style="padding:30px;text-align:center;">Belum ada tautan. ${isLoggedIn ? 'Tambahkan tautan penting supaya mudah diakses semua orang.' : 'Login untuk menambah tautan.'}</div>`}
     </div>
   </div>`;
 }

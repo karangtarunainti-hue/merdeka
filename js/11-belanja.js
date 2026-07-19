@@ -284,7 +284,7 @@ function renderBelanjaHadiah(){
       const belanja = statusMap[key] || null;
       const status = belanja ? belanja.status : 'belum_dibeli';
       const tanggalBeli = belanja ? belanja.tanggal_beli : null;
-      items.push({...h, itemIndex: idx, itemId: item.id, itemNama: item.nama, itemHarga: item.harga_satuan, itemHargaEceran: (item.harga_eceran!=null?item.harga_eceran:item.harga_satuan), itemQtyDibeli: item.qty_dibeli, isi_per_pack: item.isi_per_pack||1, status, tanggalBeli, sudahDibeli: status==='dibeli', key});
+      items.push({...h, itemIndex: idx, itemId: item.id, itemNama: item.nama, itemHarga: item.harga_satuan, itemHargaEceran: (item.harga_eceran!=null?item.harga_eceran:item.harga_satuan), itemQtyDibeli: item.qty_dibeli, isi_per_pack: item.isi_per_pack||1, riwayatHarga: item.riwayatHarga||[], status, tanggalBeli, sudahDibeli: status==='dibeli', key});
     });
   });
 
@@ -391,6 +391,7 @@ function renderBelanjaHadiah(){
       <div class="harga" style="display:flex; align-items:center; gap:4px;">
         <span>${fmtRp(totalHarga)}</span>
         ${g.kategoriToko==='lainnya' ? `<button class="btn-small-icon" title="Barang ini masuk 'Lainnya' — klik untuk pindahkan ke kategori toko lain" onclick="event.stopPropagation(); ${isLoggedIn ? `bukaQuickAssignKategoriToko(${gi})` : `toast('⛔ Login untuk mengedit')`}" ${!isLoggedIn ? 'disabled' : ''}>${icon('tag')}</button>` : ''}
+        ${list.some(i=>(i.riwayatHarga||[]).length) ? `<button class="btn-small-icon" title="Riwayat perubahan harga" onclick="event.stopPropagation(); bukaRiwayatHargaBarang(${gi})">${icon('report')}</button>` : ''}
         <button class="btn-small-icon" title="Update harga & kemasan" onclick="event.stopPropagation(); ${isLoggedIn ? `editHargaBelanjaHadiahGroup(${gi})` : `toast('⛔ Login untuk mengedit')`}" ${!isLoggedIn ? 'disabled' : ''}>${icon('pen')}</button>
       </div>
     </div>`;
@@ -530,11 +531,37 @@ async function editHargaBelanjaHadiahGroup(gi){
     if(!lanjut){ toast('Dibatalkan, harga tidak diubah'); return; }
   }
 
+  // Kalau ada item di grup ini yang statusnya SUDAH "dibeli" di checklist, harga baru
+  // ini akan mengubah retroaktif semua perhitungan (Dashboard, LPJ, total belanja)
+  // yang sudah mengandalkan harga lama — termasuk kalau nota aslinya sudah tidak ada
+  // lagi untuk dicek ulang. Tampilkan dulu harga LAMA vs BARU eksplisit di sini
+  // supaya salah ketik ketahuan SEBELUM tersimpan (bukan cuma dari riwayat sesudahnya).
+  const sudahDibeliRefs = group.refs.filter(r => isItemHadiahSudahDibeli(r.hadiahId, r.itemId));
+  if(sudahDibeliRefs.length){
+    const lanjut = confirm(`⚠️ "${group.nama}" SUDAH dicentang dibeli di checklist (${sudahDibeliRefs.length} paket).\n\nHarga lama: ${fmtRp(hargaSatuanSekarang)}/pcs\nHarga baru: ${fmtRp(hargaSatuanBaru)}/pcs\n\nMengubah harga di sini akan menimpa angka yang sudah dipakai di Dashboard & LPJ. Cek dulu apakah angka barunya benar (sesuai nota asli), bukan salah ketik — perubahan ini akan tercatat di riwayat harga. Lanjutkan?`);
+    if(!lanjut){ toast('Dibatalkan, harga tidak diubah'); return; }
+  }
+
   let count = 0, totalQty = 0;
+  const waktuUbah = new Date().toISOString();
+  const olehSiapa = (getCurrentUser() && getCurrentUser().name) || 'Tidak diketahui';
   group.refs.forEach(r => {
     const h = db.hadiahKategori.find(x=>x.id===r.hadiahId);
     const item = h && h.items.find(it=>it.id===r.itemId);
     if(item){
+      const hargaSatuanLama = Number(item.harga_satuan||0), hargaEceranLama = Number(item.harga_eceran!=null?item.harga_eceran:item.harga_satuan||0), isiPerPackLama = Number(item.isi_per_pack||1);
+      // Cuma dicatat kalau memang ada yang berubah — supaya riwayat tidak numpuk entry
+      // kosong tiap kali admin buka & Simpan tanpa mengubah angka.
+      if(hargaSatuanLama!==hargaSatuanBaru || hargaEceranLama!==hargaEceranBaru || isiPerPackLama!==isiPerPack){
+        if(!Array.isArray(item.riwayatHarga)) item.riwayatHarga = [];
+        item.riwayatHarga.push({
+          waktu: waktuUbah, oleh: olehSiapa,
+          sudahDibeliSaatDiubah: isItemHadiahSudahDibeli(r.hadiahId, r.itemId),
+          harga_satuan_lama: hargaSatuanLama, harga_satuan_baru: hargaSatuanBaru,
+          harga_eceran_lama: hargaEceranLama, harga_eceran_baru: hargaEceranBaru,
+          isi_per_pack_lama: isiPerPackLama, isi_per_pack_baru: isiPerPack,
+        });
+      }
       item.harga_satuan = hargaSatuanBaru;
       item.isi_per_pack = isiPerPack;
       item.harga_eceran = hargaEceranBaru;
@@ -557,6 +584,34 @@ async function editHargaBelanjaHadiahGroup(gi){
     toast(`✓ Harga "${group.nama}" diupdate ke ${fmtRp(hargaSatuanBaru)}/pcs (${count} paket)`);
     notifyTelegram(`✏️ Update harga belanja hadiah: ${group.nama}`, `Harga satuan baru: ${fmtRp(hargaSatuanBaru)}\nDiterapkan ke ${count} paket`, 'belanja');
   }
+}
+// Riwayat perubahan harga/kemasan — dicatat otomatis di editHargaBelanjaHadiahGroup
+// tiap kali harga_satuan/harga_eceran/isi_per_pack benar-benar berubah (lihat
+// item.riwayatHarga). Ditampilkan di sini supaya kalau ada harga yang kelihatan
+// janggal (atau dicurigai salah ketik), panitia bisa cek angka LAMA-nya tanpa
+// harus mengandalkan nota fisik yang mungkin sudah hilang.
+function bukaRiwayatHargaBarang(gi){
+  const group = (window._belanjaHadiahGroups||{})[gi];
+  if(!group || !group.refs.length){ toast('Item tidak ditemukan'); return; }
+  const entries = [];
+  group.refs.forEach(r => {
+    const h = db.hadiahKategori.find(x=>x.id===r.hadiahId);
+    const item = h && h.items.find(it=>it.id===r.itemId);
+    if(item && Array.isArray(item.riwayatHarga)){
+      item.riwayatHarga.forEach(riw => entries.push({...riw, paket: `${labelPeserta(h.kategori_peserta)} - ${labelJuara(h.juara_ke)}`}));
+    }
+  });
+  entries.sort((a,b) => (b.waktu||'').localeCompare(a.waktu||''));
+  const rowsHtml = entries.length ? entries.map(e => `
+    <div class="belanja-subitem">
+      <div class="sub-info">
+        <span>${fmtDate((e.waktu||'').slice(0,10))} · ${esc(e.oleh||'-')} · ${esc(e.paket)}${e.sudahDibeliSaatDiubah?' · <span style="color:var(--orange);">sudah dibeli saat diubah</span>':''}</span>
+        <span class="sub-qty">${fmtRp(e.harga_satuan_lama)} → ${fmtRp(e.harga_satuan_baru)}/pcs${e.harga_eceran_lama!==e.harga_eceran_baru?` · eceran ${fmtRp(e.harga_eceran_lama)} → ${fmtRp(e.harga_eceran_baru)}`:''}${e.isi_per_pack_lama!==e.isi_per_pack_baru?` · isi/pack ${e.isi_per_pack_lama} → ${e.isi_per_pack_baru}`:''}</span>
+      </div>
+    </div>`).join('') : `<div class="hint" style="padding:6px 0;">Belum ada riwayat perubahan harga.</div>`;
+  setModal(`🕘 Riwayat Harga: "${group.nama}"`, `<div class="belanja-subitem-list">${rowsHtml}</div>`, [
+    {label:'Tutup', cls:'', onclick: closeModal}
+  ]);
 }
 function tandaiSemuaBelanjaHadiah(){ 
   if (!canEditSection('belanja-hadiah')) { toast('⛔ Login untuk mengedit data'); return; }

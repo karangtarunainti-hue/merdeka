@@ -19,13 +19,9 @@ function dokumenDaftarNama(){
   db.anggota.forEach(a => { if(a.nama && a.nama.trim()) set.add(a.nama.trim()); });
   return [...set].sort((a,b)=>a.localeCompare(b));
 }
-function dokumenOptionsNama(selected){
-  const names = dokumenDaftarNama();
-  const opts = names.map(n => `<option value="${esc(n)}" ${n===selected?'selected':''}>${esc(n)}</option>`).join('');
-  const extra = (selected && !names.includes(selected))
-    ? `<option value="${esc(selected)}" selected>${esc(selected)} (tidak ada di data anggota)</option>` : '';
-  return `<option value=""${!selected?' selected':''}>— pilih nama —</option>${extra}${opts}`;
-}
+// (Dulu ada dokumenOptionsNama() untuk <select> native Pagi/Siang/Sore —
+// sekarang diganti combo dropdown custom, lihat blok "COMBO DROPDOWN PESERTA
+// JADWAL SINOMAN" di bawah, supaya senada dengan combo Koordinator Lomba.)
 
 let _dokumenTab = 'undangan';
 function gotoDokumenTab(tab){ _dokumenTab = tab; renderContent(); }
@@ -413,10 +409,10 @@ function renderJadwalSinoman(ev){
 
   const rowsEdit = d.rows.map((r,idx)=>`
     <tr>
-      <td class="num" style="width:60px;">Hari ${idx+1}</td>
-      <td><select id="js-row-${idx}-pagi" style="width:100%" onchange="jadwalSinomanSetCell(${idx},'pagi',this.value)">${dokumenOptionsNama(r.pagi)}</select></td>
-      <td><select id="js-row-${idx}-siang" style="width:100%" onchange="jadwalSinomanSetCell(${idx},'siang',this.value)">${dokumenOptionsNama(r.siang)}</select></td>
-      <td><select id="js-row-${idx}-sore" style="width:100%" onchange="jadwalSinomanSetCell(${idx},'sore',this.value)">${dokumenOptionsNama(r.sore)}</select></td>
+      <td style="width:60px;">${idx+1}</td>
+      <td>${jsComboTriggerHtml(idx,'pagi',r.pagi)}</td>
+      <td>${jsComboTriggerHtml(idx,'siang',r.siang)}</td>
+      <td>${jsComboTriggerHtml(idx,'sore',r.sore)}</td>
       <td style="width:36px;"><button class="icon-btn" onclick="jadwalSinomanRemoveRow(${idx})" title="Hapus baris">✕</button></td>
     </tr>`).join('');
 
@@ -438,7 +434,7 @@ function renderJadwalSinoman(ev){
     </div>
   </div>` : '';
 
-  const rowsPrint = d.rows.map((r,idx)=>`<tr><td class="num">${idx+1}</td><td>${esc(r.pagi)||'-'}</td><td>${esc(r.siang)||'-'}</td><td>${esc(r.sore)||'-'}</td></tr>`).join('');
+  const rowsPrint = d.rows.map((r,idx)=>`<tr><td>${idx+1}</td><td>${esc(r.pagi)||'-'}</td><td>${esc(r.siang)||'-'}</td><td>${esc(r.sore)||'-'}</td></tr>`).join('');
 
   return wrapDokumenLayout(editForm, `
   <div class="lpj-scale-wrap" id="lpj-scale-wrap">
@@ -457,7 +453,7 @@ function renderJadwalSinoman(ev){
     </div>
 
     <table class="lpj-table">
-      <thead><tr><th style="width:60px;">Hari</th><th>Pagi</th><th>Siang</th><th>Sore</th></tr></thead>
+      <thead><tr><th style="width:60px;">No</th><th>Pagi</th><th>Siang</th><th>Sore</th></tr></thead>
       <tbody>${rowsPrint || `<tr class="empty-row"><td colspan="4">Belum ada jadwal diisi.</td></tr>`}</tbody>
     </table>
   </div>
@@ -494,4 +490,148 @@ function jadwalSinomanRemoveRow(idx){
   s.jadwal_sinoman.rows.splice(idx,1);
   saveDB(); renderContent();
 }
+
+/* ============================================================
+   COMBO DROPDOWN PESERTA JADWAL SINOMAN (pengganti <select> native)
+   Kotak Pagi/Siang/Sore sebelumnya <select> polos, sekarang diganti
+   dropdown custom (tombol trigger + panel melayang + kolom cari),
+   mengikuti pola yang sama dipakai combo Koordinator Lomba
+   (js/10-lomba.js) supaya senada tema app. Bedanya di sini nama yang
+   sudah dipakai di SLOT MANAPUN (baris/kolom apa saja di jadwal ini)
+   ditampilkan nonaktif dengan badge "Sudah dipilih" — meniru pola combo
+   pilih Barang Gudang (js/17b-gudang-pinjam.js) — supaya satu orang
+   tidak bisa kepilih dobel di lebih dari satu giliran piket.
+   ============================================================ */
+function jsComboIconChevron(){
+  return `<svg class="combo-chevron" width="15" height="15" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+}
+function jsComboIconSearch(){
+  return `<svg width="15" height="15" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2" fill="none"/><path d="M21 21l-3.8-3.8" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>`;
+}
+function jsComboIconCheck(){
+  return `<svg class="combo-check" width="15" height="15" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+}
+function jsComboTriggerHtml(idx, field, value){
+  return `<div class="field combo" style="margin-bottom:0; position:relative;">
+    <button type="button" id="js-combo-trigger-${idx}-${field}" class="combo-trigger js-combo-trigger${value?'':' placeholder'}" onclick="toggleJsCombo(${idx}, '${field}')">
+      <span class="combo-trigger-label">${value ? esc(value) : '-- Pilih Nama --'}</span>
+      ${jsComboIconChevron()}
+    </button>
+  </div>`;
+}
+// Nama yang sudah dipakai di slot LAIN (bukan idx+field yang sedang dibuka) —
+// dikumpulkan dari SEMUA baris & kolom (pagi/siang/sore), supaya satu nama
+// cuma boleh muncul di satu slot piket saja di seluruh jadwal ini.
+function jsComboNamaDipakai(excludeIdx, excludeField){
+  const rows = getDokumenGlobal().jadwal_sinoman.rows;
+  const set = new Set();
+  rows.forEach((r,idx)=>{
+    ['pagi','siang','sore'].forEach(f=>{
+      if(idx===excludeIdx && f===excludeField) return;
+      if(r[f]) set.add(r[f]);
+    });
+  });
+  return set;
+}
+let _jsComboOpenKey = null; // format `${idx}-${field}`
+let _jsComboPanelEl = null;
+let _jsComboSearch = '';
+function jsComboPositionPanel(trigger, panel){
+  const rect = trigger.getBoundingClientRect();
+  const vw = window.innerWidth, vh = window.innerHeight;
+  const panelWidth = Math.min(vw - 16, Math.max(rect.width, 260));
+  panel.style.left = Math.max(8, rect.left) + 'px';
+  panel.style.width = panelWidth + 'px';
+  const panelH = panel.offsetHeight || 300;
+  const spaceBelow = vh - rect.bottom;
+  const spaceAbove = rect.top;
+  if(spaceBelow < panelH + 12 && spaceAbove > spaceBelow){
+    panel.style.top = Math.max(8, rect.top - panelH - 6) + 'px';
+  } else {
+    panel.style.top = (rect.bottom + 6) + 'px';
+  }
+  const maxLeft = vw - panelWidth - 8;
+  if(parseFloat(panel.style.left) > maxLeft) panel.style.left = Math.max(8, maxLeft) + 'px';
+}
+function jsComboOptionsHtml(idx, field){
+  const names = dokumenDaftarNama();
+  const d = getDokumenGlobal().jadwal_sinoman;
+  const selectedNama = (d.rows[idx] && d.rows[idx][field]) || '';
+  const dipakai = jsComboNamaDipakai(idx, field);
+  const key = _jsComboSearch.trim().toLowerCase();
+  const filtered = key ? names.filter(n=>n.toLowerCase().includes(key)) : names;
+  const optionsHtml = filtered.map(n=>{
+    const isSelected = n===selectedNama;
+    const nonAktif = dipakai.has(n) && !isSelected;
+    const namaEnc = encodeURIComponent(n);
+    return `<button type="button" class="combo-option${nonAktif?' disabled':''}${isSelected?' selected':''}"
+      ${nonAktif?'disabled':`onclick="selectJsComboNama(${idx}, '${field}', decodeURIComponent('${namaEnc}'))"`}>
+      <span class="combo-option-main"><span class="combo-option-name">${esc(n)}</span></span>
+      <span class="combo-option-side">${nonAktif?'<span class="badge stok-habis">Sudah dipilih</span>':''}${isSelected?jsComboIconCheck():''}</span>
+    </button>`;
+  }).join('');
+  const clearHtml = selectedNama ? `<button type="button" class="combo-option" onclick="selectJsComboNama(${idx}, '${field}', '')">
+      <span class="combo-option-main"><span class="combo-option-name" style="color:var(--ink-soft);">— Kosongkan pilihan —</span></span>
+    </button>` : '';
+  return clearHtml + (optionsHtml || `<div class="combo-empty">${key ? 'Tidak ditemukan.' : 'Belum ada data di Database Anggota.'}</div>`);
+}
+function jsComboPanelHtml(idx, field){
+  return `
+    <div class="combo-search-wrap">
+      <span class="combo-search-icon">${jsComboIconSearch()}</span>
+      <input type="text" class="combo-search-input" placeholder="Cari nama anggota..." value="${esc(_jsComboSearch)}" oninput="onJsComboSearch(${idx}, '${field}', this.value)">
+    </div>
+    <div class="combo-list" data-combo-list>${jsComboOptionsHtml(idx, field)}</div>`;
+}
+function toggleJsCombo(idx, field){
+  const key = `${idx}-${field}`;
+  const trigger = document.getElementById(`js-combo-trigger-${key}`);
+  if(!trigger) return;
+  if(_jsComboOpenKey === key){ closeAllJsCombos(); return; }
+  closeAllJsCombos();
+  _jsComboSearch = '';
+  const panel = document.createElement('div');
+  panel.className = 'combo-panel combo-panel-floating';
+  panel.id = 'js-combo-floating';
+  panel.innerHTML = jsComboPanelHtml(idx, field);
+  document.body.appendChild(panel);
+  jsComboPositionPanel(trigger, panel);
+  requestAnimationFrame(()=>{
+    panel.classList.add('show');
+    const input = panel.querySelector('.combo-search-input');
+    if(input) input.focus();
+  });
+  trigger.classList.add('open');
+  _jsComboOpenKey = key;
+  _jsComboPanelEl = panel;
+}
+function closeAllJsCombos(){
+  if(_jsComboPanelEl){ _jsComboPanelEl.remove(); _jsComboPanelEl = null; }
+  document.querySelectorAll('.js-combo-trigger.open').forEach(t=>t.classList.remove('open'));
+  _jsComboOpenKey = null;
+}
+function onJsComboSearch(idx, field, value){
+  _jsComboSearch = value;
+  if(!_jsComboPanelEl) return;
+  const list = _jsComboPanelEl.querySelector('[data-combo-list]');
+  if(list) list.innerHTML = jsComboOptionsHtml(idx, field);
+}
+function selectJsComboNama(idx, field, value){
+  jadwalSinomanSetCell(idx, field, value);
+  closeAllJsCombos();
+  renderContent();
+}
+document.addEventListener('click', (e)=>{
+  if(e.target.closest('.combo-panel-floating') || e.target.closest('.js-combo-trigger')) return;
+  closeAllJsCombos();
+});
+window.addEventListener('resize', ()=>{
+  if(_jsComboOpenKey===null || !_jsComboPanelEl) return;
+  const trigger = document.getElementById(`js-combo-trigger-${_jsComboOpenKey}`);
+  if(!trigger || !document.body.contains(trigger)){ closeAllJsCombos(); return; }
+  jsComboPositionPanel(trigger, _jsComboPanelEl);
+});
+document.addEventListener('keydown', (e)=>{
+  if(e.key==='Escape') closeAllJsCombos();
+});
 

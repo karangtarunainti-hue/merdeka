@@ -826,7 +826,13 @@ function openHadiahModal(id){
         const qty_dibeli = matched ? Number(matched.qty_dibeli||0) : (kebutuhan!=null ? kebutuhan*qty_per_paket : qty_per_paket);
         const qty_terpakai = matched ? (matched.qty_terpakai||0) : 0;
         const id = matched ? matched.id : uid();
-        items.push({id,nama,harga_satuan,qty_dibeli,qty_per_paket,qty_terpakai});}});
+        // Pertahankan isi_per_pack/harga_eceran/riwayatHarga dari item lama kalau ada —
+        // form ini cuma punya field nama/harga/qty per paket, jadi kalau tidak disalin
+        // manual, tiap kali paket disimpan field-field yang diisi lewat "✎ Update harga
+        // & kemasan" di Belanja Hadiah (termasuk SELURUH riwayat perubahan harga) akan
+        // diam-diam hilang walau item itu tidak diubah sama sekali di form ini.
+        const extra = matched ? {isi_per_pack: matched.isi_per_pack, harga_eceran: matched.harga_eceran, riwayatHarga: matched.riwayatHarga} : {};
+        items.push({id,nama,harga_satuan,qty_dibeli,qty_per_paket,qty_terpakai,...extra});}});
       if(items.length===0){
         if(!editing){ toast('Minimal 1 item'); return; }
         if(!confirm(`Semua item dikosongkan. Paket hadiah ${labelPeserta(kategori_peserta)} - ${labelJuara(juara_ke)} akan DIHAPUS. Lanjutkan?`)) return;

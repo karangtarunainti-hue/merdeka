@@ -104,6 +104,7 @@ function renderPanduan(){
         <div class="role-info-card"><div class="ric-title">📄 Surat & Dokumen</div><div class="ric-desc">Bikin undangan, proposal, dan lembar absensi dengan cepat.</div></div>
         <div class="role-info-card"><div class="ric-title">📚 Database Anggota</div><div class="ric-desc">Data master semua anggota — bisa dicek & difilter kapan aja.</div></div>
         <div class="role-info-card"><div class="ric-title">📦 Gudang Aset</div><div class="ric-desc">Inventaris barang/aset milik desa/organisasi, lengkap sama fitur pinjam-kembalikan.</div></div>
+        <div class="role-info-card"><div class="ric-title">🔗 Tautan Penting</div><div class="ric-desc">Kumpulan link penting organisasi (grup WA, form pendaftaran, rekening donasi, dll) biar gampang dibuka siapa aja tanpa perlu nyari-nyari lagi.</div></div>
         <div class="role-info-card"><div class="ric-title">📖 Panduan</div><div class="ric-desc">Halaman yang lagi kamu baca ini!</div></div>
         <div class="role-info-card"><div class="ric-title">👛 ${esc(getOrgNamaKas())}</div><div class="ric-desc">Buku kas umum organisasi, terpisah dari kas per event.</div></div>
         <div class="role-info-card"><div class="ric-title">🪙 Dana Sosial</div><div class="ric-desc">Iuran bulanan Rp 5.000/anggota, terpisah dari ${esc(getOrgNamaKas())}. Ada tabel khusus untuk anggota Perantauan yang bayarnya rapel setahun sekali.</div></div>

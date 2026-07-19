@@ -164,6 +164,7 @@ function hapusKategoriTokoKustom(key){
   s.kategoriToko.customCategories = s.kategoriToko.customCategories.filter(k=>k.key!==key);
   Object.keys(s.kategoriToko.keywords).forEach(kw => { if(s.kategoriToko.keywords[kw]===key) delete s.kategoriToko.keywords[kw]; });
   saveDB(); renderContent(); toast('Kategori dihapus');
+  bukaModalKelolaKategoriToko(); // refresh modal ini juga, bukan cuma #content di belakangnya
 }
 // Tambah/timpa satu kata kunci -> kategori (bawaan atau kustom). Dipakai baik
 // dari modal "Kelola Kategori Toko" maupun jalur cepat "Masukkan kategori"
@@ -179,6 +180,7 @@ function hapusKataKunciKategoriToko(kataKunci){
   const s = getSettings();
   delete s.kategoriToko.keywords[kataKunci];
   saveDB(); renderContent(); toast('Kata kunci dihapus');
+  bukaModalKelolaKategoriToko(); // refresh modal ini juga, bukan cuma #content di belakangnya
 }
 
 // Opsi <select> kategori (bawaan + kustom, TANPA "Lainnya" — kata kunci baru
@@ -243,7 +245,7 @@ function bukaModalKelolaKategoriToko(){
   const kwRowsHtml = Object.keys(keywords).length ? Object.keys(keywords).sort().map(kw => `
     <div class="belanja-subitem">
       <div class="sub-info"><span>"${esc(kw)}" → ${esc(infoKategoriToko(keywords[kw]).label)}</span></div>
-      <button class="btn-small-icon danger-text" title="Hapus kata kunci" onclick="hapusKataKunciKategoriToko('${esc(kw).replace(/'/g,"\\'")}')">✕</button>
+      <button class="btn-small-icon danger-text" title="Hapus kata kunci" onclick="hapusKataKunciKategoriToko('${esc(kw.replace(/\\/g,'\\\\').replace(/'/g,"\\'"))}')">✕</button>
     </div>`).join('') : `<div class="hint" style="padding:6px 0;">Belum ada kata kunci kustom.</div>`;
 
   setModal('⚙️ Kelola Kategori Toko', `

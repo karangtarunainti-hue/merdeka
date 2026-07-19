@@ -301,16 +301,23 @@ async function loadDB(){
         // MENIMPA data asli di server. Sekarang jadwal_sinoman ikut disalin balik
         // seperti field dokumen lainnya. jadwal_petugas (blok kedua, lihat
         // js/14-dokumen.js) ikut diberi perlakuan sama sejak awal dibuat, supaya
-        // tidak kena bug yang sama.
+        // tidak kena bug yang sama. jadwal_extra (tabel tambahan dinamis, lihat
+        // jadwalAddExtraTable() di js/14-dokumen.js) SEMPAT kena bug yang sama persis
+        // saat pertama dibuat — lupa dimasukkan ke whitelist ini — makanya tabel
+        // tambahan hilang begitu di-refresh atau setelah 20 detik idle. Sudah
+        // ditambahkan di bawah supaya field baru serupa di masa depan cukup ditambah
+        // di sini, tidak lupa lagi.
         result.dokumenGlobal = {
           undangan: dokumenGlobalRes.data.dokumen.undangan || {},
           proposal: dokumenGlobalRes.data.dokumen.proposal || {},
           absensi: dokumenGlobalRes.data.dokumen.absensi || {},
           jadwal_sinoman: dokumenGlobalRes.data.dokumen.jadwal_sinoman || undefined,
           jadwal_petugas: dokumenGlobalRes.data.dokumen.jadwal_petugas || undefined,
+          jadwal_extra: dokumenGlobalRes.data.dokumen.jadwal_extra || undefined,
         };
         if(!result.dokumenGlobal.jadwal_sinoman) delete result.dokumenGlobal.jadwal_sinoman;
         if(!result.dokumenGlobal.jadwal_petugas) delete result.dokumenGlobal.jadwal_petugas;
+        if(!result.dokumenGlobal.jadwal_extra) delete result.dokumenGlobal.jadwal_extra;
       }
       _lastKnownDokumenGlobalUpdatedAt = dokumenGlobalRes.data ? (dokumenGlobalRes.data.updated_at || null) : null;
     }

@@ -637,6 +637,11 @@
   .badge.role-admin{background:var(--gold-tint); color:var(--kategori-text); border:1px solid #e3d0a0;}
   .badge.role-petugas{background:var(--ungu-tint); color:var(--ungu); border:1px solid #d4c4dd;}
   .badge.role-user{background:var(--biru-tint); color:var(--biru); border:1px solid #bfd0e0;}
+  /* Badge "Koord" di Jadwal Sinoman (js/14-dokumen.js) — dipakai di editor
+     (jelas warnanya di layar) DAN di area cetak (perlu print-color-adjust
+     supaya background-nya tetap muncul saat di-print/simpan PDF, bukan cuma
+     teks polos — default browser suka membuang warna background saat cetak). */
+  .koord-badge{display:inline-block; padding:2px 9px; margin-left:6px; border-radius:20px; font-size:10.5px; font-weight:700; letter-spacing:.02em; white-space:nowrap; vertical-align:middle; background:var(--gold-tint); color:var(--kategori-text); border:1px solid #e3d0a0; -webkit-print-color-adjust:exact; print-color-adjust:exact;}
 
   .mini-tag-list{display:flex; flex-wrap:wrap; gap:5px;}
   .mini-tag{

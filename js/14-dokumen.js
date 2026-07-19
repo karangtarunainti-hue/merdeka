@@ -539,7 +539,7 @@ function renderJadwalBlockTableEdit(blockKey){
 
   const rowsEdit = d.rows.map((r,idx)=>{
     const cells = fields.map(f=>{
-      const koordBadge = idx===0 ? `<span class="badge role-admin" style="margin-left:6px; white-space:nowrap;">Koord</span>` : '';
+      const koordBadge = idx===0 ? `<span class="koord-badge">Koord</span>` : '';
       return `<td style="display:flex; align-items:center; gap:0;">${blkComboTriggerHtml(blockKey, idx, f.key, r[f.key])}${koordBadge}</td>`;
     }).join('');
     return `
@@ -597,7 +597,8 @@ function renderJadwalBlockTablePrint(blockKey){
     const cells = fields.map(f=>{
       const val = r[f.key];
       if(!val) return `<td>-</td>`;
-      return `<td>${esc(val)}${idx===0 ? ' (Koord)' : ''}</td>`;
+      const koordBadge = idx===0 ? `<span class="koord-badge">Koord</span>` : '';
+      return `<td>${esc(val)}${koordBadge}</td>`;
     }).join('');
     return `<tr><td>${idx+1}</td>${cells}</tr>`;
   }).join('');

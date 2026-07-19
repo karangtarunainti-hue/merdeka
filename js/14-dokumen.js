@@ -410,39 +410,33 @@ function liveAbsensi(field, value){
    tambah satu entri baru di JADWAL_BLOCKS, tidak perlu duplikat kode. */
 const JADWAL_BLOCKS = {
   jadwal_sinoman: {
-    headerTitle: 'JADWAL SINOMAN',
-    panelTitle: '✏️ Isi Jadwal Sinoman',
+    subLabel: 'Piket Sinoman (Pagi / Siang / Sore)',
     fields: [
       {key:'pagi', label:'Pagi'},
       {key:'siang', label:'Siang'},
       {key:'sore', label:'Sore'},
     ],
-    prevPrefix: 'js',
-    judulPlaceholder: 'Contoh: 17-an Tahun 2026',
-    tempatPlaceholder: 'Balai Desa / Rumah Bapak RT 02',
   },
   jadwal_petugas: {
-    headerTitle: 'JADWAL PETUGAS',
-    panelTitle: '✏️ Isi Jadwal Petugas',
+    subLabel: 'Petugas',
     fields: [
       {key:'a', label:'Petugas A'},
       {key:'b', label:'Petugas B'},
       {key:'c', label:'Petugas C'},
     ],
-    prevPrefix: 'jp',
-    judulPlaceholder: 'Contoh: Ronda Malam Takbiran',
-    tempatPlaceholder: 'Pos Kamling / Balai RT',
   },
 };
+// Judul acara & tempat dulunya disimpan terpisah per blok (jadwal_sinoman
+// vs jadwal_petugas), padahal keduanya selalu satu acara yang sama —
+// cuma beda divisi (piket vs petugas). Sekarang keduanya digabung jadi
+// satu editor & satu kop cetak; sumber datanya tetap disimpan di
+// s.jadwal_sinoman.judul/.tempat (dicermin ke jadwal_petugas biar data
+// lama yang mungkin masih kebaca dari sana tetap sinkron).
 
 function renderJadwalSinoman(ev){
   const isLoggedIn = !!getCurrentUser();
-  const editForm = isLoggedIn
-    ? Object.keys(JADWAL_BLOCKS).map(blockKey=>renderJadwalBlockEditForm(ev, blockKey)).join('')
-    : '';
-  const printInner = Object.keys(JADWAL_BLOCKS)
-    .map(blockKey=>renderJadwalBlockPrintInner(ev, blockKey))
-    .join('<div class="jadwal-block-gap no-print"></div>');
+  const editForm = isLoggedIn ? renderJadwalMergedEditForm(ev) : '';
+  const printInner = renderJadwalMergedPrintInner(ev);
 
   return wrapDokumenLayout(editForm, `
   <div class="lpj-scale-wrap" id="lpj-scale-wrap">
@@ -453,10 +447,29 @@ function renderJadwalSinoman(ev){
   ${isLoggedIn ? `<div class="lpj-toolbar no-print"><button class="btn small" onclick="window.print()">🖨️ Cetak / Simpan sebagai PDF</button></div>` : ''}`);
 }
 
-function renderJadwalBlockEditForm(ev, blockKey){
+function renderJadwalMergedEditForm(ev){
+  const sD = getDokumenGlobal().jadwal_sinoman;
+  const judulDefault = sD.judul || (ev ? ev.nama : '');
+  const tablesHtml = Object.keys(JADWAL_BLOCKS).map(blockKey=>renderJadwalBlockTableEdit(blockKey)).join('');
+
+  return `
+  <div class="panel no-print">
+    <div class="panel-head"><h3>✏️ Isi Jadwal Sinoman</h3></div>
+    <div class="panel-body">
+      <div class="field-row">
+        <div class="field"><label>Judul Acara</label><input id="doc-js-judul" value="${esc(judulDefault)}" placeholder="Contoh: 17-an Tahun 2026" oninput="liveJadwalMerged('judul', this.value)"></div>
+        <div class="field"><label>Tempat</label><input id="doc-js-tempat" value="${esc(sD.tempat||'')}" placeholder="Balai Desa / Rumah Bapak RT 02" oninput="liveJadwalMerged('tempat', this.value)"></div>
+      </div>
+
+      <div class="field-hint" style="color:var(--ink-soft); font-size:12.5px; margin:16px 0 6px;">✅ Tersimpan otomatis saat Anda mengetik. Nama dipilih dari Database Anggota juga tersimpan otomatis.</div>
+      ${tablesHtml}
+    </div>
+  </div>`;
+}
+
+function renderJadwalBlockTableEdit(blockKey){
   const cfg = JADWAL_BLOCKS[blockKey];
   const d = getDokumenGlobal()[blockKey];
-  const judulDefault = d.judul || (ev ? ev.nama : '');
   const theadCells = cfg.fields.map(f=>`<th>${esc(f.label)}</th>`).join('');
   const colgroupMiddle = cfg.fields.map(()=>'<col>').join('');
 
@@ -471,34 +484,21 @@ function renderJadwalBlockEditForm(ev, blockKey){
   }).join('');
 
   return `
-  <div class="panel no-print">
-    <div class="panel-head"><h3>${cfg.panelTitle}</h3></div>
-    <div class="panel-body">
-      <div class="field-row">
-        <div class="field"><label>Judul Acara</label><input id="doc-${cfg.prevPrefix}-judul" value="${esc(judulDefault)}" placeholder="${esc(cfg.judulPlaceholder)}" oninput="liveJadwalBlock('${blockKey}', 'judul', this.value)"></div>
-        <div class="field"><label>Tempat</label><input id="doc-${cfg.prevPrefix}-tempat" value="${esc(d.tempat||'')}" placeholder="${esc(cfg.tempatPlaceholder)}" oninput="liveJadwalBlock('${blockKey}', 'tempat', this.value)"></div>
-      </div>
-
-      <div class="field-hint" style="color:var(--ink-soft); font-size:12.5px; margin:16px 0 6px;">✅ Tersimpan otomatis saat Anda mengetik. Nama dipilih dari Database Anggota juga tersimpan otomatis.</div>
-      <table class="lpj-table js-edit-table">
-        <colgroup><col style="width:36px;">${colgroupMiddle}<col style="width:36px;"></colgroup>
-        <thead><tr><th></th>${theadCells}<th></th></tr></thead>
-        <tbody>${rowsEdit}</tbody>
-      </table>
-      <button class="btn secondary small" onclick="jadwalBlockAddRow('${blockKey}')">+ Tambah Baris</button>
-    </div>
-  </div>`;
+    <div class="jadwal-subhead" style="font-weight:600; margin:18px 0 6px;">${esc(cfg.subLabel)}</div>
+    <table class="lpj-table js-edit-table">
+      <colgroup><col style="width:36px;">${colgroupMiddle}<col style="width:36px;"></colgroup>
+      <thead><tr><th></th>${theadCells}<th></th></tr></thead>
+      <tbody>${rowsEdit}</tbody>
+    </table>
+    <button class="btn secondary small" onclick="jadwalBlockAddRow('${blockKey}')">+ Tambah Baris ${esc(cfg.subLabel)}</button>`;
 }
 
-function renderJadwalBlockPrintInner(ev, blockKey){
-  const cfg = JADWAL_BLOCKS[blockKey];
-  const d = getDokumenGlobal()[blockKey];
-  const judulDefault = d.judul || (ev ? ev.nama : '');
-  const theadCells = cfg.fields.map(f=>`<th>${esc(f.label)}</th>`).join('');
-  const rowsPrint = d.rows.map((r,idx)=>{
-    const cells = cfg.fields.map(f=>`<td>${esc(r[f.key])||'-'}</td>`).join('');
-    return `<tr><td>${idx+1}</td>${cells}</tr>`;
-  }).join('');
+function renderJadwalMergedPrintInner(ev){
+  const sD = getDokumenGlobal().jadwal_sinoman;
+  const judulDefault = sD.judul || (ev ? ev.nama : '');
+  const tablesHtml = Object.keys(JADWAL_BLOCKS)
+    .map(blockKey=>renderJadwalBlockTablePrint(blockKey))
+    .join('<div class="jadwal-block-gap no-print"></div>');
 
   return `
     <div class="lpj-header">
@@ -506,29 +506,43 @@ function renderJadwalBlockPrintInner(ev, blockKey){
         <img src="${esc(getOrgLogo())}" alt="Logo ${esc(getOrgNama())}" class="lpj-logo">
         <div class="lpj-header-text">
           <div class="lpj-eyebrow">${esc(getOrgNama())}</div>
-          <h2>${esc(cfg.headerTitle)}</h2>
-          <div class="lpj-sub" id="${cfg.prevPrefix}-prev-judul">${esc(judulDefault||'-')}</div>
-          <div class="lpj-meta" id="${cfg.prevPrefix}-prev-tempat">${d.tempat ? `Tempat: ${esc(d.tempat)}` : ''}</div>
+          <h2>JADWAL SINOMAN</h2>
+          <div class="lpj-sub" id="js-prev-judul">${esc(judulDefault||'-')}</div>
+          <div class="lpj-meta" id="js-prev-tempat">${sD.tempat ? `Tempat: ${esc(sD.tempat)}` : ''}</div>
         </div>
         <div class="lpj-header-spacer" aria-hidden="true"></div>
       </div>
     </div>
 
+    ${tablesHtml}`;
+}
+
+function renderJadwalBlockTablePrint(blockKey){
+  const cfg = JADWAL_BLOCKS[blockKey];
+  const d = getDokumenGlobal()[blockKey];
+  const theadCells = cfg.fields.map(f=>`<th>${esc(f.label)}</th>`).join('');
+  const rowsPrint = d.rows.map((r,idx)=>{
+    const cells = cfg.fields.map(f=>`<td>${esc(r[f.key])||'-'}</td>`).join('');
+    return `<tr><td>${idx+1}</td>${cells}</tr>`;
+  }).join('');
+
+  return `
+    <div class="jadwal-print-subhead" style="font-weight:600; margin:14px 0 6px;">${esc(cfg.subLabel)}</div>
     <table class="lpj-table">
       <thead><tr><th style="width:60px;">No</th>${theadCells}</tr></thead>
       <tbody>${rowsPrint || `<tr class="empty-row"><td colspan="${cfg.fields.length+1}">Belum ada jadwal diisi.</td></tr>`}</tbody>
     </table>`;
 }
 
-function liveJadwalBlock(blockKey, field, value){
+function liveJadwalMerged(field, value){
   if (!canEditSection('dokumen')) { toast('⛔ Login untuk mengedit data'); return; }
   const s = getDokumenGlobal();
-  s[blockKey][field] = value;
+  s.jadwal_sinoman[field] = value;
+  s.jadwal_petugas[field] = value;
   saveDB();
 
-  const cfg = JADWAL_BLOCKS[blockKey];
-  if(field === 'judul') setPrevText(`${cfg.prevPrefix}-prev-judul`, value || '-');
-  else if(field === 'tempat') setPrevText(`${cfg.prevPrefix}-prev-tempat`, value ? `Tempat: ${value}` : '');
+  if(field === 'judul') setPrevText('js-prev-judul', value || '-');
+  else if(field === 'tempat') setPrevText('js-prev-tempat', value ? `Tempat: ${value}` : '');
 }
 function jadwalBlockSetCell(blockKey, idx, field, value){
   if (!canEditSection('dokumen')) { toast('⛔ Login untuk mengedit data'); return; }

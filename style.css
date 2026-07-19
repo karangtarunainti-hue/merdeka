@@ -2302,10 +2302,66 @@ table.ds-rekap-table td.num, table.ds-rekap-table th:not(:first-child){ text-ali
      tiap kolom bulan lebar tetap 34px (cukup buat tombol 26px + jarak), lalu
      kasih tabelnya min-width supaya browser TIDAK memampatkan kolom, dan
      biarkan .panel-body.flush yang sudah overflow-x:auto (lihat di atas)
-     yang menangani scroll horizontal-nya. */
+     yang menangani scroll horizontal-nya.
+     CATATAN: aturan ini sekarang hanya relevan untuk tabel Perantauan &
+     Kelola Anggota (yang masih tabel biasa) — tabel Daftar Bayar reguler
+     (12 kolom bulan, sumber masalah tumpuk di HP) sudah diganti mode kartu
+     lewat .ds-daftar-bayar-desktop/.ds-cards-mobile di bawah, jadi baris
+     :has(th.ds-bulan-h) di bawah ini praktis tidak lagi kena elemen manapun
+     — dibiarkan saja (tidak berbahaya) daripada menghapus & berisiko
+     mempengaruhi tempat lain yang belum ketahuan. */
   table.ds-table:has(th.ds-bulan-h){ width:588px; min-width:588px; }
   table.ds-table th.ds-bulan-h, table.ds-table td.ds-cell:not(.ds-tunggakan):not(.ds-status){
     width:34px; min-width:34px; padding:3px !important;
   }
   .ds-toggle{ width:26px; height:26px; font-size:12px; gap:0; margin:0 auto; padding:0; }
+}
+
+/* ============================================================
+   MODE KARTU — Daftar Bayar Dana Sosial di layar sempit (HP)
+   Tabel 12-kolom-bulan yang di atas dipaksa muat pakai lebar tetap +
+   scroll horizontal (lihat catatan di @media(max-width:640px) di atas)
+   ternyata tetap bikin tombol Sudah/Belum kelihatan tumpuk/pepet di HP
+   asli (beda device beda rendering font/scrollbar). Solusi yang lebih
+   tahan: di layar sempit, tabel itu disembunyikan total dan diganti
+   tampilan kartu — satu anggota = satu kartu, grid 4 kolom berisi 12
+   tombol bulan kecil (chip) yang selalu MUAT lebar layar tanpa scroll
+   ke samping sama sekali. Markup kartunya dibuat di JS oleh
+   buatKartuBayar() (lihat js/22-dana-sosial.js), pakai fungsi & data
+   yang sama persis dengan versi tabel supaya perilaku klik/toggle tetap
+   identik — cuma tampilannya beda.
+   Di layar besar (>640px) kartu ini disembunyikan & tabel yang tampil
+   seperti semula (dua-duanya selalu dirender, mana yang kelihatan
+   diatur murni lewat CSS, tanpa perlu deteksi ukuran layar di JS).
+   ============================================================ */
+.ds-cards-mobile{ display:none; }
+.ds-cards-empty{
+  padding:22px 14px; text-align:center; color:var(--ink-soft); font-size:13px;
+}
+@media (max-width:640px){
+  .ds-daftar-bayar-desktop{ display:none; }
+  .ds-cards-mobile{ display:flex; flex-direction:column; gap:9px; padding:2px; }
+  .ds-card{
+    border:1px solid var(--garis); border-radius:10px; background:var(--surface);
+    padding:10px 12px 11px;
+  }
+  .ds-card-head{ display:flex; align-items:center; gap:8px; margin-bottom:9px; }
+  .ds-card-no{ flex:none; width:18px; font-size:11px; font-weight:700; color:var(--ink-soft); }
+  .ds-card-nama{
+    flex:1; min-width:0; font-weight:700; font-size:13.5px;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .ds-card-tunggakan{ flex:none; font-size:12px; }
+  .ds-chip-grid{ display:grid; grid-template-columns:repeat(4, 1fr); gap:6px; }
+  .ds-chip{
+    display:flex; align-items:center; justify-content:center; gap:3px;
+    height:32px; border-radius:7px; border:1.5px solid var(--garis);
+    background:var(--surface); color:var(--ink); font-weight:700; font-size:11px;
+    cursor:pointer;
+  }
+  .ds-chip.lunas{ background:rgba(47,125,90,.1); border-color:rgba(47,125,90,.28); }
+  .ds-chip.belum{ background:rgba(163,38,56,.06); border-color:rgba(163,38,56,.2); }
+  .ds-chip.ds-chip-muted{ border:none; background:transparent; color:var(--abu); cursor:default; font-weight:400; }
+  .ds-chip:disabled{ cursor:default; opacity:.85; }
+  .ds-chip-mark{ font-size:11px; line-height:1; }
 }

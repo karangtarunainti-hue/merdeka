@@ -458,6 +458,44 @@ function renderDanaSosial(){
 
   const rowsReguler = buatBarisBayar(anggotaReguler);
 
+  // Versi kartu (mobile) dari tabel Daftar Bayar reguler — dipakai di layar
+  // sempit (lihat .ds-cards-mobile/.ds-daftar-bayar-desktop di CSS) supaya
+  // tidak perlu scroll ke samping untuk 12 kolom bulan. Tiap anggota jadi
+  // satu kartu dengan grid 4 kolom berisi 12 tombol bulan (chip kecil),
+  // memakai fungsi bantu & data yang SAMA (isWajibDanaSosial/
+  // getDanaSosialBayar/hitungTunggakanDanaSosial/toggleDanaSosialBayar)
+  // seperti versi tabel, supaya perilaku klik & aturan tetap identik —
+  // cuma tampilannya yang beda.
+  function buatKartuBayar(list){
+    return list.map((a, idx) => {
+      const chips = DANA_SOSIAL_BULAN_LABEL.map((l, i) => {
+        const bulan = i + 1;
+        if (!isWajibDanaSosial(a, tahun, bulan)){
+          return `<span class="ds-chip ds-chip-muted" title="${esc(a.nama)} · ${l} ${tahun} — Belum gabung">${l}</span>`;
+        }
+        const rec = getDanaSosialBayar(a.id, tahun, bulan);
+        const lunas = !!(rec && rec.lunas);
+        const titleTxt = `${esc(a.nama)} · ${l} ${tahun} — ${lunas ? 'Lunas (ketuk untuk batalkan)' : 'Belum bayar (ketuk untuk tandai lunas)'}${lunas && rec && rec.diubah_oleh ? ` · ditandai oleh ${esc(rec.diubah_oleh)}` : ''}`;
+        return `<button type="button" class="ds-chip ${lunas?'lunas':'belum'}" ${canEdit?`onclick="toggleDanaSosialBayar('${a.id}',${tahun},${bulan})"`:'disabled'} title="${titleTxt}"><span class="ds-chip-mark">${lunas?'✓':''}</span>${l}</button>`;
+      }).join('');
+      const tunggakan = hitungTunggakanDanaSosial(a, tahun);
+      const tunggakanCell = !tunggakan.adaBulanJatuhTempo
+        ? `<span class="ds-toggle-mono ds-muted" style="font-size:11.5px;">Belum jatuh tempo</span>`
+        : (tunggakan.bulanBelum === 0
+          ? `<span class="ds-lunas-tag">Lunas</span>`
+          : `<span class="${tunggakan.bulanBelum>1?'ds-tunggakan-angka lebih':'ds-tunggakan-angka'}">${fmtRp(tunggakan.total)}</span>`);
+      return `<div class="ds-card">
+        <div class="ds-card-head">
+          <span class="ds-card-no">${idx+1}</span>
+          <span class="ds-card-nama">${esc(a.nama)}</span>
+          <span class="ds-card-tunggakan">${tunggakanCell}</span>
+        </div>
+        <div class="ds-chip-grid">${chips}</div>
+      </div>`;
+    }).join('');
+  }
+  const cardsReguler = buatKartuBayar(anggotaReguler);
+
   function buatBarisPerantauanTahunan(list){
     return list.map((a, idx) => {
       const status = statusLunasTahunPerantauan(a, tahun);
@@ -543,11 +581,14 @@ function renderDanaSosial(){
       </div>
     </div>
     <div class="panel-body flush">
-      <div style="overflow-x:auto; -webkit-overflow-scrolling:touch;">
+      <div class="ds-daftar-bayar-desktop" style="overflow-x:auto; -webkit-overflow-scrolling:touch;">
         <table class="ds-table ds-has-no">
           <thead><tr><th class="ds-no-h">No</th><th class="ds-nama-h">Nama</th>${theadBulan}<th class="ds-tunggakan-h">Harus Bayar</th></tr></thead>
           <tbody>${rowsReguler || `<tr class="empty-row"><td colspan="15">Belum ada anggota Dana Sosial. ${canEdit?'Buka tab Kelola Anggota untuk mulai.':'Hanya role tertentu yang bisa menambah anggota.'}</td></tr>`}</tbody>
         </table>
+      </div>
+      <div class="ds-cards-mobile">
+        ${cardsReguler || `<div class="ds-cards-empty">Belum ada anggota Dana Sosial. ${canEdit?'Buka tab Kelola Anggota untuk mulai.':'Hanya role tertentu yang bisa menambah anggota.'}</div>`}
       </div>
     </div>
   </div>

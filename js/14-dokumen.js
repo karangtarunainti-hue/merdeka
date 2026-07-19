@@ -545,6 +545,12 @@ function renderJadwalMergedEditForm(ev){
         <div class="field"><label>Judul Acara</label><input id="doc-js-judul" value="${esc(judulDefault)}" placeholder="Contoh: 17-an Tahun 2026" oninput="liveJadwalMerged('judul', this.value)"></div>
         <div class="field"><label>Tempat</label><input id="doc-js-tempat" value="${esc(sD.tempat||'')}" placeholder="Balai Desa / Rumah Bapak RT 02" oninput="liveJadwalMerged('tempat', this.value)"></div>
       </div>
+      <div class="field-row">
+        <div class="field"><label>Hari</label><input id="doc-js-hari" value="${esc(sD.hari||'')}" placeholder="Minggu" oninput="liveJadwalMerged('hari', this.value)"></div>
+        <div class="field"><label>Tanggal</label><input type="date" id="doc-js-tanggal" value="${esc(sD.tanggal||'')}" oninput="liveJadwalMerged('tanggal', this.value)"></div>
+      </div>
+      <div class="field"><label>Nama Ketua Karang Taruna</label><input id="doc-js-nama-ketua" value="${esc(sD.nama_ketua||'')}" placeholder="cth. Budi Santoso" oninput="liveJadwalMerged('nama_ketua', this.value)"></div>
+      <div class="field-hint" style="color:var(--ink-soft); font-size:12px; margin-top:2px;">Nama ini dipakai untuk teks pengesahan di bagian bawah lembar cetak.</div>
 
       <div class="field-hint" style="color:var(--ink-soft); font-size:12.5px; margin:16px 0 6px;">✅ Tersimpan otomatis saat Anda mengetik. Nama dipilih dari Database Anggota juga tersimpan otomatis.</div>
       ${tablesHtml}
@@ -585,7 +591,7 @@ function renderJadwalBlockTableEdit(blockKey){
   }
 
   return `
-    <div style="display:flex; align-items:center; gap:8px; margin:18px 0 6px;">
+    <div style="display:flex; align-items:center; gap:8px; margin:18px 0 12px;">
       <input class="jadwal-subhead-input" id="doc-subhead-${blockKey}" value="${esc(jadwalSubLabel(blockKey))}" placeholder="Judul bagian, mis. Piket Sinoman" oninput="liveJadwalSubLabel('${blockKey}', this.value)" style="flex:1; min-width:0; font-weight:600; border:none; border-bottom:1px dashed var(--line); background:transparent; font-size:12.5px; font-family:inherit; color:inherit; padding:4px 0;">
       ${hapusTabelBtn}
     </div>
@@ -601,6 +607,7 @@ function renderJadwalMergedPrintInner(ev){
   const sD = getDokumenGlobal().jadwal_sinoman;
   const judulDefault = sD.judul || (ev ? ev.nama : '');
   const tablesHtml = getJadwalBlockKeys().map(blockKey=>renderJadwalBlockTablePrint(blockKey)).join('');
+  const hariTanggalText = jadwalHariTanggalText(sD);
 
   return `
     <div class="lpj-header">
@@ -611,12 +618,34 @@ function renderJadwalMergedPrintInner(ev){
           <h2>JADWAL SINOMAN</h2>
           <div class="lpj-sub" id="js-prev-judul">${esc(judulDefault||'-')}</div>
           <div class="lpj-meta" id="js-prev-tempat">${sD.tempat ? `Tempat: ${esc(sD.tempat)}` : ''}</div>
+          <div class="lpj-meta" id="js-prev-haritanggal">${esc(hariTanggalText)}</div>
         </div>
         <div class="lpj-header-spacer" aria-hidden="true"></div>
       </div>
     </div>
 
-    ${tablesHtml}`;
+    ${tablesHtml}
+
+    <div class="lpj-signature" style="justify-content:flex-end;">
+      <div class="surat-ttd">
+        <div>Ditetapkan oleh Ketua Karang Taruna</div>
+        <div id="js-prev-tanggal-ttd">${sD.tanggal ? esc(fmtDate(sD.tanggal)) : '-'}</div>
+        <div class="surat-ttd-space"></div>
+        <div><strong id="js-prev-nama-ketua">${esc(sD.nama_ketua||'(.....................)')}</strong></div>
+      </div>
+    </div>`;
+}
+// Gabungan teks "Hari, Tanggal" untuk baris meta di kop cetak — Hari
+// (bebas ketik) dan Tanggal (date picker, diformat lewat fmtDate) bisa diisi
+// salah satu saja atau keduanya. Mengembalikan teks MENTAH (belum di-esc)
+// supaya bisa dipakai baik lewat esc() di template HTML awal, maupun lewat
+// textContent (setPrevText) saat live update — textContent sudah otomatis
+// aman dari HTML injection tanpa perlu esc lagi.
+function jadwalHariTanggalText(sD){
+  const parts = [];
+  if(sD.hari) parts.push(sD.hari);
+  if(sD.tanggal) parts.push(fmtDate(sD.tanggal));
+  return parts.length ? `Hari, Tanggal: ${parts.join(', ')}` : '';
 }
 
 function renderJadwalBlockTablePrint(blockKey){
@@ -634,7 +663,7 @@ function renderJadwalBlockTablePrint(blockKey){
   }).join('');
 
   return `
-    <div class="jadwal-print-subhead" id="js-print-subhead-${blockKey}" style="font-weight:600; font-size:12.5px; margin:26px 0 6px;">${esc(jadwalSubLabel(blockKey))}</div>
+    <div class="jadwal-print-subhead" id="js-print-subhead-${blockKey}" style="font-weight:600; font-size:12.5px; margin:26px 0 12px;">${esc(jadwalSubLabel(blockKey))}</div>
     <table class="lpj-table">
       <thead><tr><th style="width:60px;">No</th>${theadCells}</tr></thead>
       <tbody>${rowsPrint || `<tr class="empty-row"><td colspan="${fields.length+1}">Belum ada jadwal diisi.</td></tr>`}</tbody>
@@ -650,6 +679,9 @@ function liveJadwalMerged(field, value){
 
   if(field === 'judul') setPrevText('js-prev-judul', value || '-');
   else if(field === 'tempat') setPrevText('js-prev-tempat', value ? `Tempat: ${value}` : '');
+  else if(field === 'hari' || field === 'tanggal') setPrevText('js-prev-haritanggal', jadwalHariTanggalText(s.jadwal_sinoman));
+  if(field === 'tanggal') setPrevText('js-prev-tanggal-ttd', value ? fmtDate(value) : '-');
+  else if(field === 'nama_ketua') setPrevText('js-prev-nama-ketua', value || '(.....................)');
 }
 function liveJadwalSubLabel(blockKey, value){
   if (!canEditSection('dokumen')) { toast('⛔ Login untuk mengedit data'); return; }

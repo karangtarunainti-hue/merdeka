@@ -152,6 +152,8 @@ function tambahKategoriTokoKustom(label, icon){
   if(!lbl){ toast('Nama kategori wajib diisi'); return null; }
   const s = getSettings();
   const key = 'kustom_' + normNamaBarang(lbl).replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'') + '_' + Math.random().toString(36).slice(2,6);
+  const bawaanDupe = KATEGORI_TOKO_LIST.find(k=>normNamaBarang(k.label)===normNamaBarang(lbl));
+  if(bawaanDupe){ toast(`"${bawaanDupe.label}" sudah jadi kategori bawaan, pakai itu saja`); return bawaanDupe.key; }
   const dupe = s.kategoriToko.customCategories.find(k=>normNamaBarang(k.label)===normNamaBarang(lbl));
   if(dupe){ toast(`Kategori "${dupe.label}" sudah ada`); return dupe.key; }
   const cat = {key, label:lbl, icon: IKON_KATEGORI_TOKO_KUSTOM.includes(icon)?icon:'tag'};

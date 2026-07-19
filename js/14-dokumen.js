@@ -450,7 +450,16 @@ function getJadwalExtraList(){
   return s.jadwal_extra;
 }
 function getJadwalBlockKeys(){
-  return ['jadwal_sinoman', 'jadwal_petugas', ...getJadwalExtraList().map(e=>'extra_'+e.id)];
+  // 'jadwal_sinoman' selalu tabel PERTAMA dan tidak bisa dihapus (lihat
+  // renderJadwalBlockTableEdit — tombol hapus cuma dirender untuk tabel
+  // ke-2 dst). 'jadwal_petugas' adalah tabel bawaan ke-2 yang SEKARANG bisa
+  // dihapus user (ditandai flag .hidden, lihat jadwalRemoveBuiltinBlock) —
+  // makanya di-filter di sini kalau sudah dihapus, sama seperti tabel extra.
+  const s = getDokumenGlobal();
+  const keys = ['jadwal_sinoman'];
+  if(!(s.jadwal_petugas && s.jadwal_petugas.hidden)) keys.push('jadwal_petugas');
+  keys.push(...getJadwalExtraList().map(e=>'extra_'+e.id));
+  return keys;
 }
 function getJadwalBlockData(blockKey){
   if(isJadwalExtraKey(blockKey)) return getJadwalExtraList().find(e=>('extra_'+e.id)===blockKey);
@@ -493,6 +502,19 @@ function jadwalRemoveExtraTable(id){
   if(!confirm('Hapus tabel tambahan ini beserta semua isinya?')) return;
   const s = getDokumenGlobal();
   s.jadwal_extra = getJadwalExtraList().filter(e=>e.id!==id);
+  saveDB(); renderContent();
+}
+// Menghapus tabel bawaan "Jadwal Petugas" (tabel ke-2). Tabel pertama
+// (Jadwal Sinoman) sengaja TIDAK bisa dihapus — lihat renderJadwalBlockTableEdit,
+// tombol hapus cuma dirender kalau blockKey bukan tabel pertama. Datanya
+// tidak dibuang permanen, cuma ditandai .hidden supaya kalau suatu saat perlu
+// dikembalikan, isian lama (kalau ada) tidak hilang.
+function jadwalRemoveBuiltinBlock(blockKey){
+  if (!canEditSection('dokumen')) { toast('⛔ Login untuk mengedit data'); return; }
+  if(!confirm('Hapus tabel ini beserta semua isinya?')) return;
+  const d = getJadwalBlockData(blockKey);
+  if(!d) return;
+  d.hidden = true;
   saveDB(); renderContent();
 }
 
@@ -550,13 +572,21 @@ function renderJadwalBlockTableEdit(blockKey){
     </tr>`;
   }).join('');
 
-  const hapusTabelBtn = isJadwalExtraKey(blockKey)
-    ? `<button class="icon-btn" onclick="jadwalRemoveExtraTable('${blockKey.slice(6)}')" title="Hapus tabel ini">🗑️</button>`
-    : '';
+  // Tombol hapus tabel: SEMUA tabel bisa dihapus KECUALI tabel pertama
+  // (jadwal_sinoman) — lihat getJadwalBlockKeys(), jadwal_sinoman selalu
+  // berada di index 0. Tabel bawaan ke-2 (jadwal_petugas) dihapus lewat
+  // jadwalRemoveBuiltinBlock(), tabel tambahan lewat jadwalRemoveExtraTable().
+  const isFirstTable = blockKey === getJadwalBlockKeys()[0];
+  let hapusTabelBtn = '';
+  if(!isFirstTable){
+    hapusTabelBtn = isJadwalExtraKey(blockKey)
+      ? `<button class="icon-btn" onclick="jadwalRemoveExtraTable('${blockKey.slice(6)}')" title="Hapus tabel ini">🗑️</button>`
+      : `<button class="icon-btn" onclick="jadwalRemoveBuiltinBlock('${blockKey}')" title="Hapus tabel ini">🗑️</button>`;
+  }
 
   return `
     <div style="display:flex; align-items:center; gap:8px; margin:18px 0 6px;">
-      <input class="jadwal-subhead-input" id="doc-subhead-${blockKey}" value="${esc(jadwalSubLabel(blockKey))}" placeholder="Judul bagian, mis. Piket Sinoman" oninput="liveJadwalSubLabel('${blockKey}', this.value)" style="flex:1; min-width:0; font-weight:600; border:none; border-bottom:1px dashed var(--line); background:transparent; font-size:14px; font-family:inherit; color:inherit; padding:4px 0;">
+      <input class="jadwal-subhead-input" id="doc-subhead-${blockKey}" value="${esc(jadwalSubLabel(blockKey))}" placeholder="Judul bagian, mis. Piket Sinoman" oninput="liveJadwalSubLabel('${blockKey}', this.value)" style="flex:1; min-width:0; font-weight:600; border:none; border-bottom:1px dashed var(--line); background:transparent; font-size:12.5px; font-family:inherit; color:inherit; padding:4px 0;">
       ${hapusTabelBtn}
     </div>
     <table class="lpj-table js-edit-table">
@@ -604,7 +634,7 @@ function renderJadwalBlockTablePrint(blockKey){
   }).join('');
 
   return `
-    <div class="jadwal-print-subhead" id="js-print-subhead-${blockKey}" style="font-weight:600; margin:26px 0 6px;">${esc(jadwalSubLabel(blockKey))}</div>
+    <div class="jadwal-print-subhead" id="js-print-subhead-${blockKey}" style="font-weight:600; font-size:12.5px; margin:26px 0 6px;">${esc(jadwalSubLabel(blockKey))}</div>
     <table class="lpj-table">
       <thead><tr><th style="width:60px;">No</th>${theadCells}</tr></thead>
       <tbody>${rowsPrint || `<tr class="empty-row"><td colspan="${fields.length+1}">Belum ada jadwal diisi.</td></tr>`}</tbody>
@@ -694,6 +724,9 @@ function blkComboTriggerHtml(blockKey, idx, field, value){
 }
 // Nama yang sudah dipakai di slot LAIN dalam blok yang SAMA (bukan idx+field
 // yang sedang dibuka) — dikumpulkan dari semua baris & kolom blok ini saja.
+// Nilai spesial BLK_SEMUA_ANGGOTA sengaja TIDAK dimasukkan ke set ini, supaya
+// tetap bisa dipilih berkali-kali di slot mana pun (bukan "nama orang" yang
+// harus unik per slot — lihat blkComboSemuaAnggotaOptionHtml).
 function blkComboNamaDipakai(blockKey, excludeIdx, excludeField){
   const fields = getJadwalBlockFields(blockKey);
   const rows = getJadwalBlockData(blockKey).rows;
@@ -701,7 +734,7 @@ function blkComboNamaDipakai(blockKey, excludeIdx, excludeField){
   rows.forEach((r,idx)=>{
     fields.forEach(f=>{
       if(idx===excludeIdx && f.key===excludeField) return;
-      if(r[f.key]) set.add(r[f.key]);
+      if(r[f.key] && r[f.key]!==BLK_SEMUA_ANGGOTA) set.add(r[f.key]);
     });
   });
   return set;
@@ -726,6 +759,38 @@ function blkComboPositionPanel(trigger, panel){
   const maxLeft = vw - panelWidth - 8;
   if(parseFloat(panel.style.left) > maxLeft) panel.style.left = Math.max(8, maxLeft) + 'px';
 }
+// Opsi spesial "Semua Anggota" — untuk kasus 1 shift piket butuh SEMUA
+// anggota turun (bukan cuma 1-3 orang seperti biasa). Nilainya disimpan apa
+// adanya sebagai teks "Semua Anggota" di sel tabel (sama seperti nama biasa
+// atau nama manual), jadi tidak perlu ubah struktur data — cukup ditandai
+// khusus di blkComboNamaDipakai supaya boleh dipilih di banyak slot sekaligus.
+const BLK_SEMUA_ANGGOTA = 'Semua Anggota';
+function blkComboSemuaAnggotaOptionHtml(blockKey, idx, field, selectedNama){
+  const key = _blkComboSearch.trim().toLowerCase();
+  if(key && !BLK_SEMUA_ANGGOTA.toLowerCase().includes(key)) return '';
+  const isSelected = selectedNama === BLK_SEMUA_ANGGOTA;
+  return `<button type="button" class="combo-option combo-option-special${isSelected?' selected':''}" onclick="selectBlkComboNama('${blockKey}', ${idx}, '${field}', '${BLK_SEMUA_ANGGOTA}')">
+      <span class="combo-option-main"><span class="combo-option-name">👥 ${BLK_SEMUA_ANGGOTA}</span></span>
+      <span class="combo-option-side">${isSelected?blkComboIconCheck():''}</span>
+    </button>`;
+}
+// Nama manual di luar Database Anggota — untuk kasus petugas piket yang
+// bukan anggota Karang Taruna (warga tambahan, tamu, dsb). User cukup
+// mengetik nama di kolom cari; kalau nama itu belum ada persis di Database
+// Anggota, muncul opsi "Gunakan nama ini" yang menyimpan teks ketikan apa
+// adanya (bukan dari daftar), sama seperti nama dari database.
+function blkComboManualOptionHtml(blockKey, idx, field){
+  const raw = _blkComboSearch.trim();
+  if(!raw) return '';
+  if(raw.toLowerCase()===BLK_SEMUA_ANGGOTA.toLowerCase()) return '';
+  const names = dokumenDaftarNama();
+  const sudahAdaPersis = names.some(n=>n.toLowerCase()===raw.toLowerCase());
+  if(sudahAdaPersis) return '';
+  const rawEnc = encodeURIComponent(raw);
+  return `<button type="button" class="combo-option combo-option-manual" onclick="selectBlkComboNama('${blockKey}', ${idx}, '${field}', decodeURIComponent('${rawEnc}'))">
+      <span class="combo-option-main"><span class="combo-option-name">✏️ Gunakan "${esc(raw)}" (nama manual, bukan anggota)</span></span>
+    </button>`;
+}
 function blkComboOptionsHtml(blockKey, idx, field){
   const names = dokumenDaftarNama();
   const d = getJadwalBlockData(blockKey);
@@ -743,16 +808,18 @@ function blkComboOptionsHtml(blockKey, idx, field){
       <span class="combo-option-side">${nonAktif?'<span class="badge stok-habis">Sudah dipilih</span>':''}${isSelected?blkComboIconCheck():''}</span>
     </button>`;
   }).join('');
+  const manualHtml = blkComboManualOptionHtml(blockKey, idx, field);
+  const semuaAnggotaHtml = blkComboSemuaAnggotaOptionHtml(blockKey, idx, field, selectedNama);
   const clearHtml = selectedNama ? `<button type="button" class="combo-option" onclick="selectBlkComboNama('${blockKey}', ${idx}, '${field}', '')">
       <span class="combo-option-main"><span class="combo-option-name" style="color:var(--ink-soft);">— Kosongkan pilihan —</span></span>
     </button>` : '';
-  return clearHtml + (optionsHtml || `<div class="combo-empty">${key ? 'Tidak ditemukan.' : 'Belum ada data di Database Anggota.'}</div>`);
+  return clearHtml + semuaAnggotaHtml + manualHtml + (optionsHtml || `<div class="combo-empty">${key ? ((manualHtml||semuaAnggotaHtml) ? '' : 'Tidak ditemukan.') : 'Belum ada data di Database Anggota.'}</div>`);
 }
 function blkComboPanelHtml(blockKey, idx, field){
   return `
     <div class="combo-search-wrap">
       <span class="combo-search-icon">${blkComboIconSearch()}</span>
-      <input type="text" class="combo-search-input" placeholder="Cari nama anggota..." value="${esc(_blkComboSearch)}" oninput="onBlkComboSearch('${blockKey}', ${idx}, '${field}', this.value)">
+      <input type="text" class="combo-search-input" placeholder="Cari nama anggota, atau ketik nama manual..." value="${esc(_blkComboSearch)}" oninput="onBlkComboSearch('${blockKey}', ${idx}, '${field}', this.value)">
     </div>
     <div class="combo-list" data-combo-list>${blkComboOptionsHtml(blockKey, idx, field)}</div>`;
 }

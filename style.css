@@ -786,6 +786,15 @@
   .combo-option-name{font-size:13.5px; font-weight:600; overflow-wrap:break-word; white-space:normal; line-height:1.3;}
   .combo-option-side{display:flex; align-items:center; gap:8px; flex:none; padding-top:1px;}
   .combo-option-sisa{font-size:11.5px; color:var(--ink-soft); font-family:'JetBrains Mono',monospace;}
+  /* Opsi "Gunakan nama manual" di combo Jadwal Sinoman/Petugas — dibedakan
+     tipis dari opsi nama Database Anggota lewat garis atas & background. */
+  .combo-option-manual{border-top:1px dashed var(--garis); background:var(--gold-tint);}
+  .combo-option-manual:hover{background:var(--gold-tint);}
+  /* Opsi "Semua Anggota" — beda warna dari nama manual supaya gampang
+     dibedakan sekilas (biru muda vs krem/gold nama manual). */
+  .combo-option-special{border-top:1px dashed var(--garis); background:var(--accent-tint, #e8f1fb);}
+  .combo-option-special:hover{background:var(--accent-tint, #e8f1fb);}
+  .combo-option-special.selected{background:var(--gold-tint);}
   .combo-check{color:var(--gold); flex:none;}
   .combo-empty{padding:18px 10px; text-align:center; font-size:12.5px; color:var(--ink-soft);}
   .combo-hint{font-weight:400; text-transform:none; letter-spacing:0; color:var(--abu); font-size:11.5px;}

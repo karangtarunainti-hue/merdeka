@@ -25,7 +25,7 @@ function renderPanduan(){
         (17-an, jalan santai, lomba, dll) biar catatannya rapi, uangnya jelas keluar-masuknya,
         dan pas laporan pertanggungjawaban (LPJ) dibikin, semua tinggal cetak — nggak perlu
         rekap ulang dari nota-nota yang berserakan 😅.</p>
-        <p>Semua data yang kamu isi otomatis tersimpan dan ikut ke-sync ke server (Supabase), jadi
+        <p>Semua data yang kamu isi otomatis tersimpan dan ikut ke-sync ke server, jadi
         biarpun kamu ganti HP/laptop atau buka dari device lain, datanya tetap sama. Kalau lagi
         nggak ada internet pun aplikasi tetap bisa dipakai (data disimpan dulu di HP), nanti
         otomatis nyambung lagi begitu online.</p>

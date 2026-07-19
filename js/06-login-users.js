@@ -212,7 +212,7 @@ function openUserModal(id) {
         p_role: role,
         p_sections: sections,
       });
-      if (error) { console.error('Gagal menyimpan user:', error); toast('⚠️ Gagal menyimpan user ke Supabase'); return; }
+      if (error) { console.error('Gagal menyimpan user:', error); toast('⚠️ Gagal menyimpan user ke server'); return; }
 
       const { data: refreshed } = await sb.rpc('rpc_list_users');
       if (refreshed) db.users = refreshed;

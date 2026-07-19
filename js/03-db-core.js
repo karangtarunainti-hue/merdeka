@@ -329,7 +329,7 @@ async function loadDB(){
     result.activeEventId = localStorage.getItem('kt_active_event') || (result.events[0] ? result.events[0].id : null);
   }catch(e){
     console.error('Gagal memuat data dari Supabase', e);
-    toast('⚠️ Gagal terhubung ke Supabase. Cek konfigurasi & koneksi internet.');
+    toast('⚠️ Gagal terhubung ke server. Cek konfigurasi & koneksi internet.');
     // Ditandai supaya PEMANGGIL (initApp, refreshFromServer) tahu ini gagal total,
     // bukan sekadar "organisasi ini memang belum punya data" — soalnya `result`
     // di titik ini masih persis defaultDB() yang kosong melompong. Tanpa penanda
@@ -693,7 +693,7 @@ async function _flushSaveDB(){
     }
   }catch(e){
     console.error('Gagal menyimpan ke Supabase', e);
-    toast(`⚠️ ${e.message || 'Gagal menyimpan ke Supabase'} — coba simpan ulang`);
+    toast(`⚠️ ${e.message || 'Gagal menyimpan ke server'} — coba simpan ulang`);
   }finally{
     _saveDBRunning = false;
     if(_saveDBQueued){

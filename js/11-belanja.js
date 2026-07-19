@@ -60,11 +60,33 @@ function hitungHargaAktualHadiahLomba(){
     // supaya rincian per kategori/juara (Kebutuhan Hadiah, LPJ) tetap
     // sinkron dengan total gabungan di Belanja Hadiah, walau barang yang
     // sama dipakai di beberapa paket kategori/juara berbeda.
-    list.forEach(i => {
-      const qty = Number(i.itemQtyDibeli||0);
-      const subtotal = totalQty > 0 ? totalHarga * (qty / totalQty) : 0;
-      perItem[`${i.hadiahId}_${i.itemId}`] = { subtotal, hargaEfektif: qty > 0 ? subtotal / qty : 0 };
-    });
+    // ------------------------------------------------------------
+    // PENTING (rounding): subtotal = totalHarga * qty/totalQty dibulatkan
+    // SENDIRI-SENDIRI per item kalau langsung dipakai (mis. saat ditampilkan
+    // fmtRp, atau dijumlah ulang manual pas cross-check LPJ). Kalau tiap item
+    // dibulatkan begitu saja, jumlah seluruh rincian bisa beda beberapa
+    // rupiah dari totalHarga grup (klasik masalah pembulatan pembagian
+    // proporsional). Jadi di sini dipakai metode "largest remainder": bagi
+    // rata dulu (floor), lalu sisa rupiah (dari pembulatan ke bawah semua
+    // item) dibagikan satu-satu ke item dengan sisa desimal terbesar —
+    // hasilnya SELALU pas, sum(subtotal per item) === Math.round(totalHarga).
+    const totalHargaBulat = Math.round(totalHarga);
+    if(totalQty <= 0 || totalHargaBulat === 0){
+      list.forEach(i => { perItem[`${i.hadiahId}_${i.itemId}`] = { subtotal: 0, hargaEfektif: 0 }; });
+    } else {
+      const shares = list.map(i => {
+        const qty = Number(i.itemQtyDibeli||0);
+        const rawShare = totalHargaBulat * (qty / totalQty);
+        return { i, qty, rupiah: Math.floor(rawShare), sisaDesimal: rawShare - Math.floor(rawShare) };
+      });
+      let sisaRupiah = totalHargaBulat - shares.reduce((s,x)=>s+x.rupiah,0);
+      shares.slice().sort((a,b)=>b.sisaDesimal-a.sisaDesimal).forEach(x=>{
+        if(sisaRupiah>0){ x.rupiah += 1; sisaRupiah--; }
+      });
+      shares.forEach(x=>{
+        perItem[`${x.i.hadiahId}_${x.i.itemId}`] = { subtotal: x.rupiah, hargaEfektif: x.qty > 0 ? x.rupiah / x.qty : 0 };
+      });
+    }
   });
 
   return { total, perItem };

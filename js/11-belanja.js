@@ -1,19 +1,27 @@
 /* ============================================================
    PERHITUNGAN HARGA AKTUAL HADIAH LOMBA — sumber kebenaran tunggal
-   untuk total belanja hadiah, dipakai bersama oleh Dashboard
-   (hitungBukuUtama di 16-ui-helpers.js), Kebutuhan Hadiah (renderHadiah
-   di 10-lomba.js), dan LPJ (renderLPJ di 13-lpj.js).
+   untuk total belanja hadiah, dipakai bersama oleh Belanja Hadiah
+   (renderBelanjaHadiah di 11-belanja.js), Dashboard (hitungBukuUtama
+   di 16-ui-helpers.js), Kebutuhan Hadiah (renderHadiah di 10-lomba.js),
+   dan LPJ (renderLPJ di 13-lpj.js).
    ------------------------------------------------------------
-   Bug #2: sebelumnya ketiga tempat itu menghitung total hadiah lomba
+   Bug #2: dulu keempat tempat itu menghitung total hadiah lomba
    dengan rumus flat (harga_satuan * qty_dibeli) yang mengabaikan
    harga_eceran. Begitu panitia mengatur harga eceran berbeda untuk
    sisa pcs yang tidak genap 1 pack (lewat "✎ Update harga & kemasan"
    di Belanja Hadiah), Dashboard/Kebutuhan Hadiah/LPJ jadi under-estimate
-   dibanding pengeluaran riil yang sudah benar dihitung di
-   renderBelanjaHadiah(). Fungsi ini meniru PERSIS rumus pack+eceran
-   di renderBelanjaHadiah (pengelompokan per nama barang lintas kategori
-   peserta/juara, packRef = item dgn isi_per_pack terbesar dalam grup),
-   supaya semua tempat menampilkan angka yang sama.
+   dibanding pengeluaran riil.
+   ------------------------------------------------------------
+   Bug #3 (susulan dari Bug #2): fix di atas awalnya diimplementasikan
+   dengan cara renderBelanjaHadiah() punya salinan rumus pack+eceran+
+   packRef SENDIRI, dan fungsi ini "meniru persis" rumus itu di tempat
+   terpisah. Dua salinan rumus yang harus selalu identik tapi ditulis
+   manual di dua tempat gampang ke-drift kalau salah satu diubah tanpa
+   ikut mengubah yang lain (persis ini yang bikin tie-break packRef
+   sempat beda antar halaman). Sekarang renderBelanjaHadiah() memanggil
+   fungsi ini langsung dan pakai perGroup di bawah untuk breakdown
+   pack/eceran per grup — HANYA ADA SATU implementasi rumus ini di
+   seluruh app, supaya kelas bug ini tidak bisa terulang lagi.
    ============================================================ */
 function hitungHargaAktualHadiahLomba(){
   const items = [];
@@ -43,7 +51,8 @@ function hitungHargaAktualHadiahLomba(){
 
   let total = 0;
   const perItem = {};
-  Object.values(nameMap).forEach(listMentah => {
+  const perGroup = {};
+  Object.entries(nameMap).forEach(([namaKey, listMentah]) => {
     // PENTING (konsistensi lintas halaman): packRef di bawah dipilih via reduce
     // yang, kalau ada beberapa item isi_per_pack-nya SAMA (paling sering: sama-sama
     // masih default 1), jatuh ke item PERTAMA dalam array `list`. Urutan array itu
@@ -65,11 +74,15 @@ function hitungHargaAktualHadiahLomba(){
     const sisaSatuan = isiPerPack > 1 ? totalQty % isiPerPack : 0;
     const hargaPerPcsPack = Number(packRef.itemHarga||0);
     const hargaEceran = Number(packRef.itemHargaEceran!=null ? packRef.itemHargaEceran : hargaPerPcsPack);
+    const hargaEceranBeda = isiPerPack > 1 && hargaEceran !== hargaPerPcsPack;
     const totalHarga = isiPerPack > 1
       ? (jumlahPackUtuh * isiPerPack * hargaPerPcsPack) + (sisaSatuan * hargaEceran)
       : totalQty * hargaPerPcsPack;
-
     total += totalHarga;
+    perGroup[namaKey] = {
+      totalQty, totalHarga, isiPerPack, jumlahPackUtuh, sisaSatuan,
+      hargaPerPcsPack, hargaEceran, hargaEceranBeda
+    };
 
     // Alokasikan totalHarga grup ini proporsional ke tiap item (by qty),
     // supaya rincian per kategori/juara (Kebutuhan Hadiah, LPJ) tetap
@@ -104,7 +117,7 @@ function hitungHargaAktualHadiahLomba(){
     }
   });
 
-  return { total, perItem };
+  return { total, perItem, perGroup };
 }
 
 /* ============================================================
@@ -346,7 +359,13 @@ function renderBelanjaHadiah(){
 
   window._belanjaHadiahGroups = {};
   let lastKategoriToko = null;
-  let totalEstimasi = 0, totalBelumEstimasi = 0, totalItem = 0, totalBelum = 0;
+  let totalItem = 0, totalBelum = 0;
+  // Satu-satunya sumber rumus pack+eceran (lihat Bug #2 & #3 di komentar
+  // hitungHargaAktualHadiahLomba, 11-belanja.js) — perGroup dikunci per
+  // normNamaBarang(nama), sama seperti nameMap di atas.
+  const hadiahAktual = hitungHargaAktualHadiahLomba();
+  const totalEstimasi = hadiahAktual.total;
+  let totalBelumEstimasi = 0;
   const groups = nameGroups.map((g, gi) => {
     const list = g.list.slice().sort((a,b) => {
       if(a.kategori_peserta !== b.kategori_peserta) return a.kategori_peserta.localeCompare(b.kategori_peserta);
@@ -354,36 +373,23 @@ function renderBelanjaHadiah(){
     });
     window._belanjaHadiahGroups[gi] = {nama: g.nama, refs: list.map(i=>({hadiahId:i.id, itemId:i.itemId}))};
 
-    const totalQty = list.reduce((s,i)=>s+Number(i.itemQtyDibeli||0),0);
     const semuaDibeli = list.every(i=>i.sudahDibeli);
     const belum = list.filter(i=>!i.sudahDibeli);
     const tglTerbaru = list.filter(i=>i.tanggalBeli).map(i=>i.tanggalBeli).sort().pop();
-    // Ambil item dengan isi_per_pack TERBESAR sebagai acuan kemasan/harga grup —
-    // bukan list[0] begitu saja. Kalau item baru bernama sama ditambahkan belakangan
-    // (mis. lewat paket hadiah kategori lain) sebelum sempat diatur lewat "Update
-    // harga & kemasan", isi_per_pack-nya masih default 1. Kalau kebetulan item baru
-    // itu jatuh di posisi list[0] (urutan grup disortir per kategori+juara, bukan
-    // per waktu dibuat), seluruh kalkulasi pack grup ini bisa diam-diam ke-reset
-    // jadi "bukan pack" walau item lain di grup sudah dikonfigurasi pack-nya.
-    const packRef = list.reduce((best, cur) => Number(cur.isi_per_pack||1) > Number(best.isi_per_pack||1) ? cur : best, list[0]);
-    const isiPerPack = Math.max(1, Number(packRef.isi_per_pack||1));
-    const jumlahPackUtuh = isiPerPack > 1 ? Math.floor(totalQty / isiPerPack) : 0;
-    const sisaSatuan = isiPerPack > 1 ? totalQty % isiPerPack : 0;
 
     totalItem++;
     if(!semuaDibeli) totalBelum++;
 
-    // Harga per pcs kalau beli via pack (harga_satuan hasil bagi harga pack), dan harga
-    // per pcs kalau beli eceran/satuan — bisa beda (biasanya eceran lebih mahal).
-    // Disinkron ke semua item dalam grup ini lewat editHargaBelanjaHadiahGroup.
-    const hargaPerPcsPack = Number(packRef.itemHarga||0);
-    const hargaEceran = Number(packRef.itemHargaEceran!=null ? packRef.itemHargaEceran : hargaPerPcsPack);
-    const hargaEceranBeda = isiPerPack > 1 && hargaEceran !== hargaPerPcsPack;
-    const totalHarga = isiPerPack > 1
-      ? (jumlahPackUtuh * isiPerPack * hargaPerPcsPack) + (sisaSatuan * hargaEceran)
-      : totalQty * hargaPerPcsPack;
+    // Breakdown pack/eceran grup ini diambil dari hadiahAktual.perGroup (bukan
+    // dihitung ulang di sini) supaya angka yang tampil di Belanja Hadiah SELALU
+    // identik dengan Dashboard/Kebutuhan Hadiah/LPJ, yang sama-sama memakai
+    // hitungHargaAktualHadiahLomba(). Fallback nol dipakai kalau kunci ternyata
+    // tidak ada (seharusnya tidak pernah terjadi karena nameMap di sini &
+    // di hitungHargaAktualHadiahLomba dibangun dari item qty_dibeli>0 yang sama).
+    const namaKey = normNamaBarang(g.nama);
+    const grp = hadiahAktual.perGroup[namaKey] || {totalQty:0, totalHarga:0, isiPerPack:1, jumlahPackUtuh:0, sisaSatuan:0, hargaPerPcsPack:0, hargaEceran:0, hargaEceranBeda:false};
+    const {totalQty, totalHarga, isiPerPack, jumlahPackUtuh, sisaSatuan, hargaPerPcsPack, hargaEceran, hargaEceranBeda} = grp;
 
-    totalEstimasi += totalHarga;
     const belumQty = belum.reduce((s,i)=>s+Number(i.itemQtyDibeli||0),0);
     if(totalQty > 0) totalBelumEstimasi += totalHarga * (belumQty / totalQty);
 

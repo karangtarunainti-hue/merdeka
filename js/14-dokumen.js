@@ -433,6 +433,21 @@ const JADWAL_BLOCKS = {
 // s.jadwal_sinoman.judul/.tempat (dicermin ke jadwal_petugas biar data
 // lama yang mungkin masih kebaca dari sana tetap sinkron).
 
+// Teks subjudul tabel ("Piket Sinoman...", "Petugas") dan label tiap kolom
+// ("Pagi"/"Siang"/"Sore", "Petugas A/B/C") awalnya hardcode di JADWAL_BLOCKS.
+// Sekarang bisa diketik manual per acara — nilainya disimpan di
+// d.subLabel / d.fieldLabels[key], dengan fallback ke default di
+// JADWAL_BLOCKS kalau belum pernah diubah user.
+function jadwalSubLabel(blockKey){
+  const d = getDokumenGlobal()[blockKey];
+  return d.subLabel !== undefined ? d.subLabel : JADWAL_BLOCKS[blockKey].subLabel;
+}
+function jadwalFieldLabel(blockKey, fieldKey){
+  const d = getDokumenGlobal()[blockKey];
+  if(d.fieldLabels && d.fieldLabels[fieldKey] !== undefined) return d.fieldLabels[fieldKey];
+  return JADWAL_BLOCKS[blockKey].fields.find(f=>f.key===fieldKey).label;
+}
+
 function renderJadwalSinoman(ev){
   const isLoggedIn = !!getCurrentUser();
   const editForm = isLoggedIn ? renderJadwalMergedEditForm(ev) : '';
@@ -470,7 +485,7 @@ function renderJadwalMergedEditForm(ev){
 function renderJadwalBlockTableEdit(blockKey){
   const cfg = JADWAL_BLOCKS[blockKey];
   const d = getDokumenGlobal()[blockKey];
-  const theadCells = cfg.fields.map(f=>`<th>${esc(f.label)}</th>`).join('');
+  const theadCells = cfg.fields.map(f=>`<th><input class="jadwal-th-input" value="${esc(jadwalFieldLabel(blockKey, f.key))}" placeholder="${esc(f.label)}" oninput="liveJadwalFieldLabel('${blockKey}', '${f.key}', this.value)" style="width:100%; border:none; background:transparent; font-weight:600; text-align:center; font-size:inherit; font-family:inherit; color:inherit; padding:2px;"></th>`).join('');
   const colgroupMiddle = cfg.fields.map(()=>'<col>').join('');
 
   const rowsEdit = d.rows.map((r,idx)=>{
@@ -484,13 +499,13 @@ function renderJadwalBlockTableEdit(blockKey){
   }).join('');
 
   return `
-    <div class="jadwal-subhead" style="font-weight:600; margin:18px 0 6px;">${esc(cfg.subLabel)}</div>
+    <input class="jadwal-subhead-input" id="doc-subhead-${blockKey}" value="${esc(jadwalSubLabel(blockKey))}" placeholder="Judul bagian, mis. Piket Sinoman" oninput="liveJadwalSubLabel('${blockKey}', this.value)" style="display:block; font-weight:600; margin:18px 0 6px; border:none; border-bottom:1px dashed var(--line); background:transparent; width:100%; font-size:14px; font-family:inherit; color:inherit; padding:4px 0;">
     <table class="lpj-table js-edit-table">
       <colgroup><col style="width:36px;">${colgroupMiddle}<col style="width:36px;"></colgroup>
       <thead><tr><th></th>${theadCells}<th></th></tr></thead>
       <tbody>${rowsEdit}</tbody>
     </table>
-    <button class="btn secondary small" onclick="jadwalBlockAddRow('${blockKey}')">+ Tambah Baris ${esc(cfg.subLabel)}</button>`;
+    <button class="btn secondary small" onclick="jadwalBlockAddRow('${blockKey}')">+ Tambah Baris</button>`;
 }
 
 function renderJadwalMergedPrintInner(ev){
@@ -520,14 +535,14 @@ function renderJadwalMergedPrintInner(ev){
 function renderJadwalBlockTablePrint(blockKey){
   const cfg = JADWAL_BLOCKS[blockKey];
   const d = getDokumenGlobal()[blockKey];
-  const theadCells = cfg.fields.map(f=>`<th>${esc(f.label)}</th>`).join('');
+  const theadCells = cfg.fields.map(f=>`<th id="js-print-th-${blockKey}-${f.key}">${esc(jadwalFieldLabel(blockKey, f.key))}</th>`).join('');
   const rowsPrint = d.rows.map((r,idx)=>{
     const cells = cfg.fields.map(f=>`<td>${esc(r[f.key])||'-'}</td>`).join('');
     return `<tr><td>${idx+1}</td>${cells}</tr>`;
   }).join('');
 
   return `
-    <div class="jadwal-print-subhead" style="font-weight:600; margin:14px 0 6px;">${esc(cfg.subLabel)}</div>
+    <div class="jadwal-print-subhead" id="js-print-subhead-${blockKey}" style="font-weight:600; margin:14px 0 6px;">${esc(jadwalSubLabel(blockKey))}</div>
     <table class="lpj-table">
       <thead><tr><th style="width:60px;">No</th>${theadCells}</tr></thead>
       <tbody>${rowsPrint || `<tr class="empty-row"><td colspan="${cfg.fields.length+1}">Belum ada jadwal diisi.</td></tr>`}</tbody>
@@ -543,6 +558,21 @@ function liveJadwalMerged(field, value){
 
   if(field === 'judul') setPrevText('js-prev-judul', value || '-');
   else if(field === 'tempat') setPrevText('js-prev-tempat', value ? `Tempat: ${value}` : '');
+}
+function liveJadwalSubLabel(blockKey, value){
+  if (!canEditSection('dokumen')) { toast('⛔ Login untuk mengedit data'); return; }
+  const s = getDokumenGlobal();
+  s[blockKey].subLabel = value;
+  saveDB();
+  setPrevText(`js-print-subhead-${blockKey}`, value || '');
+}
+function liveJadwalFieldLabel(blockKey, fieldKey, value){
+  if (!canEditSection('dokumen')) { toast('⛔ Login untuk mengedit data'); return; }
+  const s = getDokumenGlobal();
+  if(!s[blockKey].fieldLabels) s[blockKey].fieldLabels = {};
+  s[blockKey].fieldLabels[fieldKey] = value;
+  saveDB();
+  setPrevText(`js-print-th-${blockKey}-${fieldKey}`, value || '');
 }
 function jadwalBlockSetCell(blockKey, idx, field, value){
   if (!canEditSection('dokumen')) { toast('⛔ Login untuk mengedit data'); return; }

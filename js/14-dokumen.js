@@ -538,7 +538,10 @@ function renderJadwalBlockTableEdit(blockKey){
   const colgroupMiddle = fields.map(()=>'<col>').join('');
 
   const rowsEdit = d.rows.map((r,idx)=>{
-    const cells = fields.map(f=>`<td>${blkComboTriggerHtml(blockKey, idx, f.key, r[f.key])}</td>`).join('');
+    const cells = fields.map(f=>{
+      const koordBadge = idx===0 ? `<span class="badge role-admin" style="margin-left:6px; white-space:nowrap;">Koord</span>` : '';
+      return `<td style="display:flex; align-items:center; gap:0;">${blkComboTriggerHtml(blockKey, idx, f.key, r[f.key])}${koordBadge}</td>`;
+    }).join('');
     return `
     <tr>
       <td>${idx+1}</td>
@@ -591,7 +594,11 @@ function renderJadwalBlockTablePrint(blockKey){
   const d = getJadwalBlockData(blockKey);
   const theadCells = fields.map(f=>`<th id="js-print-th-${blockKey}-${f.key}">${esc(jadwalFieldLabel(blockKey, f.key))}</th>`).join('');
   const rowsPrint = d.rows.map((r,idx)=>{
-    const cells = fields.map(f=>`<td>${esc(r[f.key])||'-'}</td>`).join('');
+    const cells = fields.map(f=>{
+      const val = r[f.key];
+      if(!val) return `<td>-</td>`;
+      return `<td>${esc(val)}${idx===0 ? ' (Koord)' : ''}</td>`;
+    }).join('');
     return `<tr><td>${idx+1}</td>${cells}</tr>`;
   }).join('');
 

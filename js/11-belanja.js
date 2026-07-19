@@ -477,12 +477,21 @@ async function editHargaBelanjaHadiahGroup(gi){
   if (!canEditSection('belanja-hadiah')) { toast('⛔ Login untuk mengedit data'); return; }
   const group = (window._belanjaHadiahGroups||{})[gi];
   if(!group || !group.refs.length){ toast('Item tidak ditemukan'); return; }
-  const firstRef = group.refs[0];
-  const firstH = db.hadiahKategori.find(x=>x.id===firstRef.hadiahId);
-  const firstItem = firstH ? firstH.items.find(it=>it.id===firstRef.itemId) : null;
-  if(!firstItem){ toast('Item tidak ditemukan'); return; }
+  // Acuan nilai "sekarang" = item dengan isi_per_pack TERBESAR di grup ini (sama
+  // seperti packRef di renderBelanjaHadiah/hitungHargaAktualHadiahLomba), BUKAN
+  // refs[0] apa adanya. refs diurutkan per kategori+juara, bukan per kapan item
+  // ditambahkan — kalau item baru bernama sama (isi_per_pack masih default 1,
+  // harga masih 0) kebetulan jatuh di urutan pertama, form ini akan menampilkan
+  // "isi 1 / harga Rp0" sebagai nilai sekarang padahal grup ini sudah dikonfigurasi
+  // pack di item lain, berisiko admin tanpa sadar menimpa konfigurasi yang benar.
+  const refItems = group.refs.map(r => {
+    const h = db.hadiahKategori.find(x=>x.id===r.hadiahId);
+    return h ? h.items.find(it=>it.id===r.itemId) : null;
+  }).filter(Boolean);
+  if(!refItems.length){ toast('Item tidak ditemukan'); return; }
+  const refItem = refItems.reduce((best, cur) => Number(cur.isi_per_pack||1) > Number(best.isi_per_pack||1) ? cur : best, refItems[0]);
 
-  const isiSekarang = Math.max(1, Number(firstItem.isi_per_pack||1));
+  const isiSekarang = Math.max(1, Number(refItem.isi_per_pack||1));
   const isiInput = await promptModal({
     title: `"${group.nama}"`,
     label: 'Dijual isi berapa per pack?',
@@ -492,7 +501,7 @@ async function editHargaBelanjaHadiahGroup(gi){
   if(isiInput===null) return;
   const isiPerPack = Math.max(1, Number(String(isiInput).replace(/[^0-9]/g,''))||1);
 
-  const hargaSatuanSekarang = Number(firstItem.harga_satuan||0);
+  const hargaSatuanSekarang = Number(refItem.harga_satuan||0);
   const isPack = isiPerPack > 1;
   const labelHarga = isPack ? `Harga per PACK (isi ${isiPerPack} pcs)` : 'Harga per pcs (satuan)';
   const defaultHargaInput = isPack ? hargaSatuanSekarang * isiPerPack : hargaSatuanSekarang;
@@ -510,7 +519,7 @@ async function editHargaBelanjaHadiahGroup(gi){
   // genap 1 pack) — bisa beda dari hasil bagi harga pack, biasanya lebih mahal.
   let hargaEceranBaru = hargaSatuanBaru;
   if(isPack){
-    const eceranSekarang = firstItem.harga_eceran!=null ? firstItem.harga_eceran : hargaSatuanBaru;
+    const eceranSekarang = refItem.harga_eceran!=null ? refItem.harga_eceran : hargaSatuanBaru;
     const eceranInput = await promptModal({
       title: `"${group.nama}"`,
       label: 'Harga per pcs kalau beli SATUAN/eceran (Rp)',

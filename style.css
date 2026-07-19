@@ -1798,6 +1798,12 @@
 .lpj-print-area h3{font-size:15px; margin:28px 0 10px; padding-bottom:6px; border-bottom:1px solid var(--garis);}
 .lpj-print-area h4{font-size:13.5px; margin:18px 0 8px; color:var(--ink-soft);}
 table.lpj-table{width:100%; border-collapse:collapse; font-size:13.5px; margin-bottom:6px;}
+/* Tabel isi Jadwal Sinoman (Pagi/Siang/Sore) — table-layout:fixed supaya
+   colgroup di HTML (js/14-dokumen.js, renderJadwalSinoman) beneran dipatuhi:
+   kolom No & hapus dibikin sesempit mungkin (36px), sisa lebar dibagi rata
+   ke 3 kolom combo dropdown biar nama panjang tidak gampang terpotong. */
+table.js-edit-table{table-layout:fixed;}
+table.js-edit-table td, table.js-edit-table th{overflow:hidden;}
 table.lpj-table td, table.lpj-table th{padding:7px 8px; border-bottom:1px dashed var(--garis); text-align:left;}
 table.lpj-table th{font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-soft); border-bottom:1px solid var(--garis);}
 table.lpj-table td.num, table.lpj-table th.num{text-align:right; font-family:var(--mono, 'JetBrains Mono', monospace);}

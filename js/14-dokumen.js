@@ -409,7 +409,7 @@ function renderJadwalSinoman(ev){
 
   const rowsEdit = d.rows.map((r,idx)=>`
     <tr>
-      <td style="width:60px;">${idx+1}</td>
+      <td>${idx+1}</td>
       <td>${jsComboTriggerHtml(idx,'pagi',r.pagi)}</td>
       <td>${jsComboTriggerHtml(idx,'siang',r.siang)}</td>
       <td>${jsComboTriggerHtml(idx,'sore',r.sore)}</td>
@@ -426,7 +426,8 @@ function renderJadwalSinoman(ev){
       </div>
 
       <div class="field-hint" style="color:var(--ink-soft); font-size:12.5px; margin:16px 0 6px;">✅ Tersimpan otomatis saat Anda mengetik. Nama dipilih dari Database Anggota juga tersimpan otomatis.</div>
-      <table class="lpj-table">
+      <table class="lpj-table js-edit-table">
+        <colgroup><col style="width:36px;"><col><col><col><col style="width:36px;"></colgroup>
         <thead><tr><th></th><th>Pagi</th><th>Siang</th><th>Sore</th><th></th></tr></thead>
         <tbody>${rowsEdit}</tbody>
       </table>

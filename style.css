@@ -2301,11 +2301,19 @@ table.ds-rekap-table td.num, table.ds-rekap-table th:not(:first-child){ text-ali
    centang selalu kelihatan rapi & jelas terbaca, tidak ada kondisi di
    tengah-tengah yang berantakan. Di atas ambang ini, teks lengkap
    "Sudah"/"Belum" tetap tampil (state default .ds-toggle di atas, tidak
-   perlu override apa-apa di sini). */
+   perlu override apa-apa di sini).
+   Header kolom bulan (Jan/Feb/Mar...) ikut disusutkan jadi angka 1-12 di
+   ambang yang SAMA — karena begitu tombolnya masuk mode centang-saja,
+   kolomnya jadi lebih sempit, dan nama bulan penuh sudah tidak perlu/tidak
+   akan muat lagi rapi juga. Markup dua versi (.ds-bulan-full/.ds-bulan-num)
+   sudah disiapkan dari awal di JS (theadBulan, lihat js/22-dana-sosial.js),
+   di sini cukup pilih yang mana yang ditampilkan lewat CSS. */
 @container dsBayar (max-width: 1300px){
   .ds-toggle-label{ display:none; }
   .ds-toggle{ gap:0; }
   .ds-toggle-mark{ font-size:15px; }
+  .ds-bulan-full{ display:none; }
+  .ds-bulan-num{ display:inline; }
 }
 /* Fallback untuk browser lama yang belum dukung container query: pakai
    lebar layar (viewport) sebagai perkiraan, dengan ambang yang sama. */
@@ -2314,6 +2322,8 @@ table.ds-rekap-table td.num, table.ds-rekap-table th:not(:first-child){ text-ali
     .ds-toggle-label{ display:none; }
     .ds-toggle{ gap:0; }
     .ds-toggle-mark{ font-size:15px; }
+    .ds-bulan-full{ display:none; }
+    .ds-bulan-num{ display:inline; }
   }
 }
 .ds-footnote{ font-size:12px; color:var(--ink-soft); padding:10px 16px 4px; }
@@ -2395,4 +2405,40 @@ table.ds-rekap-table td.num, table.ds-rekap-table th:not(:first-child){ text-ali
   .ds-chip.ds-chip-muted{ border:none; background:transparent; color:var(--abu); cursor:default; font-weight:400; }
   .ds-chip:disabled{ cursor:default; opacity:.85; }
   .ds-chip-mark{ font-size:11px; line-height:1; }
+}
+
+/* ============================================================
+   BANNER SARAN INSTALL (PWA)
+   Muncul di bawah layar kalau app terdeteksi BELUM ter-install
+   (lihat js/23-install-prompt.js). Sengaja dibuat sebagai banner,
+   bukan modal/overlay, supaya tidak menghalangi user yang mau
+   lanjut pakai app dulu tanpa install — cukup ditutup (✕) atau
+   diklik "Install".
+   ============================================================ */
+.install-banner{
+  position:fixed; left:14px; right:14px; bottom:14px; z-index:190;
+  max-width:480px; margin:0 auto;
+  display:flex; align-items:flex-start; gap:12px;
+  background:var(--surface); color:var(--ink);
+  border:1px solid var(--garis); border-radius:12px;
+  padding:14px 14px 14px 16px;
+  box-shadow:0 8px 28px rgba(0,0,0,.16);
+  opacity:0; transform:translateY(16px);
+  transition:opacity .25s ease, transform .25s ease;
+  pointer-events:none;
+}
+.install-banner.show{ opacity:1; transform:translateY(0); pointer-events:auto; }
+.install-banner-icon{ flex:none; font-size:26px; line-height:1; margin-top:1px; }
+.install-banner-text{ flex:1; min-width:0; }
+.install-banner-title{ font-weight:700; font-size:13.5px; margin-bottom:2px; }
+.install-banner-desc{ font-size:12px; color:var(--ink-soft); line-height:1.45; }
+.install-banner-share-icon{ font-weight:700; }
+.install-banner-actions{
+  flex:none; display:flex; align-items:center; gap:4px; margin-top:1px;
+}
+.install-banner-actions .btn{ padding:7px 14px; font-size:12.5px; }
+.install-banner-actions .icon-btn{ padding:5px; }
+@media (max-width:480px){
+  .install-banner{ flex-wrap:wrap; }
+  .install-banner-actions{ width:100%; justify-content:flex-end; margin-top:4px; }
 }

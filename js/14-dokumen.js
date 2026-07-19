@@ -402,12 +402,17 @@ function liveAbsensi(field, value){
 }
 
 /* ---------- 4. Jadwal Sinoman & Jadwal Petugas ----------
-   Dua blok jadwal (piket pagi/siang/sore, dan petugas A/B/C) yang tampilannya
-   SAMA PERSIS — cuma beda label kolom & key data — jadi dirender lewat satu
-   set fungsi generik (renderJadwalBlockEditForm/renderJadwalBlockPrintInner)
-   yang dipanggil 2x, dibedakan lewat blockKey ('jadwal_sinoman'/
-   'jadwal_petugas'). Kalau nanti mau nambah jenis jadwal serupa lagi, cukup
-   tambah satu entri baru di JADWAL_BLOCKS, tidak perlu duplikat kode. */
+   Dua blok jadwal bawaan (piket pagi/siang/sore, dan petugas A/B/C) yang
+   tampilannya SAMA PERSIS — cuma beda label kolom & key data — jadi
+   dirender lewat satu set fungsi generik yang dipanggil per blockKey
+   ('jadwal_sinoman'/'jadwal_petugas'). Selain 2 blok bawaan ini, user bisa
+   menambah tabel tambahan sebanyak apa pun lewat tombol "+ Tambah Tabel" —
+   disimpan di array s.jadwal_extra (format 3 kolom generik c1/c2/c3, label
+   & subjudul full-editable, sama seperti 2 blok bawaan). blockKey untuk
+   tabel tambahan berformat 'extra_<id>'. Fungsi getJadwalBlockData/
+   getJadwalBlockFields adalah lapisan abstraksi supaya kode render & combo
+   dropdown di bawah tidak perlu tahu apakah blockKey itu blok bawaan atau
+   tabel tambahan. */
 const JADWAL_BLOCKS = {
   jadwal_sinoman: {
     subLabel: 'Piket Sinoman (Pagi / Siang / Sore)',
@@ -426,6 +431,11 @@ const JADWAL_BLOCKS = {
     ],
   },
 };
+const JADWAL_EXTRA_FIELDS = [
+  {key:'c1', label:'Kolom 1'},
+  {key:'c2', label:'Kolom 2'},
+  {key:'c3', label:'Kolom 3'},
+];
 // Judul acara & tempat dulunya disimpan terpisah per blok (jadwal_sinoman
 // vs jadwal_petugas), padahal keduanya selalu satu acara yang sama —
 // cuma beda divisi (piket vs petugas). Sekarang keduanya digabung jadi
@@ -433,19 +443,57 @@ const JADWAL_BLOCKS = {
 // s.jadwal_sinoman.judul/.tempat (dicermin ke jadwal_petugas biar data
 // lama yang mungkin masih kebaca dari sana tetap sinkron).
 
+function isJadwalExtraKey(blockKey){ return blockKey.indexOf('extra_')===0; }
+function getJadwalExtraList(){
+  const s = getDokumenGlobal();
+  if(!s.jadwal_extra) s.jadwal_extra = [];
+  return s.jadwal_extra;
+}
+function getJadwalBlockKeys(){
+  return ['jadwal_sinoman', 'jadwal_petugas', ...getJadwalExtraList().map(e=>'extra_'+e.id)];
+}
+function getJadwalBlockData(blockKey){
+  if(isJadwalExtraKey(blockKey)) return getJadwalExtraList().find(e=>('extra_'+e.id)===blockKey);
+  return getDokumenGlobal()[blockKey];
+}
+function getJadwalBlockFields(blockKey){
+  if(isJadwalExtraKey(blockKey)) return JADWAL_EXTRA_FIELDS;
+  return JADWAL_BLOCKS[blockKey].fields;
+}
+function getJadwalBlockDefaultSubLabel(blockKey){
+  if(isJadwalExtraKey(blockKey)) return 'Tabel Tambahan';
+  return JADWAL_BLOCKS[blockKey].subLabel;
+}
+
 // Teks subjudul tabel ("Piket Sinoman...", "Petugas") dan label tiap kolom
-// ("Pagi"/"Siang"/"Sore", "Petugas A/B/C") awalnya hardcode di JADWAL_BLOCKS.
-// Sekarang bisa diketik manual per acara — nilainya disimpan di
-// d.subLabel / d.fieldLabels[key], dengan fallback ke default di
-// JADWAL_BLOCKS kalau belum pernah diubah user.
+// ("Pagi"/"Siang"/"Sore", "Petugas A/B/C") bisa diketik manual per acara —
+// nilainya disimpan di d.subLabel / d.fieldLabels[key], dengan fallback ke
+// default kalau belum pernah diubah user.
 function jadwalSubLabel(blockKey){
-  const d = getDokumenGlobal()[blockKey];
-  return d.subLabel !== undefined ? d.subLabel : JADWAL_BLOCKS[blockKey].subLabel;
+  const d = getJadwalBlockData(blockKey);
+  return d.subLabel !== undefined ? d.subLabel : getJadwalBlockDefaultSubLabel(blockKey);
 }
 function jadwalFieldLabel(blockKey, fieldKey){
-  const d = getDokumenGlobal()[blockKey];
+  const d = getJadwalBlockData(blockKey);
   if(d.fieldLabels && d.fieldLabels[fieldKey] !== undefined) return d.fieldLabels[fieldKey];
-  return JADWAL_BLOCKS[blockKey].fields.find(f=>f.key===fieldKey).label;
+  return getJadwalBlockFields(blockKey).find(f=>f.key===fieldKey).label;
+}
+
+function jadwalAddExtraTable(){
+  if (!canEditSection('dokumen')) { toast('⛔ Login untuk mengedit data'); return; }
+  const list = getJadwalExtraList();
+  const emptyRow = {};
+  JADWAL_EXTRA_FIELDS.forEach(f=>{ emptyRow[f.key] = ''; });
+  list.push({ id: String(Date.now()), subLabel: '', fieldLabels: {}, rows: [emptyRow] });
+  saveDB(); renderContent();
+  toast('✅ Tabel baru ditambahkan');
+}
+function jadwalRemoveExtraTable(id){
+  if (!canEditSection('dokumen')) { toast('⛔ Login untuk mengedit data'); return; }
+  if(!confirm('Hapus tabel tambahan ini beserta semua isinya?')) return;
+  const s = getDokumenGlobal();
+  s.jadwal_extra = getJadwalExtraList().filter(e=>e.id!==id);
+  saveDB(); renderContent();
 }
 
 function renderJadwalSinoman(ev){
@@ -465,7 +513,7 @@ function renderJadwalSinoman(ev){
 function renderJadwalMergedEditForm(ev){
   const sD = getDokumenGlobal().jadwal_sinoman;
   const judulDefault = sD.judul || (ev ? ev.nama : '');
-  const tablesHtml = Object.keys(JADWAL_BLOCKS).map(blockKey=>renderJadwalBlockTableEdit(blockKey)).join('');
+  const tablesHtml = getJadwalBlockKeys().map(blockKey=>renderJadwalBlockTableEdit(blockKey)).join('');
 
   return `
   <div class="panel no-print">
@@ -478,18 +526,19 @@ function renderJadwalMergedEditForm(ev){
 
       <div class="field-hint" style="color:var(--ink-soft); font-size:12.5px; margin:16px 0 6px;">✅ Tersimpan otomatis saat Anda mengetik. Nama dipilih dari Database Anggota juga tersimpan otomatis.</div>
       ${tablesHtml}
+      <button class="btn secondary small" style="margin-top:18px;" onclick="jadwalAddExtraTable()">+ Tambah Tabel</button>
     </div>
   </div>`;
 }
 
 function renderJadwalBlockTableEdit(blockKey){
-  const cfg = JADWAL_BLOCKS[blockKey];
-  const d = getDokumenGlobal()[blockKey];
-  const theadCells = cfg.fields.map(f=>`<th><input class="jadwal-th-input" value="${esc(jadwalFieldLabel(blockKey, f.key))}" placeholder="${esc(f.label)}" oninput="liveJadwalFieldLabel('${blockKey}', '${f.key}', this.value)" style="width:100%; border:none; background:transparent; font-weight:600; text-align:center; font-size:inherit; font-family:inherit; color:inherit; padding:2px;"></th>`).join('');
-  const colgroupMiddle = cfg.fields.map(()=>'<col>').join('');
+  const fields = getJadwalBlockFields(blockKey);
+  const d = getJadwalBlockData(blockKey);
+  const theadCells = fields.map(f=>`<th><input class="jadwal-th-input" value="${esc(jadwalFieldLabel(blockKey, f.key))}" placeholder="${esc(f.label)}" oninput="liveJadwalFieldLabel('${blockKey}', '${f.key}', this.value)" style="width:100%; border:none; background:transparent; font-weight:600; text-align:center; font-size:inherit; font-family:inherit; color:inherit; padding:2px;"></th>`).join('');
+  const colgroupMiddle = fields.map(()=>'<col>').join('');
 
   const rowsEdit = d.rows.map((r,idx)=>{
-    const cells = cfg.fields.map(f=>`<td>${blkComboTriggerHtml(blockKey, idx, f.key, r[f.key])}</td>`).join('');
+    const cells = fields.map(f=>`<td>${blkComboTriggerHtml(blockKey, idx, f.key, r[f.key])}</td>`).join('');
     return `
     <tr>
       <td>${idx+1}</td>
@@ -498,8 +547,15 @@ function renderJadwalBlockTableEdit(blockKey){
     </tr>`;
   }).join('');
 
+  const hapusTabelBtn = isJadwalExtraKey(blockKey)
+    ? `<button class="icon-btn" onclick="jadwalRemoveExtraTable('${blockKey.slice(6)}')" title="Hapus tabel ini" style="float:right;">🗑️</button>`
+    : '';
+
   return `
-    <input class="jadwal-subhead-input" id="doc-subhead-${blockKey}" value="${esc(jadwalSubLabel(blockKey))}" placeholder="Judul bagian, mis. Piket Sinoman" oninput="liveJadwalSubLabel('${blockKey}', this.value)" style="display:block; font-weight:600; margin:18px 0 6px; border:none; border-bottom:1px dashed var(--line); background:transparent; width:100%; font-size:14px; font-family:inherit; color:inherit; padding:4px 0;">
+    <div style="margin:18px 0 6px; overflow:auto;">
+      ${hapusTabelBtn}
+      <input class="jadwal-subhead-input" id="doc-subhead-${blockKey}" value="${esc(jadwalSubLabel(blockKey))}" placeholder="Judul bagian, mis. Piket Sinoman" oninput="liveJadwalSubLabel('${blockKey}', this.value)" style="display:block; font-weight:600; border:none; border-bottom:1px dashed var(--line); background:transparent; width:100%; font-size:14px; font-family:inherit; color:inherit; padding:4px 0;">
+    </div>
     <table class="lpj-table js-edit-table">
       <colgroup><col style="width:36px;">${colgroupMiddle}<col style="width:36px;"></colgroup>
       <thead><tr><th></th>${theadCells}<th></th></tr></thead>
@@ -511,9 +567,7 @@ function renderJadwalBlockTableEdit(blockKey){
 function renderJadwalMergedPrintInner(ev){
   const sD = getDokumenGlobal().jadwal_sinoman;
   const judulDefault = sD.judul || (ev ? ev.nama : '');
-  const tablesHtml = Object.keys(JADWAL_BLOCKS)
-    .map(blockKey=>renderJadwalBlockTablePrint(blockKey))
-    .join('<div class="jadwal-block-gap no-print"></div>');
+  const tablesHtml = getJadwalBlockKeys().map(blockKey=>renderJadwalBlockTablePrint(blockKey)).join('');
 
   return `
     <div class="lpj-header">
@@ -533,19 +587,19 @@ function renderJadwalMergedPrintInner(ev){
 }
 
 function renderJadwalBlockTablePrint(blockKey){
-  const cfg = JADWAL_BLOCKS[blockKey];
-  const d = getDokumenGlobal()[blockKey];
-  const theadCells = cfg.fields.map(f=>`<th id="js-print-th-${blockKey}-${f.key}">${esc(jadwalFieldLabel(blockKey, f.key))}</th>`).join('');
+  const fields = getJadwalBlockFields(blockKey);
+  const d = getJadwalBlockData(blockKey);
+  const theadCells = fields.map(f=>`<th id="js-print-th-${blockKey}-${f.key}">${esc(jadwalFieldLabel(blockKey, f.key))}</th>`).join('');
   const rowsPrint = d.rows.map((r,idx)=>{
-    const cells = cfg.fields.map(f=>`<td>${esc(r[f.key])||'-'}</td>`).join('');
+    const cells = fields.map(f=>`<td>${esc(r[f.key])||'-'}</td>`).join('');
     return `<tr><td>${idx+1}</td>${cells}</tr>`;
   }).join('');
 
   return `
-    <div class="jadwal-print-subhead" id="js-print-subhead-${blockKey}" style="font-weight:600; margin:14px 0 6px;">${esc(jadwalSubLabel(blockKey))}</div>
+    <div class="jadwal-print-subhead" id="js-print-subhead-${blockKey}" style="font-weight:600; margin:26px 0 6px;">${esc(jadwalSubLabel(blockKey))}</div>
     <table class="lpj-table">
       <thead><tr><th style="width:60px;">No</th>${theadCells}</tr></thead>
-      <tbody>${rowsPrint || `<tr class="empty-row"><td colspan="${cfg.fields.length+1}">Belum ada jadwal diisi.</td></tr>`}</tbody>
+      <tbody>${rowsPrint || `<tr class="empty-row"><td colspan="${fields.length+1}">Belum ada jadwal diisi.</td></tr>`}</tbody>
     </table>`;
 }
 
@@ -561,40 +615,43 @@ function liveJadwalMerged(field, value){
 }
 function liveJadwalSubLabel(blockKey, value){
   if (!canEditSection('dokumen')) { toast('⛔ Login untuk mengedit data'); return; }
-  const s = getDokumenGlobal();
-  s[blockKey].subLabel = value;
+  const d = getJadwalBlockData(blockKey);
+  if(!d) return;
+  d.subLabel = value;
   saveDB();
   setPrevText(`js-print-subhead-${blockKey}`, value || '');
 }
 function liveJadwalFieldLabel(blockKey, fieldKey, value){
   if (!canEditSection('dokumen')) { toast('⛔ Login untuk mengedit data'); return; }
-  const s = getDokumenGlobal();
-  if(!s[blockKey].fieldLabels) s[blockKey].fieldLabels = {};
-  s[blockKey].fieldLabels[fieldKey] = value;
+  const d = getJadwalBlockData(blockKey);
+  if(!d) return;
+  if(!d.fieldLabels) d.fieldLabels = {};
+  d.fieldLabels[fieldKey] = value;
   saveDB();
   setPrevText(`js-print-th-${blockKey}-${fieldKey}`, value || '');
 }
 function jadwalBlockSetCell(blockKey, idx, field, value){
   if (!canEditSection('dokumen')) { toast('⛔ Login untuk mengedit data'); return; }
-  const s = getDokumenGlobal();
-  if(!s[blockKey] || !s[blockKey].rows[idx]) return;
-  s[blockKey].rows[idx][field] = value;
+  const d = getJadwalBlockData(blockKey);
+  if(!d || !d.rows[idx]) return;
+  d.rows[idx][field] = value;
   saveDB();
 }
 function jadwalBlockAddRow(blockKey){
   if (!canEditSection('dokumen')) { toast('⛔ Login untuk mengedit data'); return; }
-  const cfg = JADWAL_BLOCKS[blockKey];
-  const s = getDokumenGlobal();
+  const fields = getJadwalBlockFields(blockKey);
+  const d = getJadwalBlockData(blockKey);
+  if(!d) return;
   const emptyRow = {};
-  cfg.fields.forEach(f=>{ emptyRow[f.key] = ''; });
-  s[blockKey].rows.push(emptyRow);
+  fields.forEach(f=>{ emptyRow[f.key] = ''; });
+  d.rows.push(emptyRow);
   saveDB(); renderContent();
 }
 function jadwalBlockRemoveRow(blockKey, idx){
   if (!canEditSection('dokumen')) { toast('⛔ Login untuk mengedit data'); return; }
-  const s = getDokumenGlobal();
-  if(s[blockKey].rows.length<=1) return;
-  s[blockKey].rows.splice(idx,1);
+  const d = getJadwalBlockData(blockKey);
+  if(!d || d.rows.length<=1) return;
+  d.rows.splice(idx,1);
   saveDB(); renderContent();
 }
 
@@ -630,11 +687,11 @@ function blkComboTriggerHtml(blockKey, idx, field, value){
 // Nama yang sudah dipakai di slot LAIN dalam blok yang SAMA (bukan idx+field
 // yang sedang dibuka) — dikumpulkan dari semua baris & kolom blok ini saja.
 function blkComboNamaDipakai(blockKey, excludeIdx, excludeField){
-  const cfg = JADWAL_BLOCKS[blockKey];
-  const rows = getDokumenGlobal()[blockKey].rows;
+  const fields = getJadwalBlockFields(blockKey);
+  const rows = getJadwalBlockData(blockKey).rows;
   const set = new Set();
   rows.forEach((r,idx)=>{
-    cfg.fields.forEach(f=>{
+    fields.forEach(f=>{
       if(idx===excludeIdx && f.key===excludeField) return;
       if(r[f.key]) set.add(r[f.key]);
     });
@@ -663,7 +720,7 @@ function blkComboPositionPanel(trigger, panel){
 }
 function blkComboOptionsHtml(blockKey, idx, field){
   const names = dokumenDaftarNama();
-  const d = getDokumenGlobal()[blockKey];
+  const d = getJadwalBlockData(blockKey);
   const selectedNama = (d.rows[idx] && d.rows[idx][field]) || '';
   const dipakai = blkComboNamaDipakai(blockKey, idx, field);
   const key = _blkComboSearch.trim().toLowerCase();

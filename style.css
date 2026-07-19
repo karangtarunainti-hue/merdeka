@@ -1801,7 +1801,6 @@ table.lpj-table{width:100%; border-collapse:collapse; font-size:13.5px; margin-b
 /* Jarak & garis pemisah antara blok Jadwal Sinoman dan Jadwal Petugas yang
    ditumpuk dalam satu print-area yang sama (lihat renderJadwalSinoman &
    JADWAL_BLOCKS di js/14-dokumen.js). */
-.jadwal-block-gap{height:1px; background:var(--garis); margin:32px 0 24px;}
 /* Tabel isi Jadwal Sinoman (Pagi/Siang/Sore) — table-layout:fixed supaya
    colgroup di HTML (js/14-dokumen.js, renderJadwalSinoman) beneran dipatuhi:
    kolom No & hapus dibikin sesempit mungkin (36px), sisa lebar dibagi rata

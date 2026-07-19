@@ -525,11 +525,34 @@ function renderJadwalSinoman(ev){
 
   return wrapDokumenLayout(editForm, `
   <div class="lpj-scale-wrap" id="lpj-scale-wrap">
-  <div class="lpj-print-area surat-print-area" id="lpj-print-area">
+  <div class="lpj-print-area surat-print-area js-f4-area" id="lpj-print-area">
     ${printInner}
   </div>
   </div>
-  ${isLoggedIn ? `<div class="lpj-toolbar no-print"><button class="btn small" onclick="window.print()">🖨️ Cetak / Simpan sebagai PDF</button></div>` : ''}`);
+  ${isLoggedIn ? `<div class="lpj-toolbar no-print"><button class="btn small" onclick="jadwalExportImage()">🖼️ Download Gambar</button></div>` : ''}`);
+}
+// Export lembar Jadwal Sinoman jadi file PNG lewat html2canvas, dengan
+// tampilan identik seperti pratinjau di layar (elemen di luar
+// #lpj-print-area — form isian, tombol, dsb — otomatis tidak ikut ter-capture
+// karena memang tidak ada di dalam elemen yang di-screenshot). Pola sama
+// seperti export Nota Peminjaman Gudang (js/17c-gudang-histori-kelola.js).
+function jadwalExportImage(){
+  const el = document.getElementById('lpj-print-area');
+  if(!el){ toast('⛔ Gagal menemukan lembar Jadwal Sinoman'); return; }
+  if(typeof html2canvas === 'undefined'){ toast('⛔ Gagal memuat modul export gambar. Cek koneksi internet lalu muat ulang.'); return; }
+  toast('⏳ Membuat gambar...');
+  html2canvas(el, { scale: 2, backgroundColor: '#ffffff', useCORS: true }).then(canvas => {
+    const sD = getDokumenGlobal().jadwal_sinoman;
+    const slug = (sD.judul || 'acara').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
+    const link = document.createElement('a');
+    link.download = `jadwal-sinoman-${slug || 'acara'}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+    toast('⬇ Gambar berhasil diunduh');
+  }).catch(err => {
+    console.error('Gagal export gambar Jadwal Sinoman:', err);
+    toast('⛔ Gagal membuat gambar: ' + (err.message||'error tak dikenal'));
+  });
 }
 
 function renderJadwalMergedEditForm(ev){
@@ -629,7 +652,7 @@ function renderJadwalMergedPrintInner(ev){
     <div class="lpj-signature" style="justify-content:flex-end;">
       <div class="surat-ttd">
         <div>Ditetapkan oleh Ketua Karang Taruna</div>
-        <div id="js-prev-tanggal-ttd">${sD.tanggal ? esc(fmtDate(sD.tanggal)) : '-'}</div>
+        <div id="js-prev-tanggal-ttd">.....................</div>
         <div class="surat-ttd-space"></div>
         <div><strong id="js-prev-nama-ketua">${esc(sD.nama_ketua||'(.....................)')}</strong></div>
       </div>
@@ -680,8 +703,7 @@ function liveJadwalMerged(field, value){
   if(field === 'judul') setPrevText('js-prev-judul', value || '-');
   else if(field === 'tempat') setPrevText('js-prev-tempat', value ? `Tempat: ${value}` : '');
   else if(field === 'hari' || field === 'tanggal') setPrevText('js-prev-haritanggal', jadwalHariTanggalText(s.jadwal_sinoman));
-  if(field === 'tanggal') setPrevText('js-prev-tanggal-ttd', value ? fmtDate(value) : '-');
-  else if(field === 'nama_ketua') setPrevText('js-prev-nama-ketua', value || '(.....................)');
+  if(field === 'nama_ketua') setPrevText('js-prev-nama-ketua', value || '(.....................)');
 }
 function liveJadwalSubLabel(blockKey, value){
   if (!canEditSection('dokumen')) { toast('⛔ Login untuk mengedit data'); return; }

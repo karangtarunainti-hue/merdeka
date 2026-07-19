@@ -1797,6 +1797,12 @@
    dokumen lebih panjang dari 1 halaman, tinggi kotak otomatis mengikuti
    (aspect-ratio hanya jadi tinggi minimum, bukan pembatas/pemotong konten). */
 .lpj-print-area.surat-print-area{aspect-ratio:210/297;}
+/* Jadwal Sinoman dicetak/diunduh sebagai gambar berukuran kertas F4
+   (215 x 330mm), beda dari dokumen surat lain (Undangan/Proposal/Absensi)
+   yang tetap A4 — lihat renderJadwalSinoman() di js/14-dokumen.js. Aturan ini
+   sengaja ditaruh SETELAH aspect-ratio A4 di atas supaya menang lewat urutan
+   (specificity dua-duanya sama, dua kelas). */
+.lpj-print-area.js-f4-area{aspect-ratio:215/330;}
 @media print{
   .lpj-print-area.surat-print-area{aspect-ratio:auto !important;}
 }

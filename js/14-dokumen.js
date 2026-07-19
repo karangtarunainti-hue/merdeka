@@ -401,143 +401,206 @@ function liveAbsensi(field, value){
   else if(field === 'tanggal') setPrevText('abs-prev-tanggal', fmtDate(value||todayISO()));
 }
 
-/* ---------- 4. Jadwal Sinoman (jadwal piket pagi/siang/sore) ---------- */
+/* ---------- 4. Jadwal Sinoman & Jadwal Petugas ----------
+   Dua blok jadwal (piket pagi/siang/sore, dan petugas A/B/C) yang tampilannya
+   SAMA PERSIS — cuma beda label kolom & key data — jadi dirender lewat satu
+   set fungsi generik (renderJadwalBlockEditForm/renderJadwalBlockPrintInner)
+   yang dipanggil 2x, dibedakan lewat blockKey ('jadwal_sinoman'/
+   'jadwal_petugas'). Kalau nanti mau nambah jenis jadwal serupa lagi, cukup
+   tambah satu entri baru di JADWAL_BLOCKS, tidak perlu duplikat kode. */
+const JADWAL_BLOCKS = {
+  jadwal_sinoman: {
+    headerTitle: 'JADWAL SINOMAN',
+    panelTitle: '✏️ Isi Jadwal Sinoman',
+    fields: [
+      {key:'pagi', label:'Pagi'},
+      {key:'siang', label:'Siang'},
+      {key:'sore', label:'Sore'},
+    ],
+    prevPrefix: 'js',
+    judulPlaceholder: 'Contoh: 17-an Tahun 2026',
+    tempatPlaceholder: 'Balai Desa / Rumah Bapak RT 02',
+  },
+  jadwal_petugas: {
+    headerTitle: 'JADWAL PETUGAS',
+    panelTitle: '✏️ Isi Jadwal Petugas',
+    fields: [
+      {key:'a', label:'Petugas A'},
+      {key:'b', label:'Petugas B'},
+      {key:'c', label:'Petugas C'},
+    ],
+    prevPrefix: 'jp',
+    judulPlaceholder: 'Contoh: Ronda Malam Takbiran',
+    tempatPlaceholder: 'Pos Kamling / Balai RT',
+  },
+};
+
 function renderJadwalSinoman(ev){
   const isLoggedIn = !!getCurrentUser();
-  const d = getDokumenGlobal().jadwal_sinoman;
-  const judulDefault = d.judul || (ev ? ev.nama : '');
-
-  const rowsEdit = d.rows.map((r,idx)=>`
-    <tr>
-      <td>${idx+1}</td>
-      <td>${jsComboTriggerHtml(idx,'pagi',r.pagi)}</td>
-      <td>${jsComboTriggerHtml(idx,'siang',r.siang)}</td>
-      <td>${jsComboTriggerHtml(idx,'sore',r.sore)}</td>
-      <td style="width:36px;"><button class="icon-btn" onclick="jadwalSinomanRemoveRow(${idx})" title="Hapus baris">✕</button></td>
-    </tr>`).join('');
-
-  const editForm = isLoggedIn ? `
-  <div class="panel no-print">
-    <div class="panel-head"><h3>✏️ Isi Jadwal Sinoman</h3></div>
-    <div class="panel-body">
-      <div class="field-row">
-        <div class="field"><label>Judul Acara</label><input id="doc-js-judul" value="${esc(judulDefault)}" placeholder="Contoh: 17-an Tahun 2026" oninput="liveJadwalSinoman('judul', this.value)"></div>
-        <div class="field"><label>Tempat</label><input id="doc-js-tempat" value="${esc(d.tempat||'')}" placeholder="Balai Desa / Rumah Bapak RT 02" oninput="liveJadwalSinoman('tempat', this.value)"></div>
-      </div>
-
-      <div class="field-hint" style="color:var(--ink-soft); font-size:12.5px; margin:16px 0 6px;">✅ Tersimpan otomatis saat Anda mengetik. Nama dipilih dari Database Anggota juga tersimpan otomatis.</div>
-      <table class="lpj-table js-edit-table">
-        <colgroup><col style="width:36px;"><col><col><col><col style="width:36px;"></colgroup>
-        <thead><tr><th></th><th>Pagi</th><th>Siang</th><th>Sore</th><th></th></tr></thead>
-        <tbody>${rowsEdit}</tbody>
-      </table>
-      <button class="btn secondary small" onclick="jadwalSinomanAddRow()">+ Tambah Baris</button>
-    </div>
-  </div>` : '';
-
-  const rowsPrint = d.rows.map((r,idx)=>`<tr><td>${idx+1}</td><td>${esc(r.pagi)||'-'}</td><td>${esc(r.siang)||'-'}</td><td>${esc(r.sore)||'-'}</td></tr>`).join('');
+  const editForm = isLoggedIn
+    ? Object.keys(JADWAL_BLOCKS).map(blockKey=>renderJadwalBlockEditForm(ev, blockKey)).join('')
+    : '';
+  const printInner = Object.keys(JADWAL_BLOCKS)
+    .map(blockKey=>renderJadwalBlockPrintInner(ev, blockKey))
+    .join('<div class="jadwal-block-gap no-print"></div>');
 
   return wrapDokumenLayout(editForm, `
   <div class="lpj-scale-wrap" id="lpj-scale-wrap">
   <div class="lpj-print-area surat-print-area" id="lpj-print-area">
+    ${printInner}
+  </div>
+  </div>
+  ${isLoggedIn ? `<div class="lpj-toolbar no-print"><button class="btn small" onclick="window.print()">🖨️ Cetak / Simpan sebagai PDF</button></div>` : ''}`);
+}
+
+function renderJadwalBlockEditForm(ev, blockKey){
+  const cfg = JADWAL_BLOCKS[blockKey];
+  const d = getDokumenGlobal()[blockKey];
+  const judulDefault = d.judul || (ev ? ev.nama : '');
+  const theadCells = cfg.fields.map(f=>`<th>${esc(f.label)}</th>`).join('');
+  const colgroupMiddle = cfg.fields.map(()=>'<col>').join('');
+
+  const rowsEdit = d.rows.map((r,idx)=>{
+    const cells = cfg.fields.map(f=>`<td>${blkComboTriggerHtml(blockKey, idx, f.key, r[f.key])}</td>`).join('');
+    return `
+    <tr>
+      <td>${idx+1}</td>
+      ${cells}
+      <td style="width:36px;"><button class="icon-btn" onclick="jadwalBlockRemoveRow('${blockKey}', ${idx})" title="Hapus baris">✕</button></td>
+    </tr>`;
+  }).join('');
+
+  return `
+  <div class="panel no-print">
+    <div class="panel-head"><h3>${cfg.panelTitle}</h3></div>
+    <div class="panel-body">
+      <div class="field-row">
+        <div class="field"><label>Judul Acara</label><input id="doc-${cfg.prevPrefix}-judul" value="${esc(judulDefault)}" placeholder="${esc(cfg.judulPlaceholder)}" oninput="liveJadwalBlock('${blockKey}', 'judul', this.value)"></div>
+        <div class="field"><label>Tempat</label><input id="doc-${cfg.prevPrefix}-tempat" value="${esc(d.tempat||'')}" placeholder="${esc(cfg.tempatPlaceholder)}" oninput="liveJadwalBlock('${blockKey}', 'tempat', this.value)"></div>
+      </div>
+
+      <div class="field-hint" style="color:var(--ink-soft); font-size:12.5px; margin:16px 0 6px;">✅ Tersimpan otomatis saat Anda mengetik. Nama dipilih dari Database Anggota juga tersimpan otomatis.</div>
+      <table class="lpj-table js-edit-table">
+        <colgroup><col style="width:36px;">${colgroupMiddle}<col style="width:36px;"></colgroup>
+        <thead><tr><th></th>${theadCells}<th></th></tr></thead>
+        <tbody>${rowsEdit}</tbody>
+      </table>
+      <button class="btn secondary small" onclick="jadwalBlockAddRow('${blockKey}')">+ Tambah Baris</button>
+    </div>
+  </div>`;
+}
+
+function renderJadwalBlockPrintInner(ev, blockKey){
+  const cfg = JADWAL_BLOCKS[blockKey];
+  const d = getDokumenGlobal()[blockKey];
+  const judulDefault = d.judul || (ev ? ev.nama : '');
+  const theadCells = cfg.fields.map(f=>`<th>${esc(f.label)}</th>`).join('');
+  const rowsPrint = d.rows.map((r,idx)=>{
+    const cells = cfg.fields.map(f=>`<td>${esc(r[f.key])||'-'}</td>`).join('');
+    return `<tr><td>${idx+1}</td>${cells}</tr>`;
+  }).join('');
+
+  return `
     <div class="lpj-header">
       <div class="lpj-header-inner">
         <img src="${esc(getOrgLogo())}" alt="Logo ${esc(getOrgNama())}" class="lpj-logo">
         <div class="lpj-header-text">
           <div class="lpj-eyebrow">${esc(getOrgNama())}</div>
-          <h2>JADWAL SINOMAN</h2>
-          <div class="lpj-sub" id="js-prev-judul">${esc(judulDefault||'-')}</div>
-          <div class="lpj-meta" id="js-prev-tempat">${d.tempat ? `Tempat: ${esc(d.tempat)}` : ''}</div>
+          <h2>${esc(cfg.headerTitle)}</h2>
+          <div class="lpj-sub" id="${cfg.prevPrefix}-prev-judul">${esc(judulDefault||'-')}</div>
+          <div class="lpj-meta" id="${cfg.prevPrefix}-prev-tempat">${d.tempat ? `Tempat: ${esc(d.tempat)}` : ''}</div>
         </div>
         <div class="lpj-header-spacer" aria-hidden="true"></div>
       </div>
     </div>
 
     <table class="lpj-table">
-      <thead><tr><th style="width:60px;">No</th><th>Pagi</th><th>Siang</th><th>Sore</th></tr></thead>
-      <tbody>${rowsPrint || `<tr class="empty-row"><td colspan="4">Belum ada jadwal diisi.</td></tr>`}</tbody>
-    </table>
-  </div>
-  </div>
-  ${isLoggedIn ? `<div class="lpj-toolbar no-print"><button class="btn small" onclick="window.print()">🖨️ Cetak / Simpan sebagai PDF</button></div>` : ''}`);
+      <thead><tr><th style="width:60px;">No</th>${theadCells}</tr></thead>
+      <tbody>${rowsPrint || `<tr class="empty-row"><td colspan="${cfg.fields.length+1}">Belum ada jadwal diisi.</td></tr>`}</tbody>
+    </table>`;
 }
 
-function liveJadwalSinoman(field, value){
+function liveJadwalBlock(blockKey, field, value){
   if (!canEditSection('dokumen')) { toast('⛔ Login untuk mengedit data'); return; }
   const s = getDokumenGlobal();
-  s.jadwal_sinoman[field] = value;
+  s[blockKey][field] = value;
   saveDB();
 
-  if(field === 'judul') setPrevText('js-prev-judul', value || '-');
-  else if(field === 'tempat') setPrevText('js-prev-tempat', value ? `Tempat: ${value}` : '');
+  const cfg = JADWAL_BLOCKS[blockKey];
+  if(field === 'judul') setPrevText(`${cfg.prevPrefix}-prev-judul`, value || '-');
+  else if(field === 'tempat') setPrevText(`${cfg.prevPrefix}-prev-tempat`, value ? `Tempat: ${value}` : '');
 }
-function jadwalSinomanSetCell(idx, field, value){
+function jadwalBlockSetCell(blockKey, idx, field, value){
   if (!canEditSection('dokumen')) { toast('⛔ Login untuk mengedit data'); return; }
   const s = getDokumenGlobal();
-  if(!s.jadwal_sinoman.rows[idx]) return;
-  s.jadwal_sinoman.rows[idx][field] = value;
+  if(!s[blockKey] || !s[blockKey].rows[idx]) return;
+  s[blockKey].rows[idx][field] = value;
   saveDB();
 }
-function jadwalSinomanAddRow(){
+function jadwalBlockAddRow(blockKey){
   if (!canEditSection('dokumen')) { toast('⛔ Login untuk mengedit data'); return; }
+  const cfg = JADWAL_BLOCKS[blockKey];
   const s = getDokumenGlobal();
-  s.jadwal_sinoman.rows.push({ pagi:'', siang:'', sore:'' });
+  const emptyRow = {};
+  cfg.fields.forEach(f=>{ emptyRow[f.key] = ''; });
+  s[blockKey].rows.push(emptyRow);
   saveDB(); renderContent();
 }
-function jadwalSinomanRemoveRow(idx){
+function jadwalBlockRemoveRow(blockKey, idx){
   if (!canEditSection('dokumen')) { toast('⛔ Login untuk mengedit data'); return; }
   const s = getDokumenGlobal();
-  if(s.jadwal_sinoman.rows.length<=1) return;
-  s.jadwal_sinoman.rows.splice(idx,1);
+  if(s[blockKey].rows.length<=1) return;
+  s[blockKey].rows.splice(idx,1);
   saveDB(); renderContent();
 }
 
 /* ============================================================
-   COMBO DROPDOWN PESERTA JADWAL SINOMAN (pengganti <select> native)
-   Kotak Pagi/Siang/Sore sebelumnya <select> polos, sekarang diganti
-   dropdown custom (tombol trigger + panel melayang + kolom cari),
-   mengikuti pola yang sama dipakai combo Koordinator Lomba
-   (js/10-lomba.js) supaya senada tema app. Bedanya di sini nama yang
-   sudah dipakai di SLOT MANAPUN (baris/kolom apa saja di jadwal ini)
-   ditampilkan nonaktif dengan badge "Sudah dipilih" — meniru pola combo
-   pilih Barang Gudang (js/17b-gudang-pinjam.js) — supaya satu orang
-   tidak bisa kepilih dobel di lebih dari satu giliran piket.
-   ============================================================ */
-function jsComboIconChevron(){
+   COMBO DROPDOWN NAMA (pengganti <select> native) — Jadwal Sinoman &
+   Jadwal Petugas. Tombol trigger + panel melayang + kolom cari, mengikuti
+   pola yang sama dipakai combo Koordinator Lomba (js/10-lomba.js) supaya
+   senada tema app. Nama yang sudah dipakai di slot LAIN ditampilkan
+   nonaktif dengan badge "Sudah dipilih" — meniru pola combo pilih Barang
+   Gudang (js/17b-gudang-pinjam.js) — supaya satu orang tidak bisa kepilih
+   dobel di lebih dari satu slot. Cakupan "sudah dipakai" dibatasi PER BLOK
+   (Jadwal Sinoman dan Jadwal Petugas dicek terpisah, bukan gabungan),
+   karena keduanya mewakili kegiatan yang berbeda.
+   Satu set fungsi generik ini dipakai untuk KEDUA blok, dibedakan lewat
+   parameter blockKey ('jadwal_sinoman'/'jadwal_petugas'). */
+function blkComboIconChevron(){
   return `<svg class="combo-chevron" width="15" height="15" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 }
-function jsComboIconSearch(){
+function blkComboIconSearch(){
   return `<svg width="15" height="15" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2" fill="none"/><path d="M21 21l-3.8-3.8" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>`;
 }
-function jsComboIconCheck(){
+function blkComboIconCheck(){
   return `<svg class="combo-check" width="15" height="15" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 }
-function jsComboTriggerHtml(idx, field, value){
+function blkComboTriggerHtml(blockKey, idx, field, value){
   return `<div class="field combo" style="margin-bottom:0; position:relative;">
-    <button type="button" id="js-combo-trigger-${idx}-${field}" class="combo-trigger js-combo-trigger${value?'':' placeholder'}" onclick="toggleJsCombo(${idx}, '${field}')">
+    <button type="button" id="blk-combo-trigger-${blockKey}-${idx}-${field}" class="combo-trigger blk-combo-trigger${value?'':' placeholder'}" onclick="toggleBlkCombo('${blockKey}', ${idx}, '${field}')">
       <span class="combo-trigger-label">${value ? esc(value) : '-- Pilih Nama --'}</span>
-      ${jsComboIconChevron()}
+      ${blkComboIconChevron()}
     </button>
   </div>`;
 }
-// Nama yang sudah dipakai di slot LAIN (bukan idx+field yang sedang dibuka) —
-// dikumpulkan dari SEMUA baris & kolom (pagi/siang/sore), supaya satu nama
-// cuma boleh muncul di satu slot piket saja di seluruh jadwal ini.
-function jsComboNamaDipakai(excludeIdx, excludeField){
-  const rows = getDokumenGlobal().jadwal_sinoman.rows;
+// Nama yang sudah dipakai di slot LAIN dalam blok yang SAMA (bukan idx+field
+// yang sedang dibuka) — dikumpulkan dari semua baris & kolom blok ini saja.
+function blkComboNamaDipakai(blockKey, excludeIdx, excludeField){
+  const cfg = JADWAL_BLOCKS[blockKey];
+  const rows = getDokumenGlobal()[blockKey].rows;
   const set = new Set();
   rows.forEach((r,idx)=>{
-    ['pagi','siang','sore'].forEach(f=>{
-      if(idx===excludeIdx && f===excludeField) return;
-      if(r[f]) set.add(r[f]);
+    cfg.fields.forEach(f=>{
+      if(idx===excludeIdx && f.key===excludeField) return;
+      if(r[f.key]) set.add(r[f.key]);
     });
   });
   return set;
 }
-let _jsComboOpenKey = null; // format `${idx}-${field}`
-let _jsComboPanelEl = null;
-let _jsComboSearch = '';
-function jsComboPositionPanel(trigger, panel){
+let _blkComboOpenKey = null; // format `${blockKey}-${idx}-${field}`
+let _blkComboPanelEl = null;
+let _blkComboSearch = '';
+function blkComboPositionPanel(trigger, panel){
   const rect = trigger.getBoundingClientRect();
   const vw = window.innerWidth, vh = window.innerHeight;
   const panelWidth = Math.min(vw - 16, Math.max(rect.width, 260));
@@ -554,85 +617,84 @@ function jsComboPositionPanel(trigger, panel){
   const maxLeft = vw - panelWidth - 8;
   if(parseFloat(panel.style.left) > maxLeft) panel.style.left = Math.max(8, maxLeft) + 'px';
 }
-function jsComboOptionsHtml(idx, field){
+function blkComboOptionsHtml(blockKey, idx, field){
   const names = dokumenDaftarNama();
-  const d = getDokumenGlobal().jadwal_sinoman;
+  const d = getDokumenGlobal()[blockKey];
   const selectedNama = (d.rows[idx] && d.rows[idx][field]) || '';
-  const dipakai = jsComboNamaDipakai(idx, field);
-  const key = _jsComboSearch.trim().toLowerCase();
+  const dipakai = blkComboNamaDipakai(blockKey, idx, field);
+  const key = _blkComboSearch.trim().toLowerCase();
   const filtered = key ? names.filter(n=>n.toLowerCase().includes(key)) : names;
   const optionsHtml = filtered.map(n=>{
     const isSelected = n===selectedNama;
     const nonAktif = dipakai.has(n) && !isSelected;
     const namaEnc = encodeURIComponent(n);
     return `<button type="button" class="combo-option${nonAktif?' disabled':''}${isSelected?' selected':''}"
-      ${nonAktif?'disabled':`onclick="selectJsComboNama(${idx}, '${field}', decodeURIComponent('${namaEnc}'))"`}>
+      ${nonAktif?'disabled':`onclick="selectBlkComboNama('${blockKey}', ${idx}, '${field}', decodeURIComponent('${namaEnc}'))"`}>
       <span class="combo-option-main"><span class="combo-option-name">${esc(n)}</span></span>
-      <span class="combo-option-side">${nonAktif?'<span class="badge stok-habis">Sudah dipilih</span>':''}${isSelected?jsComboIconCheck():''}</span>
+      <span class="combo-option-side">${nonAktif?'<span class="badge stok-habis">Sudah dipilih</span>':''}${isSelected?blkComboIconCheck():''}</span>
     </button>`;
   }).join('');
-  const clearHtml = selectedNama ? `<button type="button" class="combo-option" onclick="selectJsComboNama(${idx}, '${field}', '')">
+  const clearHtml = selectedNama ? `<button type="button" class="combo-option" onclick="selectBlkComboNama('${blockKey}', ${idx}, '${field}', '')">
       <span class="combo-option-main"><span class="combo-option-name" style="color:var(--ink-soft);">— Kosongkan pilihan —</span></span>
     </button>` : '';
   return clearHtml + (optionsHtml || `<div class="combo-empty">${key ? 'Tidak ditemukan.' : 'Belum ada data di Database Anggota.'}</div>`);
 }
-function jsComboPanelHtml(idx, field){
+function blkComboPanelHtml(blockKey, idx, field){
   return `
     <div class="combo-search-wrap">
-      <span class="combo-search-icon">${jsComboIconSearch()}</span>
-      <input type="text" class="combo-search-input" placeholder="Cari nama anggota..." value="${esc(_jsComboSearch)}" oninput="onJsComboSearch(${idx}, '${field}', this.value)">
+      <span class="combo-search-icon">${blkComboIconSearch()}</span>
+      <input type="text" class="combo-search-input" placeholder="Cari nama anggota..." value="${esc(_blkComboSearch)}" oninput="onBlkComboSearch('${blockKey}', ${idx}, '${field}', this.value)">
     </div>
-    <div class="combo-list" data-combo-list>${jsComboOptionsHtml(idx, field)}</div>`;
+    <div class="combo-list" data-combo-list>${blkComboOptionsHtml(blockKey, idx, field)}</div>`;
 }
-function toggleJsCombo(idx, field){
-  const key = `${idx}-${field}`;
-  const trigger = document.getElementById(`js-combo-trigger-${key}`);
+function toggleBlkCombo(blockKey, idx, field){
+  const key = `${blockKey}-${idx}-${field}`;
+  const trigger = document.getElementById(`blk-combo-trigger-${key}`);
   if(!trigger) return;
-  if(_jsComboOpenKey === key){ closeAllJsCombos(); return; }
-  closeAllJsCombos();
-  _jsComboSearch = '';
+  if(_blkComboOpenKey === key){ closeAllBlkCombos(); return; }
+  closeAllBlkCombos();
+  _blkComboSearch = '';
   const panel = document.createElement('div');
   panel.className = 'combo-panel combo-panel-floating';
-  panel.id = 'js-combo-floating';
-  panel.innerHTML = jsComboPanelHtml(idx, field);
+  panel.id = 'blk-combo-floating';
+  panel.innerHTML = blkComboPanelHtml(blockKey, idx, field);
   document.body.appendChild(panel);
-  jsComboPositionPanel(trigger, panel);
+  blkComboPositionPanel(trigger, panel);
   requestAnimationFrame(()=>{
     panel.classList.add('show');
     const input = panel.querySelector('.combo-search-input');
     if(input) input.focus();
   });
   trigger.classList.add('open');
-  _jsComboOpenKey = key;
-  _jsComboPanelEl = panel;
+  _blkComboOpenKey = key;
+  _blkComboPanelEl = panel;
 }
-function closeAllJsCombos(){
-  if(_jsComboPanelEl){ _jsComboPanelEl.remove(); _jsComboPanelEl = null; }
-  document.querySelectorAll('.js-combo-trigger.open').forEach(t=>t.classList.remove('open'));
-  _jsComboOpenKey = null;
+function closeAllBlkCombos(){
+  if(_blkComboPanelEl){ _blkComboPanelEl.remove(); _blkComboPanelEl = null; }
+  document.querySelectorAll('.blk-combo-trigger.open').forEach(t=>t.classList.remove('open'));
+  _blkComboOpenKey = null;
 }
-function onJsComboSearch(idx, field, value){
-  _jsComboSearch = value;
-  if(!_jsComboPanelEl) return;
-  const list = _jsComboPanelEl.querySelector('[data-combo-list]');
-  if(list) list.innerHTML = jsComboOptionsHtml(idx, field);
+function onBlkComboSearch(blockKey, idx, field, value){
+  _blkComboSearch = value;
+  if(!_blkComboPanelEl) return;
+  const list = _blkComboPanelEl.querySelector('[data-combo-list]');
+  if(list) list.innerHTML = blkComboOptionsHtml(blockKey, idx, field);
 }
-function selectJsComboNama(idx, field, value){
-  jadwalSinomanSetCell(idx, field, value);
-  closeAllJsCombos();
+function selectBlkComboNama(blockKey, idx, field, value){
+  jadwalBlockSetCell(blockKey, idx, field, value);
+  closeAllBlkCombos();
   renderContent();
 }
 document.addEventListener('click', (e)=>{
-  if(e.target.closest('.combo-panel-floating') || e.target.closest('.js-combo-trigger')) return;
-  closeAllJsCombos();
+  if(e.target.closest('.combo-panel-floating') || e.target.closest('.blk-combo-trigger')) return;
+  closeAllBlkCombos();
 });
 window.addEventListener('resize', ()=>{
-  if(_jsComboOpenKey===null || !_jsComboPanelEl) return;
-  const trigger = document.getElementById(`js-combo-trigger-${_jsComboOpenKey}`);
-  if(!trigger || !document.body.contains(trigger)){ closeAllJsCombos(); return; }
-  jsComboPositionPanel(trigger, _jsComboPanelEl);
+  if(_blkComboOpenKey===null || !_blkComboPanelEl) return;
+  const trigger = document.getElementById(`blk-combo-trigger-${_blkComboOpenKey}`);
+  if(!trigger || !document.body.contains(trigger)){ closeAllBlkCombos(); return; }
+  blkComboPositionPanel(trigger, _blkComboPanelEl);
 });
 document.addEventListener('keydown', (e)=>{
-  if(e.key==='Escape') closeAllJsCombos();
+  if(e.key==='Escape') closeAllBlkCombos();
 });
-

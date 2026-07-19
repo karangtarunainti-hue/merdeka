@@ -299,14 +299,18 @@ async function loadDB(){
         // Kalau setelah itu ada saveDB() dari perubahan APAPUN (bukan cuma Jadwal
         // Sinoman), syncDokumenGlobal() ikut mengirim jadwal_sinoman kosong itu dan
         // MENIMPA data asli di server. Sekarang jadwal_sinoman ikut disalin balik
-        // seperti field dokumen lainnya.
+        // seperti field dokumen lainnya. jadwal_petugas (blok kedua, lihat
+        // js/14-dokumen.js) ikut diberi perlakuan sama sejak awal dibuat, supaya
+        // tidak kena bug yang sama.
         result.dokumenGlobal = {
           undangan: dokumenGlobalRes.data.dokumen.undangan || {},
           proposal: dokumenGlobalRes.data.dokumen.proposal || {},
           absensi: dokumenGlobalRes.data.dokumen.absensi || {},
           jadwal_sinoman: dokumenGlobalRes.data.dokumen.jadwal_sinoman || undefined,
+          jadwal_petugas: dokumenGlobalRes.data.dokumen.jadwal_petugas || undefined,
         };
         if(!result.dokumenGlobal.jadwal_sinoman) delete result.dokumenGlobal.jadwal_sinoman;
+        if(!result.dokumenGlobal.jadwal_petugas) delete result.dokumenGlobal.jadwal_petugas;
       }
       _lastKnownDokumenGlobalUpdatedAt = dokumenGlobalRes.data ? (dokumenGlobalRes.data.updated_at || null) : null;
     }
@@ -564,7 +568,7 @@ let _lastKnownDokumenGlobalUpdatedAt = null;
 async function syncDokumenGlobal(){
   const r = await _syncSingletonRow('kt_dokumen_global', 'Surat & Dokumen', {
     id: 'main',
-    dokumen: db.dokumenGlobal || { undangan:{}, proposal:{}, absensi:{}, jadwal_sinoman:{} },
+    dokumen: db.dokumenGlobal || { undangan:{}, proposal:{}, absensi:{}, jadwal_sinoman:{}, jadwal_petugas:{} },
   }, _lastKnownDokumenGlobalUpdatedAt, v => { _lastKnownDokumenGlobalUpdatedAt = v; });
   return r.conflict ? [r.conflict] : [];
 }

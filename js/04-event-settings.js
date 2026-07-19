@@ -62,6 +62,16 @@ function getDokumenGlobal(){
   if(!Array.isArray(db.dokumenGlobal.jadwal_sinoman.rows) || !db.dokumenGlobal.jadwal_sinoman.rows.length){
     db.dokumenGlobal.jadwal_sinoman.rows = Array.from({length:5}, () => ({ pagi:'', siang:'', sore:'' }));
   }
+  // Jadwal Petugas — blok kedua yang tampilannya sama persis seperti Jadwal
+  // Sinoman di atas, cuma beda label kolom (Petugas A/B/C, bukan Pagi/Siang/
+  // Sore). Lihat JADWAL_BLOCKS di js/14-dokumen.js.
+  if(!db.dokumenGlobal.jadwal_petugas) db.dokumenGlobal.jadwal_petugas = {
+    judul: '', tempat: '',
+    rows: Array.from({length:3}, () => ({ a:'', b:'', c:'' })),
+  };
+  if(!Array.isArray(db.dokumenGlobal.jadwal_petugas.rows) || !db.dokumenGlobal.jadwal_petugas.rows.length){
+    db.dokumenGlobal.jadwal_petugas.rows = Array.from({length:3}, () => ({ a:'', b:'', c:'' }));
+  }
   return db.dokumenGlobal;
 }
 

@@ -93,6 +93,11 @@ function defaultDB(){
     // dan supabase-dana-sosial-migration.sql.
     danaSosialAnggota: [],
     danaSosialBayar: [],
+    // Tautan Penting — kumpulan link penting organisasi (grup WA, form,
+    // rekening, dsb), TIDAK terikat event sama sekali (sama seperti
+    // Agenda/Kas/Gudang). Disimpan di tabel kt_bookmark, lihat
+    // supabase-bookmark-migration.sql.
+    bookmark: [],
     users: [...DEFAULT_USERS_FALLBACK],
     telegram: {
       botToken: '',
@@ -147,6 +152,7 @@ const ARRAY_TABLE_MAP = {
   kas: 'kt_kas',
   danaSosialAnggota: 'kt_dana_sosial_anggota',
   danaSosialBayar: 'kt_dana_sosial_bayar',
+  bookmark: 'kt_bookmark',
 };
 
 // Migrasi satu-kali: dulu status "dibeli" di daftarBelanjaHadiah dilacak pakai

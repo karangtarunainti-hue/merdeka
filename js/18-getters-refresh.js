@@ -17,6 +17,8 @@ function gJadwal(){ return db.jadwal.filter(j=>j.event_id===eid()); }
 // Dana Sosial — TIDAK terikat event_id sama sekali (lihat js/22-dana-sosial.js).
 function gDanaSosialAnggota(){ return db.danaSosialAnggota.slice().sort((a,b)=>a.nama.localeCompare(b.nama,'id',{sensitivity:'base'})); }
 function gDanaSosialBayar(){ return db.danaSosialBayar; }
+// Tautan Penting — TIDAK terikat event_id sama sekali (lihat js/24-bookmark.js).
+function gBookmark(){ return db.bookmark.slice().sort((a,b)=>(a.judul||'').localeCompare(b.judul||'','id',{sensitivity:'base'})); }
 
 /* ============================================================
    AUTO-REFRESH

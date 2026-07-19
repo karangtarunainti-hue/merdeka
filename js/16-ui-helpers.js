@@ -18,6 +18,7 @@ function setModal(title, bodyHtml, buttons){
   
   // Setup currency inputs after modal body is rendered
   setTimeout(setupAllCurrencyInputs, 50);
+  setTimeout(setupAutoResizeTextareas, 50);
 }
 function closeModal(){ document.getElementById('overlay').classList.remove('show'); if(typeof closeAllGudangCombos==='function') closeAllGudangCombos(); }
 document.getElementById('modal-close').onclick = closeModal;

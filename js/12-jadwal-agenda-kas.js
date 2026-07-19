@@ -178,7 +178,7 @@ function openJadwalModal(id){
       <select id="f-kategori">${KATEGORI_JADWAL.map(k=>`<option value="${k.v}" ${editing&&editing.kategori===k.v?'selected':''}>${k.l}</option>`).join('')}</select>
     </div>
     <div class="field"><label>Deskripsi (opsional)</label>
-      <textarea id="f-deskripsi" rows="3" placeholder="Detail jadwal...">${editing?esc(editing.deskripsi||''):''}</textarea>
+      <textarea id="f-deskripsi" rows="3" data-autoresize="true" placeholder="Detail jadwal...">${editing?esc(editing.deskripsi||''):''}</textarea>
     </div>
     <div class="field"><label>Status</label>
       <select id="f-status">
@@ -375,7 +375,7 @@ function openAgendaModal(id){
       </div>
     </div>
     <div class="field"><label>Deskripsi (opsional)</label>
-      <textarea id="f-agenda-deskripsi" rows="3" placeholder="Detail agenda...">${editing?esc(editing.deskripsi||''):''}</textarea>
+      <textarea id="f-agenda-deskripsi" rows="3" data-autoresize="true" placeholder="Detail agenda...">${editing?esc(editing.deskripsi||''):''}</textarea>
     </div>
     <div class="field"><label>Status</label>
       <select id="f-agenda-status">

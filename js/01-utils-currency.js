@@ -172,6 +172,35 @@ function setupAllCurrencyInputs() {
   });
 }
 
+/* ============================================================
+   AUTO-RESIZE TEXTAREA — tinggi textarea otomatis mengikuti jumlah
+   baris teksnya (tumbuh ke bawah saat diketik/ditempel, menyusut lagi
+   kalau teks dihapus), supaya user tidak perlu menyeret sudut textarea
+   manual tiap kali isinya lebih panjang dari `rows` awal. Dipakai di
+   Surat & Dokumen (14-dokumen.js) dan textarea lain (Jadwal, Agenda,
+   Bookmark) lewat atribut data-autoresize="true" di elemennya.
+   ------------------------------------------------------------
+   PENTING: height direset ke 'auto' dulu sebelum baca scrollHeight —
+   kalau tidak, scrollHeight yang kebaca adalah tinggi LAMA (sebelum
+   teks dikurangi), jadi textarea nggak pernah menyusut waktu teks
+   dihapus, cuma bisa membesar.
+   ============================================================ */
+function autoResizeTextarea(el){
+  if(!el) return;
+  el.style.height = 'auto';
+  el.style.height = el.scrollHeight + 'px';
+}
+function setupAutoResizeTextareas() {
+  document.querySelectorAll('#content textarea[data-autoresize="true"], #modal-body textarea[data-autoresize="true"]').forEach(el => {
+    if(el._autoResizeBound) { autoResizeTextarea(el); return; } // sudah pernah dipasang, cukup sesuaikan tinggi (mis. re-render dgn isi baru)
+    el._autoResizeBound = true;
+    el.style.overflowY = 'hidden';
+    el.style.resize = 'none';
+    el.addEventListener('input', () => autoResizeTextarea(el));
+    autoResizeTextarea(el);
+  });
+}
+
 // Helper untuk mendapatkan nilai numerik dari input format ribuan
 function getCurrencyValue(inputEl) {
   if (!inputEl) return 0;

@@ -324,6 +324,7 @@ function renderContent(){
   
   // Setup currency inputs after content rendered
   setTimeout(setupAllCurrencyInputs, 50);
+  setTimeout(setupAutoResizeTextareas, 50);
 
   if (currentSection === 'lpj' || currentSection === 'dokumen' || currentSection === 'daftar-anggota') {
     requestAnimationFrame(applyLpjMobileScale);

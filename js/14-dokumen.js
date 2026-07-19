@@ -82,7 +82,7 @@ function renderSuratUndangan(ev){
       </div>
       <div class="field"><label>Tempat</label><input id="doc-und-tempat" value="${esc(d.tempat||'')}" placeholder="Balai Desa / Rumah Bapak RT 02" oninput="liveUndangan('tempat', this.value)"></div>
       <div class="field"><label>Acara</label><input id="doc-und-acara" value="${esc(d.acara||'')}" placeholder="Rapat persiapan ${esc(namaKegiatanDefault||'kegiatan')}" oninput="liveUndangan('acara', this.value)"></div>
-      <div class="field"><label>Catatan Tambahan (opsional)</label><textarea id="doc-und-catatan" rows="3" placeholder="Mohon hadir tepat waktu..." oninput="liveUndangan('catatan', this.value)">${esc(d.catatan||'')}</textarea></div>
+      <div class="field"><label>Catatan Tambahan (opsional)</label><textarea id="doc-und-catatan" rows="3" data-autoresize="true" placeholder="Mohon hadir tepat waktu..." oninput="liveUndangan('catatan', this.value)">${esc(d.catatan||'')}</textarea></div>
       <div class="field-row">
         <div class="field"><label>Jabatan Penandatangan 1</label><input id="doc-und-jab1" value="${esc(d.jabatan1||'Ketua Panitia')}" oninput="liveUndangan('jabatan1', this.value)"></div>
         <div class="field"><label>Nama Penandatangan 1</label><input id="doc-und-nama1" value="${esc(d.nama1||'')}" oninput="liveUndangan('nama1', this.value)"></div>
@@ -187,10 +187,10 @@ function renderProposalKegiatan(ev){
     <div class="panel-head"><h3>✏️ Isi Data Proposal</h3></div>
     <div class="panel-body">
       <div class="field"><label>Tema/Judul Kegiatan</label><input id="doc-prop-tema" value="${esc(temaDefault)}" placeholder="Contoh: 17-an Tahun 2026" oninput="liveProposal('tema', this.value)"></div>
-      <div class="field"><label>Latar Belakang</label><textarea id="doc-prop-latar" rows="4" placeholder="Uraikan alasan/konteks kegiatan ini diadakan..." oninput="liveProposal('latar_belakang', this.value)">${esc(d.latar_belakang||'')}</textarea></div>
-      <div class="field"><label>Maksud &amp; Tujuan</label><textarea id="doc-prop-tujuan" rows="3" placeholder="Satu tujuan per baris" oninput="liveProposal('tujuan', this.value)">${esc(d.tujuan||'')}</textarea></div>
-      <div class="field"><label>Susunan Acara</label><textarea id="doc-prop-susunan" rows="4" placeholder="Satu kegiatan per baris, mis: 19.30 - Pembukaan" oninput="liveProposal('susunan_acara', this.value)">${esc(d.susunan_acara||'')}</textarea></div>
-      <div class="field"><label>Penutup (opsional)</label><textarea id="doc-prop-penutup" rows="2" placeholder="Paragraf penutup, kosongkan untuk pakai kalimat baku" oninput="liveProposal('penutup', this.value)">${esc(d.penutup||'')}</textarea></div>
+      <div class="field"><label>Latar Belakang</label><textarea id="doc-prop-latar" rows="4" data-autoresize="true" placeholder="Uraikan alasan/konteks kegiatan ini diadakan..." oninput="liveProposal('latar_belakang', this.value)">${esc(d.latar_belakang||'')}</textarea></div>
+      <div class="field"><label>Maksud &amp; Tujuan</label><textarea id="doc-prop-tujuan" rows="3" data-autoresize="true" placeholder="Satu tujuan per baris" oninput="liveProposal('tujuan', this.value)">${esc(d.tujuan||'')}</textarea></div>
+      <div class="field"><label>Susunan Acara</label><textarea id="doc-prop-susunan" rows="4" data-autoresize="true" placeholder="Satu kegiatan per baris, mis: 19.30 - Pembukaan" oninput="liveProposal('susunan_acara', this.value)">${esc(d.susunan_acara||'')}</textarea></div>
+      <div class="field"><label>Penutup (opsional)</label><textarea id="doc-prop-penutup" rows="2" data-autoresize="true" placeholder="Paragraf penutup, kosongkan untuk pakai kalimat baku" oninput="liveProposal('penutup', this.value)">${esc(d.penutup||'')}</textarea></div>
       <div class="field-row">
         <div class="field"><label>Jabatan Penandatangan 1</label><input id="doc-prop-jab1" value="${esc(d.jabatan1||'Ketua Panitia')}" oninput="liveProposal('jabatan1', this.value)"></div>
         <div class="field"><label>Nama Penandatangan 1</label><input id="doc-prop-nama1" value="${esc(d.nama1||'')}" oninput="liveProposal('nama1', this.value)"></div>

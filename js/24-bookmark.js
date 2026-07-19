@@ -72,7 +72,7 @@ function openBookmarkModal(id){
     <div class="field"><label>Judul</label><input id="f-bookmark-judul" value="${editing?esc(editing.judul):''}" placeholder="mis. Grup WA Panitia"></div>
     <div class="field"><label>URL</label><input id="f-bookmark-url" value="${editing?esc(editing.url):''}" placeholder="mis. https://chat.whatsapp.com/xxxxx"></div>
     <div class="field"><label>Deskripsi (opsional)</label>
-      <textarea id="f-bookmark-deskripsi" rows="2" placeholder="Keterangan singkat...">${editing?esc(editing.deskripsi||''):''}</textarea>
+      <textarea id="f-bookmark-deskripsi" rows="2" data-autoresize="true" placeholder="Keterangan singkat...">${editing?esc(editing.deskripsi||''):''}</textarea>
     </div>
   `, [
     {label:'Batal', cls:'secondary', onclick:closeModal},

@@ -495,10 +495,20 @@
   table.anggota-table th:nth-child(4), table.anggota-table td:nth-child(4) { width:25%; }
   table.anggota-table th:nth-child(5), table.anggota-table td:nth-child(5) { width:20%; }
 
-  table.database-table th:nth-child(1), table.database-table td:nth-child(1) { width:16%; }
-  table.database-table th:nth-child(2), table.database-table td:nth-child(2) { width:11%; }
-  table.database-table th:nth-child(3), table.database-table td:nth-child(3) { width:10%; }
-  table.database-table th:nth-child(4), table.database-table td:nth-child(4) { width:13%; }
+  /* Kolom Nama diperlebar & dibuat satu baris (nowrap+ellipsis) supaya nama
+     panjang tidak pecah ke baris kedua di layar lebar. Ruang tambahannya
+     diambil dari RT & Jenis Kelamin — dua kolom itu isinya cuma dropdown
+     pendek ("RT 1", "Laki-Laki", dst) yang selama ini dikasih padding
+     standar 18px kiri-kanan spt kolom lain, padahal tidak butuh selebar itu.
+     RT & Jenis Kelamin sengaja dirapatkan (padding sisi yang berhadapan
+     dikecilkan jadi 6px) supaya kelihatan "mepet" satu sama lain, bukan
+     cuma dipersempit lebarnya saja. */
+  table.database-table th:nth-child(1), table.database-table td:nth-child(1) {
+    width:22%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  table.database-table th:nth-child(2), table.database-table td:nth-child(2) { width:10%; }
+  table.database-table th:nth-child(3), table.database-table td:nth-child(3) { width:7%; padding-right:6px; }
+  table.database-table th:nth-child(4), table.database-table td:nth-child(4) { width:11%; padding-left:6px; }
   table.database-table th:nth-child(5), table.database-table td:nth-child(5) { width:12%; }
   table.database-table th:nth-child(6), table.database-table td:nth-child(6) { width:11%; }
   table.database-table th:nth-child(7), table.database-table td:nth-child(7) { width:12%; }
@@ -1390,6 +1400,69 @@
   }
   .reminder-card .card-body .lomba-detail-card:last-child{border-bottom:none; padding-bottom:0;}
   .reminder-card .card-body .lomba-detail-card:first-child{padding-top:0;}
+
+  /* ============================================================
+     KARTU "POSTER" LOMBA di Jadwal Mendatang
+     Reminder jadwal yang nyambung ke data Lomba (lihat
+     generateJadwalReminderCard di js/12-jadwal-agenda-kas.js) ditampilkan
+     lebih menonjol ala poster/flyer kecil — bukan cuma baris label:value
+     polos — supaya gampang dibaca sekilas & enak di-screenshot buat
+     dibagikan ke grup WA panitia/koordinator lomba. Border dashed di dalam
+     (::before) meniru garis potong tiket/sertifikat; warna tetap ikut
+     palet gold/hijau app, bukan merah-putih literal, biar senada dengan
+     tema Taruna Inti yang sudah ada.
+     ============================================================ */
+  .lomba-poster{
+    position:relative;
+    background:linear-gradient(165deg, var(--cream-card) 0%, var(--gold-tint) 145%);
+    border:1.5px solid var(--gold);
+    border-radius:12px;
+    padding:16px 16px 14px;
+    margin-bottom:10px;
+    overflow:hidden;
+  }
+  .reminder-card .card-body .lomba-poster:last-child{ margin-bottom:0; }
+  .lomba-poster::before{
+    content:''; position:absolute; inset:5px;
+    border:1px dashed rgba(201,154,60,.5); border-radius:8px;
+    pointer-events:none;
+  }
+  .lomba-poster-kapan{
+    position:absolute; top:12px; right:12px;
+    font-size:10.5px; font-weight:700; letter-spacing:.02em;
+    background:var(--merah-dark); color:#fff; padding:3px 10px; border-radius:20px;
+    white-space:nowrap;
+  }
+  .lomba-poster-kategori{
+    display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.05em;
+    color:var(--kategori-text); background:var(--gold-tint); border:1px solid var(--gold);
+    padding:2px 9px; border-radius:20px; margin-bottom:9px;
+  }
+  .lomba-poster-title{
+    margin:0 70px 11px 0; font-family:'Sora', sans-serif; font-size:17px; font-weight:700;
+    color:var(--merah-dark); line-height:1.28;
+  }
+  .lomba-poster-divider{
+    height:1px; margin:0 0 12px;
+    background-image:repeating-linear-gradient(to right, var(--gold) 0 6px, transparent 6px 12px);
+  }
+  .lomba-poster-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px 16px; }
+  .lomba-poster-item{ display:flex; flex-direction:column; gap:3px; min-width:0; }
+  .lomba-poster-item.full{ grid-column:1 / -1; }
+  .lomba-poster-item .k{
+    font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em;
+    color:var(--ink-soft);
+  }
+  .lomba-poster-item .v{
+    font-size:13px; color:var(--ink); font-weight:600; line-height:1.4;
+    overflow-wrap:break-word; word-break:break-word;
+  }
+  @media (max-width:480px){
+    .lomba-poster-grid{ grid-template-columns:1fr; }
+    .lomba-poster-title{ font-size:15.5px; margin-right:0; }
+    .lomba-poster-kapan{ position:static; display:inline-block; margin-bottom:8px; }
+  }
+
   /* .lomba-detail-row dibuat generik (bukan cuma di dalam .reminder-card) supaya
      bisa dipakai ulang untuk kartu label:value lain di HP, mis. kartu Manajemen
      User (lihat .jadwal-item .lomba-detail-row di users-mobile-wrap). */

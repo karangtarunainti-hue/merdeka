@@ -25,12 +25,12 @@ function generateJadwalReminderCard(){
     const kapanLabel = diffDays === 0 ? 'Hari ini!' : diffDays === 1 ? 'Besok' : `${diffDays} hari lagi`;
 
     // Entri yang otomatis nyambung ke Lomba (lihat syncAgendaLomba di
-    // 10-lomba.js) dapet baris tambahan: kegiatan lomba, perlengkapan yang
-    // dibutuhkan, dan koordinatornya — biar setara sama kartu "Lomba Hari
-    // Ini!" yang dulu tampil di Buku Kegiatan.
+    // 10-lomba.js) ditampilkan sebagai kartu "poster" tersendiri — lebih
+    // menonjol & mudah discreenshot/dibagikan ke grup WA panitia, dibanding
+    // baris label:value polos. Entri jadwal biasa (bukan lomba) tetap pakai
+    // tampilan rows lama seperti semula.
     const lombaLink = getLombaForJadwal(j.id);
-    let extraRows = '';
-    if (lombaLink) {
+    if (lombaLink){
       const kebutuhan = gKebutuhan(lombaLink.id);
       const perlengkapanText = kebutuhan.length
         ? kebutuhan.map(k => `${k.nama_item} (${k.qty})`).join(', ')
@@ -39,18 +39,26 @@ function generateJadwalReminderCard(){
         .map(id => (db.anggota.find(a=>a.id===id)||{}).nama)
         .filter(Boolean);
       const koordinatorText = koordinatorNama.length ? koordinatorNama.join(', ') : 'Belum ada koordinator';
-      extraRows = `
-        <div class="lomba-detail-row"><span class="lbl">🎯 Kegiatan Lomba</span><span class="val">${esc(labelPeserta(lombaLink.kategori_peserta))}</span></div>
-        <div class="lomba-detail-row"><span class="lbl">📦 Perlengkapan</span><span class="val">${esc(perlengkapanText)}</span></div>
-        <div class="lomba-detail-row"><span class="lbl">👤 Koordinator</span><span class="val">${esc(koordinatorText)}</span></div>`;
+      return `
+      <div class="lomba-poster">
+        <div class="lomba-poster-kapan">${esc(kapanLabel)}</div>
+        <div class="lomba-poster-kategori">${esc(labelPeserta(lombaLink.kategori_peserta))}</div>
+        <h4 class="lomba-poster-title">${esc(lombaLink.nama)}</h4>
+        <div class="lomba-poster-divider"></div>
+        <div class="lomba-poster-grid">
+          <div class="lomba-poster-item"><span class="k">🗓️ Tanggal</span><span class="v">${fmtDateHari(j.tanggal)}</span></div>
+          <div class="lomba-poster-item"><span class="k">⏰ Jam</span><span class="v">${j.jam?esc(j.jam):'Belum ditentukan'}</span></div>
+          <div class="lomba-poster-item full"><span class="k">📦 Perlengkapan</span><span class="v">${esc(perlengkapanText)}</span></div>
+          <div class="lomba-poster-item full"><span class="k">👤 Koordinator</span><span class="v">${esc(koordinatorText)}</span></div>
+        </div>
+      </div>`;
     }
 
     return `
     <div class="lomba-detail-card">
       <div class="lomba-detail-row"><span class="lbl">🗓️ Hari &amp; Tanggal</span><span class="val">${fmtDateHari(j.tanggal)} · ${kapanLabel}</span></div>
       <div class="lomba-detail-row"><span class="lbl">⏰ Waktu</span><span class="val">${j.jam?esc(j.jam):'Belum ditentukan'}</span></div>
-      <div class="lomba-detail-row"><span class="lbl">📌 Judul</span><span class="val">${esc(j.judul)}${lombaLink?' 🔗':''}</span></div>
-      ${extraRows}
+      <div class="lomba-detail-row"><span class="lbl">📌 Judul</span><span class="val">${esc(j.judul)}</span></div>
     </div>`;
   }).join('');
 

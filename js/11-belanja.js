@@ -236,7 +236,7 @@ function bukaQuickAssignKategoriToko(gi){
         if(!kategoriKey) return; // validasi gagal, modal tetap terbuka
       }
       tambahKataKunciKategoriToko(g.nama, kategoriKey);
-      closeModal(); renderContent(); toast(`"${g.nama}" dipindah ke kategori baru`);
+      closeModal(); renderContent(); toast(`"${g.nama}" dipindah ke kategori "${infoKategoriToko(kategoriKey).label}"`);
     }}
   ]);
 }

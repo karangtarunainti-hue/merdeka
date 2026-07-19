@@ -390,8 +390,20 @@ function renderBelanjaHadiah(){
     const grp = hadiahAktual.perGroup[namaKey] || {totalQty:0, totalHarga:0, isiPerPack:1, jumlahPackUtuh:0, sisaSatuan:0, hargaPerPcsPack:0, hargaEceran:0, hargaEceranBeda:false};
     const {totalQty, totalHarga, isiPerPack, jumlahPackUtuh, sisaSatuan, hargaPerPcsPack, hargaEceran, hargaEceranBeda} = grp;
 
-    const belumQty = belum.reduce((s,i)=>s+Number(i.itemQtyDibeli||0),0);
-    if(totalQty > 0) totalBelumEstimasi += totalHarga * (belumQty / totalQty);
+    // PENTING (konsistensi pembulatan — kelas bug yang sama dengan Bug #2/#3):
+    // dulu di sini dipakai rumus proporsional mentah sendiri
+    // (totalHarga * belumQty/totalQty), BUKAN alokasi per-item yang sudah
+    // dibulatkan lewat metode "largest remainder" di hadiahAktual.perItem.
+    // Akibatnya "Belum dibeli: Rp ..." bisa beda beberapa rupiah dari
+    // (Estimasi Total - yang sudah dibeli), padahal hadiahAktual.perItem
+    // sudah dijamin sum(subtotal per item) === Math.round(totalHarga grup)
+    // (lihat komentar largest remainder di hitungHargaAktualHadiahLomba).
+    // Sekarang dijumlah langsung dari alokasi.subtotal item yang belum
+    // dibeli, supaya SELALU konsisten dengan totalEstimasi & rincian lain.
+    totalBelumEstimasi += belum.reduce((s,i) => {
+      const alokasi = hadiahAktual.perItem[`${i.hadiahId}_${i.itemId}`];
+      return s + (alokasi ? alokasi.subtotal : 0);
+    }, 0);
 
     const tagHtml = list.map(item => {
       // Hadiah non-partisipasi digabung dari SEMUA lomba dgn kategori_peserta yang sama

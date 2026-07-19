@@ -35,7 +35,7 @@ function hitungHargaAktualHadiahLomba(){
   // per barang, bukan per paket kategori/juara.
   const nameMap = {};
   items.forEach(item => {
-    const key = item.itemNama.trim().toLowerCase();
+    const key = normNamaBarang(item.itemNama);
     if(!nameMap[key]) nameMap[key] = [];
     nameMap[key].push(item);
   });
@@ -91,12 +91,159 @@ const KATEGORI_TOKO_KEYWORDS = {
 };
 function kategoriTokoFromNama(nama){
   const n = ' ' + (nama||'').toLowerCase().trim() + ' ';
+  // 1) Kata kunci kustom yang ditambahkan admin lewat "Kelola Kategori Toko"
+  //    dicek LEBIH DULU, supaya admin bisa override kategori bawaan kalau perlu
+  //    (mis. "buku" biasanya alat_tulis, tapi admin bisa arahkan ke kategori lain).
+  const kustom = (typeof getSettings==='function' ? getSettings().kategoriToko : null) || {};
+  const keywordsKustom = kustom.keywords || {};
+  for(const kw of Object.keys(keywordsKustom)){
+    const kwNorm = (' ' + kw.toLowerCase().trim() + ' ');
+    if(kw && n.includes(kwNorm)) return keywordsKustom[kw];
+  }
+  // 2) Kategori & kata kunci bawaan (tetap, tidak bisa diedit lewat UI).
   for(const kat of ['alat_tulis','dapur','makanan','kamar_mandi']){
     if(KATEGORI_TOKO_KEYWORDS[kat].some(kw => n.includes(kw))) return kat;
   }
   return 'lainnya';
 }
-function infoKategoriToko(key){ return KATEGORI_TOKO_LIST.find(k=>k.key===key) || KATEGORI_TOKO_LIST[KATEGORI_TOKO_LIST.length-1]; }
+// Daftar kategori toko LENGKAP: bawaan + kustom milik event aktif (disisipkan
+// sebelum "Lainnya" supaya barang yang sudah dikategorikan admin tetap tampil
+// terkelompok rapi, bukan di paling bawah).
+function daftarKategoriTokoLengkap(){
+  const kustom = (typeof getSettings==='function' ? getSettings().kategoriToko : null) || {};
+  const customCategories = kustom.customCategories || [];
+  const bawaan = KATEGORI_TOKO_LIST.slice(0, -1); // semua kecuali "Lainnya"
+  const lainnya = KATEGORI_TOKO_LIST[KATEGORI_TOKO_LIST.length-1];
+  return [...bawaan, ...customCategories, lainnya];
+}
+function infoKategoriToko(key){ return daftarKategoriTokoLengkap().find(k=>k.key===key) || KATEGORI_TOKO_LIST[KATEGORI_TOKO_LIST.length-1]; }
+
+// Ikon yang tersedia untuk kategori toko kustom (dibatasi ke ikon yang sudah
+// terdaftar di ICONS map / 05-navigation.js, supaya tidak ada ikon kosong).
+const IKON_KATEGORI_TOKO_KUSTOM = ['tag','flag','walk','heart','shopping','shopping-bag','grid','gear','briefcase','book','coins','swap','database','link'];
+
+// Tambah kategori toko kustom baru untuk event aktif (mis. "Alat Olahraga",
+// "Dekorasi") supaya barang yang tidak cocok kata kunci bawaan tidak numpuk
+// tanpa arti di "Lainnya".
+function tambahKategoriTokoKustom(label, icon){
+  const lbl = String(label||'').trim();
+  if(!lbl){ toast('Nama kategori wajib diisi'); return null; }
+  const s = getSettings();
+  const key = 'kustom_' + normNamaBarang(lbl).replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'') + '_' + Math.random().toString(36).slice(2,6);
+  const dupe = s.kategoriToko.customCategories.find(k=>normNamaBarang(k.label)===normNamaBarang(lbl));
+  if(dupe){ toast(`Kategori "${dupe.label}" sudah ada`); return dupe.key; }
+  const cat = {key, label:lbl, icon: IKON_KATEGORI_TOKO_KUSTOM.includes(icon)?icon:'tag'};
+  s.kategoriToko.customCategories.push(cat);
+  saveDB(); return key;
+}
+function hapusKategoriTokoKustom(key){
+  const s = getSettings();
+  if(!confirm('Hapus kategori ini? Kata kunci yang mengarah ke kategori ini akan ikut dihapus, barangnya kembali masuk "Lainnya".')) return;
+  s.kategoriToko.customCategories = s.kategoriToko.customCategories.filter(k=>k.key!==key);
+  Object.keys(s.kategoriToko.keywords).forEach(kw => { if(s.kategoriToko.keywords[kw]===key) delete s.kategoriToko.keywords[kw]; });
+  saveDB(); renderContent(); toast('Kategori dihapus');
+}
+// Tambah/timpa satu kata kunci -> kategori (bawaan atau kustom). Dipakai baik
+// dari modal "Kelola Kategori Toko" maupun jalur cepat "Masukkan kategori"
+// langsung dari barang yang nangkring di grup "Lainnya".
+function tambahKataKunciKategoriToko(kataKunci, kategoriKey){
+  const kw = String(kataKunci||'').trim().toLowerCase();
+  if(!kw || !kategoriKey){ toast('Kata kunci & kategori wajib diisi'); return; }
+  const s = getSettings();
+  s.kategoriToko.keywords[kw] = kategoriKey;
+  saveDB();
+}
+function hapusKataKunciKategoriToko(kataKunci){
+  const s = getSettings();
+  delete s.kategoriToko.keywords[kataKunci];
+  saveDB(); renderContent(); toast('Kata kunci dihapus');
+}
+
+// Opsi <select> kategori (bawaan + kustom, TANPA "Lainnya" — kata kunci baru
+// harus diarahkan ke kategori yang berarti, bukan balik ke "Lainnya").
+function optionsKategoriTokoHtml(selectedKey){
+  return daftarKategoriTokoLengkap().filter(k=>k.key!=='lainnya').map(k =>
+    `<option value="${esc(k.key)}" ${k.key===selectedKey?'selected':''}>${esc(k.label)}</option>`
+  ).join('') + `<option value="__baru__">+ Buat kategori baru...</option>`;
+}
+function optionsIkonKategoriTokoHtml(selected){
+  return IKON_KATEGORI_TOKO_KUSTOM.map(i => `<option value="${i}" ${i===selected?'selected':''}>${i}</option>`).join('');
+}
+// Jalur cepat: dipanggil dari tombol "🏷️ Kategori" pada barang di grup "Lainnya".
+// Menyamakan kategori barang ini dengan menambahkan nama persisnya sebagai kata
+// kunci baru — sekali klik, tanpa harus bolak-balik ke halaman Pengaturan.
+function bukaQuickAssignKategoriToko(gi){
+  if (!canEditSection('belanja-hadiah')) { toast('⛔ Login untuk mengedit data'); return; }
+  const g = window._belanjaHadiahGroups && window._belanjaHadiahGroups[gi];
+  if(!g){ toast('Barang tidak ditemukan'); return; }
+  setModal(`Kategori toko: "${g.nama}"`, `
+    <div class="field">
+      <label>Masukkan ke kategori toko</label>
+      <select id="qa-kat-select" onchange="document.getElementById('qa-kat-baru-wrap').style.display=(this.value==='__baru__'?'block':'none')">
+        ${optionsKategoriTokoHtml(null)}
+      </select>
+      <div class="hint">Barang lain dengan nama persis sama akan ikut masuk kategori ini juga.</div>
+    </div>
+    <div class="field" id="qa-kat-baru-wrap" style="display:none;">
+      <label>Nama kategori baru</label>
+      <input id="qa-kat-baru-label" type="text" placeholder="mis. Alat Olahraga, Dekorasi">
+      <label style="margin-top:6px;">Ikon</label>
+      <select id="qa-kat-baru-icon">${optionsIkonKategoriTokoHtml('tag')}</select>
+    </div>
+  `, [
+    {label:'Batal', cls:'secondary', onclick: closeModal},
+    {label:'Simpan', cls:'', onclick:()=>{
+      const sel = document.getElementById('qa-kat-select').value;
+      let kategoriKey = sel;
+      if(sel === '__baru__'){
+        const lbl = document.getElementById('qa-kat-baru-label').value;
+        const ic = document.getElementById('qa-kat-baru-icon').value;
+        kategoriKey = tambahKategoriTokoKustom(lbl, ic);
+        if(!kategoriKey) return; // validasi gagal, modal tetap terbuka
+      }
+      tambahKataKunciKategoriToko(g.nama, kategoriKey);
+      closeModal(); renderContent(); toast(`"${g.nama}" dipindah ke kategori baru`);
+    }}
+  ]);
+}
+// Halaman kelola lengkap: lihat & hapus kategori kustom + kata kunci kustom,
+// dan tambah kata kunci baru bebas (tidak harus dari nama barang yang sudah ada).
+function bukaModalKelolaKategoriToko(){
+  if (!canEditSection('belanja-hadiah')) { toast('⛔ Login untuk mengedit data'); return; }
+  const s = getSettings();
+  const customCats = s.kategoriToko.customCategories || [];
+  const keywords = s.kategoriToko.keywords || {};
+  const catRowsHtml = customCats.length ? customCats.map(c => `
+    <div class="belanja-subitem">
+      <div class="sub-info"><span>${icon(c.icon)} ${esc(c.label)}</span></div>
+      <button class="btn-small-icon danger-text" title="Hapus kategori" onclick="hapusKategoriTokoKustom('${c.key}')">✕</button>
+    </div>`).join('') : `<div class="hint" style="padding:6px 0;">Belum ada kategori kustom.</div>`;
+  const kwRowsHtml = Object.keys(keywords).length ? Object.keys(keywords).sort().map(kw => `
+    <div class="belanja-subitem">
+      <div class="sub-info"><span>"${esc(kw)}" → ${esc(infoKategoriToko(keywords[kw]).label)}</span></div>
+      <button class="btn-small-icon danger-text" title="Hapus kata kunci" onclick="hapusKataKunciKategoriToko('${esc(kw).replace(/'/g,"\\'")}')">✕</button>
+    </div>`).join('') : `<div class="hint" style="padding:6px 0;">Belum ada kata kunci kustom.</div>`;
+
+  setModal('⚙️ Kelola Kategori Toko', `
+    <div class="hint" style="margin-bottom:10px;">Kategori & kata kunci bawaan (alat tulis, dapur, makanan, kamar mandi) tetap ada dan tidak bisa diubah. Di sini kamu cuma menambah kategori/kata kunci BARU khusus event ini (mis. kebutuhan lomba tahun ini beda-beda), supaya barang yang tidak cocok kata kunci bawaan tidak numpuk begitu saja di "Lainnya".</div>
+
+    <div class="field"><label>Kategori kustom</label>${catRowsHtml}</div>
+    <div class="field" style="display:flex;gap:6px;align-items:flex-end;">
+      <div style="flex:1;"><label>Kategori baru</label><input id="kk-cat-label" type="text" placeholder="mis. Alat Olahraga"></div>
+      <div><label>Ikon</label><select id="kk-cat-icon">${optionsIkonKategoriTokoHtml('tag')}</select></div>
+      <button class="btn small" onclick="const lbl=document.getElementById('kk-cat-label').value; const ic=document.getElementById('kk-cat-icon').value; if(tambahKategoriTokoKustom(lbl,ic)){ document.getElementById('kk-cat-label').value=''; bukaModalKelolaKategoriToko(); }">+ Tambah</button>
+    </div>
+
+    <div class="field" style="margin-top:14px;"><label>Kata kunci kustom</label>${kwRowsHtml}</div>
+    <div class="field" style="display:flex;gap:6px;align-items:flex-end;">
+      <div style="flex:1;"><label>Kata kunci</label><input id="kk-kw-text" type="text" placeholder="mis. bola voli"></div>
+      <div style="flex:1;"><label>Kategori</label><select id="kk-kw-cat">${optionsKategoriTokoHtml(null).replace('<option value="__baru__">+ Buat kategori baru...</option>','')}</select></div>
+      <button class="btn small" onclick="const kw=document.getElementById('kk-kw-text').value; const kat=document.getElementById('kk-kw-cat').value; if(!kw.trim()){toast('Kata kunci wajib diisi');return;} tambahKataKunciKategoriToko(kw,kat); document.getElementById('kk-kw-text').value=''; bukaModalKelolaKategoriToko();">+ Tambah</button>
+    </div>
+  `, [
+    {label:'Tutup', cls:'', onclick:()=>{ closeModal(); renderContent(); }}
+  ]);
+}
 
 /* ============================================================
    BELANJA HADIAH, BELANJA PERLENGKAPAN, BELANJA JALAN (dengan auth check)
@@ -132,14 +279,14 @@ function renderBelanjaHadiah(){
   // Kelompokkan per NAMA barang (gabungan lintas kategori peserta & juara) menjadi SATU checklist
   const nameMap = {};
   items.forEach(item => {
-    const key = item.itemNama.trim().toLowerCase();
+    const key = normNamaBarang(item.itemNama);
     if(!nameMap[key]) nameMap[key] = {nama: item.itemNama, list: []};
     nameMap[key].list.push(item);
   });
 
   // Lalu kelompokkan per KATEGORI TOKO (alat tulis / dapur / makanan / kamar mandi / lainnya)
   // supaya barang sejenis tidak campur dan bisa dibeli sekaligus di satu toko.
-  const kategoriOrder = KATEGORI_TOKO_LIST.map(k=>k.key);
+  const kategoriOrder = daftarKategoriTokoLengkap().map(k=>k.key);
   const nameGroups = Object.values(nameMap).map(g => ({...g, kategoriToko: kategoriTokoFromNama(g.nama)})).sort((a,b) => {
     const ordA = kategoriOrder.indexOf(a.kategoriToko), ordB = kategoriOrder.indexOf(b.kategoriToko);
     if(ordA !== ordB) return ordA - ordB;
@@ -221,6 +368,7 @@ function renderBelanjaHadiah(){
       </div>
       <div class="harga" style="display:flex; align-items:center; gap:4px;">
         <span>${fmtRp(totalHarga)}</span>
+        ${g.kategoriToko==='lainnya' ? `<button class="btn-small-icon" title="Barang ini masuk 'Lainnya' — klik untuk pindahkan ke kategori toko lain" onclick="event.stopPropagation(); ${isLoggedIn ? `bukaQuickAssignKategoriToko(${gi})` : `toast('⛔ Login untuk mengedit')`}" ${!isLoggedIn ? 'disabled' : ''}>${icon('tag')}</button>` : ''}
         <button class="btn-small-icon" title="Update harga & kemasan" onclick="event.stopPropagation(); ${isLoggedIn ? `editHargaBelanjaHadiahGroup(${gi})` : `toast('⛔ Login untuk mengedit')`}" ${!isLoggedIn ? 'disabled' : ''}>${icon('pen')}</button>
       </div>
     </div>`;
@@ -231,6 +379,7 @@ function renderBelanjaHadiah(){
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
       <button class="btn success small" onclick="tandaiSemuaBelanjaHadiah()" ${!isLoggedIn ? 'disabled' : ''}>✓ Semua Dibeli</button>
       <button class="btn secondary small" onclick="resetSemuaBelanjaHadiah()" ${!isLoggedIn ? 'disabled' : ''}>↺ Reset</button>
+      <button class="btn secondary small" onclick="bukaModalKelolaKategoriToko()" ${!isLoggedIn ? 'disabled' : ''}>⚙️ Kelola Kategori Toko</button>
     </div></div>
   <div class="panel-body">${groups}</div></div></div>`;
 }
@@ -431,7 +580,7 @@ function renderBelanjaPerlengkapan(){
   // Kelompokkan per NAMA barang (gabungan lintas lomba), total kebutuhan digabung, detail per lomba tetap ada
   const nameMap = {};
   items.forEach(item => {
-    const key = item.nama_item.trim().toLowerCase();
+    const key = normNamaBarang(item.nama_item);
     if(!nameMap[key]) nameMap[key] = {nama: item.nama_item, list: []};
     nameMap[key].list.push(item);
   });
@@ -454,7 +603,7 @@ function renderBelanjaPerlengkapan(){
 
     // Grup dengan >1 lomba bisa di-expand untuk menandai status beli per lomba
     // secara terpisah (dulu ini cuma bisa dilakukan dari menu Lomba).
-    const groupKey = g.nama.trim().toLowerCase();
+    const groupKey = normNamaBarang(g.nama);
     const isMulti = groupItems.length > 1;
     const isExpanded = isMulti && openBelanjaPerlengkapanGroups.has(groupKey);
 
@@ -774,7 +923,7 @@ function renderBelanjaJalanSantai(){
   // Kelompokkan per NAMA hadiah (kalau ada beberapa entri dengan nama sama), total digabung
   const nameMap = {};
   items.forEach(item => {
-    const key = item.nama_hadiah.trim().toLowerCase();
+    const key = normNamaBarang(item.nama_hadiah);
     if(!nameMap[key]) nameMap[key] = {nama: item.nama_hadiah, list: []};
     nameMap[key].list.push(item);
   });

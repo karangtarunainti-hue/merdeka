@@ -253,7 +253,7 @@ async function loadDB(){
     result.users = (!usersRes.error && usersRes.data && usersRes.data.length) ? usersRes.data : [...DEFAULT_USERS_FALLBACK];
 
     if(!settingsRes.error){
-      (settingsRes.data || []).forEach(s => { result.settings[s.event_id] = { tarif: s.tarif, hadiahBudget: s.hadiah_budget || {}, dokumen: s.dokumen || {} }; });
+      (settingsRes.data || []).forEach(s => { result.settings[s.event_id] = { tarif: s.tarif, hadiahBudget: s.hadiah_budget || {}, dokumen: s.dokumen || {}, kategoriToko: s.kategori_toko || {customCategories:[],keywords:{}} }; });
       _lastKnownSettingsIds = new Set((settingsRes.data || []).map(s => s.event_id));
       // Sama seperti _lastKnownUpdatedAt di syncArrayTable — dipakai syncSettings()
       // untuk mendeteksi kalau baris event_id yang sama sudah diubah admin lain
@@ -468,7 +468,7 @@ let _lastKnownSettingsIds = new Set();
 let _lastKnownSettingsUpdatedAt = new Map();
 
 async function syncSettings(){
-  const rows = Object.keys(db.settings).map(eventId => ({ event_id: eventId, tarif: db.settings[eventId].tarif, hadiah_budget: db.settings[eventId].hadiahBudget || {}, dokumen: db.settings[eventId].dokumen || {} }));
+  const rows = Object.keys(db.settings).map(eventId => ({ event_id: eventId, tarif: db.settings[eventId].tarif, hadiah_budget: db.settings[eventId].hadiahBudget || {}, dokumen: db.settings[eventId].dokumen || {}, kategori_toko: db.settings[eventId].kategoriToko || {customCategories:[],keywords:{}} }));
   const { data: existing, error: selErr } = await sb.from('kt_settings').select('event_id, updated_at');
   if(selErr){ console.error('Gagal membaca kt_settings:', selErr); throw new Error(`Gagal membaca kt_settings: ${selErr.message}`); }
   const existingMap = new Map((existing || []).map(r => [r.event_id, r.updated_at]));

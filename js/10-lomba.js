@@ -893,13 +893,13 @@ function removeItemRow(element){ if(!element) return; element.remove(); const co
 // bergeser, sedangkan index bisa nyasar ke item lain kalau ada penghapusan
 // atau reorder di antaranya.
 function samakanHargaItemSejenis(nama, harga, excludeItemId){
-  const key = String(nama||'').trim().toLowerCase();
+  const key = normNamaBarang(nama);
   if(!key || !(Number(harga) > 0)) return 0;
   let count = 0;
   gHadiahKategori().forEach(h=>{
     (h.items||[]).forEach(it=>{
       if(it.id===excludeItemId) return;
-      if(String(it.nama||'').trim().toLowerCase()===key && Number(it.harga_satuan||0)!==Number(harga)){
+      if(normNamaBarang(it.nama)===key && Number(it.harga_satuan||0)!==Number(harga)){
         it.harga_satuan = Number(harga)||0;
         count++;
       }
@@ -910,13 +910,36 @@ function samakanHargaItemSejenis(nama, harga, excludeItemId){
 // Cari harga yang sudah pernah diisi untuk item dengan nama yang sama (di paket
 // manapun, event yang sama). Dipakai untuk auto-isi field harga saat nama diketik.
 function cariHargaItemSejenis(nama){
-  const key = String(nama||'').trim().toLowerCase();
+  const key = normNamaBarang(nama);
   if(!key) return null;
   for(const h of gHadiahKategori()){
     for(const it of (h.items||[])){
-      if(String(it.nama||'').trim().toLowerCase()===key && Number(it.harga_satuan||0)>0){
+      if(normNamaBarang(it.nama)===key && Number(it.harga_satuan||0)>0){
         return Number(it.harga_satuan);
       }
+    }
+  }
+  return null;
+}
+// Cari nama item hadiah lain (paket manapun, event yang sama) yang MIRIP tapi
+// tidak identik dengan nama yang baru diketik — mis. "Buku Tulis" vs "Buku
+// Tulis 38 Lembar" atau typo tipis "Bulpoin" vs "Bolpoin". Dipakai untuk
+// menampilkan peringatan supaya panitia sadar sebelum barang yang sama
+// tercatat sebagai 2 barang berbeda di checklist (pengelompokan checklist
+// murni exact-match by normNamaBarang, jadi kalau memang barang yang sama,
+// namanya harus disamakan persis biar otomatis tergabung).
+// excludeHadiahId+excludeItemId dipakai saat edit, supaya item yang sedang
+// diedit tidak membandingkan dirinya sendiri.
+function cariNamaItemHadiahMirip(nama, excludeHadiahId, excludeItemId){
+  if(!String(nama||'').trim()) return null;
+  const sudahDicek = new Set();
+  for(const h of gHadiahKategori()){
+    for(const it of (h.items||[])){
+      if(h.id===excludeHadiahId && it.id===excludeItemId) continue;
+      const nrm = normNamaBarang(it.nama);
+      if(sudahDicek.has(nrm)) continue;
+      sudahDicek.add(nrm);
+      if(namaBarangMirip(nama, it.nama)) return it.nama;
     }
   }
   return null;
@@ -943,6 +966,8 @@ async function editHadiahItem(hadiahId,itemId){
   const newQty = await promptModal({title:'Edit Item Hadiah', label:'Qty total (dibeli)', hint:'Boleh diisi lebih untuk cadangan. Kalau diisi kurang dari kebutuhan (jumlah lomba × qty/paket), badge "⚠️ Kurang" akan muncul lagi.', defaultValue:item.qty_dibeli, type:'number'});
   if(newQty===null) return;
   if(!newNama.trim()||Number(newQty)<0){toast('Nama & qty wajib');return;}
+  const namaMirip = cariNamaItemHadiahMirip(newNama.trim(), hadiahId, itemId);
+  if(namaMirip && !confirm(`⚠️ Barang mirip terdeteksi: "${namaMirip}"\n\nNama "${newNama.trim()}" ini mirip tapi tidak identik dengan barang yang sudah ada. Kalau maksudnya barang yang SAMA, batalkan lalu ketik ulang persis "${namaMirip}" supaya otomatis tergabung di satu checklist.\n\nKalau memang barang beda, lanjutkan simpan?`)) return;
   if(Number(newQty)!==Number(item.qty_dibeli||0) && isItemHadiahSudahDibeli(hadiahId, itemId)){
     if(!confirm(`⚠️ "${item.nama}" sudah dicentang DIBELI di Daftar Belanja.\n\nQty di sini cuma angka kebutuhan (target), bukan barang fisik yang sudah dibeli — ubah kalau memang sudah dicek ulang. Lanjutkan?`)) return;
   }
@@ -963,7 +988,10 @@ function hapusHadiahItem(hadiahId,itemId){
 }
 function tambahItemHadiah(hadiahId, kebutuhan){ 
   if (!canEditSection('hadiah')) { toast('⛔ Login untuk mengedit data'); return; }
-  const h=db.hadiahKategori.find(x=>x.id===hadiahId); if(!h) return; const nama=document.getElementById(`add-item-name-${hadiahId}`).value.trim(); const harga=getCurrencyValue(document.getElementById(`add-item-price-${hadiahId}`)); const perPaketEl=document.getElementById(`add-item-perpaket-${hadiahId}`); const qtyPerPaket=Math.max(1,Number((perPaketEl&&perPaketEl.value)||1)); if(!nama){toast('Nama wajib diisi');return;} const qty = (kebutuhan!=null&&kebutuhan!=='null') ? Number(kebutuhan)*qtyPerPaket : qtyPerPaket; const newItem = {id:uid(),nama,harga_satuan:harga,qty_dibeli:qty,qty_per_paket:qtyPerPaket}; h.items.push(newItem);
+  const h=db.hadiahKategori.find(x=>x.id===hadiahId); if(!h) return; const nama=document.getElementById(`add-item-name-${hadiahId}`).value.trim(); const harga=getCurrencyValue(document.getElementById(`add-item-price-${hadiahId}`)); const perPaketEl=document.getElementById(`add-item-perpaket-${hadiahId}`); const qtyPerPaket=Math.max(1,Number((perPaketEl&&perPaketEl.value)||1)); if(!nama){toast('Nama wajib diisi');return;}
+  const namaMirip = cariNamaItemHadiahMirip(nama, null, null);
+  if(namaMirip && !confirm(`⚠️ Barang mirip terdeteksi: "${namaMirip}"\n\nBarang baru "${nama}" ini mirip tapi tidak identik dengan barang yang sudah ada. Kalau maksudnya barang yang SAMA, batalkan lalu ketik ulang persis "${namaMirip}" supaya otomatis tergabung di satu checklist.\n\nKalau memang barang beda, lanjutkan simpan sebagai barang terpisah?`)) return;
+  const qty = (kebutuhan!=null&&kebutuhan!=='null') ? Number(kebutuhan)*qtyPerPaket : qtyPerPaket; const newItem = {id:uid(),nama,harga_satuan:harga,qty_dibeli:qty,qty_per_paket:qtyPerPaket}; h.items.push(newItem);
   const samaCount = samakanHargaItemSejenis(nama, harga, newItem.id);
   document.getElementById(`add-item-name-${hadiahId}`).value=''; document.getElementById(`add-item-price-${hadiahId}`).value=''; if(perPaketEl) perPaketEl.value='1'; saveDB(); renderContent(); toast(samaCount>0?`Item ditambahkan, harga disamakan ke ${samaCount} item "${nama}" lainnya`:'Item ditambahkan'); 
   notifyTelegram(`➕ Item hadiah baru: ${nama}`, `Paket: ${labelPeserta(h.kategori_peserta)} - ${labelJuara(h.juara_ke)}\nHarga: ${fmtRp(harga)}\nQty: ${qty}${qtyPerPaket>1?` (${qtyPerPaket} buah per paket)`:''}`, 'lomba');

@@ -36,10 +36,16 @@ function applyTemaWarna(key){
 
 function eid(){ return db.activeEventId; }
 function getSettings(){
-  if(!eid()) return {tarif:{sekolah:0,bekerja:0,perantauan:0,khusus:0}, hadiahBudget:{}, dokumen:{}};
-  if(!db.settings[eid()]) db.settings[eid()] = {tarif:{sekolah:0,bekerja:0,perantauan:0,khusus:0}, hadiahBudget:{}, dokumen:{}};
+  if(!eid()) return {tarif:{sekolah:0,bekerja:0,perantauan:0,khusus:0}, hadiahBudget:{}, dokumen:{}, kategoriToko:{customCategories:[],keywords:{}}};
+  if(!db.settings[eid()]) db.settings[eid()] = {tarif:{sekolah:0,bekerja:0,perantauan:0,khusus:0}, hadiahBudget:{}, dokumen:{}, kategoriToko:{customCategories:[],keywords:{}}};
   if(!db.settings[eid()].hadiahBudget) db.settings[eid()].hadiahBudget = {};
   if(!db.settings[eid()].dokumen) db.settings[eid()].dokumen = {};
+  // kategoriToko: kategori toko kustom + kata kunci tambahan untuk pengelompokan
+  // checklist Belanja Hadiah/Perlengkapan (lihat KATEGORI_TOKO_LIST di 11-belanja.js).
+  // Per-event karena kebutuhan lomba beda tiap tahun (mis. alat olahraga, dekorasi).
+  if(!db.settings[eid()].kategoriToko) db.settings[eid()].kategoriToko = {customCategories:[],keywords:{}};
+  if(!db.settings[eid()].kategoriToko.customCategories) db.settings[eid()].kategoriToko.customCategories = [];
+  if(!db.settings[eid()].kategoriToko.keywords) db.settings[eid()].kategoriToko.keywords = {};
   return db.settings[eid()];
 }
 // Surat & Dokumen tidak terikat event — satu set draft global untuk seluruh

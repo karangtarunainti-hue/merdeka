@@ -21,6 +21,52 @@ function formatCurrency(value) {
   return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 }
 
+/* ============================================================
+   NORMALISASI & KEMIRIPAN NAMA BARANG — dipakai di seluruh app
+   (Belanja Hadiah/Perlengkapan/Jalan Santai, sinkron harga item
+   hadiah) supaya pengelompokan checklist per nama barang konsisten.
+   ------------------------------------------------------------
+   normNamaBarang: dulu banyak tempat cuma pakai .trim().toLowerCase(),
+   jadi "Buku Tulis" dan "Buku  Tulis" (spasi ganda di tengah) dianggap
+   barang BEDA padahal maksudnya sama. Di sini spasi berlebih di tengah
+   ikut dirapikan jadi satu spasi, supaya keduanya digabung normal ke
+   satu checklist/pack.
+   namaBarangMirip: untuk kasus nama MIRIP TAPI MEMANG BEDA barang
+   ("Buku Tulis" vs "Buku Tulis 38 Lembar") — ini SENGAJA TIDAK
+   digabung otomatis (beda barang beneran), tapi dipakai untuk
+   menampilkan peringatan "barang mirip terdeteksi" saat user
+   menambah/mengedit nama item, supaya panitia bisa sadar & pilih
+   mau samakan namanya persis (baru ikut tergabung) atau memang
+   sengaja barang terpisah.
+   ============================================================ */
+function normNamaBarang(s){
+  return String(s||'').trim().replace(/\s+/g,' ').toLowerCase();
+}
+function jarakLevenshtein(a,b){
+  const m=a.length, n=b.length;
+  if(m===0) return n; if(n===0) return m;
+  const dp=Array.from({length:m+1},()=>new Array(n+1).fill(0));
+  for(let i=0;i<=m;i++) dp[i][0]=i;
+  for(let j=0;j<=n;j++) dp[0][j]=j;
+  for(let i=1;i<=m;i++){
+    for(let j=1;j<=n;j++){
+      dp[i][j] = a[i-1]===b[j-1] ? dp[i-1][j-1] : 1+Math.min(dp[i-1][j],dp[i][j-1],dp[i-1][j-1]);
+    }
+  }
+  return dp[m][n];
+}
+// true kalau a & b beda tapi cukup mirip untuk dicurigai maksudnya barang
+// yang sama (typo tipis, atau salah satu adalah nama yang lain + keterangan
+// tambahan di belakang, mis. "buku tulis" vs "buku tulis 38 lembar").
+function namaBarangMirip(a,b){
+  const na=normNamaBarang(a), nb=normNamaBarang(b);
+  if(!na || !nb || na===nb) return false;
+  if(na.startsWith(nb+' ') || nb.startsWith(na+' ')) return true;
+  const jarak = jarakLevenshtein(na,nb);
+  const maxLen = Math.max(na.length, nb.length);
+  return maxLen >= 4 && jarak <= 2;
+}
+
 // Parse angka dari format titik ribuan
 function parseCurrency(value) {
   if (typeof value === 'string') {

@@ -113,14 +113,22 @@ const KATEGORI_TOKO_KEYWORDS = {
 };
 function kategoriTokoFromNama(nama){
   const n = ' ' + (nama||'').toLowerCase().trim() + ' ';
+  // Batas kata untuk kata kunci kustom: tanda baca (koma, titik, kurung, dst)
+  // yang nempel langsung ke kata kuncinya harus dianggap SAMA dengan spasi,
+  // supaya "Bola Voli, size 5" tetap ketemu kata kunci "voli" — kalau cuma
+  // dibungkus spasi literal seperti `n` di atas, koma yang nempel langsung
+  // bikin batas katanya tidak pernah ketemu (bug: kata kunci diam-diam gagal
+  // match tanpa error apa pun).
+  const nBatas = ' ' + (nama||'').toLowerCase().trim().replace(/[^a-z0-9]+/g,' ').trim() + ' ';
   // 1) Kata kunci kustom yang ditambahkan admin lewat "Kelola Kategori Toko"
   //    dicek LEBIH DULU, supaya admin bisa override kategori bawaan kalau perlu
   //    (mis. "buku" biasanya alat_tulis, tapi admin bisa arahkan ke kategori lain).
   const kustom = (typeof getSettings==='function' ? getSettings().kategoriToko : null) || {};
   const keywordsKustom = kustom.keywords || {};
   for(const kw of Object.keys(keywordsKustom)){
-    const kwNorm = (' ' + kw.toLowerCase().trim() + ' ');
-    if(kw && n.includes(kwNorm)) return keywordsKustom[kw];
+    if(!kw) continue;
+    const kwBatas = ' ' + kw.toLowerCase().trim().replace(/[^a-z0-9]+/g,' ').trim() + ' ';
+    if(n.includes(' ' + kw.toLowerCase().trim() + ' ') || nBatas.includes(kwBatas)) return keywordsKustom[kw];
   }
   // 2) Kategori & kata kunci bawaan (tetap, tidak bisa diedit lewat UI).
   for(const kat of ['alat_tulis','dapur','makanan','kamar_mandi']){

@@ -21,6 +21,7 @@ const SECTIONS = [
   {key:'users', label:'Manajemen User', sub:'Kelola akun pengguna', icon:'users', adminOnly: true},
   {key:'agenda', label:'Agenda Kegiatan', sub:'', icon:'calendar', adminOnly: false},
   {key:'gudang', label:'Gudang Aset', sub:'Inventaris & pinjam aset desa', icon:'package', adminOnly: false},
+  {key:'jadwal-sinoman', label:'Jadwal Sinoman', sub:'Jadwal piket pagi/siang/sore', icon:'calendar', adminOnly: false},
   {key:'panduan', label:'Panduan', sub:'Cara pakai aplikasi ini', icon:'book', adminOnly: false},
   {key:'dokumen', label:'Surat & Dokumen', sub:'Undangan, proposal & absensi', icon:'clipboard', adminOnly: false},
   {key:'kas', label:'Kas Karang Taruna', sub:'', icon:'wallet', adminOnly: false},
@@ -44,7 +45,7 @@ function sectionLabelByKey(key){
 // Menu yang tidak terikat event tertentu (datanya global, bukan per-event).
 // Menu ini ditampilkan terpisah di atas, antara info login dan dropdown
 // Kegiatan Aktif, supaya jelas tidak berubah walau event aktif diganti.
-const GLOBAL_MENU_KEYS = ['kas', 'dana-sosial', 'agenda', 'dokumen', 'database-anggota', 'gudang', 'bookmark', 'panduan', 'users', 'pengaturan'];
+const GLOBAL_MENU_KEYS = ['kas', 'dana-sosial', 'agenda', 'dokumen', 'database-anggota', 'gudang', 'bookmark', 'jadwal-sinoman', 'panduan', 'users', 'pengaturan'];
 
 /* ============================================================
    FITUR OPSIONAL PER EVENT
@@ -177,15 +178,6 @@ function renderSidebar(){
 // selalu dilempar balik ke Buku Kegiatan (dashboard).
 const LAST_SECTION_KEY = 'merdeka_last_section';
 
-// Dipakai tombol "Kelola Jadwal Lengkap →" di widget Jadwal Sinoman pada
-// Dashboard (lihat renderJadwalSinomanDashboardWidget di js/14-dokumen.js) —
-// langsung buka menu Surat & Dokumen DAN pindah ke tab Jadwal Sinoman
-// sekaligus, bukan cuma ke tab default (Surat Undangan).
-function goDokumenJadwalSinoman(){
-  _dokumenTab = 'jadwal_sinoman';
-  goSection('dokumen');
-}
-
 function goSection(key, opts){
   const isFallback = !!(opts && opts.isFallback);
   const user = getCurrentUser();
@@ -242,7 +234,7 @@ function goSection(key, opts){
 // saldo proyeksi kegiatan/event tidak ikut nongol di menu yang memang tidak
 // terikat event tersebut — chip itu punya arti khusus untuk event aktif,
 // jadi kalau ditampilkan di menu eventless malah bikin salah paham).
-const EVENTLESS_SECTIONS = ['gudang', 'dokumen', 'agenda', 'kas', 'dana-sosial', 'bookmark', 'dashboard', 'pengaturan', 'users', 'panduan'];
+const EVENTLESS_SECTIONS = ['gudang', 'dokumen', 'agenda', 'kas', 'dana-sosial', 'bookmark', 'dashboard', 'pengaturan', 'users', 'panduan', 'jadwal-sinoman'];
 
 function renderTopbarSaldo(){
   const chip = document.getElementById('saldo-chip');
@@ -321,6 +313,7 @@ function renderContent(){
     case 'agenda': el.innerHTML = renderAgenda(); break;
     case 'gudang': el.innerHTML = renderGudang(); break;
     case 'dokumen': el.innerHTML = renderDokumen(); break;
+    case 'jadwal-sinoman': el.innerHTML = renderJadwalSinoman(activeEvent()); break;
     case 'kas': el.innerHTML = renderKas(); break;
     case 'dana-sosial': el.innerHTML = renderDanaSosial(); break;
     case 'bookmark': el.innerHTML = renderBookmark(); break;
@@ -335,7 +328,7 @@ function renderContent(){
   setTimeout(setupAllCurrencyInputs, 50);
   setTimeout(setupAutoResizeTextareas, 50);
 
-  if (currentSection === 'lpj' || currentSection === 'dokumen' || currentSection === 'daftar-anggota') {
+  if (currentSection === 'lpj' || currentSection === 'dokumen' || currentSection === 'daftar-anggota' || currentSection === 'jadwal-sinoman') {
     requestAnimationFrame(applyLpjMobileScale);
   }
 

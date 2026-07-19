@@ -1267,7 +1267,7 @@ function renderContent(){
   // Setup currency inputs after content rendered
   setTimeout(setupAllCurrencyInputs, 50);
 
-  if (currentSection === 'lpj' || currentSection === 'dokumen') {
+  if (currentSection === 'lpj' || currentSection === 'dokumen' || currentSection === 'dashboard') {
     requestAnimationFrame(applyLpjMobileScale);
   }
 
@@ -3992,7 +3992,7 @@ function applyLpjMobileScale(){
   area.style.zoom = scale;
 }
 window.addEventListener('resize', ()=>{
-  if (currentSection === 'lpj' || currentSection === 'dokumen') applyLpjMobileScale();
+  if (currentSection === 'lpj' || currentSection === 'dokumen' || currentSection === 'dashboard') applyLpjMobileScale();
 });
 
 /* ============================================================

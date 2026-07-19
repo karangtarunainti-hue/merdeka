@@ -39,9 +39,15 @@ function renderDashboard(){
 
   const reminderCards = generateReminders();
   const isLoggedIn = !!getCurrentUser();
+  // Global (bukan ev aktif) — sama seperti Reminder Agenda di atas, supaya
+  // tampil terlepas dari event yang sedang dibuka, dan tetap kelihatan oleh
+  // guest tanpa login (lihat jadwalSinomanHasContent/renderJadwalSinomanDashboardWidget
+  // di js/14-dokumen.js).
+  const jadwalSinomanWidget = renderJadwalSinomanDashboardWidget(activeEvent());
 
   return `
   ${reminderCards}
+  ${jadwalSinomanWidget}
   <div class="stat-grid-ringkasan">
     <div class="stat-card pemasukan"><div class="lbl">Total Pemasukan</div><div class="val">${fmtRp(b.pemasukan)}</div></div>
     <div class="stat-card pengeluaran"><div class="lbl">Total Pengeluaran</div><div class="val">${fmtRp(b.pengeluaran)}</div></div>

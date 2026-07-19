@@ -518,6 +518,44 @@ function jadwalRemoveBuiltinBlock(blockKey){
   saveDB(); renderContent();
 }
 
+// Cek apakah Jadwal Sinoman sudah ada isinya sama sekali (judul/tempat/hari/
+// tanggal ATAU minimal 1 sel nama di salah satu tabel) — dipakai supaya
+// widget pratinjau di Dashboard (lihat renderJadwalSinomanDashboardWidget di
+// js/07-dashboard.js) tidak muncul kosong-melompong kalau organisasi belum
+// pernah mengisi Jadwal Sinoman sama sekali.
+function jadwalSinomanHasContent(){
+  const sD = getDokumenGlobal().jadwal_sinoman;
+  if(sD.judul || sD.tempat || sD.hari || sD.tanggal) return true;
+  return getJadwalBlockKeys().some(blockKey=>{
+    const d = getJadwalBlockData(blockKey);
+    return d && d.rows.some(r=>Object.values(r).some(v=>v));
+  });
+}
+// Versi pratinjau SAJA (tanpa form edit, tanpa tombol download) dari Jadwal
+// Sinoman — dipakai untuk widget di Dashboard/menu utama (js/07-dashboard.js)
+// supaya guest/semua anggota bisa langsung lihat jadwalnya tanpa masuk ke
+// menu Surat & Dokumen dulu, dan tanpa perlu ada event aktif (datanya global,
+// sama seperti dipakai renderJadwalSinoman()). Memakai id lpj-scale-wrap/
+// lpj-print-area yang SAMA seperti di halaman Surat & Dokumen — aman karena
+// cuma satu section yang pernah dirender ke DOM dalam satu waktu (renderContent
+// mengganti #content, bukan menumpuk beberapa section sekaligus).
+function renderJadwalSinomanDashboardWidget(ev){
+  if(!jadwalSinomanHasContent()) return '';
+  const printInner = renderJadwalMergedPrintInner(ev);
+  return `
+  <div class="panel">
+    <div class="panel-head"><div><h3>🗓️ Jadwal Sinoman</h3><div class="desc">Jadwal terbaru — tidak terikat kegiatan tertentu</div></div></div>
+    <div class="panel-body">
+      <div class="lpj-scale-wrap" id="lpj-scale-wrap">
+        <div class="lpj-print-area surat-print-area js-f4-area" id="lpj-print-area">
+          ${printInner}
+        </div>
+      </div>
+      <div class="lpj-toolbar no-print"><button class="btn secondary small" onclick="goDokumenJadwalSinoman()">Kelola Jadwal Lengkap →</button></div>
+    </div>
+  </div>`;
+}
+
 function renderJadwalSinoman(ev){
   const isLoggedIn = !!getCurrentUser();
   const editForm = isLoggedIn ? renderJadwalMergedEditForm(ev) : '';

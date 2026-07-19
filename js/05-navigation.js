@@ -177,6 +177,15 @@ function renderSidebar(){
 // selalu dilempar balik ke Buku Kegiatan (dashboard).
 const LAST_SECTION_KEY = 'merdeka_last_section';
 
+// Dipakai tombol "Kelola Jadwal Lengkap →" di widget Jadwal Sinoman pada
+// Dashboard (lihat renderJadwalSinomanDashboardWidget di js/14-dokumen.js) —
+// langsung buka menu Surat & Dokumen DAN pindah ke tab Jadwal Sinoman
+// sekaligus, bukan cuma ke tab default (Surat Undangan).
+function goDokumenJadwalSinoman(){
+  _dokumenTab = 'jadwal_sinoman';
+  goSection('dokumen');
+}
+
 function goSection(key, opts){
   const isFallback = !!(opts && opts.isFallback);
   const user = getCurrentUser();

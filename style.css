@@ -1828,6 +1828,20 @@ table.lpj-table{width:100%; border-collapse:collapse; font-size:13.5px; margin-b
 table.js-edit-table{table-layout:fixed;}
 table.js-edit-table td, table.js-edit-table th{overflow:hidden;}
 table.lpj-table td, table.lpj-table th{padding:7px 8px; border-bottom:1px dashed var(--garis); text-align:left;}
+/* Jarak kolom "No" ke kolom berikutnya di tabel Jadwal Sinoman/Petugas/tabel
+   tambahan (js-edit-table = mode edit, js-print-table = mode cetak/gambar)
+   dikecilkan separuh dari jarak antar-kolom biasa (8px+8px=16px jadi
+   4px+4px=8px) — kolom No memang sempit (36px/60px) jadi tidak perlu jarak
+   sebesar kolom isi lainnya. Berlaku untuk SEMUA tabel jadwal karena kedua
+   class ini generik dipakai oleh semua blok (bawaan maupun tambahan). */
+table.js-edit-table th:first-child, table.js-edit-table td:first-child,
+table.js-print-table th:first-child, table.js-print-table td:first-child{
+  padding-right:4px;
+}
+table.js-edit-table th:nth-child(2), table.js-edit-table td:nth-child(2),
+table.js-print-table th:nth-child(2), table.js-print-table td:nth-child(2){
+  padding-left:4px;
+}
 table.lpj-table th{font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-soft); border-bottom:1px solid var(--garis);}
 table.lpj-table td.num, table.lpj-table th.num{text-align:right; font-family:var(--mono, 'JetBrains Mono', monospace);}
 table.lpj-table td.indent{padding-left:22px; color:var(--ink-soft);}

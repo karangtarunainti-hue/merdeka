@@ -652,8 +652,7 @@ function renderJadwalMergedPrintInner(ev){
     <div class="lpj-signature" style="justify-content:flex-end;">
       <div class="surat-ttd">
         <div>Ditetapkan oleh Ketua Karang Taruna</div>
-        <div id="js-prev-tanggal-ttd">.....................</div>
-        <div class="surat-ttd-space"></div>
+        <div class="surat-ttd-space" style="height:26px;"></div>
         <div><strong id="js-prev-nama-ketua">${esc(sD.nama_ketua||'(.....................)')}</strong></div>
       </div>
     </div>`;
@@ -668,7 +667,7 @@ function jadwalHariTanggalText(sD){
   const parts = [];
   if(sD.hari) parts.push(sD.hari);
   if(sD.tanggal) parts.push(fmtDate(sD.tanggal));
-  return parts.length ? `Hari, Tanggal: ${parts.join(', ')}` : '';
+  return parts.join(', ');
 }
 
 function renderJadwalBlockTablePrint(blockKey){
@@ -687,7 +686,7 @@ function renderJadwalBlockTablePrint(blockKey){
 
   return `
     <div class="jadwal-print-subhead" id="js-print-subhead-${blockKey}" style="font-weight:600; font-size:12.5px; margin:26px 0 12px;">${esc(jadwalSubLabel(blockKey))}</div>
-    <table class="lpj-table">
+    <table class="lpj-table js-print-table">
       <thead><tr><th style="width:60px;">No</th>${theadCells}</tr></thead>
       <tbody>${rowsPrint || `<tr class="empty-row"><td colspan="${fields.length+1}">Belum ada jadwal diisi.</td></tr>`}</tbody>
     </table>`;

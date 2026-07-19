@@ -705,17 +705,38 @@ function hitungTargetQtyItem(item, kebutuhan){
 // mengikuti kebutuhan (jumlah lomba x qty_per_paket) SETIAP KALI lomba atau paket berubah.
 // Tidak pernah menurunkan otomatis, supaya buffer/qty manual yang sudah diisi user tidak hilang.
 function autoSyncHadiahStok(silent){
-  let totalDiubah = 0; const detail = [];
+  let totalDiubah = 0; const detail = []; const dibukaKembali = [];
   gHadiahKategori().forEach(h => {
     const kebutuhan = hitungKebutuhanHadiah(h.kategori_peserta, h.juara_ke);
     if(kebutuhan==null) return; // partisipasi: tetap manual
     let diubah = 0; const detailItem = [];
-    h.items.forEach(item => { const target = hitungTargetQtyItem(item, kebutuhan); if(Number(item.qty_dibeli||0) < target){ item.qty_dibeli = target; diubah++; detailItem.push(`${item.nama}→${target}`); } });
+    h.items.forEach(item => {
+      const target = hitungTargetQtyItem(item, kebutuhan);
+      if(Number(item.qty_dibeli||0) < target){
+        item.qty_dibeli = target; diubah++; detailItem.push(`${item.nama}→${target}`);
+        // PENTING (skenario belum tertangani): kalau item ini SUDAH dicentang "dibeli"
+        // di Daftar Belanja Hadiah, menaikkan target di sini secara diam-diam akan
+        // membuat checklist tetap kelihatan "sudah aman" padahal kebutuhan barunya
+        // belum tentu sudah dibeli fisiknya. Buka lagi checklist-nya (bukan cuma
+        // menaikkan angka target) supaya barang ini muncul lagi di Belanja Hadiah
+        // dan panitia sadar perlu beli tambahan — jangan biarkan status "dibeli"
+        // menutupi kekurangan qty yang baru muncul.
+        const belanja = db.daftarBelanjaHadiah.find(b => b.hadiah_kategori_id===h.id && b.item_id===item.id && b.event_id===eid());
+        if(belanja && belanja.status === 'dibeli'){
+          belanja.status = 'belum_dibeli'; belanja.tanggal_beli = null;
+          dibukaKembali.push(`${item.nama} (${labelPeserta(h.kategori_peserta)} - ${labelJuara(h.juara_ke)}, sudah dibeli tapi butuh naik jadi ${target})`);
+        }
+      }
+    });
     if(diubah>0){ totalDiubah += diubah; detail.push(`${labelPeserta(h.kategori_peserta)} - ${labelJuara(h.juara_ke)}: ${detailItem.join(', ')}`); }
   });
   if(totalDiubah>0){
     saveDB();
     if(!silent) toast(`⚡ Stok hadiah disinkronkan (${totalDiubah} item)`);
+    if(dibukaKembali.length){
+      toast(`⚠️ ${dibukaKembali.length} item hadiah yang sudah dibeli dibuka lagi karena kebutuhan bertambah — cek Belanja Hadiah`, 7000);
+      notifyTelegram(`⚠️ Belanja hadiah dibuka lagi (kebutuhan bertambah)`, dibukaKembali.join('\n'), 'belanja');
+    }
     notifyTelegram(`⚡ Stok hadiah auto-sync`, detail.join('\n'), 'lomba');
   }
   return totalDiubah;

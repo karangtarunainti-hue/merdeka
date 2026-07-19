@@ -2285,6 +2285,37 @@ table.ds-rekap-table td.num, table.ds-rekap-table th:not(:first-child){ text-ali
 .ds-rekap-kosong td{ color:var(--ink-soft); font-style:italic; }
 .ds-minus{ color:var(--bahaya); }
 .ds-rekap-total{ font-weight:700; border-top:2px solid var(--garis); }
+/* Bungkus tabel Daftar Bayar (desktop) dijadikan "container" supaya lebar
+   yang dipakai untuk auto-switch label Sudah/Belum <-> centang-saja diukur
+   dari lebar wadah tabel itu sendiri (bukan lebar layar/viewport secara
+   mentah) — lebih akurat kalau nanti ada sidebar/panel lain yang ikut
+   mengubah ruang yang tersisa buat tabel ini, walau di app ini sejauh ini
+   lebarnya kurang lebih sama dengan lebar layar. */
+.ds-daftar-bayar-desktop{ container-type: inline-size; container-name: dsBayar; }
+/* Auto-switch: makin sempit wadah tabel (window di-resize di komputer),
+   makin sedikit ruang per kolom bulan buat teks "Sudah"/"Belum" penuh —
+   di titik tertentu teksnya akan kepepet/tumpang tindih kalau dipaksa tetap
+   tampil. Container query di bawah ini otomatis mengganti tombol ke mode
+   centang-saja (tanpa teks) begitu wadah tabel turun di bawah ~1300px,
+   SEBELUM teksnya sempat kepepet — jadi baik mode teks lengkap maupun mode
+   centang selalu kelihatan rapi & jelas terbaca, tidak ada kondisi di
+   tengah-tengah yang berantakan. Di atas ambang ini, teks lengkap
+   "Sudah"/"Belum" tetap tampil (state default .ds-toggle di atas, tidak
+   perlu override apa-apa di sini). */
+@container dsBayar (max-width: 1300px){
+  .ds-toggle-label{ display:none; }
+  .ds-toggle{ gap:0; }
+  .ds-toggle-mark{ font-size:15px; }
+}
+/* Fallback untuk browser lama yang belum dukung container query: pakai
+   lebar layar (viewport) sebagai perkiraan, dengan ambang yang sama. */
+@supports not (container-type: inline-size){
+  @media (max-width:1300px){
+    .ds-toggle-label{ display:none; }
+    .ds-toggle{ gap:0; }
+    .ds-toggle-mark{ font-size:15px; }
+  }
+}
 .ds-footnote{ font-size:12px; color:var(--ink-soft); padding:10px 16px 4px; }
 @media (max-width:640px){
   table.ds-table th.ds-nama-h, table.ds-table td.ds-nama{ width:150px; min-width:130px; font-size:12.5px; }

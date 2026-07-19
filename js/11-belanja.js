@@ -25,7 +25,8 @@ function hitungHargaAktualHadiahLomba(){
         itemHarga: item.harga_satuan,
         itemHargaEceran: (item.harga_eceran!=null ? item.harga_eceran : item.harga_satuan),
         itemQtyDibeli: item.qty_dibeli,
-        isi_per_pack: item.isi_per_pack||1
+        isi_per_pack: item.isi_per_pack||1,
+        kategori_peserta: h.kategori_peserta, juara_ke: h.juara_ke
       });
     });
   });
@@ -42,7 +43,21 @@ function hitungHargaAktualHadiahLomba(){
 
   let total = 0;
   const perItem = {};
-  Object.values(nameMap).forEach(list => {
+  Object.values(nameMap).forEach(listMentah => {
+    // PENTING (konsistensi lintas halaman): packRef di bawah dipilih via reduce
+    // yang, kalau ada beberapa item isi_per_pack-nya SAMA (paling sering: sama-sama
+    // masih default 1), jatuh ke item PERTAMA dalam array `list`. Urutan array itu
+    // harus SAMA PERSIS dengan urutan yang dipakai renderBelanjaHadiah (sort per
+    // kategori_peserta lalu juara_ke) — sebelumnya di sini dibiarkan urutan mentah
+    // db.hadiahKategori (urutan tersimpan/dibuat), beda dari renderBelanjaHadiah.
+    // Kalau ada item senama dgn harga_satuan BEDA (belum sempat disamakan) dan
+    // isi_per_pack sama, packRef yang kepilih bisa beda antara halaman Belanja
+    // Hadiah vs Dashboard/Kebutuhan Hadiah/LPJ — total yang tampil jadi tidak
+    // konsisten, padahal itu justru tujuan fix Bug #2 di atas.
+    const list = listMentah.slice().sort((a,b) => {
+      if(a.kategori_peserta !== b.kategori_peserta) return a.kategori_peserta.localeCompare(b.kategori_peserta);
+      return a.juara_ke.localeCompare(b.juara_ke);
+    });
     const totalQty = list.reduce((s,i)=>s+Number(i.itemQtyDibeli||0),0);
     const packRef = list.reduce((best, cur) => Number(cur.isi_per_pack||1) > Number(best.isi_per_pack||1) ? cur : best, list[0]);
     const isiPerPack = Math.max(1, Number(packRef.isi_per_pack||1));

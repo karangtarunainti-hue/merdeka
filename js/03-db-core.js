@@ -391,6 +391,33 @@ const _lastKnownIds = {};
 // baris itu kita LEWATI (tidak ditimpa), bukan langsung dipaksa overwrite.
 const _lastKnownUpdatedAt = {};
 
+// Deteksi error "unique_violation" dari Postgres (kode 23505), opsional dicocokkan
+// ke nama constraint tertentu lewat isi pesan errornya.
+function isUniqueViolation(err, constraintName){
+  if(!err || err.code !== '23505') return false;
+  return !constraintName || String(err.message||'').includes(constraintName);
+}
+
+// Dipanggil HANYA saat upsert kt_hadiah_kategori gagal karena unique_violation
+// (lihat supabase-hadiah-kategori-unique-migration.sql) — artinya device/tab LAIN
+// sudah lebih dulu membuat paket untuk kombinasi kategori_peserta+juara_ke yang sama
+// (race condition 2 device sama-sama "Tambah Paket" untuk kombinasi identik di waktu
+// berdekatan, lolos dari pengecekan di client karena masing-masing cuma cek snapshot
+// lokalnya sendiri — lihat checkDuplikatPaketHadiah di js/10-lomba.js).
+// Cari baris BARU (belum ada di existingMap, artinya ini yang barusan dibuat client
+// ini) yang kombinasinya sekarang sudah dipakai baris lain di server (id berbeda),
+// supaya bisa dikeluarkan dari batch dan sisanya tetap bisa tersimpan.
+async function cariDuplikatKombinasiHadiah(candidateRows, existingMap){
+  const newRows = candidateRows.filter(r => !existingMap.has(r.id));
+  if(!newRows.length) return [];
+  const { data, error } = await sb.from('kt_hadiah_kategori').select('id, event_id, kategori_peserta, juara_ke');
+  if(error || !data) return [];
+  return newRows.filter(r => data.some(s =>
+    s.id !== r.id && s.event_id === r.event_id &&
+    s.kategori_peserta === r.kategori_peserta && s.juara_ke === r.juara_ke
+  ));
+}
+
 async function syncArrayTable(table, rows, key){
   const { data: existing, error: selErr } = await sb.from(table).select('id, updated_at');
   if(selErr){ console.error(`Gagal membaca ${table}:`, selErr); throw new Error(`Gagal membaca ${table}: ${selErr.message}`); }
@@ -440,7 +467,25 @@ async function syncArrayTable(table, rows, key){
 
   let savedRows = [];
   if(rowsToUpsert.length){
-    const { data: upData, error: upErr } = await sb.from(table).upsert(rowsToUpsert, { onConflict: 'id' }).select('id, updated_at');
+    let { data: upData, error: upErr } = await sb.from(table).upsert(rowsToUpsert, { onConflict: 'id' }).select('id, updated_at');
+    if(upErr && key === 'hadiahKategori' && isUniqueViolation(upErr, 'kt_hadiah_kategori_kombinasi_unique')){
+      const dup = await cariDuplikatKombinasiHadiah(rowsToUpsert, existingMap);
+      if(dup.length){
+        dup.forEach(d => {
+          conflicts.push({ key, table, id: d.id, duplicate: true, label: `${labelPeserta(d.kategori_peserta)} - ${labelJuara(d.juara_ke)}` });
+          // Buang dari memori (rows === db.hadiahKategori) supaya tidak terus-menerus
+          // dicoba disimpan ulang tiap saveDB() berikutnya — paket ini sudah kalah race,
+          // versi yang menang sudah ada di server dan akan muncul setelah reload.
+          const idx = rows.findIndex(r => r.id === d.id);
+          if(idx !== -1) rows.splice(idx, 1);
+        });
+        const dupIds = new Set(dup.map(d => d.id));
+        const remaining = rowsToUpsert.filter(r => !dupIds.has(r.id));
+        ({ data: upData, error: upErr } = remaining.length
+          ? await sb.from(table).upsert(remaining, { onConflict: 'id' }).select('id, updated_at')
+          : { data: [], error: null });
+      }
+    }
     if(upErr){ console.error(`Gagal menyimpan ${table}:`, upErr); throw new Error(`Gagal menyimpan ${table}: ${upErr.message}`); }
     savedRows = upData || [];
   }
@@ -689,10 +734,20 @@ async function _flushSaveDB(){
     ];
     const allResults = [eventsConflicts, ...arrayConflictResults].flat().filter(Boolean);
     const ghosts = allResults.filter(c => c.ghost);
-    const conflicts = allResults.filter(c => !c.ghost);
+    const duplicates = allResults.filter(c => !c.ghost && c.duplicate);
+    const conflicts = allResults.filter(c => !c.ghost && !c.duplicate);
     if(conflicts.length){
       const contoh = conflicts.slice(0, 2).map(c => `"${c.label}"`).join(', ');
       toast(`⚠️ ${conflicts.length} perubahan (${contoh}${conflicts.length>2?', ...':''}) TIDAK disimpan karena sudah diubah pengguna lain. Muat ulang halaman untuk lihat versi terbaru.`, 7000);
+    }
+    if(duplicates.length){
+      // Race condition "Tambah Paket" (lihat cariDuplikatKombinasiHadiah): paket yang
+      // barusan dibuat di perangkat INI kalah duluan dari perangkat lain untuk
+      // kombinasi kategori+juara yang sama. Bukan error database mentah — item yang
+      // sempat diisi di paket ini memang tidak ikut tersimpan, jadi user perlu tahu
+      // jelas supaya tidak mengira datanya hilang begitu saja.
+      const contoh = duplicates.slice(0, 2).map(c => `"${c.label}"`).join(', ');
+      toast(`⚠️ Paket hadiah ${contoh}${duplicates.length>2?', ...':''} baru saja dibuat perangkat lain untuk kombinasi yang sama — punya Anda tidak tersimpan. Muat ulang halaman, lalu tambahkan item lewat paket yang sudah ada.`, 8000);
     }
     if(ghosts.length){
       // Baris yang sudah dihapus di device/tab lain, dan barusan kita buang dari memori

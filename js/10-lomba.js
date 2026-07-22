@@ -889,22 +889,27 @@ function openHadiahModal(id){
       saveDB(); renderContent(); renderTopbarSaldo();
       const detail = items.map(i => `${i.nama} (${i.qty_dibeli} × ${fmtRp(i.harga_satuan)})`).join('\n');
       notifyTelegram(actionMsg, detail, 'lomba');
+      // Beri tahu HASIL aksi lewat toast sesudah tersimpan — bukan lewat label
+      // tombol sebelum diklik (label tombolnya sekarang statis, lihat komentar di
+      // checkDuplikatPaketHadiah). comboUnchanged=false berarti baris baru dibuat
+      // di db.hadiahKategori di atas, jadi ini benar-benar paket terpisah.
+      const baseMsg = comboUnchanged ? '💾 Tersimpan' : '➕ Paket baru dibuat';
       if(closeAfter){
         closeModal();
-        toast(totalSama>0?`Disimpan, harga disamakan ke ${totalSama} item lain`:'Disimpan');
+        toast(totalSama>0?`${baseMsg}, harga disamakan ke ${totalSama} item lain`:baseMsg);
       } else {
         // Buka ulang modal ini (sekarang pasti dalam mode Edit karena paketnya sudah
         // ada) supaya form item kosong lagi dan siap diisi item berikutnya, tanpa
         // benar-benar keluar dari alur "tambah paket" dan tanpa perlu cari lagi
         // paketnya lewat tombol ✎.
         closeModal(); openHadiahModal(currentHadiahId);
-        toast(totalSama>0?`💾 Tersimpan, harga disamakan ke ${totalSama} item lain — lanjut tambah item`:'💾 Tersimpan — lanjut tambah item');
+        toast(totalSama>0?`${baseMsg}, harga disamakan ke ${totalSama} item lain — lanjut tambah item`:`${baseMsg} — lanjut tambah item`);
       }
   };
   setModal(editing?'Edit Paket':'Tambah Paket', `<div class="field-row"><div class="field"><label>Kategori</label><select id="f-kp" onchange="checkDuplikatPaketHadiah('${editing?editing.id:''}','${origKPArg}','${origJuaraArg}')">${KATEGORI_PESERTA.map(k=>`<option value="${k.v}" ${(editing?editing.kategori_peserta===k.v:defaultKP===k.v)?'selected':''}>${k.l}</option>`).join('')}</select></div><div class="field"><label>Juara</label><select id="f-juara" onchange="checkDuplikatPaketHadiah('${editing?editing.id:''}','${origKPArg}','${origJuaraArg}')">${JUARA_LIST.map(j=>`<option value="${j.v}" ${(editing?editing.juara_ke===j.v:defaultJuara===j.v)?'selected':''}>${j.l}</option>`).join('')}</select></div></div><div class="field"><label>Item Hadiah</label><div id="items-container">${itemsHtml}</div><button class="btn secondary small" onclick="addItemRow()" type="button">+ Tambah Item</button></div>`, [
     {label:'Batal', cls:'secondary', onclick:closeModal},
     {label:'💾 Simpan', id:'btn-hadiah-save-stay', cls:'secondary', onclick:()=>doSaveHadiah(false)},
-    {label:editing?'💾 Simpan & Tutup':'➕ Tambah Paket Ini', id:'btn-hadiah-save-close', cls:'', onclick:()=>doSaveHadiah(true)}
+    {label:'💾 Simpan & Tutup', id:'btn-hadiah-save-close', cls:'', onclick:()=>doSaveHadiah(true)}
   ]);
   if(editing) openHadiahGroups.add(id);
   setTimeout(setupAllCurrencyInputs, 50);
@@ -937,14 +942,10 @@ function checkDuplikatPaketHadiah(editingId, originalKP, originalJuara){
   // isi paket untuk kombinasi yang sedang dipilih itu — bukan cuma untuk mode
   // Tambah Paket, tapi juga mode Edit begitu dropdown-nya diganti ke kombinasi lain.
   const isOriginalCombo = !!(editingId && originalKP && originalJuara && kategori_peserta===originalKP && juara_ke===originalJuara);
-  // Label tombol simpan HARUS ikut kombinasi yang sedang aktif, bukan cuma status
-  // "editing atau tidak" saat modal pertama dibuka — soalnya begitu dropdown digeser
-  // ke kombinasi yang belum ada paketnya, klik tombol ini sebenarnya BIKIN paket baru
-  // (lihat actionMsg di doSaveHadiah), bukan menyimpan paket yang lagi diedit. Kalau
-  // labelnya tetap "Simpan", pengguna bisa kaget/bingung kenapa hasilnya jadi 2 paket.
-  const isNewPaket = !(editingId && isOriginalCombo);
-  const btnClose = document.getElementById('btn-hadiah-save-close');
-  if(btnClose) btnClose.textContent = isNewPaket ? '➕ Tambah Paket Ini' : '💾 Simpan & Tutup';
+  // Tombol simpan sekarang selalu berlabel statis ("Simpan" / "Simpan & Tutup") —
+  // apakah aksi ini nantinya bikin paket baru atau mengedit paket asal BUKAN lagi
+  // ditebak dari label tombol sebelum diklik, tapi dikasih tahu lewat toast SESUDAH
+  // aksi terjadi (lihat actionMsg & toast di doSaveHadiah).
   if(container){
     if(editingId && isOriginalCombo){
       // Dropdown dikembalikan ke kombinasi asal paket yang sedang diedit:

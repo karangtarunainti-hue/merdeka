@@ -837,9 +837,12 @@ function openHadiahModal(id){
   const itemsHtml = editing ? editing.items.map((item, idx) => { if(!item.id) item.id = uid(); return `<div class="item-fields-row" data-item-id="${item.id}" style="border-bottom:1px solid var(--garis);padding-bottom:10px;margin-bottom:10px;"><div class="field"><label>Nama</label><input type="text" id="edit-item-name-${idx}" value="${esc(item.nama)}" placeholder="Nama hadiah" onblur="autofillHargaHadiah(this)"></div><div class="field"><label>Harga</label><input type="text" id="edit-item-price-${idx}" class="currency-input" value="${formatCurrency(item.harga_satuan)}" placeholder="Harga"></div><div class="field"><label>Qty/paket</label><input type="number" id="edit-item-perpaket-${idx}" value="${item.qty_per_paket||1}" min="1" placeholder="Qty/paket" title="Berapa pcs per 1 paket juara"></div><button class="btn danger-text small" onclick="removeItemRow(this.closest('.item-fields-row'))">✕</button></div>`; }).join('') : '';
   const origKPArg = editing ? editing.kategori_peserta : '';
   const origJuaraArg = editing ? editing.juara_ke : '';
-  setModal(editing?'Edit Paket':'Tambah Paket', `<div class="field-row"><div class="field"><label>Kategori</label><select id="f-kp" onchange="checkDuplikatPaketHadiah('${editing?editing.id:''}','${origKPArg}','${origJuaraArg}')">${KATEGORI_PESERTA.map(k=>`<option value="${k.v}" ${(editing?editing.kategori_peserta===k.v:defaultKP===k.v)?'selected':''}>${k.l}</option>`).join('')}</select></div><div class="field"><label>Juara</label><select id="f-juara" onchange="checkDuplikatPaketHadiah('${editing?editing.id:''}','${origKPArg}','${origJuaraArg}')">${JUARA_LIST.map(j=>`<option value="${j.v}" ${(editing?editing.juara_ke===j.v:defaultJuara===j.v)?'selected':''}>${j.l}</option>`).join('')}</select></div></div>${editing?`<div class="hint" id="paket-move-warning" style="display:none;background:var(--orange-bg,#fff3e0);border-radius:6px;padding:8px 10px;margin:-6px 0 12px;"></div>`:''}<div class="field"><label>Item Hadiah</label><div class="hint" style="margin-bottom:10px;">Isi "Qty/paket" saja (mis. 2 pulpen per paket). Paket ini otomatis berlaku untuk SEMUA lomba dengan kategori & juara yang sama. Total qty yang harus dibeli otomatis dihitung dari jumlah lomba sekarang, dan otomatis naik lagi kalau kamu menambah lomba baru di kategori ini.</div><div id="items-container">${itemsHtml}</div><button class="btn secondary small" onclick="addItemRow()" type="button">+ Tambah Item</button></div>`, [
-    {label:'Batal', cls:'secondary', onclick:closeModal},
-    {label:editing?'Simpan':'Tambah', cls:'', onclick:()=>{
+  // doSaveHadiah: logic simpan tunggal dipakai oleh dua tombol ("Tambah/Simpan" dan
+  // "Simpan (tetap buka)") supaya perilaku simpan-nya identik — cuma beda di akhir:
+  // closeAfter=true menutup modal seperti biasa, closeAfter=false membuka ulang
+  // modal ini dalam mode Edit (paket yang baru saja disimpan) supaya form item
+  // kosong lagi dan siap diisi item berikutnya tanpa perlu buka modal dari awal.
+  const doSaveHadiah = (closeAfter) => {
       const kategori_peserta=document.getElementById('f-kp').value; const juara_ke=document.getElementById('f-juara').value;
       const paketLain = gHadiahKategori().find(h=>h.kategori_peserta===kategori_peserta && h.juara_ke===juara_ke && (!editing || h.id!==editing.id));
       if(paketLain){
@@ -847,21 +850,11 @@ function openHadiahModal(id){
         closeModal(); openHadiahModal(paketLain.id); return;
       }
       const kebutuhan=hitungKebutuhanHadiah(kategori_peserta, juara_ke); const existingItems=editing?(editing.items||[]):[]; const items=[]; const container=document.getElementById('items-container'); const rows=container.querySelectorAll('.item-fields-row'); rows.forEach((row)=>{const nameInput=row.querySelector(`input[id^="edit-item-name-"]`); const priceInput=row.querySelector(`input[id^="edit-item-price-"]`); const perPaketInput=row.querySelector(`input[id^="edit-item-perpaket-"]`); if(nameInput&&priceInput){const nama=nameInput.value.trim(); const harga_satuan=getCurrencyValue(priceInput); const qty_per_paket=Math.max(1,Number((perPaketInput&&perPaketInput.value)||1)); if(!nama) return;
-        // Cocokkan baris form dengan item lama via data-item-id (BUKAN index urutan baris),
-        // karena urutan bisa berubah (item dihapus/ditambah di tengah). Baris hasil render
-        // item lama selalu punya data-item-id (lihat itemsHtml di atas). Baris baru dari
-        // addItemRow() sengaja TIDAK diberi data-item-id -> dataset.itemId undefined ->
-        // dianggap item baru, id barunya baru di-generate di sini (uid()).
         const existingId = row.dataset.itemId || null;
         const matched = existingId ? existingItems.find(x=>x.id===existingId) : null;
         const qty_dibeli = matched ? Number(matched.qty_dibeli||0) : (kebutuhan!=null ? kebutuhan*qty_per_paket : qty_per_paket);
         const qty_terpakai = matched ? (matched.qty_terpakai||0) : 0;
         const id = matched ? matched.id : uid();
-        // Pertahankan isi_per_pack/harga_eceran/riwayatHarga dari item lama kalau ada —
-        // form ini cuma punya field nama/harga/qty per paket, jadi kalau tidak disalin
-        // manual, tiap kali paket disimpan field-field yang diisi lewat "✎ Update harga
-        // & kemasan" di Belanja Hadiah (termasuk SELURUH riwayat perubahan harga) akan
-        // diam-diam hilang walau item itu tidak diubah sama sekali di form ini.
         const extra = matched ? {isi_per_pack: matched.isi_per_pack, harga_eceran: matched.harga_eceran, riwayatHarga: matched.riwayatHarga} : {};
         items.push({id,nama,harga_satuan,qty_dibeli,qty_per_paket,qty_terpakai,...extra});}});
       if(items.length===0){
@@ -879,14 +872,26 @@ function openHadiahModal(id){
       openHadiahGroups.add(currentHadiahId);
       let totalSama = 0;
       items.forEach((it)=>{ totalSama += samakanHargaItemSejenis(it.nama, it.harga_satuan, it.id); });
-      // qty_per_paket bisa saja baru diubah di form ini — sinkronkan lagi total qty
-      // yang wajib dibeli (dinamis, bukan cuma menunggu lomba diedit atau tombol
-      // "Sinkronkan Ulang" manual), supaya target selalu konsisten dengan data terbaru.
       autoSyncHadiahStok(true);
-      saveDB(); closeModal(); renderContent(); renderTopbarSaldo(); toast(totalSama>0?`Disimpan, harga disamakan ke ${totalSama} item lain`:'Disimpan');
+      saveDB(); renderContent(); renderTopbarSaldo();
       const detail = items.map(i => `${i.nama} (${i.qty_dibeli} × ${fmtRp(i.harga_satuan)})`).join('\n');
       notifyTelegram(actionMsg, detail, 'lomba');
-    }}
+      if(closeAfter){
+        closeModal();
+        toast(totalSama>0?`Disimpan, harga disamakan ke ${totalSama} item lain`:'Disimpan');
+      } else {
+        // Buka ulang modal ini (sekarang pasti dalam mode Edit karena paketnya sudah
+        // ada) supaya form item kosong lagi dan siap diisi item berikutnya, tanpa
+        // benar-benar keluar dari alur "tambah paket" dan tanpa perlu cari lagi
+        // paketnya lewat tombol ✎.
+        closeModal(); openHadiahModal(currentHadiahId);
+        toast(totalSama>0?`💾 Tersimpan, harga disamakan ke ${totalSama} item lain — lanjut tambah item`:'💾 Tersimpan — lanjut tambah item');
+      }
+  };
+  setModal(editing?'Edit Paket':'Tambah Paket', `<div class="field-row"><div class="field"><label>Kategori</label><select id="f-kp" onchange="checkDuplikatPaketHadiah('${editing?editing.id:''}','${origKPArg}','${origJuaraArg}')">${KATEGORI_PESERTA.map(k=>`<option value="${k.v}" ${(editing?editing.kategori_peserta===k.v:defaultKP===k.v)?'selected':''}>${k.l}</option>`).join('')}</select></div><div class="field"><label>Juara</label><select id="f-juara" onchange="checkDuplikatPaketHadiah('${editing?editing.id:''}','${origKPArg}','${origJuaraArg}')">${JUARA_LIST.map(j=>`<option value="${j.v}" ${(editing?editing.juara_ke===j.v:defaultJuara===j.v)?'selected':''}>${j.l}</option>`).join('')}</select></div></div>${editing?`<div class="hint" id="paket-move-warning" style="display:none;background:var(--orange-bg,#fff3e0);border-radius:6px;padding:8px 10px;margin:-6px 0 12px;"></div>`:''}<div class="field"><label>Item Hadiah</label><div class="hint" style="margin-bottom:10px;">Isi "Qty/paket" saja (mis. 2 pulpen per paket). Paket ini otomatis berlaku untuk SEMUA lomba dengan kategori & juara yang sama. Total qty yang harus dibeli otomatis dihitung dari jumlah lomba sekarang, dan otomatis naik lagi kalau kamu menambah lomba baru di kategori ini.</div><div id="items-container">${itemsHtml}</div><button class="btn secondary small" onclick="addItemRow()" type="button">+ Tambah Item</button></div>`, [
+    {label:'Batal', cls:'secondary', onclick:closeModal},
+    {label:'💾 Simpan (tetap buka)', cls:'secondary', onclick:()=>doSaveHadiah(false)},
+    {label:editing?'Simpan':'Tambah', cls:'', onclick:()=>doSaveHadiah(true)}
   ]);
   if(editing) openHadiahGroups.add(id);
   setTimeout(setupAllCurrencyInputs, 50);

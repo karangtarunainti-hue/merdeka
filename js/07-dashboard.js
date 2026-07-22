@@ -164,13 +164,23 @@ function generateReminders(){
       items.push({label: '🏃 Jalan Santai:', value: jalanItems.length > 3 ? `${labels} +${jalanItems.length-3} lagi` : labels});
     }
     const type = totalBelum > 5 ? 'danger' : 'warning';
+    // Tentukan tujuan link sesuai kategori yang benar-benar punya item belum dibeli.
+    // Kalau cuma satu kategori yang ada isinya, arahkan langsung ke situ.
+    // Kalau campuran beberapa kategori, arahkan ke kategori dengan item terbanyak
+    // (bukan selalu belanja-hadiah seperti sebelumnya).
+    const kategoriCounts = [
+      {link: 'belanja-hadiah', count: hadiahItems.length},
+      {link: 'belanja-perlengkapan', count: perlengkapanItems.length},
+      {link: 'belanja-jalan', count: jalanItems.length}
+    ].filter(k => k.count > 0).sort((a,b) => b.count - a.count);
+    const targetLink = kategoriCounts.length > 0 ? kategoriCounts[0].link : 'belanja-hadiah';
     reminders.push({
       type: type,
       icon: '🛒',
       title: 'Belanja Belum Dibeli',
       count: totalBelum,
       items: items,
-      action: {label: `Lihat ${totalBelum} Item →`, link: 'belanja-hadiah'}
+      action: {label: `Lihat ${totalBelum} Item →`, link: targetLink}
     });
   }
 

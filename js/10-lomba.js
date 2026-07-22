@@ -805,8 +805,39 @@ function simpanHadiahBudget(){
 function openHadiahModal(id){
   if (!canEditSection('hadiah')) { toast('⛔ Login untuk mengedit data'); return; }
   const editing = id ? db.hadiahKategori.find(h=>h.id===id) : null;
+  // Untuk mode "Tambah Paket" baru, cari kombinasi kategori+juara yang BELUM
+  // punya paket dan jadikan itu default terpilih di dropdown — bukan selalu
+  // pilihan pertama (Anak - Juara 1). Kalau default selalu pilihan pertama,
+  // dan kombinasi itu kebetulan sudah ada paketnya, cek duplikat yang jalan
+  // begitu modal dibuka akan langsung mengalihkan ke paket lain itu SEBELUM
+  // pengguna sempat memilih kategori/juara yang sebenarnya ia inginkan —
+  // makanya "Tambah Paket" terasa selalu auto-pindah ke edit paket lain.
+  let defaultKP = KATEGORI_PESERTA[0].v, defaultJuara = JUARA_LIST[0].v;
+  if(!editing){
+    const existingCombos = new Set(gHadiahKategori().map(h=>`${h.kategori_peserta}|${h.juara_ke}`));
+    let found = false;
+    for(const k of KATEGORI_PESERTA){
+      for(const j of JUARA_LIST){
+        if(!existingCombos.has(`${k.v}|${j.v}`)){ defaultKP = k.v; defaultJuara = j.v; found = true; break; }
+      }
+      if(found) break;
+    }
+    // Semua kombinasi Kategori × Juara (termasuk Partisipasi) sudah punya paket —
+    // tidak ada kombinasi kosong untuk dijadikan default. Kalau dibiarkan lanjut,
+    // modal akan terbuka dengan kombinasi fallback (Anak - Juara 1) yang PASTI
+    // sudah terpakai, lalu checkDuplikatPaketHadiah('') di bawah langsung
+    // mengalihkan diam-diam ke paket itu tanpa penjelasan — user yang klik
+    // "+ Tambah Paket" jadi bingung kenapa tiba-tiba masuk mode edit paket lain.
+    // Lebih jelas: beri tahu di sini dan jangan buka modalnya sama sekali.
+    if(!found){
+      toast('Semua kombinasi Kategori × Juara sudah punya paket hadiah. Edit paket yang ada lewat tombol ✎, atau tambah item baru di paket tersebut.');
+      return;
+    }
+  }
   const itemsHtml = editing ? editing.items.map((item, idx) => { if(!item.id) item.id = uid(); return `<div class="item-fields-row" data-item-id="${item.id}" style="border-bottom:1px solid var(--garis);padding-bottom:10px;margin-bottom:10px;"><div class="field"><label>Nama</label><input type="text" id="edit-item-name-${idx}" value="${esc(item.nama)}" placeholder="Nama hadiah" onblur="autofillHargaHadiah(this)"></div><div class="field"><label>Harga</label><input type="text" id="edit-item-price-${idx}" class="currency-input" value="${formatCurrency(item.harga_satuan)}" placeholder="Harga"></div><div class="field"><label>Qty/paket</label><input type="number" id="edit-item-perpaket-${idx}" value="${item.qty_per_paket||1}" min="1" placeholder="Qty/paket" title="Berapa pcs per 1 paket juara"></div><button class="btn danger-text small" onclick="removeItemRow(this.closest('.item-fields-row'))">✕</button></div>`; }).join('') : '';
-  setModal(editing?'Edit Paket':'Tambah Paket', `<div class="field-row"><div class="field"><label>Kategori</label><select id="f-kp" onchange="checkDuplikatPaketHadiah('${editing?editing.id:''}')">${KATEGORI_PESERTA.map(k=>`<option value="${k.v}" ${editing&&editing.kategori_peserta===k.v?'selected':''}>${k.l}</option>`).join('')}</select></div><div class="field"><label>Juara</label><select id="f-juara" onchange="checkDuplikatPaketHadiah('${editing?editing.id:''}')">${JUARA_LIST.map(j=>`<option value="${j.v}" ${editing&&editing.juara_ke===j.v?'selected':''}>${j.l}</option>`).join('')}</select></div></div><div class="field"><label>Item Hadiah</label><div class="hint" style="margin-bottom:10px;">Isi "Qty/paket" saja (mis. 2 pulpen per paket). Paket ini otomatis berlaku untuk SEMUA lomba dengan kategori & juara yang sama. Total qty yang harus dibeli otomatis dihitung dari jumlah lomba sekarang, dan otomatis naik lagi kalau kamu menambah lomba baru di kategori ini.</div><div id="items-container">${itemsHtml}</div><button class="btn secondary small" onclick="addItemRow()" type="button">+ Tambah Item</button></div>`, [
+  const origKPArg = editing ? editing.kategori_peserta : '';
+  const origJuaraArg = editing ? editing.juara_ke : '';
+  setModal(editing?'Edit Paket':'Tambah Paket', `<div class="field-row"><div class="field"><label>Kategori</label><select id="f-kp" onchange="checkDuplikatPaketHadiah('${editing?editing.id:''}','${origKPArg}','${origJuaraArg}')">${KATEGORI_PESERTA.map(k=>`<option value="${k.v}" ${(editing?editing.kategori_peserta===k.v:defaultKP===k.v)?'selected':''}>${k.l}</option>`).join('')}</select></div><div class="field"><label>Juara</label><select id="f-juara" onchange="checkDuplikatPaketHadiah('${editing?editing.id:''}','${origKPArg}','${origJuaraArg}')">${JUARA_LIST.map(j=>`<option value="${j.v}" ${(editing?editing.juara_ke===j.v:defaultJuara===j.v)?'selected':''}>${j.l}</option>`).join('')}</select></div></div>${editing?`<div class="hint" id="paket-move-warning" style="display:none;background:var(--orange-bg,#fff3e0);border-radius:6px;padding:8px 10px;margin:-6px 0 12px;"></div>`:''}<div class="field"><label>Item Hadiah</label><div class="hint" style="margin-bottom:10px;">Isi "Qty/paket" saja (mis. 2 pulpen per paket). Paket ini otomatis berlaku untuk SEMUA lomba dengan kategori & juara yang sama. Total qty yang harus dibeli otomatis dihitung dari jumlah lomba sekarang, dan otomatis naik lagi kalau kamu menambah lomba baru di kategori ini.</div><div id="items-container">${itemsHtml}</div><button class="btn secondary small" onclick="addItemRow()" type="button">+ Tambah Item</button></div>`, [
     {label:'Batal', cls:'secondary', onclick:closeModal},
     {label:editing?'Simpan':'Tambah', cls:'', onclick:()=>{
       const kategori_peserta=document.getElementById('f-kp').value; const juara_ke=document.getElementById('f-juara').value;
@@ -872,14 +903,42 @@ function openHadiahModal(id){
 // dan buka modal edit paket yang sudah ada itu — supaya tidak pernah tercipta 2
 // paket terpisah untuk kategori+juara yang sama (isi paket cukup ditambah/edit di
 // paket yang sudah ada lewat "+ Tambah Item").
-function checkDuplikatPaketHadiah(editingId){
+function checkDuplikatPaketHadiah(editingId, originalKP, originalJuara){
   const kpEl=document.getElementById('f-kp'); const jEl=document.getElementById('f-juara');
+  const warnEl=document.getElementById('paket-move-warning');
+  const container=document.getElementById('items-container');
   if(!kpEl||!jEl) return;
   const kategori_peserta=kpEl.value; const juara_ke=jEl.value;
   const existing=gHadiahKategori().find(h=>h.kategori_peserta===kategori_peserta && h.juara_ke===juara_ke && h.id!==editingId);
   if(existing){
+    if(warnEl) warnEl.style.display='none';
     toast(`Paket ${labelPeserta(kategori_peserta)} - ${labelJuara(juara_ke)} sudah ada, dialihkan ke paket tersebut`);
     closeModal(); openHadiahModal(existing.id);
+    return;
+  }
+  // Mode TAMBAH PAKET BARU (editingId kosong): kalau kombinasi kategori/juara
+  // yang lagi dipilih belum punya paket, form ini mewakili paket yang MASIH
+  // KOSONG. Kalau item-item yang sempat diketik untuk kombinasi sebelumnya
+  // (mis. Juara 1) masih nempel di form pas dropdown diganti ke kombinasi lain
+  // yang belum ada paketnya (mis. Juara 2), item-item itu bisa ikut kesimpan
+  // di paket yang salah kombinasinya. Makanya form item dikosongkan setiap kali
+  // kombinasi berubah ke kombinasi yang belum ada paketnya.
+  if(!editingId && container){
+    container.innerHTML = '';
+  }
+  // Kalau lagi EDIT paket yang sudah ada dan kategori/juara diganti ke kombinasi
+  // lain yang belum ada paketnya: ini akan MEMINDAHKAN paket ini (beserta semua
+  // itemnya) ke kombinasi baru, BUKAN membuat paket terpisah baru. Item-item lama
+  // ikut terbawa — sering dikira "kok item Juara 1 masih muncul di paket Juara 2",
+  // padahal itu memang paket yang sama, cuma sudah berubah label kategori/juaranya.
+  // Kalau mau paket benar-benar terpisah, harus pakai "+ Tambah Paket", bukan edit.
+  if(warnEl){
+    if(editingId && originalKP && originalJuara && (kategori_peserta!==originalKP || juara_ke!==originalJuara)){
+      warnEl.style.display='block';
+      warnEl.innerHTML = `⚠️ Kamu sedang MENGEDIT paket <b>${labelPeserta(originalKP)} - ${labelJuara(originalJuara)}</b>. Kalau disimpan sekarang, paket ini (beserta semua itemnya) akan berubah jadi <b>${labelPeserta(kategori_peserta)} - ${labelJuara(juara_ke)}</b> — paket Juara asalnya jadi hilang, bukan bikin paket baru. Kalau maksudmu bikin paket TERPISAH untuk ${labelJuara(juara_ke)}, klik Batal lalu pakai tombol "+ Tambah Paket".`;
+    } else {
+      warnEl.style.display='none';
+    }
   }
 }
 function addItemRow(){ const container=document.getElementById('items-container'); if(!container) return; const idx=Math.floor(Math.random()*10000); const row=document.createElement('div'); row.className='item-fields-row'; /* sengaja TIDAK diberi data-item-id: baris baru = item baru, id di-generate saat submit */ row.style.cssText='border-bottom:1px solid var(--garis);padding-bottom:10px;margin-bottom:10px;'; row.innerHTML=`<div class="field"><label>Nama</label><input type="text" id="edit-item-name-${idx}" placeholder="Nama hadiah" onblur="autofillHargaHadiah(this)"></div><div class="field"><label>Harga</label><input type="text" id="edit-item-price-${idx}" class="currency-input" placeholder="Harga"></div><div class="field"><label>Qty/paket</label><input type="number" id="edit-item-perpaket-${idx}" placeholder="Qty/paket" value="1" min="1" title="Berapa pcs per 1 paket juara"></div><button class="btn danger-text small" onclick="removeItemRow(this.closest('.item-fields-row'))">✕</button>`; container.appendChild(row);

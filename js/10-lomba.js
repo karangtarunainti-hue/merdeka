@@ -903,8 +903,8 @@ function openHadiahModal(id){
   };
   setModal(editing?'Edit Paket':'Tambah Paket', `<div class="field-row"><div class="field"><label>Kategori</label><select id="f-kp" onchange="checkDuplikatPaketHadiah('${editing?editing.id:''}','${origKPArg}','${origJuaraArg}')">${KATEGORI_PESERTA.map(k=>`<option value="${k.v}" ${(editing?editing.kategori_peserta===k.v:defaultKP===k.v)?'selected':''}>${k.l}</option>`).join('')}</select></div><div class="field"><label>Juara</label><select id="f-juara" onchange="checkDuplikatPaketHadiah('${editing?editing.id:''}','${origKPArg}','${origJuaraArg}')">${JUARA_LIST.map(j=>`<option value="${j.v}" ${(editing?editing.juara_ke===j.v:defaultJuara===j.v)?'selected':''}>${j.l}</option>`).join('')}</select></div></div>${editing?`<div class="hint" id="paket-move-warning" style="display:none;background:var(--orange-bg,#fff3e0);border-radius:6px;padding:8px 10px;margin:-6px 0 12px;"></div>`:''}<div class="field"><label>Item Hadiah</label><div class="hint" style="margin-bottom:10px;">Isi "Qty/paket" saja (mis. 2 pulpen per paket). Paket ini otomatis berlaku untuk SEMUA lomba dengan kategori & juara yang sama. Total qty yang harus dibeli otomatis dihitung dari jumlah lomba sekarang, dan otomatis naik lagi kalau kamu menambah lomba baru di kategori ini.</div><div id="items-container">${itemsHtml}</div><button class="btn secondary small" onclick="addItemRow()" type="button">+ Tambah Item</button></div>`, [
     {label:'Batal', cls:'secondary', onclick:closeModal},
-    {label:'💾 Simpan (tetap buka)', cls:'secondary', onclick:()=>doSaveHadiah(false)},
-    {label:editing?'Simpan':'Tambah', cls:'', onclick:()=>doSaveHadiah(true)}
+    {label:'💾 Simpan & Lanjut Isi Item', id:'btn-hadiah-save-stay', cls:'secondary', onclick:()=>doSaveHadiah(false)},
+    {label:editing?'💾 Simpan & Tutup':'➕ Tambah Paket Ini', id:'btn-hadiah-save-close', cls:'', onclick:()=>doSaveHadiah(true)}
   ]);
   if(editing) openHadiahGroups.add(id);
   setTimeout(setupAllCurrencyInputs, 50);
@@ -939,6 +939,16 @@ function checkDuplikatPaketHadiah(editingId, originalKP, originalJuara){
   // isi paket untuk kombinasi yang sedang dipilih itu — bukan cuma untuk mode
   // Tambah Paket, tapi juga mode Edit begitu dropdown-nya diganti ke kombinasi lain.
   const isOriginalCombo = !!(editingId && originalKP && originalJuara && kategori_peserta===originalKP && juara_ke===originalJuara);
+  // Label tombol simpan HARUS ikut kombinasi yang sedang aktif, bukan cuma status
+  // "editing atau tidak" saat modal pertama dibuka — soalnya begitu dropdown digeser
+  // ke kombinasi yang belum ada paketnya, klik tombol ini sebenarnya BIKIN paket baru
+  // (lihat actionMsg di doSaveHadiah), bukan menyimpan paket yang lagi diedit. Kalau
+  // labelnya tetap "Simpan", pengguna bisa kaget/bingung kenapa hasilnya jadi 2 paket.
+  const isNewPaket = !(editingId && isOriginalCombo);
+  const btnStay = document.getElementById('btn-hadiah-save-stay');
+  const btnClose = document.getElementById('btn-hadiah-save-close');
+  if(btnStay) btnStay.textContent = isNewPaket ? '➕ Tambah & Lanjut Isi Item' : '💾 Simpan & Lanjut Isi Item';
+  if(btnClose) btnClose.textContent = isNewPaket ? '➕ Tambah Paket Ini' : '💾 Simpan & Tutup';
   if(container){
     if(editingId && isOriginalCombo){
       // Dropdown dikembalikan ke kombinasi asal paket yang sedang diedit:

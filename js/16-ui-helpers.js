@@ -12,6 +12,7 @@ function setModal(title, bodyHtml, buttons){
     btn.textContent = b.label;
     btn.type = 'button';
     btn.onclick = b.onclick;
+    if(b.id) btn.id = b.id;
     foot.appendChild(btn);
   });
   document.getElementById('overlay').classList.add('show');

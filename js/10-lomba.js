@@ -901,9 +901,9 @@ function openHadiahModal(id){
         toast(totalSama>0?`💾 Tersimpan, harga disamakan ke ${totalSama} item lain — lanjut tambah item`:'💾 Tersimpan — lanjut tambah item');
       }
   };
-  setModal(editing?'Edit Paket':'Tambah Paket', `<div class="field-row"><div class="field"><label>Kategori</label><select id="f-kp" onchange="checkDuplikatPaketHadiah('${editing?editing.id:''}','${origKPArg}','${origJuaraArg}')">${KATEGORI_PESERTA.map(k=>`<option value="${k.v}" ${(editing?editing.kategori_peserta===k.v:defaultKP===k.v)?'selected':''}>${k.l}</option>`).join('')}</select></div><div class="field"><label>Juara</label><select id="f-juara" onchange="checkDuplikatPaketHadiah('${editing?editing.id:''}','${origKPArg}','${origJuaraArg}')">${JUARA_LIST.map(j=>`<option value="${j.v}" ${(editing?editing.juara_ke===j.v:defaultJuara===j.v)?'selected':''}>${j.l}</option>`).join('')}</select></div></div>${editing?`<div class="hint" id="paket-move-warning" style="display:none;background:var(--orange-bg,#fff3e0);border-radius:6px;padding:8px 10px;margin:-6px 0 12px;"></div>`:''}<div class="field"><label>Item Hadiah</label><div id="items-container">${itemsHtml}</div><button class="btn secondary small" onclick="addItemRow()" type="button">+ Tambah Item</button></div>`, [
+  setModal(editing?'Edit Paket':'Tambah Paket', `<div class="field-row"><div class="field"><label>Kategori</label><select id="f-kp" onchange="checkDuplikatPaketHadiah('${editing?editing.id:''}','${origKPArg}','${origJuaraArg}')">${KATEGORI_PESERTA.map(k=>`<option value="${k.v}" ${(editing?editing.kategori_peserta===k.v:defaultKP===k.v)?'selected':''}>${k.l}</option>`).join('')}</select></div><div class="field"><label>Juara</label><select id="f-juara" onchange="checkDuplikatPaketHadiah('${editing?editing.id:''}','${origKPArg}','${origJuaraArg}')">${JUARA_LIST.map(j=>`<option value="${j.v}" ${(editing?editing.juara_ke===j.v:defaultJuara===j.v)?'selected':''}>${j.l}</option>`).join('')}</select></div></div><div class="field"><label>Item Hadiah</label><div id="items-container">${itemsHtml}</div><button class="btn secondary small" onclick="addItemRow()" type="button">+ Tambah Item</button></div>`, [
     {label:'Batal', cls:'secondary', onclick:closeModal},
-    {label:'💾 Simpan & Lanjut Isi Item', id:'btn-hadiah-save-stay', cls:'secondary', onclick:()=>doSaveHadiah(false)},
+    {label:'💾 Simpan', id:'btn-hadiah-save-stay', cls:'secondary', onclick:()=>doSaveHadiah(false)},
     {label:editing?'💾 Simpan & Tutup':'➕ Tambah Paket Ini', id:'btn-hadiah-save-close', cls:'', onclick:()=>doSaveHadiah(true)}
   ]);
   if(editing) openHadiahGroups.add(id);
@@ -923,13 +923,11 @@ function openHadiahModal(id){
 // paket yang sudah ada lewat "+ Tambah Item").
 function checkDuplikatPaketHadiah(editingId, originalKP, originalJuara){
   const kpEl=document.getElementById('f-kp'); const jEl=document.getElementById('f-juara');
-  const warnEl=document.getElementById('paket-move-warning');
   const container=document.getElementById('items-container');
   if(!kpEl||!jEl) return;
   const kategori_peserta=kpEl.value; const juara_ke=jEl.value;
   const existing=gHadiahKategori().find(h=>h.kategori_peserta===kategori_peserta && h.juara_ke===juara_ke && h.id!==editingId);
   if(existing){
-    if(warnEl) warnEl.style.display='none';
     toast(`Paket ${labelPeserta(kategori_peserta)} - ${labelJuara(juara_ke)} sudah ada, dialihkan ke paket tersebut`);
     closeModal(); openHadiahModal(existing.id);
     return;
@@ -945,9 +943,7 @@ function checkDuplikatPaketHadiah(editingId, originalKP, originalJuara){
   // (lihat actionMsg di doSaveHadiah), bukan menyimpan paket yang lagi diedit. Kalau
   // labelnya tetap "Simpan", pengguna bisa kaget/bingung kenapa hasilnya jadi 2 paket.
   const isNewPaket = !(editingId && isOriginalCombo);
-  const btnStay = document.getElementById('btn-hadiah-save-stay');
   const btnClose = document.getElementById('btn-hadiah-save-close');
-  if(btnStay) btnStay.textContent = isNewPaket ? '➕ Tambah & Lanjut Isi Item' : '💾 Simpan & Lanjut Isi Item';
   if(btnClose) btnClose.textContent = isNewPaket ? '➕ Tambah Paket Ini' : '💾 Simpan & Tutup';
   if(container){
     if(editingId && isOriginalCombo){
@@ -964,19 +960,6 @@ function checkDuplikatPaketHadiah(editingId, originalKP, originalJuara){
       // supaya item-item milik kombinasi sebelumnya (mis. paket asal yang sedang
       // diedit) tidak ikut kesimpan ke paket yang salah kombinasinya.
       container.innerHTML = '';
-    }
-  }
-  // Kalau lagi EDIT paket yang sudah ada dan kategori/juara digeser ke kombinasi
-  // lain yang belum ada paketnya: ini TIDAK memindahkan paket asal. Kalau disimpan,
-  // yang tersimpan adalah paket BARU terpisah untuk kombinasi barunya — paket asal
-  // (kombinasi lama, beserta semua itemnya) tetap ada dan tidak disentuh. Cukup
-  // kembalikan dropdown ke kombinasi asal untuk lanjut edit paket itu lagi.
-  if(warnEl){
-    if(editingId && originalKP && originalJuara && !isOriginalCombo){
-      warnEl.style.display='block';
-      warnEl.innerHTML = `ℹ️ Kombinasi <b>${labelPeserta(kategori_peserta)} - ${labelJuara(juara_ke)}</b> belum punya paket. Item di atas sudah dikosongkan — kalau disimpan, ini jadi <b>paket BARU terpisah</b>, dan paket asal <b>${labelPeserta(originalKP)} - ${labelJuara(originalJuara)}</b> tidak akan berubah. Kembalikan dropdown ke kombinasi asal untuk lanjut edit paket itu.`;
-    } else {
-      warnEl.style.display='none';
     }
   }
 }

@@ -802,6 +802,12 @@ function simpanHadiahBudget(){
   notifyTelegram(`🎯 Update budget hadiah per kategori`, detailLines.length ? detailLines.join('\n') : 'Semua budget diset Rp0', 'lomba');
 }
 
+// Bangun HTML baris-baris item dari sebuah array items paket hadiah. Dipakai saat
+// modal pertama dibuka (mode Edit) DAN saat checkDuplikatPaketHadiah mengembalikan
+// form ke kombinasi asal paket yang sedang diedit (lihat komentar di sana).
+function hadiahItemRowsHtml(items){
+  return (items||[]).map((item, idx) => { if(!item.id) item.id = uid(); return `<div class="item-fields-row" data-item-id="${item.id}" style="border-bottom:1px solid var(--garis);padding-bottom:10px;margin-bottom:10px;"><div class="field"><label>Nama</label><input type="text" id="edit-item-name-${idx}" value="${esc(item.nama)}" placeholder="Nama hadiah" onblur="autofillHargaHadiah(this)"></div><div class="field"><label>Harga</label><input type="text" id="edit-item-price-${idx}" class="currency-input" value="${formatCurrency(item.harga_satuan)}" placeholder="Harga"></div><div class="field"><label>Qty/paket</label><input type="number" id="edit-item-perpaket-${idx}" value="${item.qty_per_paket||1}" min="1" placeholder="Qty/paket" title="Berapa pcs per 1 paket juara"></div><button class="btn danger-text small" onclick="removeItemRow(this.closest('.item-fields-row'))">✕</button></div>`; }).join('');
+}
 function openHadiahModal(id){
   if (!canEditSection('hadiah')) { toast('⛔ Login untuk mengedit data'); return; }
   const editing = id ? db.hadiahKategori.find(h=>h.id===id) : null;
@@ -834,7 +840,7 @@ function openHadiahModal(id){
       return;
     }
   }
-  const itemsHtml = editing ? editing.items.map((item, idx) => { if(!item.id) item.id = uid(); return `<div class="item-fields-row" data-item-id="${item.id}" style="border-bottom:1px solid var(--garis);padding-bottom:10px;margin-bottom:10px;"><div class="field"><label>Nama</label><input type="text" id="edit-item-name-${idx}" value="${esc(item.nama)}" placeholder="Nama hadiah" onblur="autofillHargaHadiah(this)"></div><div class="field"><label>Harga</label><input type="text" id="edit-item-price-${idx}" class="currency-input" value="${formatCurrency(item.harga_satuan)}" placeholder="Harga"></div><div class="field"><label>Qty/paket</label><input type="number" id="edit-item-perpaket-${idx}" value="${item.qty_per_paket||1}" min="1" placeholder="Qty/paket" title="Berapa pcs per 1 paket juara"></div><button class="btn danger-text small" onclick="removeItemRow(this.closest('.item-fields-row'))">✕</button></div>`; }).join('') : '';
+  const itemsHtml = editing ? hadiahItemRowsHtml(editing.items) : '';
   const origKPArg = editing ? editing.kategori_peserta : '';
   const origJuaraArg = editing ? editing.juara_ke : '';
   // doSaveHadiah: logic simpan tunggal dipakai oleh dua tombol ("Tambah/Simpan" dan
@@ -849,7 +855,14 @@ function openHadiahModal(id){
         toast(`Paket ${labelPeserta(kategori_peserta)} - ${labelJuara(juara_ke)} sudah ada, dialihkan ke paket tersebut`);
         closeModal(); openHadiahModal(paketLain.id); return;
       }
-      const kebutuhan=hitungKebutuhanHadiah(kategori_peserta, juara_ke); const existingItems=editing?(editing.items||[]):[]; const items=[]; const container=document.getElementById('items-container'); const rows=container.querySelectorAll('.item-fields-row'); rows.forEach((row)=>{const nameInput=row.querySelector(`input[id^="edit-item-name-"]`); const priceInput=row.querySelector(`input[id^="edit-item-price-"]`); const perPaketInput=row.querySelector(`input[id^="edit-item-perpaket-"]`); if(nameInput&&priceInput){const nama=nameInput.value.trim(); const harga_satuan=getCurrencyValue(priceInput); const qty_per_paket=Math.max(1,Number((perPaketInput&&perPaketInput.value)||1)); if(!nama) return;
+      // comboUnchanged: benar-benar mengedit paket yang sama (kombinasi kategori+juara
+      // di dropdown masih sama seperti saat modal dibuka). Kalau editing tapi kombinasi
+      // SUDAH diganti ke kombinasi lain yang belum ada paketnya, ini bukan lagi
+      // "mengedit paket asal" — checkDuplikatPaketHadiah sudah mengosongkan form saat
+      // dropdown diganti, jadi form ini sekarang mewakili paket BARU yang terpisah;
+      // paket asal (origKPArg/origJuaraArg) TIDAK boleh disentuh/di-Object.assign.
+      const comboUnchanged = editing && kategori_peserta===origKPArg && juara_ke===origJuaraArg;
+      const kebutuhan=hitungKebutuhanHadiah(kategori_peserta, juara_ke); const existingItems=comboUnchanged?(editing.items||[]):[]; const items=[]; const container=document.getElementById('items-container'); const rows=container.querySelectorAll('.item-fields-row'); rows.forEach((row)=>{const nameInput=row.querySelector(`input[id^="edit-item-name-"]`); const priceInput=row.querySelector(`input[id^="edit-item-price-"]`); const perPaketInput=row.querySelector(`input[id^="edit-item-perpaket-"]`); if(nameInput&&priceInput){const nama=nameInput.value.trim(); const harga_satuan=getCurrencyValue(priceInput); const qty_per_paket=Math.max(1,Number((perPaketInput&&perPaketInput.value)||1)); if(!nama) return;
         const existingId = row.dataset.itemId || null;
         const matched = existingId ? existingItems.find(x=>x.id===existingId) : null;
         const qty_dibeli = matched ? Number(matched.qty_dibeli||0) : (kebutuhan!=null ? kebutuhan*qty_per_paket : qty_per_paket);
@@ -858,17 +871,17 @@ function openHadiahModal(id){
         const extra = matched ? {isi_per_pack: matched.isi_per_pack, harga_eceran: matched.harga_eceran, riwayatHarga: matched.riwayatHarga} : {};
         items.push({id,nama,harga_satuan,qty_dibeli,qty_per_paket,qty_terpakai,...extra});}});
       if(items.length===0){
-        if(!editing){ toast('Minimal 1 item'); return; }
+        if(!comboUnchanged){ toast('Minimal 1 item'); return; }
         if(!confirm(`Semua item dikosongkan. Paket hadiah ${labelPeserta(kategori_peserta)} - ${labelJuara(juara_ke)} akan DIHAPUS. Lanjutkan?`)) return;
         db.hadiahKategori = db.hadiahKategori.filter(x=>x.id!==editing.id);
         saveDB(); closeModal(); renderContent(); renderTopbarSaldo(); toast('🗑️ Paket hadiah dihapus');
         notifyTelegram(`🗑️ Hapus paket hadiah ${labelPeserta(kategori_peserta)} - ${labelJuara(juara_ke)}`, 'Semua item dikosongkan dari form edit', 'lomba');
         return;
       }
-      let actionMsg = editing ? `✏️ Edit paket hadiah ${labelPeserta(kategori_peserta)} - ${labelJuara(juara_ke)}` : `➕ Paket hadiah baru ${labelPeserta(kategori_peserta)} - ${labelJuara(juara_ke)}`;
-      if(editing){ Object.assign(editing,{kategori_peserta,juara_ke,items});}
+      let actionMsg = comboUnchanged ? `✏️ Edit paket hadiah ${labelPeserta(kategori_peserta)} - ${labelJuara(juara_ke)}` : `➕ Paket hadiah baru ${labelPeserta(kategori_peserta)} - ${labelJuara(juara_ke)}${editing?` (terpisah dari paket ${labelPeserta(origKPArg)} - ${labelJuara(origJuaraArg)}, tidak diubah)`:''}`;
+      if(comboUnchanged){ Object.assign(editing,{kategori_peserta,juara_ke,items});}
       else{ db.hadiahKategori.push({id:uid(),event_id:eid(),kategori_peserta,juara_ke,items}); }
-      const currentHadiahId = editing ? editing.id : db.hadiahKategori[db.hadiahKategori.length-1].id;
+      const currentHadiahId = comboUnchanged ? editing.id : db.hadiahKategori[db.hadiahKategori.length-1].id;
       openHadiahGroups.add(currentHadiahId);
       let totalSama = 0;
       items.forEach((it)=>{ totalSama += samakanHargaItemSejenis(it.nama, it.harga_satuan, it.id); });
@@ -921,26 +934,37 @@ function checkDuplikatPaketHadiah(editingId, originalKP, originalJuara){
     closeModal(); openHadiahModal(existing.id);
     return;
   }
-  // Mode TAMBAH PAKET BARU (editingId kosong): kalau kombinasi kategori/juara
-  // yang lagi dipilih belum punya paket, form ini mewakili paket yang MASIH
-  // KOSONG. Kalau item-item yang sempat diketik untuk kombinasi sebelumnya
-  // (mis. Juara 1) masih nempel di form pas dropdown diganti ke kombinasi lain
-  // yang belum ada paketnya (mis. Juara 2), item-item itu bisa ikut kesimpan
-  // di paket yang salah kombinasinya. Makanya form item dikosongkan setiap kali
-  // kombinasi berubah ke kombinasi yang belum ada paketnya.
-  if(!editingId && container){
-    container.innerHTML = '';
+  // Kombinasi kategori/juara yang lagi dipilih di dropdown BELUM punya paket lain
+  // (sudah lolos pengecekan `existing` di atas). Form di bawah ini SELALU mewakili
+  // isi paket untuk kombinasi yang sedang dipilih itu — bukan cuma untuk mode
+  // Tambah Paket, tapi juga mode Edit begitu dropdown-nya diganti ke kombinasi lain.
+  const isOriginalCombo = !!(editingId && originalKP && originalJuara && kategori_peserta===originalKP && juara_ke===originalJuara);
+  if(container){
+    if(editingId && isOriginalCombo){
+      // Dropdown dikembalikan ke kombinasi asal paket yang sedang diedit:
+      // tampilkan lagi item-item ASLI paket itu (bukan form kosong), supaya
+      // pengguna bisa lanjut edit paket ini seperti semula.
+      const editingPaket = gHadiahKategori().find(h=>h.id===editingId);
+      container.innerHTML = hadiahItemRowsHtml(editingPaket ? editingPaket.items : []);
+      container.querySelectorAll('.currency-input').forEach(setupCurrencyInput);
+    } else {
+      // Kombinasi yang sedang dipilih (baik di mode Tambah Paket baru, maupun di
+      // mode Edit yang dropdown-nya sudah digeser ke kombinasi lain) belum punya
+      // paket sendiri — form ini mewakili paket BARU yang masih kosong. Kosongkan
+      // supaya item-item milik kombinasi sebelumnya (mis. paket asal yang sedang
+      // diedit) tidak ikut kesimpan ke paket yang salah kombinasinya.
+      container.innerHTML = '';
+    }
   }
-  // Kalau lagi EDIT paket yang sudah ada dan kategori/juara diganti ke kombinasi
-  // lain yang belum ada paketnya: ini akan MEMINDAHKAN paket ini (beserta semua
-  // itemnya) ke kombinasi baru, BUKAN membuat paket terpisah baru. Item-item lama
-  // ikut terbawa — sering dikira "kok item Juara 1 masih muncul di paket Juara 2",
-  // padahal itu memang paket yang sama, cuma sudah berubah label kategori/juaranya.
-  // Kalau mau paket benar-benar terpisah, harus pakai "+ Tambah Paket", bukan edit.
+  // Kalau lagi EDIT paket yang sudah ada dan kategori/juara digeser ke kombinasi
+  // lain yang belum ada paketnya: ini TIDAK memindahkan paket asal. Kalau disimpan,
+  // yang tersimpan adalah paket BARU terpisah untuk kombinasi barunya — paket asal
+  // (kombinasi lama, beserta semua itemnya) tetap ada dan tidak disentuh. Cukup
+  // kembalikan dropdown ke kombinasi asal untuk lanjut edit paket itu lagi.
   if(warnEl){
-    if(editingId && originalKP && originalJuara && (kategori_peserta!==originalKP || juara_ke!==originalJuara)){
+    if(editingId && originalKP && originalJuara && !isOriginalCombo){
       warnEl.style.display='block';
-      warnEl.innerHTML = `⚠️ Kamu sedang MENGEDIT paket <b>${labelPeserta(originalKP)} - ${labelJuara(originalJuara)}</b>. Kalau disimpan sekarang, paket ini (beserta semua itemnya) akan berubah jadi <b>${labelPeserta(kategori_peserta)} - ${labelJuara(juara_ke)}</b> — paket Juara asalnya jadi hilang, bukan bikin paket baru. Kalau maksudmu bikin paket TERPISAH untuk ${labelJuara(juara_ke)}, klik Batal lalu pakai tombol "+ Tambah Paket".`;
+      warnEl.innerHTML = `ℹ️ Kombinasi <b>${labelPeserta(kategori_peserta)} - ${labelJuara(juara_ke)}</b> belum punya paket. Item di atas sudah dikosongkan — kalau disimpan, ini jadi <b>paket BARU terpisah</b>, dan paket asal <b>${labelPeserta(originalKP)} - ${labelJuara(originalJuara)}</b> tidak akan berubah. Kembalikan dropdown ke kombinasi asal untuk lanjut edit paket itu.`;
     } else {
       warnEl.style.display='none';
     }

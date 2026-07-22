@@ -106,7 +106,13 @@ function hitungBukuUtama(){
   const hadiahAktual = hitungHargaAktualHadiahLomba();
   let hadiahLomba = hadiahAktual.total; let jumlahItemHadiahLomba = 0;
   gHadiahKategori().forEach(h => {
-    h.items.forEach(() => { jumlahItemHadiahLomba++; });
+    // Hanya hitung item yang benar-benar sudah dibeli (qty_dibeli > 0),
+    // konsisten dengan hitungHargaAktualHadiahLomba() yang juga melewati
+    // item qty_dibeli <= 0 saat menjumlahkan hadiahLomba di atas. Kalau
+    // tidak, jumlah item yang ditampilkan (Dashboard & LPJ) bisa lebih
+    // besar dari jumlah item yang benar-benar berkontribusi ke nilai
+    // rupiah yang ditampilkan di sebelahnya.
+    h.items.forEach(item => { if (Number(item.qty_dibeli||0) > 0) jumlahItemHadiahLomba++; });
   });
 
   const hadiahJalanList = gHadiahJalanSantai();

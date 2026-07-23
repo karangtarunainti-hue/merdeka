@@ -1,38 +1,65 @@
 -- ============================================================
--- MIGRASI: tabel kt_dokumen_global
--- Sejak menu "Surat & Dokumen" dibuat berdiri sendiri (tidak
--- terikat event tahunan, sama seperti Gudang Aset), draft surat
--- undangan/proposal/absensi dipindah dari kt_settings.dokumen
--- (yang tadinya per event_id) ke satu baris global di tabel ini —
--- pola yang sama seperti kt_telegram_settings/kt_guest_menu_settings
--- (1 baris, id='main').
---
--- Aman dijalankan berkali-kali (idempotent).
+-- MIGRASI: Tambah kolom account_tag ke tabel settings,
+--          transactions, dan audit_logs
+-- Jalankan sekali di Supabase SQL Editor
 -- ============================================================
-create table if not exists kt_dokumen_global (
-  id text primary key,
-  dokumen jsonb not null default '{}'::jsonb
-);
 
-alter table kt_dokumen_global enable row level security;
-drop policy if exists "anon_full_access" on kt_dokumen_global;
-create policy "anon_full_access" on kt_dokumen_global
-  for all to anon using (true) with check (true);
+-- ── TABEL: settings ─────────────────────────────────────────
 
--- Seed baris 'main' kalau belum ada, supaya upsert pertama dari app tidak
--- perlu menangani "no rows" secara khusus.
-insert into kt_dokumen_global (id, dokumen)
-values ('main', '{"undangan":{},"proposal":{},"absensi":{}}'::jsonb)
-on conflict (id) do nothing;
+-- 1. Tambah kolom account_tag (nullable agar baris lama tidak error)
+ALTER TABLE settings
+    ADD COLUMN IF NOT EXISTS account_tag TEXT DEFAULT NULL;
+
+-- 2. Index untuk filter account_tag
+CREATE INDEX IF NOT EXISTS idx_settings_account_tag
+    ON settings (account_tag)
+    WHERE account_tag IS NOT NULL;
+
+-- 3. Index composite untuk query umum (tag + book_id + key)
+CREATE INDEX IF NOT EXISTS idx_settings_tag_book_key
+    ON settings (account_tag, book_id, key)
+    WHERE account_tag IS NOT NULL;
+
+-- ── TABEL: transactions ──────────────────────────────────────
+
+-- 4. Tambah kolom account_tag ke transactions
+ALTER TABLE transactions
+    ADD COLUMN IF NOT EXISTS account_tag TEXT DEFAULT NULL;
+
+-- 5. Index untuk filter account_tag di transactions
+CREATE INDEX IF NOT EXISTS idx_transactions_account_tag
+    ON transactions (account_tag)
+    WHERE account_tag IS NOT NULL;
+
+-- 6. Index composite: tag + book_id + date (pola query paling umum)
+CREATE INDEX IF NOT EXISTS idx_transactions_tag_book_date
+    ON transactions (account_tag, book_id, date DESC)
+    WHERE account_tag IS NOT NULL;
+
+-- ── TABEL: audit_logs ───────────────────────────────────────
+
+-- 7. Tambah kolom account_tag ke audit_logs
+ALTER TABLE audit_logs
+    ADD COLUMN IF NOT EXISTS account_tag TEXT DEFAULT NULL;
+
+-- 8. Index untuk filter account_tag di audit_logs
+CREATE INDEX IF NOT EXISTS idx_audit_logs_account_tag
+    ON audit_logs (account_tag)
+    WHERE account_tag IS NOT NULL;
+
+-- 9. Index composite: tag + book_id + timestamp (pola query paling umum)
+CREATE INDEX IF NOT EXISTS idx_audit_logs_tag_book_ts
+    ON audit_logs (account_tag, book_id, timestamp DESC)
+    WHERE account_tag IS NOT NULL;
 
 -- ============================================================
--- (Opsional) Migrasi draft lama dari kt_settings.dokumen
--- Kalau sebelumnya sudah pernah mengisi Surat Undangan/Proposal/Absensi
--- untuk salah satu event, jalankan salah satu blok di bawah ini untuk
--- memindahkan draft itu jadi draft global (timpa baris 'main' di atas).
--- Ganti 'ISI_EVENT_ID_DI_SINI' dengan event_id yang datanya mau dipindah
--- (lihat kolom event_id di tabel kt_events / kt_settings).
+-- Setelah menjalankan SQL ini, app akan otomatis:
+--   - Menambahkan account_tag ke setiap push baru (settings,
+--     transactions, audit_logs)
+--   - Query GET menggunakan OR filter: tag cocok ATAU NULL,
+--     sehingga data lama tetap terbaca sebelum migrasi selesai
+--   - Migrasi satu kali (window.runOneTimeMigrations) akan
+--     men-tag ulang semua baris NULL yang bisa diidentifikasi
+--     sebagai milik akun ini, lalu menandai selesai di
+--     localStorage agar tidak diulang
 -- ============================================================
--- update kt_dokumen_global
--- set dokumen = (select dokumen from kt_settings where event_id = 'ISI_EVENT_ID_DI_SINI')
--- where id = 'main';

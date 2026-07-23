@@ -1,24 +1,136 @@
--- ============================================================
--- MIGRASI: tabel kt_agenda
--- Untuk fitur baru "Agenda Kegiatan" — agenda umum organisasi yang
--- TIDAK terikat event tahunan (17-an) sama sekali, beda dari
--- kt_jadwal yang per event_id. Polanya serupa kt_kas
--- (tidak ada kolom event_id), supaya reminder-nya tetap muncul di
--- Buku Kegiatan walau belum ada event aktif dipilih/dibuat.
---
--- Aman dijalankan berkali-kali (idempotent).
--- ============================================================
-create table if not exists kt_agenda (
-  id uuid primary key default gen_random_uuid(),
-  judul text not null default '',
-  tanggal date,
-  kategori text default 'lainnya',
-  deskripsi text default '',
-  status text not null default 'aktif',
-  created_at timestamptz default now()
-);
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Taruna Inti</title>
 
-alter table kt_agenda enable row level security;
-drop policy if exists "anon_full_access" on kt_agenda;
-create policy "anon_full_access" on kt_agenda
-  for all to anon using (true) with check (true);
+<!-- PWA -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1D4B36">
+<meta name="background-color" content="#FBF6EE">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Taruna Inti">
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.min.css">
+</head>
+<body>
+
+<div class="app">
+  <aside class="sidebar" id="sidebar">
+    <button class="sidebar-close" id="sidebar-close" type="button" aria-label="Tutup menu">✕</button>
+    <div class="brand">
+      <div class="eyebrow">Management</div>
+      <h1>KEGIATAN INTI</h1>
+    </div>
+    
+    <!-- USER INFO -->
+    <div class="user-info" id="user-info">
+      <div class="name" id="user-name-display">
+        <span id="user-icon">👤</span>
+        <span id="user-name-text">Anggota</span>
+      </div>
+      <button class="btn-login" id="btn-login" onclick="openLoginModal()">Login</button>
+      <button class="btn-logout" id="btn-logout" onclick="logout()" style="display:none;">Logout</button>
+    </div>
+    
+    <nav class="nav nav-global" id="nav-global"></nav>
+    <div class="event-block">
+      <label>Kegiatan Aktif</label>
+      <select class="event-select" id="event-select"></select>
+      <button class="btn-ghost-light" id="btn-new-event" type="button" style="display:none;">+ Event Baru</button>
+    </div>
+    <nav class="nav" id="nav"></nav>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div class="left">
+        <button class="menu-toggle" id="menu-toggle" type="button" aria-label="Menu">☰</button>
+        <div>
+          <h2 id="page-title">Buku Kegiatan</h2>
+          <div class="sub" id="page-sub"></div>
+        </div>
+      </div>
+      <div class="saldo-chip" id="saldo-chip" title="Proyeksi anggaran: sudah termasuk kebutuhan &amp; hadiah yang direncanakan, belum tentu sudah dibelanjakan.">
+        <span class="lbl">Proyeksi Saldo</span>
+        <span class="val mono" id="saldo-val">Rp 0</span>
+      </div>
+    </div>
+    <div id="content"></div>
+    <footer class="app-footer">
+      <div class="app-footer-quote">&ldquo;Senyum adalah buah dari pemahaman&rdquo;</div>
+    </footer>
+  </main>
+</div>
+
+<div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="modal-title">Judul</h3>
+      <button class="close-x" id="modal-close" type="button">✕</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-foot" id="modal-foot"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- OFFLINE GUARD: layar buram + peringatan saat device tidak ada koneksi internet,
+     supaya user tidak bisa input data (mencegah konflik data antar perangkat saat
+     koneksi kembali & proses sinkronisasi berjalan). -->
+<div class="offline-overlay" id="offline-overlay" aria-hidden="true">
+  <div class="offline-box">
+    <div class="offline-icon">📡</div>
+    <h3>Tidak Ada Akses Internet</h3>
+    <p>Koneksi internet perangkat ini terputus. Input dinonaktifkan sementara agar data tidak bentrok dengan perangkat lain.</p>
+    <div class="offline-status" id="offline-status">
+      <span class="offline-dot"></span> Menunggu koneksi kembali&hellip;
+    </div>
+  </div>
+</div>
+
+<script src="vendor/supabase.js" defer></script>
+<script src="icons/lucide-icons.local.min.js" defer></script>
+
+<!-- script.js dipecah jadi beberapa file per modul (lihat folder js/), lalu
+     digabung+diminify jadi satu file js/app.bundle.min.js untuk production
+     (lihat js/README-BUNDLE.md untuk cara build ulang setelah edit modul).
+     PENTING: urutan modul di dalam bundle HARUS sama seperti urutan asli di
+     bawah, karena modul-modul ini saling bergantung lewat variabel/fungsi
+     global bersama (bukan ES module dengan import/export):
+     00-config, 01-utils-currency, 02-auth, 03-db-core, 04-event-settings,
+     05-navigation, 06-login-users, 07-dashboard, 08-anggota,
+     09-donatur-transaksi-operasional, 10-lomba, 11-belanja,
+     12-jadwal-agenda-kas, 13-lpj, 14-dokumen, 15-pengaturan-event,
+     16-ui-helpers, 17a-gudang-core, 17b-gudang-pinjam,
+     17c-gudang-histori-kelola, 18-getters-refresh, 24-bookmark,
+     22-dana-sosial, 20-panduan, 21-icons-lucide, 23-install-prompt, 19-init.
+     html2canvas (dulu di-load eager di sini) sekarang di-lazy-load lewat
+     ensureHtml2Canvas() di js/16-ui-helpers.js, hanya saat fitur "Download
+     Gambar/JPEG" benar-benar dipakai. -->
+<script src="js/app.bundle.min.js" defer></script>
+<script>
+  // Daftarkan service worker supaya aplikasi bisa di-"Add to Home Screen"
+  // dan tetap bisa dibuka walau koneksi sedang jelek/offline.
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch((err) => {
+        console.error('Gagal mendaftarkan service worker:', err);
+      });
+    });
+  }
+</script>
+</body>
+</html>

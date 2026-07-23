@@ -1,15 +1,19 @@
-{
-  // Nama project di Cloudflare (harus sama dengan nama Worker "merdeka" yang sudah ada)
-  "name": "merdeka",
-  // Tanggal kompatibilitas runtime — pakai tanggal hari ini
-  "compatibility_date": "2026-07-08",
+-- ============================================================
+-- Lomba: koordinator bisa lebih dari satu orang
+-- ============================================================
+-- Sebelumnya kt_lomba.koordinator_anggota_id hanya menyimpan SATU id
+-- anggota (kolom uuid tunggal). Sekarang satu lomba bisa punya beberapa
+-- koordinator sekaligus, disimpan sebagai array id di kolom jsonb baru
+-- koordinator_anggota_ids. Kolom lama koordinator_anggota_id tetap
+-- dipertahankan (diisi otomatis = koordinator pertama) supaya data lama
+-- / query lain yang masih memakainya tidak rusak.
 
-  // Merdeka adalah situs statis (HTML/CSS/JS biasa, tanpa proses build),
-  // jadi tidak perlu Worker script (main). Cukup arahkan ke folder project ini.
-  "assets": {
-    "directory": "./",
-    // Kalau ada request ke path yang bukan file statis, tetap kembalikan index.html
-    // (aman untuk app yang semua routing-nya ditangani lewat JS, bukan URL path).
-    "not_found_handling": "single-page-application"
-  }
-}
+alter table kt_lomba
+  add column if not exists koordinator_anggota_ids jsonb not null default '[]'::jsonb;
+
+-- Migrasi data lama: pindahkan koordinator_anggota_id (kalau ada) jadi
+-- elemen pertama di koordinator_anggota_ids.
+update kt_lomba
+set koordinator_anggota_ids = jsonb_build_array(koordinator_anggota_id)
+where koordinator_anggota_id is not null
+  and (koordinator_anggota_ids is null or koordinator_anggota_ids = '[]'::jsonb);

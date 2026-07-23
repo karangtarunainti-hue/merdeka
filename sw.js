@@ -1,151 +1,34 @@
-/* ============================================================
-   SERVICE WORKER — Buku Keuangan Karang Taruna
-   Cuma nge-cache "app shell" (HTML/CSS/JS/ikon) supaya aplikasi
-   tetap bisa dibuka walau sinyal jelek/offline. Data (Supabase)
-   TIDAK di-cache di sini — selalu ambil langsung dari jaringan,
-   supaya saldo/anggota/dll yang ditampilkan selalu data terbaru.
+-- Migrasi: pindahkan reminder otomatis lomba dari Agenda Kegiatan (kt_agenda)
+-- ke Jadwal & Reminder (kt_jadwal).
+--
+-- Sebelumnya kt_lomba.agenda_id menunjuk ke baris di kt_agenda (tidak terikat
+-- event). Sekarang dipindah ke kt_lomba.jadwal_id yang menunjuk ke baris di
+-- kt_jadwal (terikat event_id, sama seperti event_id lomba-nya).
+--
+-- Jalankan sekali saja lewat SQL editor Supabase.
 
-   NAIKKAN CACHE_VERSION setiap kali index.html/style.css/js/*
-   diupdate, supaya HP pengguna otomatis ambil versi baru.
-   ============================================================ */
-const CACHE_VERSION = 'v44';
-const CACHE_NAME = `kt-shell-${CACHE_VERSION}`;
+-- 1) Tambah kolom baru di kt_lomba
+alter table kt_lomba add column if not exists jadwal_id uuid;
 
-// script.js lama sudah dipecah jadi banyak file per modul di folder js/
-// (lihat index.html) — semuanya harus di-precache juga supaya app tetap
-// bisa dibuka utuh saat offline.
-const APP_SHELL = [
-  './',
-  './index.html',
-  './style.css',
-  './js/00-config.js',
-  './js/01-utils-currency.js',
-  './js/02-auth.js',
-  './js/03-db-core.js',
-  './js/04-event-settings.js',
-  './js/05-navigation.js',
-  './js/06-login-users.js',
-  './js/07-dashboard.js',
-  './js/08-anggota.js',
-  './js/09-donatur-transaksi-operasional.js',
-  './js/10-lomba.js',
-  './js/11-belanja.js',
-  './js/12-jadwal-agenda-kas.js',
-  './js/13-lpj.js',
-  './js/14-dokumen.js',
-  './js/15-pengaturan-event.js',
-  './js/16-ui-helpers.js',
-  './js/17a-gudang-core.js',
-  './js/17b-gudang-pinjam.js',
-  './js/17c-gudang-histori-kelola.js',
-  './js/18-getters-refresh.js',
-  './js/24-bookmark.js',
-  './js/22-dana-sosial.js',
-  './js/20-panduan.js',
-  './js/21-icons-lucide.js',
-  './js/19-init.js',
-  './vendor/supabase.js',
-  './manifest.json',
-  './icons/icon-192.png',
-  './icons/icon-512.png',
-  './icons/lucide-icons.local.js',
-];
+-- 2) Pindahkan entri kt_agenda yang berasal dari lomba ke kt_jadwal,
+--    sambil membawa event_id dari lomba pemiliknya.
+insert into kt_jadwal (id, event_id, judul, tanggal, kategori, deskripsi, status)
+select a.id, l.event_id, a.judul, a.tanggal, a.kategori, a.deskripsi, a.status
+from kt_agenda a
+join kt_lomba l on l.agenda_id = a.id
+on conflict (id) do nothing;
 
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      // {cache:'reload'} supaya fetch awal ini juga tidak diam-diam diambil dari
-      // HTTP cache browser/CDN (lihat penjelasan lengkap di listener 'fetch' di bawah).
-      .then((cache) => cache.addAll(APP_SHELL.map((url) => new Request(url, { cache: 'reload' }))))
-      .then(() => self.skipWaiting())
-  );
-});
+-- 3) Set jadwal_id di kt_lomba supaya link-nya ikut pindah
+update kt_lomba l
+set jadwal_id = l.agenda_id
+where l.agenda_id is not null;
 
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((names) =>
-      Promise.all(
-        names.filter((n) => n.startsWith('kt-shell-') && n !== CACHE_NAME)
-             .map((n) => caches.delete(n))
-      )
-    ).then(() => self.clients.claim())
-  );
-});
+-- 4) Hapus entri lama di kt_agenda yang sudah dipindahkan
+delete from kt_agenda a
+using kt_lomba l
+where l.agenda_id = a.id;
 
-self.addEventListener('fetch', (event) => {
-  const req = event.request;
-
-  // Cuma tangani GET same-origin. Request ke Supabase, font Google,
-  // CDN supabase-js, dll dibiarkan lewat jaringan seperti biasa
-  // (tidak di-cache) supaya data selalu fresh.
-  if (req.method !== 'GET' || new URL(req.url).origin !== self.location.origin) {
-    return;
-  }
-
-  // Network-first untuk app shell: kalau online, selalu pakai versi
-  // terbaru dari server + update cache. Kalau offline, baru fallback
-  // ke cache supaya aplikasi tetap bisa dibuka.
-  //
-  // CATATAN PENTING: `fetch(req)` biasa TETAP BISA diam-diam dijawab dari
-  // HTTP cache bawaan browser/CDN (bukan Cache Storage kita), tergantung
-  // header Cache-Control dari hosting — jadi walau kode di sini sudah
-  // "network-first", device tertentu masih bisa dapat file lama beberapa
-  // saat kalau layer cache HTTP itu belum kadaluarsa. `cache:'no-store'`
-  // memaksa permintaan ini betul-betul ke jaringan, tidak boleh dijawab
-  // dari cache manapun selain Cache Storage kita sendiri sebagai fallback.
-  // FALLBACK TERAKHIR: Response buatan tangan, dipakai kalau semua upaya
-  // lain (fetch jaringan MAUPUN baca dari Cache Storage) gagal total.
-  const fallbackResponse = () => new Response(
-    '<h1>Sedang offline</h1><p>Tidak bisa memuat halaman ini dan belum ada salinan tersimpan. Coba lagi setelah koneksi kembali.</p>',
-    { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8' } }
-  );
-
-  event.respondWith(
-    fetch(req.url, { cache: 'no-store' })
-      .then((res) => {
-        const resClone = res.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(req, resClone)).catch(() => {});
-
-        // FIX: kalau server (Cloudflare) redirect request ini (mis. "/" -> "/index.html",
-        // http -> https, atau strip/tambah trailing slash), `res.redirected` jadi true.
-        // Untuk request navigasi (buka halaman), Chrome MENOLAK meneruskan Response yang
-        // bertanda "redirected" lewat respondWith() — persis pesan error "a redirected
-        // response was used for a request whose redirect mode is not 'follow'" — dan
-        // seluruh halaman gagal dimuat. Solusinya: bikin Response baru dari body yang
-        // sama supaya flag .redirected hilang, isi/status/header tetap identik.
-        if (!res.redirected) return res;
-        return res.blob().then((blob) => new Response(blob, {
-          status: res.status,
-          statusText: res.statusText,
-          headers: res.headers
-        }));
-      })
-      .catch(() =>
-        // PENTING: rantai fallback ini HARUS selalu berakhir dengan sebuah
-        // Response yang valid. Kalau fetch gagal (koneksi jelek/putus) DAN
-        // request ini kebetulan tidak ada di cache DAN './index.html' juga
-        // entah kenapa tidak ke-cache, hasilnya bisa `undefined` —
-        // respondWith(undefined) bikin Chrome melempar net::ERR_FAILED dan
-        // seluruh halaman gagal total sampai di-hard-refresh. Response
-        // buatan tangan di baris terakhir ini mencegah itu: dalam skenario
-        // terburuk sekalipun, user tetap dapat pesan yang jelas, bukan
-        // error jaringan yang bikin bingung.
-        //
-        // CATATAN TAMBAHAN (penting!): caches.match() DI BAWAH INI JUGA BISA
-        // REJECT sendiri, bukan cuma "tidak ketemu" — misalnya kalau Cache
-        // Storage di device rusak/korup atau kena quota exceeded (pernah
-        // terjadi di Chrome Android). Kalau reject ini tidak ditangkap,
-        // dia akan ikut membuat promise respondWith() reject juga, dan
-        // hasilnya net::ERR_FAILED persis seperti skenario di atas — inilah
-        // penyebab bug "harus hapus data & cache dulu baru bisa akses".
-        // Makanya seluruh chain ini dibungkus .catch() lagi supaya APAPUN
-        // yang gagal (fetch atau Cache API itu sendiri), user tetap dapat
-        // Response yang valid, bukan promise yang reject.
-        caches.match(req)
-          .then((cached) => cached || caches.match('./index.html'))
-          .then((cached) => cached || fallbackResponse())
-          .catch(() => fallbackResponse())
-      )
-      .catch(() => fallbackResponse())
-  );
-});
+-- 5) (Opsional, jalankan manual setelah memastikan data di atas sudah benar)
+-- Kolom agenda_id di kt_lomba sudah tidak dipakai lagi oleh aplikasi,
+-- boleh dihapus kalau mau beres-beres skema:
+-- alter table kt_lomba drop column agenda_id;

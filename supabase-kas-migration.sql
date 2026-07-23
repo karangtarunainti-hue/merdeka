@@ -1,26 +1,17 @@
 -- ============================================================
--- MIGRASI: tabel kt_kas
--- Untuk fitur baru "Kas Karang Taruna" — buku kas umum organisasi
--- yang TIDAK terikat event tahunan (17-an) sama sekali, mengikuti
--- pola kt_agenda (tidak ada kolom event_id).
+-- MIGRASI: tandai anggota Dana Sosial yang berstatus "Perantauan".
 --
--- Kolom debit/kredit dipakai untuk menghitung saldo berjalan
--- (running balance) di sisi aplikasi — saldo TIDAK disimpan di
--- tabel ini supaya selalu konsisten walau ada baris yang diedit
--- atau dihapus.
+-- Anggota Perantauan biasanya TIDAK bayar bulanan seperti anggota
+-- reguler — mereka baru pulang/nitip bayar setahun sekali. Supaya
+-- tidak bikin daftar utama keliatan penuh "Belum Bayar" tiap bulan,
+-- anggota Perantauan dipisah ke tabel sendiri di UI (lihat
+-- js/22-dana-sosial.js), meski struktur datanya tetap sama persis
+-- dengan anggota reguler (satu baris kt_dana_sosial_bayar per bulan
+-- yang sudah ditandai lunas — biasanya ditandai beberapa bulan
+-- sekaligus saat mereka pulang/nitip bayar).
 --
 -- Aman dijalankan berkali-kali (idempotent).
 -- ============================================================
-create table if not exists kt_kas (
-  id uuid primary key default gen_random_uuid(),
-  tanggal date not null default current_date,
-  keterangan text not null default '',
-  debit numeric not null default 0,
-  kredit numeric not null default 0,
-  created_at timestamptz default now()
-);
 
-alter table kt_kas enable row level security;
-drop policy if exists "anon_full_access" on kt_kas;
-create policy "anon_full_access" on kt_kas
-  for all to anon using (true) with check (true);
+alter table kt_dana_sosial_anggota
+  add column if not exists perantauan boolean not null default false;

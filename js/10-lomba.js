@@ -352,6 +352,91 @@ function getLombaForJadwal(jadwalId){
   return db.lomba.find(l=>l.jadwal_id===jadwalId) || null;
 }
 
+// ===== Combo dropdown saran Nama Lomba (pengganti <input list> datalist bawaan
+// browser, yang tampilannya "mengambang"/beda gaya di tiap browser). Beda dari
+// combo Pilih Anggota di atas: field ini tetap input teks bebas (boleh ketik
+// nama baru), dropdown cuma nyaranin nama yang udah pernah dipakai. =====
+function lombaNamaComboOptionsHtml(query){
+  const groups = (typeof dbLombaGroups==='function') ? dbLombaGroups() : [];
+  const key = String(query||'').trim().toLowerCase();
+  const filtered = key ? groups.filter(g=>g.nama.toLowerCase().includes(key)) : groups;
+  if(!filtered.length){
+    return `<div class="combo-empty">${groups.length ? 'Tidak ada nama yang cocok — lanjutkan ketik untuk buat lomba/database baru.' : 'Belum ada riwayat lomba tersimpan.'}</div>`;
+  }
+  return filtered.slice(0,50).map(g=>{
+    const versi = g.versions[0];
+    return `<button type="button" class="combo-option" data-lomba-nama-key="${esc(g.key)}">
+      <span class="combo-option-main"><span class="combo-option-name">${esc(g.nama)}</span></span>
+      <span class="combo-option-side"><span class="combo-option-sisa">${g.versions.length}× · ${esc(versi.eventLabel)}</span></span>
+    </button>`;
+  }).join('');
+}
+let _lombaNamaComboPanelEl = null;
+function lombaNamaComboPositionPanel(inputEl, panel){
+  const rect = inputEl.getBoundingClientRect();
+  const vw = window.innerWidth, vh = window.innerHeight;
+  const panelWidth = Math.min(vw - 16, Math.max(rect.width, 260));
+  panel.style.left = Math.max(8, rect.left) + 'px';
+  panel.style.width = panelWidth + 'px';
+  const panelH = panel.offsetHeight || 260;
+  const spaceBelow = vh - rect.bottom;
+  const spaceAbove = rect.top;
+  if(spaceBelow < panelH + 12 && spaceAbove > spaceBelow){
+    panel.style.top = Math.max(8, rect.top - panelH - 6) + 'px';
+  } else {
+    panel.style.top = (rect.bottom + 6) + 'px';
+  }
+  const maxLeft = vw - panelWidth - 8;
+  if(parseFloat(panel.style.left) > maxLeft) panel.style.left = Math.max(8, maxLeft) + 'px';
+}
+function openLombaNamaCombo(){
+  const input = document.getElementById('f-nama');
+  if(!input) return;
+  if(_lombaNamaComboPanelEl){ lombaNamaComboPositionPanel(input, _lombaNamaComboPanelEl); return; }
+  const panel = document.createElement('div');
+  panel.className = 'combo-panel combo-panel-floating';
+  panel.id = 'lomba-nama-combo-floating';
+  panel.innerHTML = `<div class="combo-list" data-combo-list>${lombaNamaComboOptionsHtml(input.value)}</div>`;
+  panel.addEventListener('click', (e)=>{
+    const btn = e.target.closest('[data-lomba-nama-key]');
+    if(!btn) return;
+    pilihLombaNamaCombo(btn.dataset.lombaNamaKey);
+  });
+  document.body.appendChild(panel);
+  lombaNamaComboPositionPanel(input, panel);
+  requestAnimationFrame(()=>panel.classList.add('show'));
+  _lombaNamaComboPanelEl = panel;
+}
+function closeLombaNamaCombo(){
+  if(_lombaNamaComboPanelEl){ _lombaNamaComboPanelEl.remove(); _lombaNamaComboPanelEl = null; }
+}
+function refreshLombaNamaCombo(value){
+  if(!_lombaNamaComboPanelEl) return;
+  const list = _lombaNamaComboPanelEl.querySelector('[data-combo-list]');
+  if(list) list.innerHTML = lombaNamaComboOptionsHtml(value);
+}
+function pilihLombaNamaCombo(key){
+  const groups = (typeof dbLombaGroups==='function') ? dbLombaGroups() : [];
+  const g = groups.find(x=>x.key===key);
+  if(!g) return;
+  const input = document.getElementById('f-nama');
+  if(input){ input.value = g.nama; onLombaNamaInput(g.nama); input.focus(); }
+  closeLombaNamaCombo();
+}
+document.addEventListener('click', (e)=>{
+  if(e.target.closest('.combo-panel-floating') || e.target.id==='f-nama') return;
+  closeLombaNamaCombo();
+});
+document.addEventListener('keydown', (e)=>{
+  if(e.key==='Escape') closeLombaNamaCombo();
+});
+window.addEventListener('resize', ()=>{
+  if(!_lombaNamaComboPanelEl) return;
+  const input = document.getElementById('f-nama');
+  if(!input || !document.body.contains(input)){ closeLombaNamaCombo(); return; }
+  lombaNamaComboPositionPanel(input, _lombaNamaComboPanelEl);
+});
+
 function openLombaModal(id){
   if (!canEditSection('lomba')) { toast('⛔ Login untuk mengedit data'); return; }
   const editing = id ? db.lomba.find(l=>l.id===id) : null;
@@ -361,10 +446,8 @@ function openLombaModal(id){
   const estimasiPesertaAwal = editing?(editing.estimasi_peserta||''):'';
   const tanggalAwal = editing?(editing.tanggal||''):'';
   const jamAwal = editing?(editing.jam||''):'';
-  const namaGroupsAwal = (typeof dbLombaGroups==='function') ? dbLombaGroups() : [];
-  const namaDatalistHtml = `<datalist id="lomba-nama-datalist">${namaGroupsAwal.map(g=>`<option value="${esc(g.nama)}">`).join('')}</datalist>`;
-  const namaHintDefault = editing ? 'Ganti nama kalau perlu.' : 'Pilih dari daftar buat pakai data lomba lama (kategori, jumlah anggota, sampai daftar perlengkapan & harga terakhir ikut tersalin otomatis), atau ketik nama baru untuk buat lomba/database baru.';
-  setModal(editing?'Edit Lomba':'Tambah Lomba', `<div class="field"><label>Nama Lomba</label><input id="f-nama" list="lomba-nama-datalist" autocomplete="off" placeholder="Pilih dari daftar atau ketik nama baru" value="${editing?esc(editing.nama):''}" oninput="onLombaNamaInput(this.value)">${namaDatalistHtml}<div class="hint" id="f-nama-hint">${namaHintDefault}</div></div><div class="field-row"><div class="field"><label>Tanggal Lomba (opsional)</label><input id="f-tanggal" type="date" value="${tanggalAwal}"></div><div class="field"><label>Jam (opsional)</label><input id="f-jam" type="time" value="${jamAwal}"></div></div><div class="hint" style="margin:-8px 0 14px;">Kalau tanggal diisi, otomatis dibuatkan/diperbarui pengingat di menu Jadwal & Reminder — lengkap dengan hari dan jamnya kalau diisi.</div><div class="field"><label>Kategori Peserta</label><select id="f-kategori">${KATEGORI_PESERTA.map(k=>`<option value="${k.v}" ${editing&&editing.kategori_peserta===k.v?'selected':''}>${k.l}</option>`).join('')}</select></div><div class="field"><label>Jumlah Anggota per Regu</label><input id="f-anggota" type="number" min="1" value="${anggotaAwal}" oninput="toggleHadiahPerReguHint()"><div class="hint">Isi 1 jika lomba perorangan. Jika lomba beregu (misal 1 regu = 5 orang), isi 5.</div></div><div class="field" id="f-hadiah-per-regu-wrap" style="display:${anggotaAwal>1?'block':'none'};"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" id="f-hadiah-per-regu" ${hadiahPerReguAwal?'checked':''} style="width:auto;"> Hadiah 1 paket untuk seluruh regu (bukan per anggota)</label><div class="hint">Dicentang: kebutuhan hadiah lomba ini dihitung 1 paket saja meski jumlah anggota regu lebih dari 1. Tidak dicentang (default): kebutuhan hadiah dikalikan jumlah anggota regu (tiap anggota dapat paket sendiri).</div></div><div class="field"><label>Estimasi Jumlah Peserta (opsional)</label><input id="f-estimasi-peserta" type="number" min="0" value="${estimasiPesertaAwal}" placeholder="mis. 30"><div class="hint">Cuma buat hitung otomatis kebutuhan hadiah PARTISIPASI (dibagi rata ke semua peserta, beda dari hadiah Juara 1-3 di atas). Kosongkan kalau hadiah partisipasi mau diatur manual seperti biasa. Kalau diisi, isi juga untuk lomba lain sekategori supaya totalnya akurat (yang belum diisi dianggap 0 peserta).</div></div>`, [
+  const namaHintDefault = editing ? 'Ganti nama kalau perlu.' : 'Pilih lomba dari daftar yang sudah ada atau buat lomba baru.';
+  setModal(editing?'Edit Lomba':'Tambah Lomba', `<div class="field combo" style="position:relative;"><label>Nama Lomba</label><input id="f-nama" type="text" autocomplete="off" placeholder="Pilih dari daftar atau ketik nama baru" value="${editing?esc(editing.nama):''}" oninput="onLombaNamaInput(this.value)" onfocus="openLombaNamaCombo()"><div class="hint" id="f-nama-hint">${namaHintDefault}</div></div><div class="field-row"><div class="field"><label>Tanggal Lomba (opsional)</label><input id="f-tanggal" type="date" value="${tanggalAwal}"></div><div class="field"><label>Jam (opsional)</label><input id="f-jam" type="time" value="${jamAwal}"></div></div><div class="hint" style="margin:-8px 0 14px;">Kalau tanggal diisi, otomatis dibuatkan/diperbarui pengingat di menu Jadwal & Reminder — lengkap dengan hari dan jamnya kalau diisi.</div><div class="field"><label>Kategori Peserta</label><select id="f-kategori">${KATEGORI_PESERTA.map(k=>`<option value="${k.v}" ${editing&&editing.kategori_peserta===k.v?'selected':''}>${k.l}</option>`).join('')}</select></div><div class="field"><label>Jumlah Anggota per Regu</label><input id="f-anggota" type="number" min="1" value="${anggotaAwal}" oninput="toggleHadiahPerReguHint()"><div class="hint">Isi 1 jika lomba perorangan. Jika lomba beregu (misal 1 regu = 5 orang), isi 5.</div></div><div class="field" id="f-hadiah-per-regu-wrap" style="display:${anggotaAwal>1?'block':'none'};"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" id="f-hadiah-per-regu" ${hadiahPerReguAwal?'checked':''} style="width:auto;"> Hadiah 1 paket untuk seluruh regu (bukan per anggota)</label><div class="hint">Dicentang: kebutuhan hadiah lomba ini dihitung 1 paket saja meski jumlah anggota regu lebih dari 1. Tidak dicentang (default): kebutuhan hadiah dikalikan jumlah anggota regu (tiap anggota dapat paket sendiri).</div></div><div class="field"><label>Estimasi Jumlah Peserta (opsional)</label><input id="f-estimasi-peserta" type="number" min="0" value="${estimasiPesertaAwal}" placeholder="mis. 30"><div class="hint">Cuma buat hitung otomatis kebutuhan hadiah PARTISIPASI (dibagi rata ke semua peserta, beda dari hadiah Juara 1-3 di atas). Kosongkan kalau hadiah partisipasi mau diatur manual seperti biasa. Kalau diisi, isi juga untuk lomba lain sekategori supaya totalnya akurat (yang belum diisi dianggap 0 peserta).</div></div>`, [
     {label:'Batal', cls:'secondary', onclick:closeModal},
     {label:editing?'Simpan':'Tambah', cls:'', onclick:()=>{
       const nama=document.getElementById('f-nama').value.trim(); const kategori_peserta=document.getElementById('f-kategori').value; 
@@ -430,6 +513,7 @@ function openLombaModal(id){
 // Hanya jalan pas mode Tambah (bukan Edit), dan panitia tetap bebas ketik nama baru
 // buat bikin lomba/database lomba baru — datalist cuma nyaranin, bukan wajib pilih.
 function onLombaNamaInput(value){
+  refreshLombaNamaCombo(value);
   const hintEl = document.getElementById('f-nama-hint');
   if(_lombaModalEditingId){ if(hintEl) hintEl.textContent = 'Ganti nama kalau perlu.'; return; }
   const groups = (typeof dbLombaGroups==='function') ? dbLombaGroups() : [];
@@ -451,7 +535,7 @@ function onLombaNamaInput(value){
     if(hintEl) hintEl.textContent = `📚 Nama ini pernah dipakai di ${g.versions.length} event (terakhir: ${versi.eventLabel}) — Kategori & Jumlah Anggota otomatis diisi, dan ${jumlahItem} perlengkapan dari data terakhir bakal ikut tersalin pas disimpan. Cek lagi harga & qty-nya nanti.${kategoriNote}`;
     if(hintEl) hintEl.style.color = '';
   } else {
-    if(hintEl) hintEl.textContent = 'Pilih dari daftar buat pakai data lomba lama (kategori, jumlah anggota, sampai daftar perlengkapan & harga terakhir ikut tersalin otomatis), atau ketik nama baru untuk buat lomba/database baru.';
+    if(hintEl) hintEl.textContent = 'Pilih lomba dari daftar yang sudah ada atau buat lomba baru.';
     if(hintEl) hintEl.style.color = '';
   }
   // Peringatan tambahan (nimpa hint di atas kalau kena): nama ini udah dipakai

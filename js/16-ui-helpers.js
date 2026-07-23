@@ -21,7 +21,7 @@ function setModal(title, bodyHtml, buttons){
   setTimeout(setupAllCurrencyInputs, 50);
   setTimeout(setupAutoResizeTextareas, 50);
 }
-function closeModal(){ document.getElementById('overlay').classList.remove('show'); if(typeof closeAllGudangCombos==='function') closeAllGudangCombos(); }
+function closeModal(){ document.getElementById('overlay').classList.remove('show'); if(typeof closeAllGudangCombos==='function') closeAllGudangCombos(); if(typeof closeLombaNamaCombo==='function') closeLombaNamaCombo(); }
 document.getElementById('modal-close').onclick = closeModal;
 // Catatan: tutup overlay HANYA jika mousedown & click sama-sama kena backdrop.
 // Ini mencegah modal tertutup tidak sengaja saat user scroll/geser di dalam modal

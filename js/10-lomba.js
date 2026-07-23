@@ -549,13 +549,24 @@ function renderHadiah(){
         ? esc(lombaKategoriList.map(l => `${l.nama}: ${Number(l.estimasi_peserta||0)} peserta`).join(', '))
         : esc(lombaKategoriList.map(l => Number(l.jumlah_anggota_regu||1)>1 ? `${l.nama} (beregu ×${l.jumlah_anggota_regu}${l.hadiah_per_regu?', 1 hadiah/regu':''})` : l.nama).join(', '));
       const rincianLomba = (!isPartisipasi && adaBeregu) ? ` = ${lombaKategoriList.map(l=>anggotaHadiahLomba(l)).join('+')}` : '';
+      // Kalau Partisipasi BALIK jadi manual (kebutuhan===null) padahal paketnya sudah
+      // punya qty_dibeli terisi, itu bisa berarti dua hal: (a) memang dari awal belum
+      // pernah diisi estimasi (normal), atau (b) SEMPAT diisi & disinkronkan otomatis,
+      // lalu semua lomba kategori ini estimasinya dihapus/direset ke 0 — qty_dibeli yang
+      // sudah kadung naik tadi tidak ikut turun (autoSyncHadiahStok tidak pernah
+      // menurunkan otomatis) dan badge kurang/lebih otomatis hilang begitu saja karena
+      // sistem berhenti melacaknya. Tanpa notice ini, kelebihan tsb jadi tidak
+      // kelihatan sama sekali di halaman ini — kasih sinyal biar tetap dicek manual.
+      const partisipasiManualPerluCek = isPartisipasi && kebutuhan==null && h.items.some(item => Number(item.qty_dibeli||0) > 0);
       const kebutuhanBadge = kebutuhan!=null
         ? (kurangItems.length
             ? `<span class="lomba-badge warn" style="margin-left:8px;" title="${namaLombaTitle}">⚠️ Kurang, butuh ${kebutuhan} ${satuanKebutuhan} (dari ${jumlahLomba} lomba${rincianLomba})</span>`
             : (lebihItems.length
                 ? `<span class="lomba-badge info" style="margin-left:8px;" title="${namaLombaTitle} — cek kalau ada lomba yang dihapus/diubah sebelumnya">📦 Stok lebih dari kebutuhan (${kebutuhan} ${satuanKebutuhan} dari ${jumlahLomba} lomba${rincianLomba})</span>`
                 : `<span class="lomba-badge" style="margin-left:8px;" title="${namaLombaTitle}">✓ Kebutuhan untuk ${jumlahLomba} lomba terpenuhi</span>`))
-        : '';
+        : (partisipasiManualPerluCek
+            ? `<span class="lomba-badge info" style="margin-left:8px;" title="Belum ada lomba kategori ${labelPeserta(kp.v)} yang diisi Estimasi Jumlah Peserta, jadi qty di bawah tidak lagi dilacak otomatis — kalau sebelumnya sempat diisi lalu dihapus/direset ke 0, qty ini bisa saja sudah tidak relevan.">✋ Mode manual, cek lagi qty-nya</span>`
+            : '');
       const budget = getHadiahBudget(kp.v, h.juara_ke);
       let budgetBadge = '';
       if(budget > 0){
@@ -566,7 +577,7 @@ function renderHadiah(){
       }
       return `<div class="hadiah-group"><div class="hadiah-group-header" onclick="toggleHadiahGroup('${h.id}')"><div><span class="title">🏆 ${labelJuara(h.juara_ke)}</span><span style="font-size:12px;color:var(--ink-soft);margin-left:8px;">${h.items.length} item</span>${kebutuhanBadge}${budgetBadge}</div><div style="display:flex;align-items:center;gap:4px;"><span class="total">${fmtRp(totalItem)}</span>${isLoggedIn ? `<button class="icon-btn" onclick="event.stopPropagation();openHadiahModal('${h.id}')" title="Edit paket">✎</button><button class="icon-btn" onclick="event.stopPropagation();hapusHadiah('${h.id}')" title="Hapus paket">🗑</button>` : ''}</div></div>
         <div class="hadiah-group-body" id="hadiah-group-${h.id}" style="display:${openHadiahGroups.has(h.id)?'block':'none'};">
-          ${kurangItems.length ? `<div class="hint" style="margin-bottom:10px;">${isPartisipasi ? `Sebagian item belum sesuai kebutuhan (estimasi total ${kebutuhan} peserta dari ${jumlahLomba} lomba kategori ${labelPeserta(kp.v)} × qty/paket masing-masing item).` : `Sebagian item belum sesuai kebutuhan (${jumlahLomba} lomba kategori ${labelPeserta(kp.v)}${adaBeregu?', termasuk lomba beregu':''} × qty/paket masing-masing item).`} Biasanya ini terjadi setelah "Qty per paket" sebuah item diubah manual${isPartisipasi?', atau estimasi peserta baru saja diubah':''}. Klik tombol "⚡ Sesuaikan Semua Otomatis" di atas untuk langsung menyamakan, atau edit qty item satu-satu di bawah.</div>` : (lebihItems.length ? `<div class="hint" style="margin-bottom:10px;">Sebagian item stoknya lebih dari kebutuhan (${isPartisipasi ? `estimasi ${kebutuhan} peserta` : `${jumlahLomba} lomba`} kategori ${labelPeserta(kp.v)}). Ini bisa normal (sengaja beli cadangan), atau sisa dari lomba yang sudah dihapus/dikurangi${isPartisipasi?'/estimasi peserta diturunkan':''} — qty tidak pernah diturunkan otomatis. Cek dan kurangi manual lewat tombol ✎ di item kalau memang kelebihan.</div>` : '')}
+          ${kurangItems.length ? `<div class="hint" style="margin-bottom:10px;">${isPartisipasi ? `Sebagian item belum sesuai kebutuhan (estimasi total ${kebutuhan} peserta dari ${jumlahLomba} lomba kategori ${labelPeserta(kp.v)} × qty/paket masing-masing item).` : `Sebagian item belum sesuai kebutuhan (${jumlahLomba} lomba kategori ${labelPeserta(kp.v)}${adaBeregu?', termasuk lomba beregu':''} × qty/paket masing-masing item).`} Biasanya ini terjadi setelah "Qty per paket" sebuah item diubah manual${isPartisipasi?', atau estimasi peserta baru saja diubah':''}. Klik tombol "⚡ Sesuaikan Semua Otomatis" di atas untuk langsung menyamakan, atau edit qty item satu-satu di bawah.</div>` : (lebihItems.length ? `<div class="hint" style="margin-bottom:10px;">Sebagian item stoknya lebih dari kebutuhan (${isPartisipasi ? `estimasi ${kebutuhan} peserta` : `${jumlahLomba} lomba`} kategori ${labelPeserta(kp.v)}). Ini bisa normal (sengaja beli cadangan), atau sisa dari lomba yang sudah dihapus/dikurangi${isPartisipasi?'/estimasi peserta diturunkan':''} — qty tidak pernah diturunkan otomatis. Cek dan kurangi manual lewat tombol ✎ di item kalau memang kelebihan.</div>` : (partisipasiManualPerluCek ? `<div class="hint" style="margin-bottom:10px;">✋ Tidak ada satu pun lomba kategori ${labelPeserta(kp.v)} yang diisi "Estimasi Jumlah Peserta" saat ini, jadi qty di bawah nggak lagi dilacak otomatis dan nggak dibandingkan ke target mana pun. Kalau sebelumnya sempat diisi lalu dihapus/direset ke 0, qty ini bisa saja sudah kelebihan/kekurangan tanpa disadari — cek manual lewat tombol ✎ di tiap item, atau isi lagi Estimasi Jumlah Peserta di lomba terkait kalau mau dilacak otomatis lagi.</div>` : ''))}
           ${h.items.map((item, idx) => { const perPaket=Math.max(1,Number(item.qty_per_paket||1)); const target = hitungTargetQtyItem(item, kebutuhan); const kurang = target!=null && Number(item.qty_dibeli||0) < target; const lebih = target!=null && Number(item.qty_dibeli||0) > target;
             // Harga efektif per pcs (perpaduan harga_satuan/pack + harga_eceran untuk sisa
             // satuan), sama seperti yang dipakai di totalItem header & LPJ (lihat Bug #2 di

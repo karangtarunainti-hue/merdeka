@@ -41,6 +41,7 @@ const MODULE_ORDER = [
   '13-lpj.js',
   '14-dokumen.js',
   '15-pengaturan-event.js',
+  '15b-snapshot.js',
   '16-ui-helpers.js',
   '17a-gudang-core.js',
   '17b-gudang-pinjam.js',

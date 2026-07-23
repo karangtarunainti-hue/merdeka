@@ -524,7 +524,8 @@ function renderHadiah(){
   const semuaLomba = gLomba();
 
   const groups = KATEGORI_PESERTA.map(kp => {
-    const items = list.filter(h => h.kategori_peserta === kp.v);
+    const items = list.filter(h => h.kategori_peserta === kp.v)
+      .sort((a,b) => JUARA_LIST.findIndex(j=>j.v===a.juara_ke) - JUARA_LIST.findIndex(j=>j.v===b.juara_ke));
     if(!items.length) return '';
     const lombaKategoriList = semuaLomba.filter(l => l.kategori_peserta === kp.v);
     const jumlahLomba = lombaKategoriList.length;

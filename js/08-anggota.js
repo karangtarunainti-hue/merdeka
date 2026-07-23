@@ -186,11 +186,6 @@ function openAnggotaModal(id){
         actionMsg = `➕ Tambah anggota: ${nama} (${labelKategori(kategori)})`;
         db.anggota.push({id:uid(), event_id:eid(), nama, kategori, rt, gender, nominal_wajib:nominal, status:'belum_lunas', tanggal_bayar:null});
       }
-      // Kalau kategorinya (jadi) Perantauan, langsung sinkronkan ke Dana
-      // Sosial juga (anggota dgn nama sama otomatis ditandai Perantauan di
-      // sana) — supaya tidak ketinggalan cuma karena tombol sinkron manual
-      // di halaman Dana Sosial belum diklik. Lihat js/22-dana-sosial.js.
-      if (kategori === 'perantauan') autoSinkronkanPerantauanUntukNama(nama);
       saveDB(); closeModal(); renderContent(); renderTopbarSaldo(); toast('Data anggota disimpan');
       notifyTelegram(actionMsg, `Nama: ${nama}\nKategori: ${labelKategori(kategori)}\nRT: ${labelRT(rt)}\nJenis Kelamin: ${labelGender(gender)}\nNominal: ${fmtRp(nominal)}`, 'anggota');
     }}

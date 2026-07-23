@@ -438,9 +438,7 @@ function gKas(){ return db.kas; }
 // kali Kas Organisasi dirender (makanya id-nya deterministik "auto-ds-TAHUN-BULAN",
 // dipakai sebagai anchor untuk kunci edit/hapus di UI, bukan buat disimpan).
 // Aturan sesuai keputusan:
-//  - HANYA anggota reguler (Perantauan sengaja TIDAK ikut — mereka bayar
-//    rapel setahun sekali dan dikelola manual kalau memang mau dicatat).
-//  - Nominalnya SALDO BERSIH reguler bulan itu (terkumpul dikurangi potongan
+//  - Nominalnya SALDO BERSIH bulan itu (terkumpul dikurangi potongan
 //    konsumsi pertemuan Rp80rb) — potongan itu sendiri TIDAK dicatat sebagai
 //    baris terpisah di Kas (dianggap sudah dipakai langsung dari uang tunai
 //    pertemuan, tidak pernah masuk fisik ke kas organisasi).
@@ -466,15 +464,15 @@ function getDanaSosialKasAutoEntries(){
     for (let b = 1; b <= bulanAkhir; b++){
       const r = hitungRekapBulanDanaSosial(y, b);
       if (r.wajib === 0 || !r.sudahBerjalan) continue;
-      const netReguler = r.terkumpul - r.potongan;
-      if (netReguler <= 0) continue;
+      const netBulan = r.terkumpul - r.potongan;
+      if (netBulan <= 0) continue;
       const tglAkhirBulan = new Date(y, b, 0).getDate();
       const tanggal = `${y}-${String(b).padStart(2,'0')}-${String(tglAkhirBulan).padStart(2,'0')}`;
       entries.push({
         id: `auto-ds-${y}-${b}`,
         tanggal,
-        keterangan: `Rekap Dana Sosial ${DANA_SOSIAL_BULAN_LABEL[b-1]} ${y} (reguler, setelah potongan konsumsi)`,
-        debit: netReguler,
+        keterangan: `Rekap Dana Sosial ${DANA_SOSIAL_BULAN_LABEL[b-1]} ${y} (setelah potongan konsumsi)`,
+        debit: netBulan,
         kredit: 0,
         created_at: `${tanggal}T00:00:00.000Z`,
         _autoDanaSosial: true,
@@ -504,7 +502,7 @@ function renderKas(){
     <tr>
       <td data-label="No">${idx + 1}</td>
       <td data-label="Tanggal">${fmtDateShort(k.tanggal)}</td>
-      <td data-label="Keterangan">${esc(k.keterangan||'-')}${k._autoDanaSosial ? ` <span class="lomba-badge" title="Otomatis dari rekap bulanan Dana Sosial (anggota reguler saja), tidak bisa diedit di sini"><i data-lucide="link" class="inline-icon"></i> Otomatis</span>` : ''}</td>
+      <td data-label="Keterangan">${esc(k.keterangan||'-')}${k._autoDanaSosial ? ` <span class="lomba-badge" title="Otomatis dari rekap bulanan Dana Sosial, tidak bisa diedit di sini"><i data-lucide="link" class="inline-icon"></i> Otomatis</span>` : ''}</td>
       <td data-label="Debit" class="num">${Number(k.debit||0)>0 ? fmtRp(k.debit) : '-'}</td>
       <td data-label="Kredit" class="num">${Number(k.kredit||0)>0 ? fmtRp(k.kredit) : '-'}</td>
       <td data-label="Saldo" class="num">${fmtRp(k._saldo)}</td>

@@ -592,15 +592,16 @@
   table.transaksi-lain-table th:nth-child(4), table.transaksi-lain-table td:nth-child(4) { width:130px; }
   table.transaksi-lain-table th:nth-child(5), table.transaksi-lain-table td:nth-child(5) { width:44px; }
 
-  /* Biaya Operasional: No, Keterangan, Satuan, QTY, Jumlah (+Aksi).
-     Keterangan dapat porsi terbesar; No/Satuan/QTY dibuat ramping supaya
+  /* Biaya Operasional: No, Tanggal, Keterangan, Satuan, QTY, Jumlah (+Aksi).
+     Keterangan dapat porsi terbesar; No/Tanggal/Satuan/QTY dibuat ramping supaya
      Jumlah & Aksi tidak terdesak keluar di layar lebar. */
-  table.operasional-table th:nth-child(1), table.operasional-table td:nth-child(1) { width:6%; }
-  table.operasional-table th:nth-child(2), table.operasional-table td:nth-child(2) { width:38%; white-space:normal; word-break:break-word; }
-  table.operasional-table th:nth-child(3), table.operasional-table td:nth-child(3) { width:16%; }
-  table.operasional-table th:nth-child(4), table.operasional-table td:nth-child(4) { width:12%; }
-  table.operasional-table th:nth-child(5), table.operasional-table td:nth-child(5) { width:20%; }
-  table.operasional-table th:nth-child(6), table.operasional-table td:nth-child(6) { width:8%; }
+  table.operasional-table th:nth-child(1), table.operasional-table td:nth-child(1) { width:5%; }
+  table.operasional-table th:nth-child(2), table.operasional-table td:nth-child(2) { width:12%; white-space:nowrap; }
+  table.operasional-table th:nth-child(3), table.operasional-table td:nth-child(3) { width:30%; white-space:normal; word-break:break-word; }
+  table.operasional-table th:nth-child(4), table.operasional-table td:nth-child(4) { width:15%; }
+  table.operasional-table th:nth-child(5), table.operasional-table td:nth-child(5) { width:10%; }
+  table.operasional-table th:nth-child(6), table.operasional-table td:nth-child(6) { width:18%; }
+  table.operasional-table th:nth-child(7), table.operasional-table td:nth-child(7) { width:10%; }
 
   /* Jadwal & Reminder punya 6 kolom (bukan 5 seperti general-table biasa),
      jadi lebarnya didefinisikan ulang supaya totalnya pas 100% dan kolom
@@ -1721,12 +1722,13 @@
        kali (Harga Satuan × QTY) paling sering jadi angka terpanjang di
        baris — sebelumnya suka kepotong/keluar dari kartu di layar sempit.
        Ruangnya diambil dari kolom No/Keterangan/QTY yang lebih longgar. */
-    table.operasional-table th:nth-child(1), table.operasional-table td:nth-child(1){width:8%; white-space:nowrap; padding:8px 4px 8px 14px;}
-    table.operasional-table th:nth-child(2), table.operasional-table td:nth-child(2){width:29%; text-align:left;}
-    table.operasional-table th:nth-child(3), table.operasional-table td:nth-child(3){width:20%; white-space:nowrap;}
-    table.operasional-table th:nth-child(4), table.operasional-table td:nth-child(4){width:8%; white-space:nowrap;}
-    table.operasional-table th:nth-child(5), table.operasional-table td:nth-child(5){width:30%; white-space:nowrap; padding-right:6px; font-size:11.5px;}
-    table.operasional-table th:nth-child(6), table.operasional-table td:nth-child(6){width:5%; padding-right:8px;}
+    table.operasional-table th:nth-child(1), table.operasional-table td:nth-child(1){width:6%; white-space:nowrap; padding:8px 4px 8px 14px;}
+    table.operasional-table th:nth-child(2), table.operasional-table td:nth-child(2){width:13%; white-space:nowrap;}
+    table.operasional-table th:nth-child(3), table.operasional-table td:nth-child(3){width:26%; text-align:left;}
+    table.operasional-table th:nth-child(4), table.operasional-table td:nth-child(4){width:15%; white-space:nowrap;}
+    table.operasional-table th:nth-child(5), table.operasional-table td:nth-child(5){width:7%; white-space:nowrap;}
+    table.operasional-table th:nth-child(6), table.operasional-table td:nth-child(6){width:28%; white-space:nowrap; padding-right:6px; font-size:11.5px;}
+    table.operasional-table th:nth-child(7), table.operasional-table td:nth-child(7){width:5%; padding-right:8px;}
     table.operasional-table td.operasional-actions{text-align:right;}
 
     /* --- Kas Karang Taruna: di HP, tabel desktop (kas-table, 7 kolom

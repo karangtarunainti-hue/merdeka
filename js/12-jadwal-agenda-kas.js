@@ -566,17 +566,15 @@ function openKasModal(id){
   const editingJenis = editing ? (Number(editing.kredit||0) > 0 ? 'keluar' : 'masuk') : 'masuk';
   const editingJumlah = editing ? (editingJenis === 'masuk' ? editing.debit : editing.kredit) : 0;
   setModal(editing?'Edit Transaksi Kas':'Tambah Transaksi Kas', `
-    <div class="field"><label>Keterangan</label><input id="f-kas-ket" value="${editing?esc(editing.keterangan||''):''}" placeholder="mis. Iuran bulanan anggota"></div>
     <div class="field"><label>Jenis Transaksi</label>
       <select id="f-kas-jenis">
         <option value="masuk" ${editingJenis==='masuk'?'selected':''}>⬇️ Pemasukan</option>
         <option value="keluar" ${editingJenis==='keluar'?'selected':''}>⬆️ Pengeluaran</option>
       </select>
     </div>
-    <div class="field-row">
-      <div class="field"><label>Jumlah (Rp)</label><input id="f-kas-jumlah" class="currency-input" type="text" value="${editing?formatCurrency(editingJumlah||0):''}"></div>
-      <div class="field"><label>Tanggal</label><input id="f-kas-tanggal" type="date" value="${editing?editing.tanggal:todayISO()}"></div>
-    </div>
+    <div class="field"><label>Tanggal</label><input id="f-kas-tanggal" type="date" value="${editing?editing.tanggal:todayISO()}"></div>
+    <div class="field"><label>Keterangan</label><input id="f-kas-ket" value="${editing?esc(editing.keterangan||''):''}" placeholder="mis. Iuran bulanan anggota"></div>
+    <div class="field"><label>Jumlah (Rp)</label><input id="f-kas-jumlah" class="currency-input" type="text" value="${editing?formatCurrency(editingJumlah||0):''}"></div>
   `, [
     {label:'Batal', cls:'secondary', onclick:closeModal},
     ...(editing ? [{label:'Hapus', cls:'danger', onclick:()=>{ closeModal(); hapusKas(editing.id); }}] : []),

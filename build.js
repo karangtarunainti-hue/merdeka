@@ -1,52 +1,99 @@
-// ==================== CONSTANTS ====================
-window.CRYPTO_SALT_KEY  = 'sk_crypto_salt';
-window.CRYPTO_CHECK_KEY = 'sk_crypto_check';
-window.CRYPTO_URL_KEY   = 'sk_enc_supabase_url';
-window.CRYPTO_AKEY_KEY  = 'sk_enc_supabase_key';
-window.SENTINEL_PLAIN   = 'sinarkeu_ok';
-window.MAX_LOCAL_TXS    = 1000;
+#!/usr/bin/env node
+/* ============================================================
+   BUILD SCRIPT — regenerate file production (minified) dari source.
+   Jalankan setiap kali selesai edit file di js/*.js atau style.css:
 
-window.ACC_LIST_KEY   = 'sk_accounts';
-window.ACC_ACTIVE_KEY = 'sk_active_account';
-window.ACC_GLOBAL_KEYS = new Set(['sk_accounts', 'sk_active_account', 'sk_device_id']);
+     npm install   (sekali saja, install esbuild)
+     npm run build
 
-window.EXPENSE_CATEGORIES = [
-    'Makanan & Minuman', 'Tagihan', 'Belanja', 'Kesehatan', 
-    'Hiburan', 'Pendidikan', 'Transportasi', 'Investasi', 
-    'Skin & Body Care', 'Kitchen', 'Cleaning', 'Pajak & Iuran', 
-    'Pertanian', 'Sedekah', 'Sumbangan', 'Pulsa', 'Pakan Peliharaan'
+   Yang dihasilkan (INI YANG DI-DEPLOY, jangan diedit manual):
+     - js/app.bundle.min.js       (gabungan+minify 27 modul js/, urutan
+                                    HARUS sama seperti index.html karena
+                                    modul saling bergantung lewat variabel/
+                                    fungsi global, bukan ES module)
+     - icons/lucide-icons.local.min.js
+     - style.min.css
+
+   Situs tetap 100% file statis (tidak ada proses build saat deploy) —
+   build.js ini cuma dijalankan MANUAL di komputer Inti sebelum push/deploy,
+   hasilnya (file .min.js/.min.css) ikut di-commit seperti file biasa.
+   ============================================================ */
+const esbuild = require('esbuild');
+const fs = require('fs');
+const path = require('path');
+
+// URUTAN INI HARUS SAMA PERSIS dengan komentar di index.html.
+const MODULE_ORDER = [
+  '00-config.js',
+  '01-utils-currency.js',
+  '02-auth.js',
+  '03-db-core.js',
+  '04-event-settings.js',
+  '05-navigation.js',
+  '06-login-users.js',
+  '07-dashboard.js',
+  '08-anggota.js',
+  '09-donatur-transaksi-operasional.js',
+  '10-lomba.js',
+  '11-belanja.js',
+  '12-jadwal-agenda-kas.js',
+  '13-lpj.js',
+  '14-dokumen.js',
+  '15-pengaturan-event.js',
+  '16-ui-helpers.js',
+  '17a-gudang-core.js',
+  '17b-gudang-pinjam.js',
+  '17c-gudang-histori-kelola.js',
+  '18-getters-refresh.js',
+  '24-bookmark.js',
+  '22-dana-sosial.js',
+  '20-panduan.js',
+  '21-icons-lucide.js',
+  '23-install-prompt.js',
+  '19-init.js',
 ];
-window.INCOME_CATEGORIES = [
-    'Gaji', 'Freelance', 'Bonus', 'THR',
-    'Hasil Investasi', 'Jual Aset', 'Hadiah',
-    'Penjualan', 'Jasa', 'Uang Muka', 'Pelunasan Piutang', 'Komisi',
-    'Pinjaman Diterima', 'Pengembalian Dana', 'Subsidi & Bantuan',
-    'Lainnya'
-];
-window.PAGE_SIZE = 21;
 
-// ==================== GLOBAL VARIABLES (shared) ====================
-window.txs = [];
-window.books = [];
-window.currentBookId = 'b_default';
-window.globalSupabaseUrl = '';
-window.globalSupabaseKey = '';
-window.budgets = {};
-window.currentFilter = 'all';
-window.filterStartDate = '';
-window.filterEndDate = '';
-window.actionId = null;
-window.deviceId = '';
-window.currentAttachmentData = null;
-window.currentAttachmentFile = null;
-window.reportChart = null;
-window.expenseChart = null;
-window.expenseChartMode = 'all';
-window.expenseChartVisible = false;
-window._expenseChartInitialized = false;
-window._lastBalance = 0;
-window.currentPage = 1;
-window._lastSyncTime = null;
-window._syncInterval = null;
-window._pushDebounceTimer = null;
-window._lastFullSyncTime = {};
+async function buildJsBundle() {
+  const jsDir = path.join(__dirname, 'js');
+  const parts = [];
+  for (const file of MODULE_ORDER) {
+    const filePath = path.join(jsDir, file);
+    const result = await esbuild.transform(fs.readFileSync(filePath, 'utf8'), { minify: true, loader: 'js' });
+    parts.push(result.code.trimEnd());
+  }
+  const bundle = parts.join('\n;\n');
+  fs.writeFileSync(path.join(jsDir, 'app.bundle.min.js'), bundle);
+
+  // Cek cepat: pastikan hasil gabungan valid sebagai satu script (juga
+  // otomatis mendeteksi kalau ada nama let/const yang bentrok antar modul).
+  try {
+    new Function(bundle);
+  } catch (e) {
+    console.error('❌ Bundle JS tidak valid setelah digabung:', e.message);
+    process.exit(1);
+  }
+  console.log(`✅ js/app.bundle.min.js (${bundle.length} bytes)`);
+}
+
+async function buildLucide() {
+  const src = path.join(__dirname, 'icons', 'lucide-icons.local.js');
+  const out = path.join(__dirname, 'icons', 'lucide-icons.local.min.js');
+  const result = await esbuild.transform(fs.readFileSync(src, 'utf8'), { minify: true, loader: 'js' });
+  fs.writeFileSync(out, result.code);
+  console.log(`✅ icons/lucide-icons.local.min.js (${result.code.length} bytes)`);
+}
+
+async function buildCss() {
+  const src = path.join(__dirname, 'style.css');
+  const out = path.join(__dirname, 'style.min.css');
+  const result = await esbuild.transform(fs.readFileSync(src, 'utf8'), { minify: true, loader: 'css' });
+  fs.writeFileSync(out, result.code);
+  console.log(`✅ style.min.css (${result.code.length} bytes)`);
+}
+
+(async () => {
+  await buildJsBundle();
+  await buildLucide();
+  await buildCss();
+  console.log('\nSelesai. Jangan lupa commit file .min.js/.min.css yang berubah.');
+})();

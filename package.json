@@ -1,14 +1,12 @@
-# Cloudflare Pages membaca file ini otomatis (tanpa perlu Worker) untuk menambah
-# HTTP header ke semua response. Dipakai khusus untuk header yang TIDAK bisa
-# (atau tidak akan berfungsi) kalau dipasang lewat <meta> tag di index.html:
-# - frame-ancestors: secara eksplisit diabaikan CSP kalau dikirim lewat meta.
-# - X-Frame-Options / Strict-Transport-Security / X-Content-Type-Options: tidak
-#   didukung meta http-equiv sama sekali.
-# CSP lengkap (script-src, connect-src, dst) tetap di meta tag index.html --
-# itu bagian yang memang boleh dan sudah berfungsi lewat meta.
-/*
-  X-Frame-Options: DENY
-  Content-Security-Policy: frame-ancestors 'none'
-  X-Content-Type-Options: nosniff
-  Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
-  Referrer-Policy: strict-origin-when-cross-origin
+{
+  "name": "merdeka-build-tools",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Tool build lokal untuk regenerate js/app.bundle.min.js, icons/lucide-icons.local.min.js, dan style.min.css. Situs tetap dideploy sebagai file statis biasa (lihat wrangler.jsonc) — ini cuma dijalankan manual sebelum push/deploy.",
+  "scripts": {
+    "build": "node build.js"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.1"
+  }
+}

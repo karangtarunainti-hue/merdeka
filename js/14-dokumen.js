@@ -540,10 +540,15 @@ function renderJadwalSinoman(ev){
 // #lpj-print-area — form isian, tombol, dsb — otomatis tidak ikut ter-capture
 // karena memang tidak ada di dalam elemen yang di-screenshot). Pola sama
 // seperti export Nota Peminjaman Gudang (js/17c-gudang-histori-kelola.js).
-function jadwalExportImage(){
+async function jadwalExportImage(){
   const el = document.getElementById('lpj-print-area');
   if(!el){ toast('⛔ Gagal menemukan lembar Jadwal Sinoman'); return; }
-  if(typeof html2canvas === 'undefined'){ toast('⛔ Gagal memuat modul export gambar. Cek koneksi internet lalu muat ulang.'); return; }
+  try {
+    await ensureHtml2Canvas();
+  } catch (e) {
+    toast('⛔ Gagal memuat modul export gambar. Cek koneksi internet lalu muat ulang.');
+    return;
+  }
   toast('⏳ Membuat gambar...');
   html2canvas(el, { scale: 2, backgroundColor: '#ffffff', useCORS: true }).then(canvas => {
     const sD = getDokumenGlobal().jadwal_sinoman;

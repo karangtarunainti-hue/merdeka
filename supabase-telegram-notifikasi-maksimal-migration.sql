@@ -1,26 +1,37 @@
 -- ============================================================
--- MIGRASI: tabel kt_kas
--- Untuk fitur baru "Kas Karang Taruna" — buku kas umum organisasi
--- yang TIDAK terikat event tahunan (17-an) sama sekali, mengikuti
--- pola kt_agenda (tidak ada kolom event_id).
---
--- Kolom debit/kredit dipakai untuk menghitung saldo berjalan
--- (running balance) di sisi aplikasi — saldo TIDAK disimpan di
--- tabel ini supaya selalu konsisten walau ada baris yang diedit
--- atau dihapus.
---
--- Aman dijalankan berkali-kali (idempotent).
+-- MAKSIMALKAN NOTIFIKASI TELEGRAM
 -- ============================================================
-create table if not exists kt_kas (
-  id uuid primary key default gen_random_uuid(),
-  tanggal date not null default current_date,
-  keterangan text not null default '',
-  debit numeric not null default 0,
-  kredit numeric not null default 0,
-  created_at timestamptz default now()
-);
+-- Menambah 2 kolom ke tabel kt_telegram_settings (baris tunggal, id='main')
+-- yang sudah ada:
+--   1. categories   — kontrol on/off notifikasi per kategori (anggota,
+--      donasi, lomba, dst) tanpa perlu matikan semua sekaligus.
+--   2. quiet_hours  — rentang jam tenang, notifikasi yang masuk di jam ini
+--      ditahan dan baru dikirim otomatis setelah jam tenang berakhir.
+--
+-- Aman dijalankan berkali-kali (IF NOT EXISTS) dan tidak mengubah baris
+-- yang sudah ada — default categories semua true (semua kategori tetap
+-- aktif seperti perilaku sebelumnya) dan quiet_hours nonaktif.
+-- ============================================================
 
-alter table kt_kas enable row level security;
-drop policy if exists "anon_full_access" on kt_kas;
-create policy "anon_full_access" on kt_kas
-  for all to anon using (true) with check (true);
+alter table kt_telegram_settings
+  add column if not exists categories jsonb not null default '{
+    "anggota": true,
+    "donasi": true,
+    "transaksi": true,
+    "operasional": true,
+    "lomba": true,
+    "belanja": true,
+    "agenda": true,
+    "kas": true,
+    "dana_sosial": true,
+    "login": true,
+    "sistem": true,
+    "umum": true
+  }'::jsonb;
+
+alter table kt_telegram_settings
+  add column if not exists quiet_hours jsonb not null default '{
+    "enabled": false,
+    "start": "22:00",
+    "end": "06:00"
+  }'::jsonb;

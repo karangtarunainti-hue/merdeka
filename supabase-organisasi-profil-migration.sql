@@ -1,93 +1,66 @@
 -- ============================================================
--- MIGRASI: import backup Gudang jadi atomik (semua-atau-tidak-sama-sekali)
--- Jalankan di Supabase Dashboard project MERDEKA > SQL Editor > Run.
+-- MIGRASI: tabel kt_organisasi_profil
+--
+-- LATAR BELAKANG:
+-- Sebelumnya nama organisasi ("Karang Taruna Inti"), logo kop surat
+-- (icons/logo-kop.png), dan nama buku kas ("Kas Karang Taruna") tertanam
+-- (hardcode) di banyak tempat di js/*.js — sidebar, kop surat LPJ/nota,
+-- pesan notifikasi Telegram, halaman Panduan, dll. Supaya app ini bisa
+-- dipakai ulang organisasi lain (RT/RW lain, karang taruna dusun sebelah,
+-- bahkan organisasi non-RT) TANPA sentuh kode sama sekali, ketiga hal
+-- itu sekarang disimpan di SATU baris tabel ini (pola yang sama seperti
+-- kt_telegram_settings/kt_guest_menu_settings/kt_dokumen_global — 1 baris,
+-- id='main') dan diatur admin lewat Pengaturan > Profil Organisasi.
+--
+-- Kalau baris 'main' belum ada / kolom masih kosong, app otomatis
+-- fallback ke DEFAULT_ORG_PROFILE di js/03-db-core.js (nama "Karang Taruna
+-- Inti", nama kas "Kas Karang Taruna", logo icons/logo-kop.png) — jadi
+-- tampilan tidak berubah sampai admin mengganti sendiri.
+--
 -- Aman dijalankan berkali-kali (idempotent).
---
--- MASALAH: Import Gudang (tombol "Import Backup" di tab Kelola
--- Inventaris) sebelumnya melakukan banyak insert/upsert terpisah satu
--- per satu langsung dari JS (satu per aset, satu per transaksi, satu
--- per item). Kalau koneksi terputus atau salah satu baris gagal di
--- tengah proses, sebagian data sudah kepalang tersimpan sementara
--- sisanya tidak — hasil akhirnya campur aduk (setengah ke-import)
--- tanpa cara mudah buat tahu baris mana saja yang berhasil.
---
--- PERBAIKAN: satukan SELURUH proses import (semua aset + semua
--- transaksi + semua item) jadi SATU transaksi atomik di server, mengikuti
--- pola yang sama seperti kt_gudang_submit_pinjam & kt_gudang_change_status
--- (lihat supabase-gudang-atomic-fix-migration.sql) — kalau ada satu saja
--- baris yang gagal (mis. format data rusak), PostgreSQL otomatis
--- rollback SEMUANYA, jadi tidak pernah ada state "setengah ke-import".
---
--- Import bersifat "upsert": aset & transaksi yang id-nya sudah ada akan
--- ditimpa datanya (bukan didobel), sesuai perilaku sebelumnya. Khusus
--- rincian barang per transaksi (kt_gudang_transaction_items) dihapus
--- dulu lalu ditulis ulang per transaksi yang di-import, supaya import
--- file backup yang sama berkali-kali tidak numpuk baris duplikat.
 -- ============================================================
+create table if not exists kt_organisasi_profil (
+  id text primary key,
+  nama_organisasi text,
+  nama_kas text,
+  -- Disimpan sebagai base64 data URI (hasil upload lewat Pengaturan), atau
+  -- kosong/null kalau admin belum pernah upload logo sendiri (app lalu
+  -- fallback ke file statis icons/logo-kop.png). Pakai `text` (bukan
+  -- varchar terbatas) karena data URI gambar bisa cukup panjang.
+  logo text,
+  updated_at timestamptz default now()
+);
 
-drop function if exists kt_gudang_import_backup(jsonb, jsonb);
-create function kt_gudang_import_backup(p_inventory jsonb, p_transactions jsonb)
-returns table(inventory_count integer, transaction_count integer, item_count integer)
+alter table kt_organisasi_profil enable row level security;
+drop policy if exists "anon_full_access" on kt_organisasi_profil;
+create policy "anon_full_access" on kt_organisasi_profil
+  for all to anon using (true) with check (true);
+
+-- Trigger updated_at otomatis, dipakai _syncSingletonRow() (js/03-db-core.js)
+-- untuk mendeteksi kalau baris 'main' sudah diubah admin lain sejak kita
+-- load — supaya perubahan tidak saling menimpa diam-diam. Fungsi
+-- kt_set_updated_at() ini sama seperti yang dipakai supabase-conflict-
+-- detection-migration.sql — dibuat ulang di sini (CREATE OR REPLACE, aman
+-- dijalankan berkali-kali) untuk jaga-jaga kalau migrasi itu belum pernah
+-- dijalankan di project ini.
+create or replace function kt_set_updated_at()
+returns trigger
 language plpgsql
-security definer
-set search_path = public, extensions
 as $$
-declare
-  inv jsonb;
-  trx jsonb;
-  it jsonb;
-  v_trx_id text;
-  v_inv_count integer := 0;
-  v_trx_count integer := 0;
-  v_item_count integer := 0;
 begin
-  for inv in select * from jsonb_array_elements(coalesce(p_inventory, '[]'::jsonb))
-  loop
-    if coalesce(inv->>'nama', '') = '' or coalesce(inv->>'gudang', '') = '' then
-      raise exception 'Data aset tidak lengkap (nama/lokasi kosong): %', inv;
-    end if;
-
-    insert into kt_gudang_inventory (id, nama, gudang, total, tersedia, is_active, last_updated)
-    values (
-      coalesce(nullif(inv->>'id', ''), gen_random_uuid()::text),
-      inv->>'nama', inv->>'gudang',
-      coalesce((inv->>'total')::integer, 0),
-      coalesce((inv->>'tersedia')::integer, 0),
-      coalesce((inv->>'isActive')::boolean, true),
-      coalesce(nullif(inv->>'lastUpdated','')::timestamptz, now())
-    )
-    on conflict (id) do update set
-      nama = excluded.nama, gudang = excluded.gudang, total = excluded.total,
-      tersedia = excluded.tersedia, is_active = excluded.is_active, last_updated = excluded.last_updated;
-    v_inv_count := v_inv_count + 1;
-  end loop;
-
-  for trx in select * from jsonb_array_elements(coalesce(p_transactions, '[]'::jsonb))
-  loop
-    v_trx_id := coalesce(nullif(trx->>'id', ''), gen_random_uuid()::text);
-
-    insert into kt_gudang_transactions (id, resi, nama, alamat, wa, tgl_pinjam, tgl_kembali, status)
-    values (
-      v_trx_id, trx->>'resi', trx->>'nama', trx->>'alamat', trx->>'wa',
-      nullif(trx->>'tglPinjam','')::date, nullif(trx->>'tglKembali','')::date,
-      coalesce(nullif(trx->>'status',''), 'aktif')
-    )
-    on conflict (id) do update set
-      resi = excluded.resi, nama = excluded.nama, alamat = excluded.alamat, wa = excluded.wa,
-      tgl_pinjam = excluded.tgl_pinjam, tgl_kembali = excluded.tgl_kembali, status = excluded.status;
-    v_trx_count := v_trx_count + 1;
-
-    delete from kt_gudang_transaction_items where transaction_id = v_trx_id;
-
-    for it in select * from jsonb_array_elements(coalesce(trx->'items', '[]'::jsonb))
-    loop
-      insert into kt_gudang_transaction_items (transaction_id, item_id, nama, gudang, qty)
-      values (v_trx_id, it->>'itemId', it->>'nama', it->>'gudang', coalesce((it->>'qty')::integer, 0));
-      v_item_count := v_item_count + 1;
-    end loop;
-  end loop;
-
-  return query select v_inv_count, v_trx_count, v_item_count;
+  new.updated_at = now();
+  return new;
 end;
 $$;
-grant execute on function kt_gudang_import_backup(jsonb, jsonb) to anon;
+
+drop trigger if exists trg_set_updated_at on kt_organisasi_profil;
+create trigger trg_set_updated_at
+  before update on kt_organisasi_profil
+  for each row execute function kt_set_updated_at();
+
+-- Seed baris 'main' kalau belum ada, diisi nilai yang SAMA PERSIS dengan
+-- yang sebelumnya hardcode di kode (supaya tidak ada perubahan tampilan
+-- sampai admin sengaja menggantinya lewat Pengaturan > Profil Organisasi).
+insert into kt_organisasi_profil (id, nama_organisasi, nama_kas, logo)
+values ('main', 'Karang Taruna Inti', 'Kas Karang Taruna', null)
+on conflict (id) do nothing;

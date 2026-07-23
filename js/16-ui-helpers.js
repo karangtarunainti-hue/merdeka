@@ -41,6 +41,29 @@ function toast(msg, durationMs = 2400){
 }
 
 /* ============================================================
+   LAZY LOADER html2canvas — sebelumnya dimuat lewat <script> di
+   index.html di SETIAP kali app dibuka, padahal cuma dipakai untuk
+   2 fitur export gambar (Nota Peminjaman Gudang & Jadwal Sinoman)
+   yang jarang diklik. Sekarang baru diambil dari CDN saat salah
+   satu fitur itu benar-benar dipakai, supaya loading awal app lebih
+   ringan untuk semua user. Dipanggil dari js/14-dokumen.js dan
+   js/17c-gudang-histori-kelola.js.
+   ============================================================ */
+let _html2canvasLoadPromise = null;
+function ensureHtml2Canvas(){
+  if (typeof html2canvas !== 'undefined') return Promise.resolve();
+  if (_html2canvasLoadPromise) return _html2canvasLoadPromise;
+  _html2canvasLoadPromise = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+    s.onload = () => resolve();
+    s.onerror = () => { _html2canvasLoadPromise = null; reject(new Error('gagal memuat modul export gambar')); };
+    document.head.appendChild(s);
+  });
+  return _html2canvasLoadPromise;
+}
+
+/* ============================================================
    PROMPT MODAL — pengganti window.prompt() bawaan browser (yang
    tampilannya "native" & tidak bisa di-style) dengan modal ber-tema
    app sendiri, pakai overlay/setModal yang sudah ada.

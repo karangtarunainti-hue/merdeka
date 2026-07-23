@@ -84,10 +84,15 @@ function gudangShowNota(id){
 // Export tampilan nota (di modal Riwayat Peminjaman) jadi file JPEG —
 // pakai html2canvas karena nota-nya murni HTML/CSS (bukan gambar), belum
 // ada elemen input yang perlu disamarkan, jadi tidak perlu toggle class 'exporting'.
-function gudangExportNotaJPEG(resi){
+async function gudangExportNotaJPEG(resi){
   const el = document.getElementById('gudang-nota-sheet');
   if(!el){ toast('⛔ Gagal menemukan nota'); return; }
-  if(typeof html2canvas === 'undefined'){ toast('⛔ Gagal memuat modul export gambar. Cek koneksi internet lalu muat ulang.'); return; }
+  try {
+    await ensureHtml2Canvas();
+  } catch (e) {
+    toast('⛔ Gagal memuat modul export gambar. Cek koneksi internet lalu muat ulang.');
+    return;
+  }
   html2canvas(el, { scale: 2, backgroundColor: '#ffffff', useCORS: true }).then(canvas => {
     const link = document.createElement('a');
     const namaFile = (resi || 'nota-peminjaman').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');

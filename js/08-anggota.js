@@ -445,8 +445,17 @@ function openSalinAnggotaModal(){
       </select>
     </div>
     <div class="field-hint" style="color:var(--ink-soft); font-size:12.5px; margin:-2px 0 10px;">Nama yang sudah terdaftar di event aktif otomatis dilewati. Nominal iuran mengikuti tarif event aktif, status iuran direset jadi Belum Lunas.</div>
+    <div class="field-row" style="align-items:flex-end;">
+      <div class="field"><label>Filter Kategori</label>
+        <select id="salin-filter-kategori" onchange="renderSalinAnggotaList()">
+          <option value="semua">Semua Kategori</option>
+          ${KATEGORI_ANGGOTA.map(k=>`<option value="${k.v}">${k.l}</option>`).join('')}
+        </select>
+      </div>
+      <button class="btn secondary small" type="button" style="margin-bottom:14px;" onclick="centangSalinSesuaiFilter()">Centang kategori ini saja</button>
+    </div>
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-      <label style="font-size:12px; display:flex; align-items:center; gap:6px; cursor:pointer;"><input type="checkbox" id="salin-pilih-semua" onchange="toggleSalinPilihSemua(this.checked)"> Pilih Semua</label>
+      <label style="font-size:12px; display:flex; align-items:center; gap:6px; cursor:pointer;"><input type="checkbox" id="salin-pilih-semua" onchange="toggleSalinPilihSemua(this.checked)"> Pilih Semua yang Tampil</label>
       <span id="salin-count-label" style="font-size:12px; color:var(--ink-soft);"></span>
     </div>
     <div id="salin-anggota-list" style="max-height:320px; overflow-y:auto; border:1px solid var(--line); border-radius:8px; padding:4px 8px;"></div>
@@ -459,24 +468,50 @@ function openSalinAnggotaModal(){
 function renderSalinAnggotaList(){
   const sel = document.getElementById('salin-source-event');
   const listEl = document.getElementById('salin-anggota-list');
+  const filterEl = document.getElementById('salin-filter-kategori');
   if(!sel || !listEl) return;
+  // Simpan status centang yang sudah dipilih user sebelum render ulang
+  // (mis. setelah ganti filter kategori), supaya tidak hilang.
+  const prevChecked = new Set(Array.from(document.querySelectorAll('.salin-anggota-chk:checked')).map(c=>c.value));
+  const isFirstRender = !listEl.dataset.rendered;
   const namaSekarang = new Set(gAnggota().map(a=>a.nama.trim().toLowerCase()));
   const sourceAnggota = db.anggota.filter(a=>a.event_id===sel.value).slice().sort((a,b)=>a.nama.localeCompare(b.nama,'id'));
   listEl.innerHTML = sourceAnggota.length ? sourceAnggota.map(a=>{
     const dobel = namaSekarang.has(a.nama.trim().toLowerCase());
-    return `<label style="display:flex; align-items:center; gap:8px; padding:6px 2px; ${dobel?'opacity:.5;':''} border-bottom:1px solid var(--line);">
-      <input type="checkbox" class="salin-anggota-chk" value="${a.id}" ${dobel?'disabled':'checked'} onchange="updateSalinCountLabel()">
+    const dicentang = isFirstRender ? !dobel : prevChecked.has(a.id);
+    return `<label data-kategori="${a.kategori}" style="display:flex; align-items:center; gap:8px; padding:6px 2px; ${dobel?'opacity:.5;':''} border-bottom:1px solid var(--line);">
+      <input type="checkbox" class="salin-anggota-chk" value="${a.id}" ${dobel?'disabled':(dicentang?'checked':'')} onchange="updateSalinCountLabel()">
       <span style="flex:1;">${esc(a.nama)} <span style="color:var(--ink-soft); font-size:11.5px;">· ${esc(labelKategori(a.kategori))} · ${esc(labelRT(getRT(a)))}</span></span>
       ${dobel?'<span style="font-size:11px;color:var(--ink-soft);">sudah ada</span>':''}
     </label>`;
   }).join('') : `<div class="hint" style="padding:8px 2px;">Event ini belum punya data anggota.</div>`;
-  const selectableCount = document.querySelectorAll('.salin-anggota-chk:not(:disabled)').length;
+  listEl.dataset.rendered = '1';
+  applySalinFilterKategori();
+}
+function applySalinFilterKategori(){
+  const filterEl = document.getElementById('salin-filter-kategori');
+  const filterVal = filterEl ? filterEl.value : 'semua';
+  document.querySelectorAll('#salin-anggota-list > label').forEach(label=>{
+    const cocok = filterVal==='semua' || label.dataset.kategori===filterVal;
+    label.style.display = cocok ? '' : 'none';
+  });
+  const selectableCount = document.querySelectorAll('#salin-anggota-list > label:not([style*="display: none"]) .salin-anggota-chk:not(:disabled)').length;
   const pilihSemuaEl = document.getElementById('salin-pilih-semua');
-  if(pilihSemuaEl) pilihSemuaEl.checked = selectableCount>0;
+  if(pilihSemuaEl){
+    const checkedVisible = document.querySelectorAll('#salin-anggota-list > label:not([style*="display: none"]) .salin-anggota-chk:checked').length;
+    pilihSemuaEl.checked = selectableCount>0 && checkedVisible===selectableCount;
+  }
   updateSalinCountLabel();
 }
+function centangSalinSesuaiFilter(){
+  // Reset semua centang dulu, lalu centang khusus anggota yang sesuai
+  // filter kategori terpilih (kalau "Semua Kategori", ya centang semua).
+  document.querySelectorAll('.salin-anggota-chk:not(:disabled)').forEach(c=>c.checked=false);
+  document.querySelectorAll('#salin-anggota-list > label:not([style*="display: none"]) .salin-anggota-chk:not(:disabled)').forEach(c=>c.checked=true);
+  applySalinFilterKategori();
+}
 function toggleSalinPilihSemua(checked){
-  document.querySelectorAll('.salin-anggota-chk:not(:disabled)').forEach(c=>c.checked=checked);
+  document.querySelectorAll('#salin-anggota-list > label:not([style*="display: none"]) .salin-anggota-chk:not(:disabled)').forEach(c=>c.checked=checked);
   updateSalinCountLabel();
 }
 function updateSalinCountLabel(){

@@ -575,6 +575,23 @@
   table.general-table th:nth-child(4), table.general-table td:nth-child(4) { width:15%; }
   table.general-table th:nth-child(5), table.general-table td:nth-child(5) { width:15%; }
 
+  /* Pemasukan Lain (No, Tanggal, Keterangan, Jumlah, Aksi): kolom No & Tanggal
+     dibuat sesempit kontennya saja (bukan persentase lebar general-table biasa)
+     supaya jaraknya rapat & rata kiri, sisa lebar mengalir ke Keterangan.
+     Diletakkan setelah aturan .general-table di atas supaya menang di cascade
+     (spesifisitas selector-nya sama). */
+  table.transaksi-lain-table th:nth-child(1), table.transaksi-lain-table td:nth-child(1) {
+    width:40px; text-align:left; padding-left:14px; padding-right:6px;
+  }
+  table.transaksi-lain-table th:nth-child(2), table.transaksi-lain-table td:nth-child(2) {
+    width:96px; text-align:left; padding-left:6px; padding-right:10px; white-space:nowrap;
+  }
+  table.transaksi-lain-table th:nth-child(3), table.transaksi-lain-table td:nth-child(3) {
+    width:auto; text-align:left; padding-left:10px;
+  }
+  table.transaksi-lain-table th:nth-child(4), table.transaksi-lain-table td:nth-child(4) { width:130px; }
+  table.transaksi-lain-table th:nth-child(5), table.transaksi-lain-table td:nth-child(5) { width:44px; }
+
   /* Biaya Operasional: No, Keterangan, Satuan, QTY, Jumlah (+Aksi).
      Keterangan dapat porsi terbesar; No/Satuan/QTY dibuat ramping supaya
      Jumlah & Aksi tidak terdesak keluar di layar lebar. */
@@ -1645,8 +1662,8 @@
     /* Transaksi Lain punya susunan kolom beda dari Donatur (No, Tanggal,
        Keterangan, Jumlah — bukan Tanggal, Nama, Keterangan, Jumlah), jadi
        kolom 1 & 2 perlu lebar sendiri di atas aturan tanggal-nominal-table umum. */
-    table.transaksi-lain-table th:nth-child(1), table.transaksi-lain-table td:nth-child(1){ width:24px; min-width:0; white-space:nowrap; padding:8px 4px 8px 14px; text-align:center; }
-    table.transaksi-lain-table th:nth-child(2), table.transaksi-lain-table td:nth-child(2){ width:58px; min-width:0; white-space:nowrap; padding:8px 4px; }
+    table.transaksi-lain-table th:nth-child(1), table.transaksi-lain-table td:nth-child(1){ width:24px; min-width:0; white-space:nowrap; padding:8px 4px 8px 14px; text-align:left; }
+    table.transaksi-lain-table th:nth-child(2), table.transaksi-lain-table td:nth-child(2){ width:58px; min-width:0; white-space:nowrap; padding:8px 4px; text-align:left; }
 
     /* --- Agenda Kegiatan: sembunyikan tabel geser, tampilkan kartu --- */
     .agenda-table-wrap{display:none;}

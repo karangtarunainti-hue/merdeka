@@ -232,7 +232,8 @@ function renderPengaturan(){
         <label class="btn secondary">⬆ Impor<input type="file" accept=".json" style="display:none;" onchange="bookmarkImportJSON(this)"></label>
       </div>
     </div>
-  </div>`;
+  </div>
+  ${renderSnapshotPanel()}`;
 }
 
 function simpanTarif(){
@@ -417,10 +418,15 @@ function importData(evt){
   if (!isAdmin()) { toast('⛔ Hanya Admin'); return; }
   const file = evt.target.files[0]; if(!file) return;
   const reader = new FileReader();
-  reader.onload = ()=>{
+  reader.onload = async ()=>{
     try{
       const parsed = JSON.parse(reader.result);
       if(!confirm('Impor akan MENIMPA data yang ada. Lanjutkan?')) return;
+      // Jaring pengaman: rekam kondisi SEBELUM ditimpa sebagai snapshot
+      // "pra-aksi" (lihat js/15b-snapshot.js) — supaya kalau file impor ini
+      // ternyata salah, masih bisa dipulihkan lagi dari Pengaturan > Snapshot Otomatis.
+      toast('⏳ Menyimpan kondisi saat ini sebagai jaring pengaman...');
+      await buatSnapshot('pra-aksi', `Sebelum impor ${file.name}`);
       db = Object.assign(defaultDB(), parsed);
       saveDB(); renderSidebar(); goSection('dashboard'); toast('Data diimpor');
       notifyTelegram(`⬆️ Impor data`, `File: ${file.name}\nUkuran: ${(file.size/1024).toFixed(1)} KB`, 'sistem');

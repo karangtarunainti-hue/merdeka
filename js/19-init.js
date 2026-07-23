@@ -127,6 +127,11 @@ initOfflineGuard();
   // saat pertama kali buka menu Gudang, datanya sudah siap tanpa jeda loading.
   loadGudangData();
 
+  // Snapshot otomatis harian (lihat js/15b-snapshot.js) — jalan di belakang
+  // layar, tidak memblokir tampilan awal. Cuma benar-benar bikin snapshot
+  // kalau hari ini belum ada snapshot sama sekali & user sedang login.
+  cobaSnapshotHarian();
+
   // Auto-refresh: tarik ulang data tiap 20 detik supaya perubahan dari
   // device/akun lain terlihat tanpa perlu reload manual (lihat bagian
   // AUTO-REFRESH di atas untuk pengaman-pengamannya).

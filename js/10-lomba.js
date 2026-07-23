@@ -374,6 +374,19 @@ function openLombaModal(id){
       const hadiah_per_regu = jumlah_anggota_regu>1 && !!document.getElementById('f-hadiah-per-regu').checked;
       const estimasi_peserta = Math.max(0, Number(document.getElementById('f-estimasi-peserta').value||0));
       if(!nama){toast('Nama wajib');return;}
+      // Cek duplikat: nama yang sama (case/spasi diabaikan) udah ada di event AKTIF?
+      // Cuma dicek pas Tambah (bukan Edit — karena pas edit boleh aja nama akhirnya
+      // sama kayak lomba lain kalau memang disengaja, jarang kejadian). Beda dari
+      // dropdown Nama Lomba di atas yang nyari ke SEMUA event (buat nyontek data
+      // lama), cek ini spesifik ke event yang lagi aktif aja — tujuannya nyegah
+      // kejadian nggak sengaja klik Tambah 2x jadi 2 lomba nyangkut nama sama.
+      if(!editing){
+        const existingSama = gLomba().find(l=>dbLombaNormKey(l.nama)===dbLombaNormKey(nama));
+        if(existingSama){
+          const lanjut = confirm(`⚠️ Lomba "${existingSama.nama}" dengan nama yang sama udah ada di event aktif.\n\nKalau maksudnya nambah perlengkapan buat lomba itu, batalkan dulu lalu buka lomba yang sudah ada itu lewat menu Lomba & Perlengkapan (biar nggak kepisah jadi 2 entri).\n\nKalau memang sengaja mau bikin lomba terpisah dengan nama sama (misal kategori pesertanya beda), lanjutkan simpan?`);
+          if(!lanjut) return;
+        }
+      }
       let actionMsg = editing ? `✏️ Edit lomba: ${editing.nama} → ${nama}` : `➕ Lomba baru: ${nama}`;
       let lombaRecord;
       let itemsDisalinCount = 0;
@@ -436,8 +449,19 @@ function onLombaNamaInput(value){
       ? ` Nama ini pernah dipakai buat kategori berbeda (${kategoriTerpakai.join(', ')}) — kalau kategorinya mau beda dari yang ke-isi otomatis, tinggal ganti dropdown Kategori Peserta di bawah, perlengkapan tetap ikut tersalin.`
       : '';
     if(hintEl) hintEl.textContent = `📚 Nama ini pernah dipakai di ${g.versions.length} event (terakhir: ${versi.eventLabel}) — Kategori & Jumlah Anggota otomatis diisi, dan ${jumlahItem} perlengkapan dari data terakhir bakal ikut tersalin pas disimpan. Cek lagi harga & qty-nya nanti.${kategoriNote}`;
+    if(hintEl) hintEl.style.color = '';
   } else {
     if(hintEl) hintEl.textContent = 'Pilih dari daftar buat pakai data lomba lama (kategori, jumlah anggota, sampai daftar perlengkapan & harga terakhir ikut tersalin otomatis), atau ketik nama baru untuk buat lomba/database baru.';
+    if(hintEl) hintEl.style.color = '';
+  }
+  // Peringatan tambahan (nimpa hint di atas kalau kena): nama ini udah dipakai
+  // lomba LAIN di event AKTIF (beda dari cek dbLombaGroups di atas yang lintas
+  // event). Ini baru indikator visual biar ketauan dari awal ngetik — cek final
+  // yang beneran nyegah kesimpen dobel tetap ada di tombol Tambah (konfirmasi).
+  const dupeAktif = key ? gLomba().find(l=>dbLombaNormKey(l.nama)===key) : null;
+  if(dupeAktif && hintEl){
+    hintEl.textContent = `⚠️ Lomba "${dupeAktif.nama}" dengan nama ini udah ada di event aktif. Kalau maksudnya nambah perlengkapan buat lomba itu, batalkan lalu buka lomba yang sudah ada lewat menu Lomba & Perlengkapan — biar nggak kepisah jadi 2 entri.`;
+    hintEl.style.color = 'var(--orange, #b5691a)';
   }
 }
 function toggleHadiahPerReguHint(){

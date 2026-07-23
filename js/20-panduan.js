@@ -80,7 +80,7 @@ function renderPanduan(){
         <div class="role-info-card"><div class="ric-title">📅 Jadwal Kegiatan</div><div class="ric-desc">Catat jadwal & pengingat acara biar nggak ada yang kelewat.</div></div>
         <div class="role-info-card"><div class="ric-title">📊 Buku Kegiatan</div><div class="ric-desc">Dashboard utama: rekap saldo & reminder tugas yang belum kelar.</div></div>
         <div class="role-info-card"><div class="ric-title">💰 Iuran Anggota</div><div class="ric-desc">Catat siapa aja yang udah/belum bayar iuran warga.</div></div>
-        <div class="role-info-card"><div class="ric-title">❤️ Donatur</div><div class="ric-desc">Catat sumbangan tunai dari donatur di luar iuran warga.</div></div>
+        <div class="role-info-card"><div class="ric-title">❤️ Donatur</div><div class="ric-desc">Catat sumbangan dari donatur di luar iuran warga — uang maupun barang (barang dicatat terpisah, tidak dihitung sebagai uang masuk).</div></div>
         <div class="role-info-card"><div class="ric-title">🔄 Pemasukan Lain</div><div class="ric-desc">Buat pemasukan yang bukan iuran maupun donasi (mis. hasil jualan, sponsor).</div></div>
         <div class="role-info-card"><div class="ric-title">💼 Operasional Kegiatan</div><div class="ric-desc">Catat biaya operasional umum acara (konsumsi, sewa, dekorasi, dll).</div></div>
         <div class="role-info-card"><div class="ric-title">🚩 Lomba & Perlengkapan</div><div class="ric-desc">Rencanakan lomba apa aja yang diadain, plus perlengkapan yang dibutuhkan tiap lomba.</div></div>

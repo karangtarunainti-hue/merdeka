@@ -1,45 +1,86 @@
 /* ============================================================
    DONATUR, TRANSAKSI, OPERASIONAL (dengan auth check)
    ============================================================ */
+// Teks kolom "Donasi" di tabel & LPJ: uang tampil sebagai Rupiah, barang
+// tampil sebagai qty+satuan+nama barang (bukan Rupiah — donasi barang
+// sengaja TIDAK dihitung sebagai uang, lihat hitungBukuUtama()).
+function donasiValueText(d){
+  if(d.jenis==='barang'){
+    return `📦 ${Number(d.qty||1)}${d.satuan?` ${esc(d.satuan)}`:''} — ${esc(d.nama_barang||'-')}`;
+  }
+  return fmtRp(d.jumlah);
+}
 function renderDonatur(){
   const list = gDonatur().slice().sort((a,b)=>(b.tanggal||'').localeCompare(a.tanggal||''));
-  const total = list.reduce((s,d)=>s+Number(d.jumlah||0),0);
+  const barangList = list.filter(d=>d.jenis==='barang');
+  const total = list.reduce((s,d)=>s + (d.jenis==='barang' ? 0 : Number(d.jumlah||0)), 0);
   const isLoggedIn = !!getCurrentUser();
-  const rows = list.map(d=>`<tr${isLoggedIn ? ` class="row-clickable" onclick="openDonaturModal('${d.id}')"` : ''}><td>${fmtDateShort(d.tanggal)}</td><td>${esc(d.nama_donatur)}</td><td>${esc(d.keterangan||'-')}</td><td class="num">${fmtRp(d.jumlah)}</td>${isLoggedIn ? `<td style="text-align:right;">
+  const rows = list.map(d=>`<tr${isLoggedIn ? ` class="row-clickable" onclick="openDonaturModal('${d.id}')"` : ''}><td>${fmtDateShort(d.tanggal)}</td><td>${esc(d.nama_donatur)}</td><td>${esc(d.keterangan||'-')}</td><td class="num">${donasiValueText(d)}</td>${isLoggedIn ? `<td style="text-align:right;">
     <button class="icon-btn" onclick="event.stopPropagation();hapusDonatur('${d.id}')">🗑</button>
   </td>` : ''}</tr>`).join('');
-  return `<div class="stat-grid"><div class="stat-card pemasukan"><div class="lbl">Total Donasi</div><div class="val">${fmtRp(total)}</div></div></div>
+  return `<div class="stat-grid"><div class="stat-card pemasukan"><div class="lbl">Total Donasi (Uang)</div><div class="val">${fmtRp(total)}</div></div>${barangList.length ? `<div class="stat-card"><div class="lbl">Sumbangan Barang</div><div class="val">${barangList.length}</div></div>` : ''}</div>
   <div class="panel"><div class="panel-head"><h3>Daftar Donatur</h3>${isLoggedIn ? `<button class="btn" onclick="openDonaturModal()">+ Tambah</button>` : ''}</div>
-  <div class="panel-body flush"><table class="general-table tanggal-nominal-table"><thead><tr><th>Tanggal</th><th>Nama</th><th>Keterangan</th><th class="num">Jumlah</th>${isLoggedIn ? '<th></th>' : ''}</tr></thead>
+  <div class="panel-body flush"><table class="general-table tanggal-nominal-table"><thead><tr><th>Tanggal</th><th>Nama</th><th>Keterangan</th><th class="num">Donasi</th>${isLoggedIn ? '<th></th>' : ''}</tr></thead>
   <tbody>${rows||`<tr class="empty-row"><td colspan="${isLoggedIn?5:4}">Belum ada donasi.</td></tr>`}</tbody></table></div></div>`;
+}
+function toggleDonaturJenisFields(){
+  const jenis = document.getElementById('f-jenis')?.value;
+  const uangWrap = document.getElementById('f-uang-wrap');
+  const barangWrap = document.getElementById('f-barang-wrap');
+  if(uangWrap) uangWrap.style.display = jenis==='barang' ? 'none' : '';
+  if(barangWrap) barangWrap.style.display = jenis==='barang' ? '' : 'none';
 }
 function openDonaturModal(id){
   if (!canEditSection('donatur')) { toast('⛔ Login untuk mengedit data'); return; }
   const editing = id ? db.donatur.find(d=>d.id===id) : null;
+  const isBarang = editing && editing.jenis==='barang';
   setModal(editing?'Edit Donasi':'Tambah Donasi', `
     <div class="field"><label>Nama Donatur</label><input id="f-nama" value="${editing?esc(editing.nama_donatur):''}"></div>
-    <div class="field-row"><div class="field"><label>Jumlah (Rp)</label><input id="f-jumlah" class="currency-input" type="text" value="${editing?formatCurrency(editing.jumlah):''}"></div>
-    <div class="field"><label>Tanggal</label><input id="f-tanggal" type="date" value="${editing?editing.tanggal:todayISO()}"></div></div>
-    <div class="field"><label>Keterangan</label><input id="f-ket" value="${editing?esc(editing.keterangan||''):''}"></div>
+    <div class="field-row">
+      <div class="field"><label>Jenis Donasi</label><select id="f-jenis" onchange="toggleDonaturJenisFields()">
+        <option value="uang" ${!isBarang?'selected':''}>💵 Uang</option>
+        <option value="barang" ${isBarang?'selected':''}>📦 Barang</option>
+      </select></div>
+      <div class="field"><label>Tanggal</label><input id="f-tanggal" type="date" value="${editing?editing.tanggal:todayISO()}"></div>
+    </div>
+    <div class="field" id="f-uang-wrap" style="display:${isBarang?'none':''};"><label>Jumlah (Rp)</label><input id="f-jumlah" class="currency-input" type="text" value="${editing&&!isBarang?formatCurrency(editing.jumlah):''}"></div>
+    <div id="f-barang-wrap" style="display:${isBarang?'':'none'};">
+      <div class="field"><label>Nama Barang</label><input id="f-nama-barang" placeholder="mis. Air Mineral, Kipas Angin" value="${isBarang?esc(editing.nama_barang||''):''}"></div>
+      <div class="field-row">
+        <div class="field"><label>Qty</label><input id="f-qty-barang" type="number" min="1" value="${isBarang?(editing.qty||1):1}"></div>
+        <div class="field"><label>Satuan (opsional)</label><input id="f-satuan-barang" placeholder="dus, pcs, buah" value="${isBarang?esc(editing.satuan||''):''}"></div>
+      </div>
+      <div class="hint">Donasi barang dicatat terpisah & TIDAK dihitung sebagai uang masuk/saldo kas — cuma muncul sebagai rincian di Daftar Donatur & LPJ.</div>
+    </div>
+    <div class="field"><label>Keterangan (opsional)</label><input id="f-ket" value="${editing?esc(editing.keterangan||''):''}"></div>
   `, [
     {label:'Batal', cls:'secondary', onclick:closeModal},
     {label:editing?'Simpan':'Tambah', cls:'', onclick:()=>{
       const nama = document.getElementById('f-nama').value.trim();
-      const jumlah = getCurrencyValue(document.getElementById('f-jumlah'));
+      const jenis = document.getElementById('f-jenis').value;
       const tanggal = document.getElementById('f-tanggal').value||todayISO();
       const ket = document.getElementById('f-ket').value.trim();
-      if(!nama||jumlah<=0){ toast('Nama & jumlah wajib'); return; }
-      let actionMsg = '';
-      if(editing){ 
-        actionMsg = `✏️ Edit donasi: ${editing.nama_donatur} → ${nama}`;
-        Object.assign(editing,{nama_donatur:nama,jumlah,tanggal,keterangan:ket}); 
+      if(!nama){ toast('Nama wajib'); return; }
+      let payload, actionMsg, notifDetail;
+      if(jenis==='barang'){
+        const nama_barang = document.getElementById('f-nama-barang').value.trim();
+        const qty = Math.max(1, Number(document.getElementById('f-qty-barang').value||1));
+        const satuan = document.getElementById('f-satuan-barang').value.trim();
+        if(!nama_barang){ toast('Nama barang wajib'); return; }
+        payload = {jenis:'barang', nama_donatur:nama, nama_barang, qty, satuan, jumlah:0, tanggal, keterangan:ket};
+        actionMsg = editing ? `✏️ Edit donasi barang: ${editing.nama_donatur} → ${nama}` : `➕ Donasi barang dari ${nama}`;
+        notifDetail = `Nama: ${nama}\nBarang: ${nama_barang} (${qty}${satuan?` ${satuan}`:''})\nTanggal: ${fmtDate(tanggal)}\nKeterangan: ${ket || '-'}`;
+      } else {
+        const jumlah = getCurrencyValue(document.getElementById('f-jumlah'));
+        if(jumlah<=0){ toast('Jumlah wajib diisi'); return; }
+        payload = {jenis:'uang', nama_donatur:nama, jumlah, tanggal, keterangan:ket, nama_barang:'', qty:null, satuan:''};
+        actionMsg = editing ? `✏️ Edit donasi: ${editing.nama_donatur} → ${nama}` : `➕ Donasi baru dari ${nama}`;
+        notifDetail = `Nama: ${nama}\nJumlah: ${fmtRp(jumlah)}\nTanggal: ${fmtDate(tanggal)}\nKeterangan: ${ket || '-'}`;
       }
-      else{ 
-        actionMsg = `➕ Donasi baru dari ${nama}`;
-        db.donatur.push({id:uid(),event_id:eid(),nama_donatur:nama,jumlah,tanggal,keterangan:ket}); 
-      }
+      if(editing){ Object.assign(editing, payload); }
+      else { db.donatur.push({id:uid(), event_id:eid(), ...payload}); }
       saveDB(); closeModal(); renderContent(); renderTopbarSaldo(); toast('Disimpan');
-      notifyTelegram(actionMsg, `Nama: ${nama}\nJumlah: ${fmtRp(jumlah)}\nTanggal: ${fmtDate(tanggal)}\nKeterangan: ${ket || '-'}`, 'donasi');
+      notifyTelegram(actionMsg, notifDetail, 'donasi');
     }}
   ]);
   setTimeout(setupAllCurrencyInputs, 50);
@@ -50,7 +91,7 @@ async function hapusDonatur(id){
   const d = db.donatur.find(x=>x.id===id);
   db.donatur=db.donatur.filter(d=>d.id!==id); 
   saveDB(); renderContent(); renderTopbarSaldo();
-  if(d) notifyTelegram(`🗑️ Hapus donasi dari ${d.nama_donatur}`, `Jumlah: ${fmtRp(d.jumlah)}`, 'donasi');
+  if(d) notifyTelegram(`🗑️ Hapus donasi dari ${d.nama_donatur}`, d.jenis==='barang' ? `Barang: ${d.nama_barang||'-'} (${d.qty||1}${d.satuan?` ${d.satuan}`:''})` : `Jumlah: ${fmtRp(d.jumlah)}`, 'donasi');
 }
 
 function renderTransaksi(){

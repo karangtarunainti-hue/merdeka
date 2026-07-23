@@ -93,8 +93,8 @@ function renderLPJ(){
   ];
   if (showDonatur) pemasukanSubs.push({ title:'Donatur', html:`
     <div class="lpj-table-scroll"><table class="lpj-table lpj-detail">
-      <thead><tr><th>Tanggal</th><th>Nama</th><th>Keterangan</th><th class="num">Jumlah</th></tr></thead>
-      <tbody>${donaturList.map(d=>`<tr><td>${fmtDate(d.tanggal)}</td><td>${esc(d.nama_donatur)}</td><td>${esc(d.keterangan||'-')}</td><td class="num">${fmtRp(d.jumlah)}</td></tr>`).join('') || emptyRow(4,'Belum ada donasi.')}</tbody>
+      <thead><tr><th>Tanggal</th><th>Nama</th><th>Keterangan</th><th class="num">Donasi</th></tr></thead>
+      <tbody>${donaturList.map(d=>`<tr><td>${fmtDate(d.tanggal)}</td><td>${esc(d.nama_donatur)}</td><td>${esc(d.keterangan||'-')}</td><td class="num">${donasiValueText(d)}</td></tr>`).join('') || emptyRow(4,'Belum ada donasi.')}</tbody>
     </table></div>` });
   if (showTransaksi) pemasukanSubs.push({ title:'Pemasukan Lain', html:`
     <div class="lpj-table-scroll"><table class="lpj-table lpj-detail">
@@ -152,6 +152,7 @@ function renderLPJ(){
         <tr class="lpj-subtotal"><td>Total Pemasukan</td><td class="num">${fmtRp(b.pemasukan)}</td></tr>
         <tr><td class="indent">Iuran Anggota (${b.jumlahIuranLunas} lunas)</td><td class="num">${fmtRp(b.iuran)}</td></tr>
         ${showDonatur ? `<tr><td class="indent">Donatur (${b.jumlahDonatur} donasi)</td><td class="num">${fmtRp(b.donasi)}</td></tr>` : ''}
+        ${showDonatur && b.jumlahDonaturBarang>0 ? `<tr><td class="indent" style="font-style:italic;color:var(--ink-soft);font-size:12px;">+ ${b.jumlahDonaturBarang} sumbangan barang (bukan uang, lihat rincian Donatur di bawah)</td><td class="num"></td></tr>` : ''}
         ${showTransaksi ? `<tr><td class="indent">Pemasukan Lain (${b.jumlahTransaksiLain})</td><td class="num">${fmtRp(b.transaksiLain)}</td></tr>` : ''}
         <tr class="lpj-subtotal"><td>Total Pengeluaran</td><td class="num">${fmtRp(b.pengeluaran)}</td></tr>
         ${showOperasional ? `<tr><td class="indent">Operasional Kegiatan (${b.jumlahOperasional})</td><td class="num">${fmtRp(b.opsional)}</td></tr>` : ''}

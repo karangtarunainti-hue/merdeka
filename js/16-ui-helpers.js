@@ -139,7 +139,14 @@ function hitungBukuUtama(){
   const anggotaLunas = gAnggota().filter(a=>a.status==='lunas');
   const iuran = anggotaLunas.reduce((s,a)=>s+Number(a.nominal_wajib||0),0);
   const donaturList = gDonatur();
-  const donasi = donaturList.reduce((s,d)=>s+Number(d.jumlah||0),0);
+  // Donasi BARANG (jenis:'barang') sengaja TIDAK dihitung sebagai uang masuk —
+  // dia bukan uang yang benar-benar ada di kas, cuma barang fisik. Cuma donasi
+  // UANG (jenis:'uang', atau tanpa field jenis sama sekali = data lama sebelum
+  // fitur ini ada) yang ikut menyusun saldo kas. Lihat renderDonatur() &
+  // openDonaturModal() di js/09-donatur-transaksi-operasional.js.
+  const donaturUangList = donaturList.filter(d=>(d.jenis||'uang')!=='barang');
+  const donaturBarangList = donaturList.filter(d=>d.jenis==='barang');
+  const donasi = donaturUangList.reduce((s,d)=>s+Number(d.jumlah||0),0);
   const transaksiLainList = gTransaksiLain();
   const transaksiLain = transaksiLainList.reduce((s,t)=>s+Number(t.jumlah||0),0);
   const pemasukan = iuran + donasi + transaksiLain;
@@ -173,7 +180,8 @@ function hitungBukuUtama(){
   return {
     iuran, donasi, transaksiLain, pemasukan, opsional, kebutuhanLomba, hadiahLomba, hadiahJalan, pengeluaran, saldo: pemasukan - pengeluaran,
     jumlahIuranLunas: anggotaLunas.length,
-    jumlahDonatur: donaturList.length,
+    jumlahDonatur: donaturUangList.length,
+    jumlahDonaturBarang: donaturBarangList.length,
     jumlahTransaksiLain: transaksiLainList.length,
     jumlahOperasional: operasionalList.length,
     jumlahKebutuhanLomba: kebutuhanLombaList.length,

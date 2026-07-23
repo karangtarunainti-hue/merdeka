@@ -35,7 +35,7 @@ const TOUR_DEFS = {
     {sel:'.panel-head', title:'Status Bayar', text:'Baris yang belum lunas biasanya ditandai warna beda, jadi gampang kelihatan siapa yang masih nunggak.'},
   ],
   donatur: [
-    {sel:'[onclick="openDonaturModal()"]', title:'Tambah Donatur', text:'Catat sumbangan tunai dari donatur lewat tombol ini — di luar iuran anggota biasa.'},
+    {sel:'[onclick="openDonaturModal()"]', title:'Tambah Donatur', text:'Catat sumbangan dari donatur lewat tombol ini — bisa uang atau barang, di luar iuran anggota biasa.'},
     {sel:'.panel-head', title:'Rekap Donasi', text:'Total donasi yang masuk kelihatan di bagian atas panel ini.'},
   ],
   transaksi: [

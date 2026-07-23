@@ -5,7 +5,7 @@ const SECTIONS = [
   {key:'jadwal', label:'Jadwal Kegiatan', sub:'Kelola jadwal dan pengingat', icon:'calendar', adminOnly: false},
   {key:'dashboard', label:'Buku Kegiatan', sub:'Rekap & Reminder', icon:'grid', adminOnly: false},
   {key:'anggota', label:'Iuran Anggota', sub:'Kelola iuran anggota', icon:'users', adminOnly: false},
-  {key:'donatur', label:'Donatur', sub:'Sumbangan tunai dari donatur', icon:'heart', adminOnly: false},
+  {key:'donatur', label:'Donatur', sub:'Sumbangan uang & barang dari donatur', icon:'heart', adminOnly: false},
   {key:'transaksi', label:'Pemasukan Lain', sub:'Pemasukan di luar iuran & donasi', icon:'swap', adminOnly: false},
   {key:'operasional', label:'Operasional Kegiatan', sub:'Biaya operasional umum event', icon:'briefcase', adminOnly: false},
   {key:'lomba', label:'Lomba & Perlengkapan', sub:'Kebutuhan barang per lomba', icon:'flag', adminOnly: false},

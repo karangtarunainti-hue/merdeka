@@ -128,14 +128,27 @@ const TOUR_DEFS = {
 
 // Tur generik dipakai kalau section belum didaftarkan manual di TOUR_DEFS di
 // atas — supaya SEMUA menu tetap kebagian tur walau singkat.
+//
+// CATATAN PENTING: banyak langkah di TOUR_DEFS menunjuk tombol yang cuma ada
+// kalau user sudah login (mis. tombol "Tambah") atau kalau datanya sudah ada
+// (mis. .lomba-badge, .hadiah-group-header). Kalau SEMUA langkah di satu
+// section kebetulan tidak ketemu (mis. dibuka sebagai guest, atau event baru
+// yang datanya masih kosong), showTourStep() akan skip terus sampai habis
+// lalu langsung closeTour() — hasilnya tur kelihatan "jalan sendiri lalu
+// hilang sendiri" padahal user baru saja klik tombol 🎯, belum sempat pencet
+// apa-apa. Makanya di sini selalu ditambahkan 1 langkah fallback yang nunjuk
+// ke #page-title, elemen statis di topbar yang PASTI selalu ada di DOM apa
+// pun kondisi login/datanya — supaya tur nggak pernah nutup sendiri tanpa
+// sempat kelihatan sama sekali.
 function tourStepsFor(sectionKey){
   const custom = TOUR_DEFS[sectionKey];
-  if(custom && custom.length) return custom;
   const meta = SECTIONS.find(s => s.key === sectionKey);
   const label = meta ? sectionLabel(meta) : 'halaman ini';
   const desc = meta ? (meta.desc || meta.sub) : '';
+  const fallbackStep = {sel:'#page-title', title:label, text: desc ? `${desc}. Beberapa tombol di tur ini mungkin nggak kelihatan tergantung status login/data — jelajahi tombol-tombol yang ada.` : `Halaman ${label} — jelajahi tombol-tombol yang ada di sini.`};
+  if(custom && custom.length) return [...custom, fallbackStep];
   return [
-    {sel:'#page-title', title:label, text: desc ? `${desc}. Belum ada tur detail langkah-per-langkah untuk menu ini, tapi kamu tetap bisa jelajahi tombol-tombol yang ada.` : `Halaman ${label} — jelajahi tombol-tombol yang ada di sini.`},
+    fallbackStep,
     {sel:'#content .panel-head, #content .panel', title:'Isi Halaman', text:'Di sinilah data & aksi buat menu ini ditampilkan.'},
   ];
 }

@@ -15,12 +15,12 @@ function renderDonatur(){
   const barangList = list.filter(d=>d.jenis==='barang');
   const total = list.reduce((s,d)=>s + (d.jenis==='barang' ? 0 : Number(d.jumlah||0)), 0);
   const isLoggedIn = !!getCurrentUser();
-  const rows = list.map(d=>`<tr${isLoggedIn ? ` class="row-clickable" onclick="openDonaturModal('${d.id}')"` : ''}><td>${fmtDateShort(d.tanggal)}</td><td>${esc(d.nama_donatur)}</td><td>${esc(d.keterangan||'-')}</td><td class="num">${donasiValueText(d)}</td>${isLoggedIn ? `<td style="text-align:right;">
+  const rows = list.map((d,idx)=>`<tr${isLoggedIn ? ` class="row-clickable" onclick="openDonaturModal('${d.id}')"` : ''}><td>${idx+1}</td><td>${fmtDateShort(d.tanggal)}</td><td>${esc(d.nama_donatur)}</td><td class="num">${donasiValueText(d)}</td>${isLoggedIn ? `<td style="text-align:right;">
     <button class="icon-btn" onclick="event.stopPropagation();hapusDonatur('${d.id}')">🗑</button>
   </td>` : ''}</tr>`).join('');
   return `<div class="stat-grid"><div class="stat-card pemasukan"><div class="lbl">Total Donasi (Uang)</div><div class="val">${fmtRp(total)}</div></div>${barangList.length ? `<div class="stat-card"><div class="lbl">Sumbangan Barang</div><div class="val">${barangList.length}</div></div>` : ''}</div>
   <div class="panel"><div class="panel-head"><h3>Daftar Donatur</h3>${isLoggedIn ? `<button class="btn" onclick="openDonaturModal()">+ Tambah</button>` : ''}</div>
-  <div class="panel-body flush"><table class="general-table tanggal-nominal-table"><thead><tr><th>Tanggal</th><th>Nama</th><th>Keterangan</th><th class="num">Donasi</th>${isLoggedIn ? '<th></th>' : ''}</tr></thead>
+  <div class="panel-body flush"><table class="general-table tanggal-nominal-table donatur-table"><thead><tr><th>No</th><th>Tanggal</th><th>Nama</th><th class="num">Donasi</th>${isLoggedIn ? '<th></th>' : ''}</tr></thead>
   <tbody>${rows||`<tr class="empty-row"><td colspan="${isLoggedIn?5:4}">Belum ada donasi.</td></tr>`}</tbody></table></div></div>`;
 }
 function toggleDonaturJenisFields(){

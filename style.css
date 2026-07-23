@@ -592,6 +592,24 @@
   table.transaksi-lain-table th:nth-child(4), table.transaksi-lain-table td:nth-child(4) { width:130px; }
   table.transaksi-lain-table th:nth-child(5), table.transaksi-lain-table td:nth-child(5) { width:44px; }
 
+  /* Daftar Donatur (No, Tanggal, Nama, Donasi, Aksi): No/Tanggal/Nama dibuat
+     seringkas mungkin (sesuai isinya, bukan persentase general-table biasa)
+     supaya kolom Donasi kebagian ruang paling lega — penting karena donasi
+     barang menampilkan teks qty+satuan+nama barang yang bisa cukup panjang.
+     Diletakkan setelah aturan .general-table di atas supaya menang di cascade
+     (spesifisitas selector-nya sama). */
+  table.donatur-table th:nth-child(1), table.donatur-table td:nth-child(1) {
+    width:34px; text-align:left; padding-left:14px; padding-right:6px;
+  }
+  table.donatur-table th:nth-child(2), table.donatur-table td:nth-child(2) {
+    width:80px; text-align:left; padding-left:6px; padding-right:8px; white-space:nowrap;
+  }
+  table.donatur-table th:nth-child(3), table.donatur-table td:nth-child(3) {
+    width:140px; text-align:left; padding-left:6px; padding-right:10px;
+  }
+  table.donatur-table th:nth-child(4), table.donatur-table td:nth-child(4) { width:auto; }
+  table.donatur-table th:nth-child(5), table.donatur-table td:nth-child(5) { width:44px; }
+
   /* Biaya Operasional: No, Tanggal, Keterangan, Satuan, QTY, Jumlah (+Aksi).
      Keterangan dapat porsi terbesar; No/Tanggal/Satuan/QTY dibuat ramping supaya
      Jumlah & Aksi tidak terdesak keluar di layar lebar. */
@@ -1665,6 +1683,13 @@
        kolom 1 & 2 perlu lebar sendiri di atas aturan tanggal-nominal-table umum. */
     table.transaksi-lain-table th:nth-child(1), table.transaksi-lain-table td:nth-child(1){ width:24px; min-width:0; white-space:nowrap; padding:8px 4px 8px 14px; text-align:left; }
     table.transaksi-lain-table th:nth-child(2), table.transaksi-lain-table td:nth-child(2){ width:58px; min-width:0; white-space:nowrap; padding:8px 4px; text-align:left; }
+
+    /* Daftar Donatur di HP: No/Tanggal/Nama diringkas seketat mungkin supaya
+       kolom Donasi (termasuk rincian donasi barang) kebagian lebar maksimal. */
+    table.donatur-table th:nth-child(1), table.donatur-table td:nth-child(1){ width:22px; min-width:0; white-space:nowrap; padding:8px 4px 8px 10px; text-align:left; }
+    table.donatur-table th:nth-child(2), table.donatur-table td:nth-child(2){ width:56px; min-width:0; white-space:nowrap; padding:8px 4px; text-align:left; }
+    table.donatur-table th:nth-child(3), table.donatur-table td:nth-child(3){ width:78px; min-width:0; padding:8px 4px; text-align:left; }
+    table.donatur-table th:nth-child(4), table.donatur-table td:nth-child(4){ width:auto; }
 
     /* --- Agenda Kegiatan: sembunyikan tabel geser, tampilkan kartu --- */
     .agenda-table-wrap{display:none;}

@@ -471,7 +471,7 @@ function getDanaSosialKasAutoEntries(){
       entries.push({
         id: `auto-ds-${y}-${b}`,
         tanggal,
-        keterangan: `Rekap Dana Sosial ${DANA_SOSIAL_BULAN_LABEL[b-1]} ${y} (setelah potongan konsumsi)`,
+        keterangan: `Rekap Dana Sosial ${DANA_SOSIAL_BULAN_LABEL[b-1]} ${y}`,
         debit: netBulan,
         kredit: 0,
         created_at: `${tanggal}T00:00:00.000Z`,

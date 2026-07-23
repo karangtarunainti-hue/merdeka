@@ -272,6 +272,11 @@ function konfirmasiPakaiLomba(groupKey, versionIdx, existingTargetId){
     count++;
   });
   saveDB();
+  // Lomba bertambah (atau perlengkapan baru masuk) → kebutuhan paket hadiah bisa berubah,
+  // sinkronkan stok yang harus dibeli — sama seperti yang dilakukan openLombaModal() di
+  // js/10-lomba.js. Sebelumnya jalur "Pakai Lomba Ini" ini terlewat, jadi badge kebutuhan
+  // hadiah tidak langsung update setelah bikin lomba baru dari Database Lomba.
+  autoSyncHadiahStok(true);
   closeModal();
   openLombaIds.add(targetLomba.id);
   goSection('lomba');

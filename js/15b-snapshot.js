@@ -19,7 +19,7 @@
    mengubah suatu baris, perubahan itu TIDAK ditimpa diam-diam —
    admin akan lihat toast peringatan & perlu muat ulang untuk cek).
 
-   RETENSI: cuma 3 snapshot terakhir yang disimpan (dipilih sendiri
+   RETENSI: cuma 10 snapshot terakhir yang disimpan (dipilih sendiri
    oleh admin Karang Taruna Inti). Konsekuensinya: kalau snapshot
    harian + pra-aksi terjadi beruntun dalam waktu berdekatan, yang
    paling lama otomatis kepental duluan — kalau butuh riwayat lebih
@@ -35,7 +35,7 @@
       dibatalkan lagi.
    ============================================================ */
 
-const SNAPSHOT_RETAIN = 3;
+const SNAPSHOT_RETAIN = 10;
 let snapshotList = [];
 let snapshotListLoaded = false;
 let snapshotListLoading = false;

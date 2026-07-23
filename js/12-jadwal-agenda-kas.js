@@ -433,8 +433,59 @@ function hapusAgenda(id){
    ============================================================ */
 function gKas(){ return db.kas; }
 
+// Baris OTOMATIS dari rekap bulanan Dana Sosial (lihat js/22-dana-sosial.js)
+// — TIDAK disimpan ke db.kas/Supabase sama sekali, cuma dihitung ulang tiap
+// kali Kas Organisasi dirender (makanya id-nya deterministik "auto-ds-TAHUN-BULAN",
+// dipakai sebagai anchor untuk kunci edit/hapus di UI, bukan buat disimpan).
+// Aturan sesuai keputusan:
+//  - HANYA anggota reguler (Perantauan sengaja TIDAK ikut — mereka bayar
+//    rapel setahun sekali dan dikelola manual kalau memang mau dicatat).
+//  - Nominalnya SALDO BERSIH reguler bulan itu (terkumpul dikurangi potongan
+//    konsumsi pertemuan Rp80rb) — potongan itu sendiri TIDAK dicatat sebagai
+//    baris terpisah di Kas (dianggap sudah dipakai langsung dari uang tunai
+//    pertemuan, tidak pernah masuk fisik ke kas organisasi).
+//  - Hanya bulan yang SUDAH BERJALAN (bukan proyeksi bulan depan) dan yang
+//    punya anggota wajib bayar (r.wajib > 0) yang diikutkan.
+//  - Kalau saldo bersih bulan itu <= 0 (terkumpul tidak menutup potongan),
+//    baris TIDAK dibuat sama sekali — tidak ada uang bersih yang masuk kas
+//    bulan itu, jadi tidak masuk akal dicatat sebagai pemasukan (apalagi
+//    sebagai pemasukan minus).
+//  - Baris ini DIKUNCI di UI (lihat renderKas): tidak ada tombol edit/hapus,
+//    cuma bisa berubah kalau data Dana Sosial sumbernya berubah (rekap
+//    dihitung ulang otomatis tiap render, tidak perlu sinkron manual).
+function getDanaSosialKasAutoEntries(){
+  if (typeof hitungRekapBulanDanaSosial !== 'function' || !Array.isArray(db.danaSosialAnggota) || db.danaSosialAnggota.length === 0) return [];
+  const now = new Date();
+  const tahunMulai = db.danaSosialAnggota.reduce((min, a) => {
+    const y = a.tanggal_gabung ? Number(a.tanggal_gabung.slice(0,4)) : now.getFullYear();
+    return Math.min(min, y);
+  }, now.getFullYear());
+  const entries = [];
+  for (let y = tahunMulai; y <= now.getFullYear(); y++){
+    const bulanAkhir = (y === now.getFullYear()) ? (now.getMonth() + 1) : 12;
+    for (let b = 1; b <= bulanAkhir; b++){
+      const r = hitungRekapBulanDanaSosial(y, b);
+      if (r.wajib === 0 || !r.sudahBerjalan) continue;
+      const netReguler = r.terkumpul - r.potongan;
+      if (netReguler <= 0) continue;
+      const tglAkhirBulan = new Date(y, b, 0).getDate();
+      const tanggal = `${y}-${String(b).padStart(2,'0')}-${String(tglAkhirBulan).padStart(2,'0')}`;
+      entries.push({
+        id: `auto-ds-${y}-${b}`,
+        tanggal,
+        keterangan: `Rekap Dana Sosial ${DANA_SOSIAL_BULAN_LABEL[b-1]} ${y} (reguler, setelah potongan konsumsi)`,
+        debit: netReguler,
+        kredit: 0,
+        created_at: `${tanggal}T00:00:00.000Z`,
+        _autoDanaSosial: true,
+      });
+    }
+  }
+  return entries;
+}
+
 function renderKas(){
-  const list = gKas().slice().sort((a,b) => (a.tanggal||'').localeCompare(b.tanggal||'') || (a.created_at||'').localeCompare(b.created_at||''));
+  const list = gKas().concat(getDanaSosialKasAutoEntries()).sort((a,b) => (a.tanggal||'').localeCompare(b.tanggal||'') || (a.created_at||'').localeCompare(b.created_at||''));
   const canKelola = canEditSection('kas');
   const totalDebit = list.reduce((s,k)=>s+Number(k.debit||0),0);
   const totalKredit = list.reduce((s,k)=>s+Number(k.kredit||0),0);
@@ -453,13 +504,13 @@ function renderKas(){
     <tr>
       <td data-label="No">${idx + 1}</td>
       <td data-label="Tanggal">${fmtDateShort(k.tanggal)}</td>
-      <td data-label="Keterangan">${esc(k.keterangan||'-')}</td>
+      <td data-label="Keterangan">${esc(k.keterangan||'-')}${k._autoDanaSosial ? ` <span class="lomba-badge" title="Otomatis dari rekap bulanan Dana Sosial (anggota reguler saja), tidak bisa diedit di sini"><i data-lucide="link" class="inline-icon"></i> Otomatis</span>` : ''}</td>
       <td data-label="Debit" class="num">${Number(k.debit||0)>0 ? fmtRp(k.debit) : '-'}</td>
       <td data-label="Kredit" class="num">${Number(k.kredit||0)>0 ? fmtRp(k.kredit) : '-'}</td>
       <td data-label="Saldo" class="num">${fmtRp(k._saldo)}</td>
       ${canKelola ? `<td class="kas-actions" style="text-align:right;white-space:nowrap;">
-        <button class="icon-btn" onclick="openKasModal('${k.id}')" title="Edit">✎</button>
-        <button class="icon-btn" onclick="hapusKas('${k.id}')" title="Hapus">🗑</button>
+        ${k._autoDanaSosial ? `<span class="icon-btn" style="opacity:.5; cursor:default;" title="Kelola lewat menu Dana Sosial">🔒</span>` : `<button class="icon-btn" onclick="openKasModal('${k.id}')" title="Edit">✎</button>
+        <button class="icon-btn" onclick="hapusKas('${k.id}')" title="Hapus">🗑</button>`}
       </td>` : ''}
     </tr>`).join('');
 
@@ -471,9 +522,9 @@ function renderKas(){
   // (lihat media query .kas-table-mobile di style.css) sehingga tampilan
   // jadi No, Keterangan, Debit, Kredit saja.
   const mobileRows = displayList.map((k, idx) => `
-    <tr${canKelola ? ` class="row-clickable" onclick="openKasModal('${k.id}')"` : ''}>
+    <tr${(canKelola && !k._autoDanaSosial) ? ` class="row-clickable" onclick="openKasModal('${k.id}')"` : ''}>
       <td data-label="No">${idx + 1}</td>
-      <td data-label="Keterangan">${esc(k.keterangan||'-')}</td>
+      <td data-label="Keterangan">${esc(k.keterangan||'-')}${k._autoDanaSosial ? ' 🔒' : ''}</td>
       <td data-label="Debit" class="num">${Number(k.debit||0)>0 ? fmtRp(k.debit) : '-'}</td>
       <td data-label="Kredit" class="num">${Number(k.kredit||0)>0 ? fmtRp(k.kredit) : '-'}</td>
       <td data-label="Saldo" class="num">${fmtRp(k._saldo)}</td>
@@ -512,6 +563,7 @@ function renderKas(){
 
 function openKasModal(id){
   if (!canEditSection('kas')) { toast(`⛔ Anda tidak memiliki akses untuk mengedit ${getOrgNamaKas()}`); return; }
+  if (id && String(id).startsWith('auto-ds-')) { toast('🔒 Baris ini otomatis dari rekap Dana Sosial, kelola di menu Dana Sosial'); return; }
   const editing = id ? db.kas.find(k=>k.id===id) : null;
   const editingJenis = editing ? (Number(editing.kredit||0) > 0 ? 'keluar' : 'masuk') : 'masuk';
   const editingJumlah = editing ? (editingJenis === 'masuk' ? editing.debit : editing.kredit) : 0;
@@ -556,6 +608,7 @@ function openKasModal(id){
 
 function hapusKas(id){
   if (!canEditSection('kas')) { toast(`⛔ Anda tidak memiliki akses untuk mengedit ${getOrgNamaKas()}`); return; }
+  if (id && String(id).startsWith('auto-ds-')) { toast('🔒 Baris ini otomatis dari rekap Dana Sosial, kelola di menu Dana Sosial'); return; }
   if(!confirm('Hapus transaksi kas ini?')) return;
   const k = db.kas.find(x=>x.id===id);
   db.kas = db.kas.filter(x=>x.id!==id);

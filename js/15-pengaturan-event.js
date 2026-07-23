@@ -212,6 +212,26 @@ function renderPengaturan(){
         <label class="btn secondary">⬆ Impor<input type="file" accept=".json" style="display:none;" onchange="kasImportJSON(this)"></label>
       </div>
     </div>
+    <div class="backup-row">
+      <div class="backup-info">
+        <div class="backup-title">🪙 Backup Dana Sosial</div>
+        <div class="backup-desc">Daftar anggota + rekap bayar bulanan. Eventless, tidak ikut Backup Per-Event — tapi IKUT ke Backup Semua Data. Impor akan <b>MENAMBAH</b> data, tidak menimpa.</div>
+      </div>
+      <div class="backup-actions">
+        <button class="btn secondary" onclick="danaSosialExportJSON()">⬇ Ekspor</button>
+        <label class="btn secondary">⬆ Impor<input type="file" accept=".json" style="display:none;" onchange="danaSosialImportJSON(this)"></label>
+      </div>
+    </div>
+    <div class="backup-row">
+      <div class="backup-info">
+        <div class="backup-title">🔗 Backup Tautan Penting</div>
+        <div class="backup-desc">Kumpulan link penting organisasi. Eventless, tidak ikut Backup Per-Event — tapi IKUT ke Backup Semua Data. Impor akan <b>MENAMBAH</b> data, tidak menimpa.</div>
+      </div>
+      <div class="backup-actions">
+        <button class="btn secondary" onclick="bookmarkExportJSON()">⬇ Ekspor</button>
+        <label class="btn secondary">⬆ Impor<input type="file" accept=".json" style="display:none;" onchange="bookmarkImportJSON(this)"></label>
+      </div>
+    </div>
   </div>`;
 }
 

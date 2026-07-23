@@ -98,3 +98,55 @@ function hapusBookmark(id){
   saveDB(); renderContent(); toast('Tautan dihapus');
   if(b) notifyTelegram(`🗑️ Hapus tautan: ${b.judul}`, `URL: ${b.url}`, 'umum');
 }
+
+/* ============================================================
+   BACKUP / RESTORE TAUTAN PENTING (dipanggil dari menu Pengaturan >
+   Cadangan Data, mengikuti pola kasExportJSON/kasImportJSON di
+   js/12-jadwal-agenda-kas.js). Impor MENAMBAH (upsert by id),
+   tidak menimpa/menghapus tautan yang sudah ada.
+   ============================================================ */
+function bookmarkExportJSON(){
+  const payload = {exportedAt: new Date().toISOString(), bookmark: db.bookmark};
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `tautan-penting-backup-${todayISO()}.json`;
+  a.click();
+  toast('✅ Backup Tautan Penting berhasil diekspor.');
+}
+function bookmarkImportJSON(input){
+  if(!canEditSection('bookmark')){ toast('🔒 Anda tidak memiliki akses untuk mengimpor data Tautan Penting.'); input.value=''; return; }
+  const file = input.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = async (e)=>{
+    try{
+      const parsed = JSON.parse(e.target.result);
+      if(!Array.isArray(parsed.bookmark)) throw new Error('Format file backup tidak dikenali.');
+      if(!confirm(`Import akan MENAMBAH ${parsed.bookmark.length} tautan baru (data lama tidak dihapus). Lanjutkan?`)) return;
+      toast('⏳ Mengimpor data...');
+      const rows = parsed.bookmark.map(b => ({
+        id: b.id || uid(),
+        judul: b.judul || '',
+        url: b.url || '',
+        deskripsi: b.deskripsi || '',
+      }));
+      const ins = await sb.from('kt_bookmark').upsert(rows, {onConflict:'id'});
+      if(ins.error) throw new Error(ins.error.message);
+
+      const res = await sb.from('kt_bookmark').select('*');
+      if(res.error) throw new Error(res.error.message);
+      db.bookmark = res.data || [];
+      _lastKnownIds['kt_bookmark'] = new Set(db.bookmark.map(r=>r.id));
+      _lastKnownUpdatedAt['kt_bookmark'] = new Map(db.bookmark.map(r=>[r.id, r.updated_at||null]));
+
+      toast('✅ Import selesai.');
+      renderContent();
+    }catch(err){
+      console.error(err);
+      toast('⛔ Gagal import: ' + err.message);
+    }
+    input.value = '';
+  };
+  reader.readAsText(file);
+}

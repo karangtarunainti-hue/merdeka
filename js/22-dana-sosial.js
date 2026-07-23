@@ -705,3 +705,84 @@ function konfirmasiImporDanaSosial(){
   toast(`✓ ${count} anggota diambil dari Database Anggota`);
   notifyTelegram(`📥 Ambil ${count} anggota Dana Sosial dari Database Anggota`, `Tanggal gabung: ${fmtDate(tanggal_gabung)}`, 'dana_sosial');
 }
+
+/* ============================================================
+   BACKUP / RESTORE DANA SOSIAL (dipanggil dari menu Pengaturan >
+   Cadangan Data, mengikuti pola kasExportJSON/kasImportJSON &
+   gudangExportJSON/gudangImportJSON di file lain).
+   Ekspor mengambil KEDUA tabel (anggota + rekap bayar) sekaligus
+   supaya satu file backup selalu lengkap & konsisten. Impor MENAMBAH
+   (upsert by id), tidak menimpa/menghapus data yang sudah ada.
+   ============================================================ */
+async function danaSosialExportJSON(){
+  const payload = {
+    exportedAt: new Date().toISOString(),
+    danaSosialAnggota: db.danaSosialAnggota,
+    danaSosialBayar: db.danaSosialBayar,
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `dana-sosial-backup-${todayISO()}.json`;
+  a.click();
+  toast('✅ Backup Dana Sosial berhasil diekspor.');
+}
+function danaSosialImportJSON(input){
+  if (!canEditSection('dana-sosial')) { toast('⛔ Anda tidak memiliki akses untuk mengimpor data Dana Sosial'); input.value=''; return; }
+  const file = input.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = async (e)=>{
+    try{
+      const parsed = JSON.parse(e.target.result);
+      if(!Array.isArray(parsed.danaSosialAnggota) || !Array.isArray(parsed.danaSosialBayar)) throw new Error('Format file backup tidak dikenali.');
+      if(!confirm(`Import akan MENAMBAH ${parsed.danaSosialAnggota.length} anggota dan ${parsed.danaSosialBayar.length} rekap bayar ke Dana Sosial (data lama tidak dihapus). Lanjutkan?`)) return;
+      toast('⏳ Mengimpor data...');
+
+      const anggotaRows = parsed.danaSosialAnggota.map(a => ({
+        id: a.id || uid(),
+        nama: a.nama || '',
+        tanggal_gabung: a.tanggal_gabung || todayISO(),
+        aktif: a.aktif !== false,
+        created_at: a.created_at || new Date().toISOString(),
+      }));
+      const insAnggota = await sb.from('kt_dana_sosial_anggota').upsert(anggotaRows, {onConflict:'id'});
+      if(insAnggota.error) throw new Error(insAnggota.error.message);
+
+      const bayarRows = parsed.danaSosialBayar.map(b => ({
+        id: b.id || uid(),
+        anggota_id: b.anggota_id,
+        tahun: Number(b.tahun),
+        bulan: Number(b.bulan),
+        lunas: !!b.lunas,
+        tanggal_bayar: b.tanggal_bayar || null,
+        diubah_oleh: b.diubah_oleh || null,
+        diubah_pada: b.diubah_pada || null,
+        created_at: b.created_at || new Date().toISOString(),
+      }));
+      const insBayar = await sb.from('kt_dana_sosial_bayar').upsert(bayarRows, {onConflict:'id'});
+      if(insBayar.error) throw new Error(insBayar.error.message);
+
+      const [resAnggota, resBayar] = await Promise.all([
+        sb.from('kt_dana_sosial_anggota').select('*'),
+        sb.from('kt_dana_sosial_bayar').select('*'),
+      ]);
+      if(resAnggota.error) throw new Error(resAnggota.error.message);
+      if(resBayar.error) throw new Error(resBayar.error.message);
+      db.danaSosialAnggota = resAnggota.data || [];
+      db.danaSosialBayar = resBayar.data || [];
+      _lastKnownIds['kt_dana_sosial_anggota'] = new Set(db.danaSosialAnggota.map(r=>r.id));
+      _lastKnownUpdatedAt['kt_dana_sosial_anggota'] = new Map(db.danaSosialAnggota.map(r=>[r.id, r.updated_at||null]));
+      _lastKnownIds['kt_dana_sosial_bayar'] = new Set(db.danaSosialBayar.map(r=>r.id));
+      _lastKnownUpdatedAt['kt_dana_sosial_bayar'] = new Map(db.danaSosialBayar.map(r=>[r.id, r.updated_at||null]));
+
+      toast('✅ Import selesai.');
+      renderContent();
+    }catch(err){
+      console.error(err);
+      toast('⛔ Gagal import: ' + err.message);
+    }
+    input.value = '';
+  };
+  reader.readAsText(file);
+}

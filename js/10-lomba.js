@@ -3,6 +3,7 @@
    ============================================================ */
 let openLombaIds = new Set();
 let lombaActiveTab = {};
+let _lombaModalEditingId = null; // null saat modal Tambah Lomba, diisi id saat Edit (dipakai buat matiin autofill dari nama tersimpan pas edit)
 function getLombaTab(id){ return lombaActiveTab[id] || 'kebutuhan'; }
 function setLombaTab(id, tab){ lombaActiveTab[id] = tab; renderContent(); }
 
@@ -354,12 +355,16 @@ function getLombaForJadwal(jadwalId){
 function openLombaModal(id){
   if (!canEditSection('lomba')) { toast('⛔ Login untuk mengedit data'); return; }
   const editing = id ? db.lomba.find(l=>l.id===id) : null;
+  _lombaModalEditingId = editing ? editing.id : null;
   const anggotaAwal = editing?(editing.jumlah_anggota_regu||1):1;
   const hadiahPerReguAwal = editing ? !!editing.hadiah_per_regu : false;
   const estimasiPesertaAwal = editing?(editing.estimasi_peserta||''):'';
   const tanggalAwal = editing?(editing.tanggal||''):'';
   const jamAwal = editing?(editing.jam||''):'';
-  setModal(editing?'Edit Lomba':'Tambah Lomba', `<div class="field"><label>Nama Lomba</label><input id="f-nama" value="${editing?esc(editing.nama):''}"></div><div class="field-row"><div class="field"><label>Tanggal Lomba (opsional)</label><input id="f-tanggal" type="date" value="${tanggalAwal}"></div><div class="field"><label>Jam (opsional)</label><input id="f-jam" type="time" value="${jamAwal}"></div></div><div class="hint" style="margin:-8px 0 14px;">Kalau tanggal diisi, otomatis dibuatkan/diperbarui pengingat di menu Jadwal & Reminder — lengkap dengan hari dan jamnya kalau diisi.</div><div class="field"><label>Kategori Peserta</label><select id="f-kategori">${KATEGORI_PESERTA.map(k=>`<option value="${k.v}" ${editing&&editing.kategori_peserta===k.v?'selected':''}>${k.l}</option>`).join('')}</select></div><div class="field"><label>Jumlah Anggota per Regu</label><input id="f-anggota" type="number" min="1" value="${anggotaAwal}" oninput="toggleHadiahPerReguHint()"><div class="hint">Isi 1 jika lomba perorangan. Jika lomba beregu (misal 1 regu = 5 orang), isi 5.</div></div><div class="field" id="f-hadiah-per-regu-wrap" style="display:${anggotaAwal>1?'block':'none'};"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" id="f-hadiah-per-regu" ${hadiahPerReguAwal?'checked':''} style="width:auto;"> Hadiah 1 paket untuk seluruh regu (bukan per anggota)</label><div class="hint">Dicentang: kebutuhan hadiah lomba ini dihitung 1 paket saja meski jumlah anggota regu lebih dari 1. Tidak dicentang (default): kebutuhan hadiah dikalikan jumlah anggota regu (tiap anggota dapat paket sendiri).</div></div><div class="field"><label>Estimasi Jumlah Peserta (opsional)</label><input id="f-estimasi-peserta" type="number" min="0" value="${estimasiPesertaAwal}" placeholder="mis. 30"><div class="hint">Cuma buat hitung otomatis kebutuhan hadiah PARTISIPASI (dibagi rata ke semua peserta, beda dari hadiah Juara 1-3 di atas). Kosongkan kalau hadiah partisipasi mau diatur manual seperti biasa. Kalau diisi, isi juga untuk lomba lain sekategori supaya totalnya akurat (yang belum diisi dianggap 0 peserta).</div></div>`, [
+  const namaGroupsAwal = (typeof dbLombaGroups==='function') ? dbLombaGroups() : [];
+  const namaDatalistHtml = `<datalist id="lomba-nama-datalist">${namaGroupsAwal.map(g=>`<option value="${esc(g.nama)}">`).join('')}</datalist>`;
+  const namaHintDefault = editing ? 'Ganti nama kalau perlu.' : 'Pilih dari daftar buat pakai data lomba lama (kategori, jumlah anggota, sampai daftar perlengkapan & harga terakhir ikut tersalin otomatis), atau ketik nama baru untuk buat lomba/database baru.';
+  setModal(editing?'Edit Lomba':'Tambah Lomba', `<div class="field"><label>Nama Lomba</label><input id="f-nama" list="lomba-nama-datalist" autocomplete="off" placeholder="Pilih dari daftar atau ketik nama baru" value="${editing?esc(editing.nama):''}" oninput="onLombaNamaInput(this.value)">${namaDatalistHtml}<div class="hint" id="f-nama-hint">${namaHintDefault}</div></div><div class="field-row"><div class="field"><label>Tanggal Lomba (opsional)</label><input id="f-tanggal" type="date" value="${tanggalAwal}"></div><div class="field"><label>Jam (opsional)</label><input id="f-jam" type="time" value="${jamAwal}"></div></div><div class="hint" style="margin:-8px 0 14px;">Kalau tanggal diisi, otomatis dibuatkan/diperbarui pengingat di menu Jadwal & Reminder — lengkap dengan hari dan jamnya kalau diisi.</div><div class="field"><label>Kategori Peserta</label><select id="f-kategori">${KATEGORI_PESERTA.map(k=>`<option value="${k.v}" ${editing&&editing.kategori_peserta===k.v?'selected':''}>${k.l}</option>`).join('')}</select></div><div class="field"><label>Jumlah Anggota per Regu</label><input id="f-anggota" type="number" min="1" value="${anggotaAwal}" oninput="toggleHadiahPerReguHint()"><div class="hint">Isi 1 jika lomba perorangan. Jika lomba beregu (misal 1 regu = 5 orang), isi 5.</div></div><div class="field" id="f-hadiah-per-regu-wrap" style="display:${anggotaAwal>1?'block':'none'};"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" id="f-hadiah-per-regu" ${hadiahPerReguAwal?'checked':''} style="width:auto;"> Hadiah 1 paket untuk seluruh regu (bukan per anggota)</label><div class="hint">Dicentang: kebutuhan hadiah lomba ini dihitung 1 paket saja meski jumlah anggota regu lebih dari 1. Tidak dicentang (default): kebutuhan hadiah dikalikan jumlah anggota regu (tiap anggota dapat paket sendiri).</div></div><div class="field"><label>Estimasi Jumlah Peserta (opsional)</label><input id="f-estimasi-peserta" type="number" min="0" value="${estimasiPesertaAwal}" placeholder="mis. 30"><div class="hint">Cuma buat hitung otomatis kebutuhan hadiah PARTISIPASI (dibagi rata ke semua peserta, beda dari hadiah Juara 1-3 di atas). Kosongkan kalau hadiah partisipasi mau diatur manual seperti biasa. Kalau diisi, isi juga untuk lomba lain sekategori supaya totalnya akurat (yang belum diisi dianggap 0 peserta).</div></div>`, [
     {label:'Batal', cls:'secondary', onclick:closeModal},
     {label:editing?'Simpan':'Tambah', cls:'', onclick:()=>{
       const nama=document.getElementById('f-nama').value.trim(); const kategori_peserta=document.getElementById('f-kategori').value; 
@@ -371,19 +376,65 @@ function openLombaModal(id){
       if(!nama){toast('Nama wajib');return;}
       let actionMsg = editing ? `✏️ Edit lomba: ${editing.nama} → ${nama}` : `➕ Lomba baru: ${nama}`;
       let lombaRecord;
+      let itemsDisalinCount = 0;
       if(editing){ 
         editing.nama=nama; editing.kategori_peserta=kategori_peserta; editing.tanggal=tanggal; editing.jam=jam; editing.jumlah_anggota_regu=jumlah_anggota_regu; editing.hadiah_per_regu=hadiah_per_regu; editing.estimasi_peserta=estimasi_peserta;
         lombaRecord = editing;
       }
-      else{ lombaRecord = {id:uid(),event_id:eid(),nama,kategori_peserta,tanggal,jam,jumlah_anggota_regu,hadiah_per_regu,estimasi_peserta,koordinator_anggota_id:null,koordinator_anggota_ids:[],jadwal_id:null}; db.lomba.push(lombaRecord); }
+      else{
+        lombaRecord = {id:uid(),event_id:eid(),nama,kategori_peserta,tanggal,jam,jumlah_anggota_regu,hadiah_per_regu,estimasi_peserta,koordinator_anggota_id:null,koordinator_anggota_ids:[],jadwal_id:null};
+        db.lomba.push(lombaRecord);
+        // Nama cocok riwayat Database Lomba? Salin juga perlengkapannya (harga & qty
+        // terakhir tercatat) supaya bener-bener "pakai data lomba lama", nggak cuma
+        // kategori/jumlah anggota — sama seperti tombol "Pakai Lomba Ini" di menu
+        // Database Lomba, tapi otomatis karena panitia sudah pilih nama itu di sini.
+        const groups = (typeof dbLombaGroups==='function') ? dbLombaGroups() : [];
+        const g = groups.find(x=>x.key===dbLombaNormKey(nama));
+        if(g){
+          const versi = g.versions[0];
+          (versi.items||[]).forEach(src=>{
+            const harga_estimasi = Number(src.harga_realisasi ?? src.harga_estimasi ?? 0);
+            db.lombaKebutuhan.push({id:uid(), lomba_id:lombaRecord.id, nama_item:src.nama_item, harga_estimasi, harga_realisasi:null, qty:src.qty});
+            itemsDisalinCount++;
+          });
+        }
+      }
       syncAgendaLomba(lombaRecord);
       saveDB();
       // Lomba bertambah/berubah → kebutuhan paket hadiah berubah, sinkronkan stok yang harus dibeli.
       autoSyncHadiahStok(true);
-      closeModal(); renderContent(); renderTopbarSaldo(); toast('Disimpan');
-      notifyTelegram(actionMsg, `Kategori: ${labelPeserta(kategori_peserta)}${tanggal?`\nJadwal: ${fmtDateJam(tanggal, jam)}`:''}\nAnggota/regu: ${jumlah_anggota_regu}${hadiah_per_regu?' (1 hadiah untuk seluruh regu)':''}${estimasi_peserta>0?`\nEstimasi peserta: ${estimasi_peserta}`:''}`, 'lomba');
+      closeModal(); renderContent(); renderTopbarSaldo();
+      toast(itemsDisalinCount>0 ? `✓ Disimpan — ${itemsDisalinCount} perlengkapan tersalin dari data lomba lama, cek lagi harga & qty-nya` : 'Disimpan');
+      notifyTelegram(actionMsg, `Kategori: ${labelPeserta(kategori_peserta)}${tanggal?`\nJadwal: ${fmtDateJam(tanggal, jam)}`:''}\nAnggota/regu: ${jumlah_anggota_regu}${hadiah_per_regu?' (1 hadiah untuk seluruh regu)':''}${estimasi_peserta>0?`\nEstimasi peserta: ${estimasi_peserta}`:''}${itemsDisalinCount>0?`\nPerlengkapan tersalin dari data lama: ${itemsDisalinCount} item (harga masih perlu dicek ulang)`:''}`, 'lomba');
     }}
   ]);
+}
+// Dipanggil tiap kali input Nama Lomba berubah. Kalau namanya cocok (case/spasi
+// diabaikan) sama salah satu nama di Database Lomba (gabungan lomba aktif + arsip,
+// lintas event — lihat dbLombaGroups() di js/10b-database-lomba.js), otomatis isi
+// Kategori Peserta & Jumlah Anggota Regu dari versi terakhirnya sebagai titik awal,
+// supaya panitia tinggal pakai/salin data lomba lama tanpa isi ulang dari nol.
+// Hanya jalan pas mode Tambah (bukan Edit), dan panitia tetap bebas ketik nama baru
+// buat bikin lomba/database lomba baru — datalist cuma nyaranin, bukan wajib pilih.
+function onLombaNamaInput(value){
+  const hintEl = document.getElementById('f-nama-hint');
+  if(_lombaModalEditingId){ if(hintEl) hintEl.textContent = 'Ganti nama kalau perlu.'; return; }
+  const groups = (typeof dbLombaGroups==='function') ? dbLombaGroups() : [];
+  const key = (typeof dbLombaNormKey==='function') ? dbLombaNormKey(value) : String(value||'').trim().toLowerCase();
+  const g = key ? groups.find(x=>x.key===key) : null;
+  if(g){
+    const versi = g.versions[0];
+    const kategoriEl = document.getElementById('f-kategori');
+    const anggotaEl = document.getElementById('f-anggota');
+    const hadiahEl = document.getElementById('f-hadiah-per-regu');
+    if(kategoriEl) kategoriEl.value = versi.kategoriPeserta;
+    if(anggotaEl){ anggotaEl.value = versi.jumlahAnggotaRegu||1; toggleHadiahPerReguHint(); }
+    if(hadiahEl) hadiahEl.checked = !!versi.hadiahPerRegu;
+    const jumlahItem = (versi.items||[]).length;
+    if(hintEl) hintEl.textContent = `📚 Nama ini pernah dipakai di ${g.versions.length} event (terakhir: ${versi.eventLabel}) — Kategori & Jumlah Anggota otomatis diisi, dan ${jumlahItem} perlengkapan dari data terakhir bakal ikut tersalin pas disimpan. Cek lagi harga & qty-nya nanti.`;
+  } else {
+    if(hintEl) hintEl.textContent = 'Pilih dari daftar buat pakai data lomba lama (kategori, jumlah anggota, sampai daftar perlengkapan & harga terakhir ikut tersalin otomatis), atau ketik nama baru untuk buat lomba/database baru.';
+  }
 }
 function toggleHadiahPerReguHint(){
   const anggota = Math.max(1, Number(document.getElementById('f-anggota').value||1));
@@ -392,13 +443,31 @@ function toggleHadiahPerReguHint(){
 }
 function hapusLomba(id){ 
   if (!canEditSection('lomba')) { toast('⛔ Login untuk mengedit data'); return; }
-  if(!confirm('Hapus lomba ini?')) return; 
+  if(!confirm('Hapus lomba ini?\n\nTenang, data lomba & perlengkapannya tetap tersimpan sebagai riwayat di menu Database Lomba.')) return; 
   const l = db.lomba.find(x=>x.id===id);
-  db.lombaHadiah=db.lombaHadiah.filter(lh=>lh.lomba_id!==id); 
   // Ambil dulu id kebutuhan sebelum di-filter, supaya baris status belanja
   // perlengkapan yang mereferensikannya bisa ikut dibersihkan (kalau tidak,
   // baris itu jadi orphan permanen di kt_daftar_belanja_perlengkapan).
-  const kebutuhanIds = db.lombaKebutuhan.filter(k=>k.lomba_id===id).map(k=>k.id);
+  const kebutuhanList = db.lombaKebutuhan.filter(k=>k.lomba_id===id);
+  const kebutuhanIds = kebutuhanList.map(k=>k.id);
+  // Arsipkan snapshot lomba+perlengkapannya SEBELUM dihapus, supaya Database
+  // Lomba (menu terpisah, lintas tahun) tetap punya riwayatnya selamanya —
+  // lihat catatan lengkap di defaultDB() (field lombaArsip) & 10b-database-lomba.js.
+  if(l){
+    const ev = db.events.find(e=>e.id===l.event_id) || null;
+    db.lombaArsip.push({
+      id: uid(),
+      nama: l.nama,
+      kategori_peserta: l.kategori_peserta,
+      jumlah_anggota_regu: l.jumlah_anggota_regu || 1,
+      hadiah_per_regu: !!l.hadiah_per_regu,
+      event_nama: ev ? ev.nama : null,
+      event_tahun: ev ? ev.tahun : null,
+      tanggal_arsip: todayISO(),
+      items: kebutuhanList.map(k=>({nama_item:k.nama_item, harga_estimasi:k.harga_estimasi, harga_realisasi:k.harga_realisasi, qty:k.qty}))
+    });
+  }
+  db.lombaHadiah=db.lombaHadiah.filter(lh=>lh.lomba_id!==id); 
   db.lombaKebutuhan=db.lombaKebutuhan.filter(k=>k.lomba_id!==id); 
   db.daftarBelanjaPerlengkapan = db.daftarBelanjaPerlengkapan.filter(b=>!kebutuhanIds.includes(b.kebutuhan_id));
   // Catatan: menghapus lomba TIDAK menurunkan qty_dibeli hadiah secara otomatis —
@@ -406,7 +475,7 @@ function hapusLomba(id){
   if(l && l.jadwal_id){ db.jadwal = db.jadwal.filter(j=>j.id!==l.jadwal_id); }
   db.lomba=db.lomba.filter(l=>l.id!==id); 
   saveDB(); renderContent(); renderTopbarSaldo();
-  if(l) notifyTelegram(`🗑️ Hapus lomba: ${l.nama}`, `Kategori: ${labelPeserta(l.kategori_peserta)}`, 'lomba');
+  if(l) notifyTelegram(`🗑️ Hapus lomba: ${l.nama}`, `Kategori: ${labelPeserta(l.kategori_peserta)}\nRiwayat & perlengkapannya masih tersimpan di Database Lomba.`, 'lomba');
 }
 function openKebutuhanModal(lombaId, kebutuhanId){ 
   if (!canEditSection('lomba')) { toast('⛔ Login untuk mengedit data'); return; }

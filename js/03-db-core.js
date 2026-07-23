@@ -69,6 +69,15 @@ function defaultDB(){
     operasional: [],
     lomba: [],
     lombaKebutuhan: [],
+    // Arsip Lomba — snapshot lomba+perlengkapan yang dibuat OTOMATIS saat
+    // sebuah lomba dihapus lewat menu Lomba & Perlengkapan (lihat hapusLomba()
+    // di js/10-lomba.js). Tujuannya supaya Database Lomba (js/10b-database-lomba.js)
+    // tetap punya riwayat lomba tsb SELAMANYA walau data aslinya di kt_lomba/
+    // kt_lomba_kebutuhan sudah dihapus. Baris di sini TIDAK terikat foreign key
+    // ke kt_lomba/kt_events manapun (semua datanya "beku"/snapshot, termasuk
+    // nama event & tahun saat itu) — supaya tetap aman disimpan walau lomba
+    // atau bahkan event-nya sudah tidak ada lagi. Lihat supabase-lomba-arsip-migration.sql.
+    lombaArsip: [],
     hadiahKategori: [],
     lombaHadiah: [],
     daftarBelanjaHadiah: [],
@@ -141,6 +150,7 @@ const ARRAY_TABLE_MAP = {
   operasional: 'kt_operasional',
   lomba: 'kt_lomba',
   lombaKebutuhan: 'kt_lomba_kebutuhan',
+  lombaArsip: 'kt_lomba_arsip',
   hadiahKategori: 'kt_hadiah_kategori',
   lombaHadiah: 'kt_lomba_hadiah',
   daftarBelanjaHadiah: 'kt_daftar_belanja_hadiah',

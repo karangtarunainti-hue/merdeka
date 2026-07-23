@@ -246,7 +246,7 @@ async function hapusUser(id) {
     toast('⛔ Tidak bisa menghapus Admin terakhir — angkat admin lain dulu');
     return;
   }
-  if (!confirm(`Hapus user "${user?.name}"?`)) return;
+  if (!(await confirmModal(`Hapus user "${user?.name}"?`))) return;
 
   const { error } = await sb.rpc('rpc_delete_user', { p_id: id });
   if (error) { console.error('Gagal menghapus user:', error); toast(`⚠️ ${error.message || 'Gagal menghapus user'}`); return; }

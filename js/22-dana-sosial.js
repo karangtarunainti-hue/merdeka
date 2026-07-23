@@ -518,7 +518,7 @@ async function toggleDanaSosialBayar(anggotaId, tahun, bulan){
   let rec = getDanaSosialBayar(anggotaId, tahun, bulan);
   if (rec && rec.lunas){
     const jejak = rec.diubah_oleh ? ` Terakhir ditandai oleh ${rec.diubah_oleh}${rec.tanggal_bayar?` (${fmtDate(rec.tanggal_bayar)})`:''}.` : '';
-    if (!confirm(`Batalkan status LUNAS "${anggota.nama}" untuk ${DANA_SOSIAL_BULAN_LABEL[bulan-1]} ${tahun}?${jejak}\n\nTindakan ini tercatat atas nama Anda.`)) return;
+    if (!(await confirmModal(`Batalkan status LUNAS "${anggota.nama}" untuk ${DANA_SOSIAL_BULAN_LABEL[bulan-1]} ${tahun}?${jejak}\n\nTindakan ini tercatat atas nama Anda.`))) return;
     rec.lunas = false;
     rec.tanggal_bayar = null;
     rec.diubah_oleh = namaUserDanaSosial();
@@ -571,21 +571,21 @@ function openDanaSosialAnggotaModal(id){
 // tabel Daftar Bayar & Rekap Bulanan (lihat isWajibDanaSosial), tapi masih
 // kelihatan (pudar + label "Nonaktif") di tab Kelola Anggota dan bisa
 // diaktifkan lagi kapan saja lewat tombol yang sama.
-function toggleAktifDanaSosialAnggota(id){
+async function toggleAktifDanaSosialAnggota(id){
   if (!canEditSection('dana-sosial')) { toast('⛔ Anda tidak memiliki akses untuk mengedit Dana Sosial'); return; }
   const a = db.danaSosialAnggota.find(x => x.id === id); if (!a) return;
   const jadiAktif = a.aktif === false; // sebelumnya nonaktif -> aktifkan, sebaliknya nonaktifkan
-  if (!jadiAktif && !confirm(`Nonaktifkan "${a.nama}" dari Dana Sosial? Anggota ini akan hilang dari tabel Daftar Bayar & Rekap Bulanan, tapi riwayat bayarnya tetap tersimpan dan bisa diaktifkan lagi kapan saja.`)) return;
+  if (!jadiAktif && !(await confirmModal(`Nonaktifkan "${a.nama}" dari Dana Sosial? Anggota ini akan hilang dari tabel Daftar Bayar & Rekap Bulanan, tapi riwayat bayarnya tetap tersimpan dan bisa diaktifkan lagi kapan saja.`))) return;
   a.aktif = jadiAktif;
   saveDB(); renderContent();
   toast(jadiAktif ? `✓ ${a.nama} diaktifkan kembali` : `⏸ ${a.nama} dinonaktifkan`);
   notifyTelegram(jadiAktif ? `↩️ Aktifkan kembali anggota Dana Sosial: ${a.nama}` : `⏸ Nonaktifkan anggota Dana Sosial: ${a.nama}`, 'dana_sosial');
 }
 
-function hapusDanaSosialAnggota(id){
+async function hapusDanaSosialAnggota(id){
   if (!canEditSection('dana-sosial')) { toast('⛔ Anda tidak memiliki akses untuk mengedit Dana Sosial'); return; }
   const a = db.danaSosialAnggota.find(x => x.id === id); if (!a) return;
-  if (!confirm(`Hapus "${a.nama}" dari Dana Sosial? Semua riwayat bayar bulanan anggota ini juga akan ikut terhapus.`)) return;
+  if (!(await confirmModal(`Hapus "${a.nama}" dari Dana Sosial? Semua riwayat bayar bulanan anggota ini juga akan ikut terhapus.`))) return;
   db.danaSosialAnggota = db.danaSosialAnggota.filter(x => x.id !== id);
   db.danaSosialBayar = db.danaSosialBayar.filter(b => b.anggota_id !== id);
   saveDB(); renderContent();
@@ -736,7 +736,7 @@ function danaSosialImportJSON(input){
     try{
       const parsed = JSON.parse(e.target.result);
       if(!Array.isArray(parsed.danaSosialAnggota) || !Array.isArray(parsed.danaSosialBayar)) throw new Error('Format file backup tidak dikenali.');
-      if(!confirm(`Import akan MENAMBAH ${parsed.danaSosialAnggota.length} anggota dan ${parsed.danaSosialBayar.length} rekap bayar ke Dana Sosial (data lama tidak dihapus). Lanjutkan?`)) return;
+      if(!(await confirmModal(`Import akan MENAMBAH ${parsed.danaSosialAnggota.length} anggota dan ${parsed.danaSosialBayar.length} rekap bayar ke Dana Sosial (data lama tidak dihapus). Lanjutkan?`))) return;
       toast('⏳ Mengimpor data...');
 
       const anggotaRows = parsed.danaSosialAnggota.map(a => ({

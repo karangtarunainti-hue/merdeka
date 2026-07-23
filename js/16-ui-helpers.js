@@ -105,6 +105,34 @@ function promptModal({title, label, hint, defaultValue, type='text', okLabel='OK
 }
 
 /* ============================================================
+   CONFIRM MODAL — pengganti window.confirm() bawaan browser (yang
+   tampilannya "native", menampilkan nama domain, & tidak bisa
+   di-style) dengan modal ber-tema app sendiri, pakai overlay/setModal
+   yang sudah ada (sama seperti promptModal di atas).
+   Dipakai dgn async/await, contoh:
+     if(!(await confirmModal('Hapus data ini?'))) return;
+   Opsional: confirmModal(pesan, {title, okLabel, cancelLabel, danger})
+   - pesan boleh berisi '\n\n' (jadi paragraf terpisah) & '\n' biasa
+     (jadi line-break dalam paragraf yang sama).
+   - danger:true (default) bikin tombol OK pakai style merah, karena
+     hampir semua confirm() di app ini untuk aksi hapus/berisiko.
+   ============================================================ */
+function confirmModal(message, {title='Konfirmasi', okLabel='OK', cancelLabel='Batal', danger=true}={}){
+  return new Promise((resolve) => {
+    const paragraf = String(message??'').split('\n\n')
+      .map(p => `<p style="margin:0 0 10px;white-space:pre-line;line-height:1.5;">${esc(p)}</p>`)
+      .join('');
+    let resolved = false;
+    const finish = (val) => { if(resolved) return; resolved = true; closeModal(); resolve(val); };
+    setModal(title, `<div class="confirm-body">${paragraf}</div>`, [
+      {label:cancelLabel, cls:'secondary', onclick:()=>finish(false)},
+      {label:okLabel, cls:danger?'danger':'', onclick:()=>finish(true)}
+    ]);
+    setTimeout(()=>{ document.querySelector('#modal-foot .btn:not(.secondary)')?.focus(); }, 60);
+  });
+}
+
+/* ============================================================
    FUNGSI HITUNG BUKU UTAMA
    ============================================================ */
 function hitungBukuUtama(){

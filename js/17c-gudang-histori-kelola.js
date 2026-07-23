@@ -156,8 +156,8 @@ async function gudangDeleteAllHistory(){
   const belumSelesai = gudangTransactions.length - selesai.length;
   if(selesai.length===0){ toast('Tidak ada riwayat berstatus "Selesai" yang bisa dihapus.'); return; }
   const ket = belumSelesai>0 ? `\n\n(${belumSelesai} transaksi Aktif/Bermasalah akan tetap disimpan.)` : '';
-  if(!confirm(`Hapus ${selesai.length} riwayat peminjaman berstatus "Selesai"? Tindakan ini tidak dapat dibatalkan.${ket}`)) return;
-  if(!confirm('Konfirmasi sekali lagi: riwayat akan dihapus permanen dari server. Lanjutkan?')) return;
+  if(!(await confirmModal(`Hapus ${selesai.length} riwayat peminjaman berstatus "Selesai"? Tindakan ini tidak dapat dibatalkan.${ket}`))) return;
+  if(!(await confirmModal('Konfirmasi sekali lagi: riwayat akan dihapus permanen dari server. Lanjutkan?'))) return;
   const idList = selesai.map(t=>t.id);
   try{
     await sb.from('kt_gudang_transaction_items').delete().in('transaction_id', idList);
@@ -319,7 +319,7 @@ async function gudangDeleteStok(id){
   if(!gudangCanKelola()){ toast('🔒 Hanya admin yang dapat mengelola aset.'); return; }
   const item = gudangInventory.find(i=>i.id===id);
   if(!item) return;
-  if(!confirm(`Nonaktifkan "${item.nama}" dari inventaris aktif? Riwayat peminjaman lama tetap aman.`)) return;
+  if(!(await confirmModal(`Nonaktifkan "${item.nama}" dari inventaris aktif? Riwayat peminjaman lama tetap aman.`, {danger:false}))) return;
   try{
     const upd = await sb.from('kt_gudang_inventory').update({is_active:false}).eq('id', id);
     if(upd.error) throw new Error(upd.error.message);
@@ -369,7 +369,7 @@ function gudangImportJSON(input){
     try{
       const parsed = JSON.parse(e.target.result);
       if(!parsed.inventory || !parsed.transactions) throw new Error('Format file backup tidak dikenali.');
-      if(!confirm(`Import akan menambah/menimpa ${parsed.inventory.length} aset dan ${parsed.transactions.length} transaksi ke database. Lanjutkan?`)) return;
+      if(!(await confirmModal(`Import akan menambah/menimpa ${parsed.inventory.length} aset dan ${parsed.transactions.length} transaksi ke database. Lanjutkan?`))) return;
       toast('⏳ Mengimpor data...');
 
       // Seluruh proses import (semua aset + transaksi + item) dilakukan ATOMIK

@@ -90,9 +90,9 @@ function openBookmarkModal(id){
   ]);
 }
 
-function hapusBookmark(id){
+async function hapusBookmark(id){
   if (!canEditSection('bookmark')) { toast('⛔ Login untuk mengedit data'); return; }
-  if(!confirm('Hapus tautan ini?')) return;
+  if(!(await confirmModal('Hapus tautan ini?'))) return;
   const b = db.bookmark.find(x=>x.id===id);
   db.bookmark = db.bookmark.filter(x=>x.id!==id);
   saveDB(); renderContent(); toast('Tautan dihapus');
@@ -123,7 +123,7 @@ function bookmarkImportJSON(input){
     try{
       const parsed = JSON.parse(e.target.result);
       if(!Array.isArray(parsed.bookmark)) throw new Error('Format file backup tidak dikenali.');
-      if(!confirm(`Import akan MENAMBAH ${parsed.bookmark.length} tautan baru (data lama tidak dihapus). Lanjutkan?`)) return;
+      if(!(await confirmModal(`Import akan MENAMBAH ${parsed.bookmark.length} tautan baru (data lama tidak dihapus). Lanjutkan?`))) return;
       toast('⏳ Mengimpor data...');
       const rows = parsed.bookmark.map(b => ({
         id: b.id || uid(),

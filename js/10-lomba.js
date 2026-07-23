@@ -449,7 +449,7 @@ function openLombaModal(id){
   const namaHintDefault = editing ? 'Ganti nama kalau perlu.' : 'Pilih lomba dari daftar yang sudah ada atau buat lomba baru.';
   setModal(editing?'Edit Lomba':'Tambah Lomba', `<div class="field combo" style="position:relative;"><label>Nama Lomba</label><input id="f-nama" type="text" autocomplete="off" placeholder="Pilih dari daftar atau ketik nama baru" value="${editing?esc(editing.nama):''}" oninput="onLombaNamaInput(this.value)" onfocus="openLombaNamaCombo()"><div class="hint" id="f-nama-hint">${namaHintDefault}</div></div><div class="field-row"><div class="field"><label>Tanggal Lomba (opsional)</label><input id="f-tanggal" type="date" value="${tanggalAwal}"></div><div class="field"><label>Jam (opsional)</label><input id="f-jam" type="time" value="${jamAwal}"></div></div><div class="hint" style="margin:-8px 0 14px;">Kalau tanggal diisi, otomatis dibuatkan/diperbarui pengingat di menu Jadwal & Reminder — lengkap dengan hari dan jamnya kalau diisi.</div><div class="field"><label>Kategori Peserta</label><select id="f-kategori">${KATEGORI_PESERTA.map(k=>`<option value="${k.v}" ${editing&&editing.kategori_peserta===k.v?'selected':''}>${k.l}</option>`).join('')}</select></div><div class="field"><label>Jumlah Anggota per Regu</label><input id="f-anggota" type="number" min="1" value="${anggotaAwal}" oninput="toggleHadiahPerReguHint()"><div class="hint">Isi 1 jika lomba perorangan. Jika lomba beregu (misal 1 regu = 5 orang), isi 5.</div></div><div class="field" id="f-hadiah-per-regu-wrap" style="display:${anggotaAwal>1?'block':'none'};"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" id="f-hadiah-per-regu" ${hadiahPerReguAwal?'checked':''} style="width:auto;"> Hadiah 1 paket untuk seluruh regu (bukan per anggota)</label><div class="hint">Dicentang: kebutuhan hadiah lomba ini dihitung 1 paket saja meski jumlah anggota regu lebih dari 1. Tidak dicentang (default): kebutuhan hadiah dikalikan jumlah anggota regu (tiap anggota dapat paket sendiri).</div></div><div class="field"><label>Estimasi Jumlah Peserta (opsional)</label><input id="f-estimasi-peserta" type="number" min="0" value="${estimasiPesertaAwal}" placeholder="mis. 30"><div class="hint">Cuma buat hitung otomatis kebutuhan hadiah PARTISIPASI (dibagi rata ke semua peserta, beda dari hadiah Juara 1-3 di atas). Kosongkan kalau hadiah partisipasi mau diatur manual seperti biasa. Kalau diisi, isi juga untuk lomba lain sekategori supaya totalnya akurat (yang belum diisi dianggap 0 peserta).</div></div>`, [
     {label:'Batal', cls:'secondary', onclick:closeModal},
-    {label:editing?'Simpan':'Tambah', cls:'', onclick:()=>{
+    {label:editing?'Simpan':'Tambah', cls:'', onclick:async ()=>{
       const nama=document.getElementById('f-nama').value.trim(); const kategori_peserta=document.getElementById('f-kategori').value; 
       const tanggal = document.getElementById('f-tanggal').value || null;
       const jam = document.getElementById('f-jam').value || null;
@@ -466,7 +466,7 @@ function openLombaModal(id){
       if(!editing){
         const existingSama = gLomba().find(l=>dbLombaNormKey(l.nama)===dbLombaNormKey(nama));
         if(existingSama){
-          const lanjut = confirm(`⚠️ Lomba "${existingSama.nama}" dengan nama yang sama udah ada di event aktif.\n\nKalau maksudnya nambah perlengkapan buat lomba itu, batalkan dulu lalu buka lomba yang sudah ada itu lewat menu Lomba & Perlengkapan (biar nggak kepisah jadi 2 entri).\n\nKalau memang sengaja mau bikin lomba terpisah dengan nama sama (misal kategori pesertanya beda), lanjutkan simpan?`);
+          const lanjut = await confirmModal(`⚠️ Lomba "${existingSama.nama}" dengan nama yang sama udah ada di event aktif.\n\nKalau maksudnya nambah perlengkapan buat lomba itu, batalkan dulu lalu buka lomba yang sudah ada itu lewat menu Lomba & Perlengkapan (biar nggak kepisah jadi 2 entri).\n\nKalau memang sengaja mau bikin lomba terpisah dengan nama sama (misal kategori pesertanya beda), lanjutkan simpan?`, {danger:false});
           if(!lanjut) return;
         }
       }
@@ -553,9 +553,9 @@ function toggleHadiahPerReguHint(){
   const wrap = document.getElementById('f-hadiah-per-regu-wrap');
   if(wrap) wrap.style.display = anggota>1 ? 'block' : 'none';
 }
-function hapusLomba(id){ 
+async function hapusLomba(id){ 
   if (!canEditSection('lomba')) { toast('⛔ Login untuk mengedit data'); return; }
-  if(!confirm('Hapus lomba ini?\n\nTenang, data lomba & perlengkapannya tetap tersimpan sebagai riwayat di menu Database Lomba.')) return; 
+  if(!(await confirmModal('Hapus lomba ini?\n\nTenang, data lomba & perlengkapannya tetap tersimpan sebagai riwayat di menu Database Lomba.'))) return; 
   const l = db.lomba.find(x=>x.id===id);
   // Ambil dulu id kebutuhan sebelum di-filter, supaya baris status belanja
   // perlengkapan yang mereferensikannya bisa ikut dibersihkan (kalau tidak,
@@ -617,9 +617,9 @@ function openKebutuhanModal(lombaId, kebutuhanId){
   ]);
   setTimeout(setupAllCurrencyInputs, 50);
 }
-function hapusKebutuhan(id){ 
+async function hapusKebutuhan(id){ 
   if (!canEditSection('lomba')) { toast('⛔ Login untuk mengedit data'); return; }
-  if(!confirm('Hapus item?')) return; 
+  if(!(await confirmModal('Hapus item?'))) return; 
   const k=db.lombaKebutuhan.find(x=>x.id===id); 
   db.lombaKebutuhan=db.lombaKebutuhan.filter(x=>x.id!==id); 
   // Ikut hapus baris status belanja perlengkapan yang mereferensikan item ini,
@@ -676,7 +676,7 @@ function isItemHadiahSudahDibeli(hadiahId, itemId){
 // Cepat turunkan qty_dibeli 1 item persis ke kebutuhan (target) saat ini — dipakai
 // dari tombol "↓ Sesuaikan" di card Stok Lebih, alternatif lebih cepat dibanding
 // buka modal edit item satu-satu.
-function turunkanStokHadiahKeKebutuhan(hadiahId, itemId){
+async function turunkanStokHadiahKeKebutuhan(hadiahId, itemId){
   if (!canEditSection('hadiah')) { toast('⛔ Login untuk mengedit data'); return; }
   const h = db.hadiahKategori.find(x=>x.id===hadiahId);
   const item = h && h.items.find(it=>it.id===itemId);
@@ -686,7 +686,7 @@ function turunkanStokHadiahKeKebutuhan(hadiahId, itemId){
   const dibeliSebelum = Number(item.qty_dibeli||0);
   if(target==null || dibeliSebelum <= target){ toast('Tidak ada kelebihan lagi'); renderContent(); return; }
   if(isItemHadiahSudahDibeli(hadiahId, itemId)){
-    if(!confirm(`⚠️ "${item.nama}" sudah dicentang DIBELI di Daftar Belanja.\n\nMenurunkan qty di sini cuma mengubah angka kebutuhan (target), bukan barang fisik yang sudah dibeli — cek dulu apakah memang mau dikembalikan/dijual lagi kelebihannya. Lanjutkan?`)) return;
+    if(!(await confirmModal(`⚠️ "${item.nama}" sudah dicentang DIBELI di Daftar Belanja.\n\nMenurunkan qty di sini cuma mengubah angka kebutuhan (target), bukan barang fisik yang sudah dibeli — cek dulu apakah memang mau dikembalikan/dijual lagi kelebihannya. Lanjutkan?`))) return;
   }
   item.qty_dibeli = target;
   saveDB(); renderContent(); renderTopbarSaldo();
@@ -1041,7 +1041,7 @@ function openHadiahModal(id){
   // closeAfter=true menutup modal seperti biasa, closeAfter=false membuka ulang
   // modal ini dalam mode Edit (paket yang baru saja disimpan) supaya form item
   // kosong lagi dan siap diisi item berikutnya tanpa perlu buka modal dari awal.
-  const doSaveHadiah = (closeAfter) => {
+  const doSaveHadiah = async (closeAfter) => {
       const kategori_peserta=document.getElementById('f-kp').value; const juara_ke=document.getElementById('f-juara').value;
       const paketLain = gHadiahKategori().find(h=>h.kategori_peserta===kategori_peserta && h.juara_ke===juara_ke && (!editing || h.id!==editing.id));
       if(paketLain){
@@ -1065,7 +1065,7 @@ function openHadiahModal(id){
         items.push({id,nama,harga_satuan,qty_dibeli,qty_per_paket,qty_terpakai,...extra});}});
       if(items.length===0){
         if(!comboUnchanged){ toast('Minimal 1 item'); return; }
-        if(!confirm(`Semua item dikosongkan. Paket hadiah ${labelPeserta(kategori_peserta)} - ${labelJuara(juara_ke)} akan DIHAPUS. Lanjutkan?`)) return;
+        if(!(await confirmModal(`Semua item dikosongkan. Paket hadiah ${labelPeserta(kategori_peserta)} - ${labelJuara(juara_ke)} akan DIHAPUS. Lanjutkan?`))) return;
         db.hadiahKategori = db.hadiahKategori.filter(x=>x.id!==editing.id);
         saveDB(); closeModal(); renderContent(); renderTopbarSaldo(); toast('🗑️ Paket hadiah dihapus');
         notifyTelegram(`🗑️ Hapus paket hadiah ${labelPeserta(kategori_peserta)} - ${labelJuara(juara_ke)}`, 'Semua item dikosongkan dari form edit', 'lomba');
@@ -1248,18 +1248,18 @@ async function editHadiahItem(hadiahId,itemId){
   if(newQty===null) return;
   if(!newNama.trim()||Number(newQty)<0){toast('Nama & qty wajib');return;}
   const namaMirip = cariNamaItemHadiahMirip(newNama.trim(), hadiahId, itemId);
-  if(namaMirip && !confirm(`⚠️ Barang mirip terdeteksi: "${namaMirip}"\n\nNama "${newNama.trim()}" ini mirip tapi tidak identik dengan barang yang sudah ada. Kalau maksudnya barang yang SAMA, batalkan lalu ketik ulang persis "${namaMirip}" supaya otomatis tergabung di satu checklist.\n\nKalau memang barang beda, lanjutkan simpan?`)) return;
+  if(namaMirip && !(await confirmModal(`⚠️ Barang mirip terdeteksi: "${namaMirip}"\n\nNama "${newNama.trim()}" ini mirip tapi tidak identik dengan barang yang sudah ada. Kalau maksudnya barang yang SAMA, batalkan lalu ketik ulang persis "${namaMirip}" supaya otomatis tergabung di satu checklist.\n\nKalau memang barang beda, lanjutkan simpan?`))) return;
   if(Number(newQty)!==Number(item.qty_dibeli||0) && isItemHadiahSudahDibeli(hadiahId, itemId)){
-    if(!confirm(`⚠️ "${item.nama}" sudah dicentang DIBELI di Daftar Belanja.\n\nQty di sini cuma angka kebutuhan (target), bukan barang fisik yang sudah dibeli — ubah kalau memang sudah dicek ulang. Lanjutkan?`)) return;
+    if(!(await confirmModal(`⚠️ "${item.nama}" sudah dicentang DIBELI di Daftar Belanja.\n\nQty di sini cuma angka kebutuhan (target), bukan barang fisik yang sudah dibeli — ubah kalau memang sudah dicek ulang. Lanjutkan?`))) return;
   }
   item.nama=newNama.trim(); item.harga_satuan=Number(newHarga)||0; item.qty_per_paket=Math.max(1,Number(newPerPaket)||1); item.qty_dibeli=Number(newQty)||0;
   const samaCount = samakanHargaItemSejenis(item.nama, item.harga_satuan, item.id);
   saveDB(); renderContent(); toast(samaCount>0?`Diupdate, harga disamakan ke ${samaCount} item "${item.nama}" lainnya`:'Diupdate'); 
   notifyTelegram(`✏️ Edit item hadiah: ${item.nama}`, `Paket: ${labelPeserta(h.kategori_peserta)} - ${labelJuara(h.juara_ke)}\nHarga: ${fmtRp(item.harga_satuan)}\nQty: ${item.qty_dibeli}${item.qty_per_paket>1?` (${item.qty_per_paket} buah per paket)`:''}`, 'lomba');
 }
-function hapusHadiahItem(hadiahId,itemId){ 
+async function hapusHadiahItem(hadiahId,itemId){ 
   if (!canEditSection('hadiah')) { toast('⛔ Login untuk mengedit data'); return; }
-  const h=db.hadiahKategori.find(x=>x.id===hadiahId); const itemIdx=h ? h.items.findIndex(it=>it.id===itemId) : -1; if(itemIdx===-1){ toast('Item tidak ditemukan'); return; } const itemName = h.items[itemIdx].nama; if(!confirm(`Hapus "${itemName}"?`)) return; h.items.splice(itemIdx,1); const paketHabis = h.items.length===0; if(paketHabis) db.hadiahKategori=db.hadiahKategori.filter(x=>x.id!==hadiahId);
+  const h=db.hadiahKategori.find(x=>x.id===hadiahId); const itemIdx=h ? h.items.findIndex(it=>it.id===itemId) : -1; if(itemIdx===-1){ toast('Item tidak ditemukan'); return; } const itemName = h.items[itemIdx].nama; if(!(await confirmModal(`Hapus "${itemName}"?`))) return; h.items.splice(itemIdx,1); const paketHabis = h.items.length===0; if(paketHabis) db.hadiahKategori=db.hadiahKategori.filter(x=>x.id!==hadiahId);
   // Ikut hapus status belanja yang mereferensikan item ini (dan seluruh paket kalau
   // paketnya ikut terhapus karena sudah kosong), supaya tidak jadi orphan permanen
   // di kt_daftar_belanja_hadiah.
@@ -1267,19 +1267,19 @@ function hapusHadiahItem(hadiahId,itemId){
   saveDB(); renderContent(); toast('Dihapus'); 
   notifyTelegram(`🗑️ Hapus item hadiah: ${itemName}`, `Paket: ${labelPeserta(h.kategori_peserta)} - ${labelJuara(h.juara_ke)}`, 'lomba');
 }
-function tambahItemHadiah(hadiahId, kebutuhan){ 
+async function tambahItemHadiah(hadiahId, kebutuhan){ 
   if (!canEditSection('hadiah')) { toast('⛔ Login untuk mengedit data'); return; }
   const h=db.hadiahKategori.find(x=>x.id===hadiahId); if(!h) return; const nama=document.getElementById(`add-item-name-${hadiahId}`).value.trim(); const harga=getCurrencyValue(document.getElementById(`add-item-price-${hadiahId}`)); const perPaketEl=document.getElementById(`add-item-perpaket-${hadiahId}`); const qtyPerPaket=Math.max(1,Number((perPaketEl&&perPaketEl.value)||1)); if(!nama){toast('Nama wajib diisi');return;}
   const namaMirip = cariNamaItemHadiahMirip(nama, null, null);
-  if(namaMirip && !confirm(`⚠️ Barang mirip terdeteksi: "${namaMirip}"\n\nBarang baru "${nama}" ini mirip tapi tidak identik dengan barang yang sudah ada. Kalau maksudnya barang yang SAMA, batalkan lalu ketik ulang persis "${namaMirip}" supaya otomatis tergabung di satu checklist.\n\nKalau memang barang beda, lanjutkan simpan sebagai barang terpisah?`)) return;
+  if(namaMirip && !(await confirmModal(`⚠️ Barang mirip terdeteksi: "${namaMirip}"\n\nBarang baru "${nama}" ini mirip tapi tidak identik dengan barang yang sudah ada. Kalau maksudnya barang yang SAMA, batalkan lalu ketik ulang persis "${namaMirip}" supaya otomatis tergabung di satu checklist.\n\nKalau memang barang beda, lanjutkan simpan sebagai barang terpisah?`))) return;
   const qty = (kebutuhan!=null&&kebutuhan!=='null') ? Number(kebutuhan)*qtyPerPaket : qtyPerPaket; const newItem = {id:uid(),nama,harga_satuan:harga,qty_dibeli:qty,qty_per_paket:qtyPerPaket}; h.items.push(newItem);
   const samaCount = samakanHargaItemSejenis(nama, harga, newItem.id);
   document.getElementById(`add-item-name-${hadiahId}`).value=''; document.getElementById(`add-item-price-${hadiahId}`).value=''; if(perPaketEl) perPaketEl.value='1'; saveDB(); renderContent(); toast(samaCount>0?`Item ditambahkan, harga disamakan ke ${samaCount} item "${nama}" lainnya`:'Item ditambahkan'); 
   notifyTelegram(`➕ Item hadiah baru: ${nama}`, `Paket: ${labelPeserta(h.kategori_peserta)} - ${labelJuara(h.juara_ke)}\nHarga: ${fmtRp(harga)}\nQty: ${qty}${qtyPerPaket>1?` (${qtyPerPaket} buah per paket)`:''}`, 'lomba');
 }
-function hapusHadiah(id){ 
+async function hapusHadiah(id){ 
   if (!canEditSection('hadiah')) { toast('⛔ Login untuk mengedit data'); return; }
-  const h=db.hadiahKategori.find(x=>x.id===id); if(!h) return; if(!confirm('Hapus paket?')) return; db.hadiahKategori=db.hadiahKategori.filter(x=>x.id!==id); 
+  const h=db.hadiahKategori.find(x=>x.id===id); if(!h) return; if(!(await confirmModal('Hapus paket?'))) return; db.hadiahKategori=db.hadiahKategori.filter(x=>x.id!==id); 
   // Ikut hapus semua status belanja milik paket ini, supaya tidak jadi orphan
   // permanen di kt_daftar_belanja_hadiah.
   db.daftarBelanjaHadiah = db.daftarBelanjaHadiah.filter(b=>b.hadiah_kategori_id!==id);

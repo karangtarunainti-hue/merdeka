@@ -254,9 +254,9 @@ function updateAnggotaField(id, field, value){
     toast(`Jenis kelamin ${a.nama} diubah ke ${labelGender(value)}`);
   }
 }
-function hapusAnggota(id){
+async function hapusAnggota(id){
   if (!canEditSection('anggota')) { toast('⛔ Login untuk mengedit data'); return; }
-  if(!confirm('Hapus anggota ini?')) return;
+  if(!(await confirmModal('Hapus anggota ini?'))) return;
   const a = db.anggota.find(x=>x.id===id);
   db.anggota = db.anggota.filter(a=>a.id!==id); 
   saveDB(); renderContent(); renderTopbarSaldo();
@@ -409,11 +409,11 @@ function applySearch(){ searchQuery=document.getElementById('search-input').valu
 function clearSearch(){ searchQuery=''; document.getElementById('search-input').value=''; renderContent(); }
 function resetFilter(){ filterKategori='semua'; filterStatus='semua'; filterGender='semua'; filterRT='semua'; searchQuery=''; sortBy='nama'; sortOrder='asc'; renderContent(); }
 function sortTable(field){ if(sortBy===field){ sortOrder=sortOrder==='asc'?'desc':'asc'; }else{ sortBy=field; sortOrder='asc'; } renderContent(); }
-function tandaiSemuaLunas(){ 
+async function tandaiSemuaLunas(){ 
   if (!canEditSection('database-anggota')) { toast('⛔ Login untuk mengedit data'); return; }
   const list=gAnggota().filter(a=>a.status==='belum_lunas'); 
   if(list.length===0){ toast('Semua anggota sudah lunas'); return; } 
-  if(!confirm(`Tandai ${list.length} anggota menjadi LUNAS?`)) return; 
+  if(!(await confirmModal(`Tandai ${list.length} anggota menjadi LUNAS?`))) return; 
   list.forEach(a=>{a.status='lunas'; a.tanggal_bayar=todayISO();}); 
   saveDB(); renderContent(); renderTopbarSaldo(); 
   toast(`✓ ${list.length} anggota ditandai lunas`);

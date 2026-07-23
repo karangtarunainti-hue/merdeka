@@ -131,7 +131,7 @@ function renderSnapshotPanel(){
 
 async function buatSnapshotManualUI(){
   if (!canEdit()) { toast('⛔ Login untuk membuat snapshot'); return; }
-  const label = prompt('Label snapshot (opsional, boleh dikosongkan):', '') || '';
+  const label = (await promptModal({title:'Buat Snapshot', label:'Label snapshot (opsional)', hint:'Boleh dikosongkan.'})) || '';
   toast('⏳ Membuat snapshot...');
   const ok = await buatSnapshot('manual', label.trim());
   if (ok){ toast('✅ Snapshot dibuat'); muatDaftarSnapshot(); }
@@ -142,7 +142,7 @@ async function pulihkanSnapshot(id){
   if (!isAdmin()) { toast('⛔ Hanya Admin'); return; }
   const s = snapshotList.find(x=>x.id===id); if(!s) return;
   const waktu = fmtDateJam((s.created_at||'').slice(0,10));
-  if (!confirm(`Pulihkan ke snapshot "${waktu}" (${labelTriggerSnapshot(s.trigger)}${s.label?` — ${s.label}`:''})?\n\nSeluruh data SAAT INI akan ditimpa kembali ke kondisi snapshot tersebut. Sebuah snapshot "pra-aksi" dari kondisi sekarang akan dibuat otomatis dulu sebagai jaring pengaman sebelum restore dijalankan.`)) return;
+  if (!(await confirmModal(`Pulihkan ke snapshot "${waktu}" (${labelTriggerSnapshot(s.trigger)}${s.label?` — ${s.label}`:''})?\n\nSeluruh data SAAT INI akan ditimpa kembali ke kondisi snapshot tersebut. Sebuah snapshot "pra-aksi" dari kondisi sekarang akan dibuat otomatis dulu sebagai jaring pengaman sebelum restore dijalankan.`))) return;
 
   toast('⏳ Menyimpan kondisi saat ini sebagai jaring pengaman...');
   await buatSnapshot('pra-aksi', `Sebelum pulih ke ${waktu}`);
@@ -162,7 +162,7 @@ async function pulihkanSnapshot(id){
 
 async function hapusSnapshotManual(id){
   if (!isAdmin()) { toast('⛔ Hanya Admin'); return; }
-  if (!confirm('Hapus snapshot ini? Tidak bisa dibatalkan.')) return;
+  if (!(await confirmModal('Hapus snapshot ini? Tidak bisa dibatalkan.'))) return;
   const { error } = await sb.from('kt_snapshot').delete().eq('id', id);
   if (error){ toast('⛔ Gagal menghapus snapshot'); return; }
   toast('🗑️ Snapshot dihapus'); muatDaftarSnapshot();

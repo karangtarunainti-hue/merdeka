@@ -359,7 +359,7 @@ async function testTelegram(){
     return;
   }
   if(!settings.enabled){
-    if(!confirm('Notifikasi sedang nonaktif. Aktifkan sekarang?')) return;
+    if(!(await confirmModal('Notifikasi sedang nonaktif. Aktifkan sekarang?', {danger:false}))) return;
     settings.enabled = true;
     saveTelegramSettings(settings);
   }
@@ -375,10 +375,10 @@ function setActiveEvent(id){
   notifyTelegram(`📂 Buka event: ${db.events.find(e=>e.id===id)?.nama || id}`, '', 'sistem');
 }
 
-function hapusEvent(id){
+async function hapusEvent(id){
   if (!isAdmin()) { toast('⛔ Hanya Admin'); return; }
   const e = db.events.find(x=>x.id===id); if(!e) return;
-  if(!confirm(`Hapus event "${e.nama}" beserta semua data?`)) return;
+  if(!(await confirmModal(`Hapus event "${e.nama}" beserta semua data?`))) return;
   db.events = db.events.filter(x=>x.id!==id);
   delete db.settings[id];
   db.anggota = db.anggota.filter(x=>x.event_id!==id);
@@ -421,7 +421,7 @@ function importData(evt){
   reader.onload = async ()=>{
     try{
       const parsed = JSON.parse(reader.result);
-      if(!confirm('Impor akan MENIMPA data yang ada. Lanjutkan?')) return;
+      if(!(await confirmModal('Impor akan MENIMPA data yang ada. Lanjutkan?'))) return;
       // Jaring pengaman: rekam kondisi SEBELUM ditimpa sebagai snapshot
       // "pra-aksi" (lihat js/15b-snapshot.js) — supaya kalau file impor ini
       // ternyata salah, masih bisa dipulihkan lagi dari Pengaturan > Snapshot Otomatis.
@@ -483,13 +483,13 @@ function importDataEvent(evt){
   if (!canEdit()) { toast('⛔ Login untuk impor data'); return; }
   const file = evt.target.files[0]; if(!file) return;
   const reader = new FileReader();
-  reader.onload = ()=>{
+  reader.onload = async ()=>{
     try{
       const parsed = JSON.parse(reader.result);
       if(!parsed || parsed._type !== 'kt-event-backup' || !parsed.event){
         toast('File bukan backup event yang valid'); evt.target.value=''; return;
       }
-      if(!confirm(`Impor akan membuat EVENT BARU "${parsed.event.nama}" berisi salinan data dari file backup ini. Data event lain tidak akan berubah. Lanjutkan?`)){
+      if(!(await confirmModal(`Impor akan membuat EVENT BARU "${parsed.event.nama}" berisi salinan data dari file backup ini. Data event lain tidak akan berubah. Lanjutkan?`))){
         evt.target.value=''; return;
       }
 

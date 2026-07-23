@@ -44,9 +44,9 @@ function openDonaturModal(id){
   ]);
   setTimeout(setupAllCurrencyInputs, 50);
 }
-function hapusDonatur(id){ 
+async function hapusDonatur(id){ 
   if (!canEditSection('donatur')) { toast('⛔ Login untuk mengedit data'); return; }
-  if(!confirm('Hapus?')) return; 
+  if(!(await confirmModal('Hapus?'))) return; 
   const d = db.donatur.find(x=>x.id===id);
   db.donatur=db.donatur.filter(d=>d.id!==id); 
   saveDB(); renderContent(); renderTopbarSaldo();
@@ -88,9 +88,9 @@ function openTransaksiModal(id){
   ]);
   setTimeout(setupAllCurrencyInputs, 50);
 }
-function hapusTransaksi(id){ 
+async function hapusTransaksi(id){ 
   if (!canEditSection('transaksi')) { toast('⛔ Login untuk mengedit data'); return; }
-  if(!confirm('Hapus?')) return; 
+  if(!(await confirmModal('Hapus?'))) return; 
   const t = db.transaksiLain.find(x=>x.id===id);
   db.transaksiLain=db.transaksiLain.filter(t=>t.id!==id); 
   saveDB(); renderContent(); renderTopbarSaldo();
@@ -148,9 +148,9 @@ function openOperasionalModal(id){
   ]);
   setTimeout(setupAllCurrencyInputs, 50);
 }
-function hapusOperasional(id){ 
+async function hapusOperasional(id){ 
   if (!canEditSection('operasional')) { toast('⛔ Login untuk mengedit data'); return; }
-  if(!confirm('Hapus?')) return; 
+  if(!(await confirmModal('Hapus?'))) return; 
   const o = db.operasional.find(x=>x.id===id);
   db.operasional=db.operasional.filter(o=>o.id!==id); 
   saveDB(); renderContent(); renderTopbarSaldo();

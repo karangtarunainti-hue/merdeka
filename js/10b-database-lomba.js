@@ -144,11 +144,11 @@ function renderDatabaseLomba(){
 // arsip yang salah input/dobel). Kalau versi arsip yang dihapus adalah
 // satu-satunya versi di grup ini, groupKey ikut dibersihkan dari state
 // (biar tidak ada kartu kosong nyangkut di UI).
-function hapusArsipLomba(groupKey, arsipId){
+async function hapusArsipLomba(groupKey, arsipId){
   if (!canEditSection('lomba')) { toast('⛔ Login untuk mengedit data'); return; }
   const a = (db.lombaArsip||[]).find(x=>x.id===arsipId);
   if(!a){ toast('Data arsip tidak ditemukan'); return; }
-  if(!confirm(`Hapus permanen riwayat "${a.nama}" (${a.event_nama||'Event terhapus'}${a.event_tahun?' · '+a.event_tahun:''})?\n\nBeda dari hapus lomba biasa: ini menghapus SNAPSHOT ARSIPNYA, jadi riwayatnya hilang selamanya dan tidak bisa dikembalikan.`)) return;
+  if(!(await confirmModal(`Hapus permanen riwayat "${a.nama}" (${a.event_nama||'Event terhapus'}${a.event_tahun?' · '+a.event_tahun:''})?\n\nBeda dari hapus lomba biasa: ini menghapus SNAPSHOT ARSIPNYA, jadi riwayatnya hilang selamanya dan tidak bisa dikembalikan.`))) return;
   db.lombaArsip = db.lombaArsip.filter(x=>x.id!==arsipId);
   saveDB();
   const g = dbLombaGroups().find(x=>x.key===groupKey);

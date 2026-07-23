@@ -216,14 +216,14 @@ function toggleJadwalStatus(id){
   notifyTelegram(`${action}: ${j.judul}`, `Jadwal: ${fmtDateJam(j.tanggal, j.jam)}`, 'agenda');
 }
 
-function hapusJadwal(id){
+async function hapusJadwal(id){
   if (!canEditSection('jadwal')) { toast('⛔ Login untuk mengedit data'); return; }
   // Guard lapis kedua: kalau ada yang memanggil hapusJadwal langsung (bukan lewat
   // tombol di kartu, yang sudah dialihkan ke hapusJadwalLombaLocked), tetap cegah
   // penghapusan entri auto-lomba supaya tidak jadi referensi rusak di lomba.jadwal_id.
   const lombaLink = getLombaForJadwal(id);
   if(lombaLink){ hapusJadwalLombaLocked(lombaLink.id); return; }
-  if(!confirm('Hapus jadwal ini?')) return;
+  if(!(await confirmModal('Hapus jadwal ini?'))) return;
   const j = db.jadwal.find(x=>x.id===id);
   db.jadwal = db.jadwal.filter(j=>j.id!==id);
   saveDB(); renderContent(); toast('Jadwal dihapus');
@@ -241,10 +241,10 @@ function bukaLombaDariJadwal(lombaId){
 // cuma menjelaskan kenapa dan menawarkan jalan pintas ke form lomba, supaya user
 // bisa mengosongkan tanggal lomba (yang otomatis akan menghapus entri jadwal ini,
 // lihat syncAgendaLomba) atau menghapus lombanya kalau memang sudah tidak dipakai.
-function hapusJadwalLombaLocked(lombaId){
+async function hapusJadwalLombaLocked(lombaId){
   const l = db.lomba.find(x=>x.id===lombaId);
   const nama = l ? `"${l.nama}"` : 'ini';
-  if(confirm(`🔗 Jadwal ini otomatis mengikuti data Lomba ${nama} dan tidak bisa dihapus langsung dari sini.\n\nUntuk menghapusnya: buka form Lomba lalu kosongkan tanggalnya (atau hapus lombanya kalau sudah tidak dipakai).\n\nBuka form Lomba sekarang?`)){
+  if(await confirmModal(`🔗 Jadwal ini otomatis mengikuti data Lomba ${nama} dan tidak bisa dihapus langsung dari sini.\n\nUntuk menghapusnya: buka form Lomba lalu kosongkan tanggalnya (atau hapus lombanya kalau sudah tidak dipakai).\n\nBuka form Lomba sekarang?`, {danger:false})){
     if(l) bukaLombaDariJadwal(lombaId); else goSection('lomba');
   }
 }
@@ -412,9 +412,9 @@ function toggleAgendaStatus(id){
   notifyTelegram(`${action}: ${a.judul}`, `Tanggal: ${fmtDate(a.tanggal)}`, 'agenda');
 }
 
-function hapusAgenda(id){
+async function hapusAgenda(id){
   if (!canEditSection('agenda')) { toast('⛔ Login untuk mengedit data'); return; }
-  if(!confirm('Hapus agenda ini?')) return;
+  if(!(await confirmModal('Hapus agenda ini?'))) return;
   const a = db.agenda.find(x=>x.id===id);
   db.agenda = db.agenda.filter(x=>x.id!==id);
   saveDB(); renderContent(); toast('Agenda dihapus');
@@ -602,10 +602,10 @@ function openKasModal(id){
   setTimeout(setupAllCurrencyInputs, 50);
 }
 
-function hapusKas(id){
+async function hapusKas(id){
   if (!canEditSection('kas')) { toast(`⛔ Anda tidak memiliki akses untuk mengedit ${getOrgNamaKas()}`); return; }
   if (id && String(id).startsWith('auto-ds-')) { toast('🔒 Baris ini otomatis dari rekap Dana Sosial, kelola di menu Dana Sosial'); return; }
-  if(!confirm('Hapus transaksi kas ini?')) return;
+  if(!(await confirmModal('Hapus transaksi kas ini?'))) return;
   const k = db.kas.find(x=>x.id===id);
   db.kas = db.kas.filter(x=>x.id!==id);
   saveDB(); renderContent();
@@ -636,7 +636,7 @@ function kasImportJSON(input){
     try{
       const parsed = JSON.parse(e.target.result);
       if(!Array.isArray(parsed.kas)) throw new Error('Format file backup tidak dikenali.');
-      if(!confirm(`Import akan MENAMBAH ${parsed.kas.length} transaksi baru ke ${getOrgNamaKas()} (data lama tidak dihapus). Lanjutkan?`)) return;
+      if(!(await confirmModal(`Import akan MENAMBAH ${parsed.kas.length} transaksi baru ke ${getOrgNamaKas()} (data lama tidak dihapus). Lanjutkan?`))) return;
       toast('⏳ Mengimpor data...');
       const rows = parsed.kas.map(k => ({
         id: k.id || uid(),

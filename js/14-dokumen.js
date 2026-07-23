@@ -501,9 +501,9 @@ function jadwalAddExtraTable(){
   saveDB(); renderContent();
   toast('✅ Tabel baru ditambahkan');
 }
-function jadwalRemoveExtraTable(id){
+async function jadwalRemoveExtraTable(id){
   if (!canEditSection('jadwal-sinoman')) { toast('⛔ Login untuk mengedit data'); return; }
-  if(!confirm('Hapus tabel tambahan ini beserta semua isinya?')) return;
+  if(!(await confirmModal('Hapus tabel tambahan ini beserta semua isinya?'))) return;
   const s = getDokumenGlobal();
   s.jadwal_extra = getJadwalExtraList().filter(e=>e.id!==id);
   saveDB(); renderContent();
@@ -513,9 +513,9 @@ function jadwalRemoveExtraTable(id){
 // tombol hapus cuma dirender kalau blockKey bukan tabel pertama. Datanya
 // tidak dibuang permanen, cuma ditandai .hidden supaya kalau suatu saat perlu
 // dikembalikan, isian lama (kalau ada) tidak hilang.
-function jadwalRemoveBuiltinBlock(blockKey){
+async function jadwalRemoveBuiltinBlock(blockKey){
   if (!canEditSection('jadwal-sinoman')) { toast('⛔ Login untuk mengedit data'); return; }
-  if(!confirm('Hapus tabel ini beserta semua isinya?')) return;
+  if(!(await confirmModal('Hapus tabel ini beserta semua isinya?'))) return;
   const d = getJadwalBlockData(blockKey);
   if(!d) return;
   d.hidden = true;

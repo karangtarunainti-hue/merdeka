@@ -193,8 +193,12 @@ function openUserModal(id) {
       
       if (!name || !username) { toast('Nama dan username wajib'); return; }
       if (!editing && !password) { toast('Password wajib untuk user baru'); return; }
-      if (editing && password && password.length < 4) { toast('Password minimal 4 karakter'); return; }
+      if (password && password.length < 4) { toast('Password minimal 4 karakter'); return; }
       if (role === 'petugas' && sections.length === 0) { toast('Pilih minimal 1 bidang untuk Petugas'); return; }
+      if (editing && editing.role === 'admin' && role !== 'admin') {
+        const jumlahAdmin = getUsers().filter(u => u.role === 'admin').length;
+        if (jumlahAdmin <= 1) { toast('⛔ Tidak bisa menurunkan role Admin terakhir — angkat admin lain dulu'); return; }
+      }
       
       const usersList = getUsers();
       if (!editing && usersList.find(u => u.username === username)) {
@@ -212,7 +216,11 @@ function openUserModal(id) {
         p_role: role,
         p_sections: sections,
       });
-      if (error) { console.error('Gagal menyimpan user:', error); toast('⚠️ Gagal menyimpan user ke server'); return; }
+      if (error) {
+        console.error('Gagal menyimpan user:', error);
+        toast(`⚠️ ${error.message || 'Gagal menyimpan user ke server'}`);
+        return;
+      }
 
       const { data: refreshed } = await sb.rpc('rpc_list_users');
       if (refreshed) db.users = refreshed;
@@ -234,10 +242,14 @@ async function hapusUser(id) {
   const users = getUsers();
   if (users.length <= 1) { toast('⚠️ Minimal 1 user'); return; }
   const user = users.find(u => u.id === id);
+  if (user && user.role === 'admin' && users.filter(u => u.role === 'admin').length <= 1) {
+    toast('⛔ Tidak bisa menghapus Admin terakhir — angkat admin lain dulu');
+    return;
+  }
   if (!confirm(`Hapus user "${user?.name}"?`)) return;
 
   const { error } = await sb.rpc('rpc_delete_user', { p_id: id });
-  if (error) { console.error('Gagal menghapus user:', error); toast('⚠️ Gagal menghapus user'); return; }
+  if (error) { console.error('Gagal menghapus user:', error); toast(`⚠️ ${error.message || 'Gagal menghapus user'}`); return; }
 
   const { data: refreshed } = await sb.rpc('rpc_list_users');
   if (refreshed) db.users = refreshed;

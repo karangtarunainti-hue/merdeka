@@ -9,6 +9,7 @@ const SECTIONS = [
   {key:'transaksi', label:'Pemasukan Lain', sub:'Pemasukan di luar iuran & donasi', icon:'swap', adminOnly: false},
   {key:'operasional', label:'Operasional Kegiatan', sub:'Biaya operasional umum event', icon:'briefcase', adminOnly: false},
   {key:'lomba', label:'Lomba & Perlengkapan', sub:'Kebutuhan barang per lomba', icon:'flag', adminOnly: false},
+  {key:'database-lomba', label:'Database Lomba', sub:'Riwayat lomba & perlengkapan lintas tahun', icon:'database', adminOnly: false},
   {key:'hadiah', label:'Kebutuhan Hadiah', sub:'Belanja hadiah per kategori peserta', icon:'gift', adminOnly: false},
   {key:'hadiah-jalan', label:'Hadiah Jalan Santai', sub:'Kelola hadiah jalan santai', icon:'walk', adminOnly: false},
   {key:'belanja-perlengkapan', label:'Belanja Perlengkapan', sub:'Daftar belanja perlengkapan lomba', icon:'package', adminOnly: false},
@@ -45,7 +46,7 @@ function sectionLabelByKey(key){
 // Menu yang tidak terikat event tertentu (datanya global, bukan per-event).
 // Menu ini ditampilkan terpisah di atas, antara info login dan dropdown
 // Kegiatan Aktif, supaya jelas tidak berubah walau event aktif diganti.
-const GLOBAL_MENU_KEYS = ['kas', 'dana-sosial', 'agenda', 'dokumen', 'database-anggota', 'gudang', 'bookmark', 'jadwal-sinoman', 'panduan', 'users', 'pengaturan'];
+const GLOBAL_MENU_KEYS = ['kas', 'dana-sosial', 'agenda', 'dokumen', 'database-anggota', 'database-lomba', 'gudang', 'bookmark', 'jadwal-sinoman', 'panduan', 'users', 'pengaturan'];
 
 /* ============================================================
    FITUR OPSIONAL PER EVENT
@@ -234,7 +235,7 @@ function goSection(key, opts){
 // saldo proyeksi kegiatan/event tidak ikut nongol di menu yang memang tidak
 // terikat event tersebut — chip itu punya arti khusus untuk event aktif,
 // jadi kalau ditampilkan di menu eventless malah bikin salah paham).
-const EVENTLESS_SECTIONS = ['gudang', 'dokumen', 'agenda', 'kas', 'dana-sosial', 'bookmark', 'dashboard', 'pengaturan', 'users', 'panduan', 'jadwal-sinoman'];
+const EVENTLESS_SECTIONS = ['gudang', 'dokumen', 'agenda', 'kas', 'dana-sosial', 'bookmark', 'dashboard', 'pengaturan', 'users', 'panduan', 'jadwal-sinoman', 'database-lomba'];
 
 function renderTopbarSaldo(){
   const chip = document.getElementById('saldo-chip');
@@ -304,6 +305,7 @@ function renderContent(){
     case 'transaksi': el.innerHTML = renderTransaksi(); break;
     case 'operasional': el.innerHTML = renderOperasional(); break;
     case 'lomba': el.innerHTML = renderLomba(); break;
+    case 'database-lomba': el.innerHTML = renderDatabaseLomba(); break;
     case 'hadiah': el.innerHTML = renderHadiah(); break;
     case 'belanja-hadiah': el.innerHTML = renderBelanjaHadiah(); break;
     case 'belanja-perlengkapan': el.innerHTML = renderBelanjaPerlengkapan(); break;

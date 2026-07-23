@@ -35,6 +35,7 @@ const MODULE_ORDER = [
   '08-anggota.js',
   '09-donatur-transaksi-operasional.js',
   '10-lomba.js',
+  '10b-database-lomba.js',
   '11-belanja.js',
   '12-jadwal-agenda-kas.js',
   '13-lpj.js',

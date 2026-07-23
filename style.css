@@ -2592,3 +2592,59 @@ table.ds-rekap-table td.num, table.ds-rekap-table th:not(:first-child){ text-ali
   .install-banner{ flex-wrap:wrap; }
   .install-banner-actions{ width:100%; justify-content:flex-end; margin-top:4px; }
 }
+
+/* ============================================================
+   TUR INTERAKTIF (ONBOARDING WALKTHROUGH)
+   Overlay gelap + "spotlight" kotak terang mengelilingi elemen yang
+   lagi dijelaskan, plus kartu tooltip berisi judul/teks & tombol
+   navigasi. Lihat js/25-tour.js untuk logikanya.
+   ============================================================ */
+#tour-fab{
+  position:fixed; right:18px; bottom:18px; z-index:9990;
+  width:52px; height:52px; border-radius:50%; border:none;
+  background:var(--merah); color:#fff; font-size:22px;
+  display:flex; align-items:center; justify-content:center;
+  box-shadow:0 6px 18px rgba(0,0,0,.22); cursor:pointer;
+  transition:transform .15s ease;
+}
+#tour-fab:hover{ transform:scale(1.06); }
+#tour-fab:active{ transform:scale(.96); }
+
+#tour-overlay{
+  position:fixed; inset:0; z-index:10000;
+  background:rgba(15,15,15,.62);
+}
+.tour-spotlight{
+  position:fixed; z-index:10001;
+  border-radius:10px;
+  box-shadow:0 0 0 3px var(--merah), 0 0 0 9999px rgba(15,15,15,.62);
+  transition:top .25s ease, left .25s ease, width .25s ease, height .25s ease;
+  pointer-events:none;
+}
+.tour-tooltip{
+  position:fixed; z-index:10002;
+  width:min(320px, calc(100vw - 24px));
+  background:var(--surface); color:var(--ink);
+  border-radius:14px; padding:16px 18px;
+  box-shadow:0 12px 32px rgba(0,0,0,.28);
+  transition:top .25s ease, left .25s ease;
+}
+.tour-tooltip-head{
+  display:flex; align-items:center; justify-content:space-between;
+  margin-bottom:6px;
+}
+.tour-step-count{
+  font-size:11.5px; font-weight:700; color:var(--merah);
+  text-transform:uppercase; letter-spacing:.03em;
+}
+.tour-close{
+  background:none; border:none; cursor:pointer; font-size:15px;
+  color:var(--ink-soft); line-height:1; padding:2px 4px;
+}
+.tour-title{ font-weight:700; font-size:15px; margin-bottom:6px; }
+.tour-text{ font-size:13.5px; line-height:1.55; color:var(--ink-soft); margin-bottom:14px; }
+.tour-foot{ display:flex; align-items:center; justify-content:space-between; gap:8px; }
+@media (max-width:480px){
+  #tour-fab{ right:14px; bottom:14px; width:48px; height:48px; font-size:20px; }
+  .tour-tooltip{ padding:14px 16px; }
+}

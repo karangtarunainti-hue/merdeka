@@ -113,6 +113,7 @@ initOfflineGuard();
   applyOrgBranding();
   renderSidebar();
   renderTopbarSaldo();
+  initTourButton();
   // Buka kembali halaman terakhir yang dikunjungi (tersimpan di localStorage)
   // supaya refresh (F5) tidak selalu melempar user balik ke Buku Kegiatan.
   // Kalau belum pernah ada / key sudah tidak dikenal, baru fallback ke dashboard.

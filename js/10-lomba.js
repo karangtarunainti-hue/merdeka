@@ -431,7 +431,11 @@ function onLombaNamaInput(value){
     if(anggotaEl){ anggotaEl.value = versi.jumlahAnggotaRegu||1; toggleHadiahPerReguHint(); }
     if(hadiahEl) hadiahEl.checked = !!versi.hadiahPerRegu;
     const jumlahItem = (versi.items||[]).length;
-    if(hintEl) hintEl.textContent = `📚 Nama ini pernah dipakai di ${g.versions.length} event (terakhir: ${versi.eventLabel}) — Kategori & Jumlah Anggota otomatis diisi, dan ${jumlahItem} perlengkapan dari data terakhir bakal ikut tersalin pas disimpan. Cek lagi harga & qty-nya nanti.`;
+    const kategoriTerpakai = Array.from(new Set(g.versions.map(v=>v.kategoriPeserta))).map(k=>labelPeserta(k));
+    const kategoriNote = kategoriTerpakai.length>1
+      ? ` Nama ini pernah dipakai buat kategori berbeda (${kategoriTerpakai.join(', ')}) — kalau kategorinya mau beda dari yang ke-isi otomatis, tinggal ganti dropdown Kategori Peserta di bawah, perlengkapan tetap ikut tersalin.`
+      : '';
+    if(hintEl) hintEl.textContent = `📚 Nama ini pernah dipakai di ${g.versions.length} event (terakhir: ${versi.eventLabel}) — Kategori & Jumlah Anggota otomatis diisi, dan ${jumlahItem} perlengkapan dari data terakhir bakal ikut tersalin pas disimpan. Cek lagi harga & qty-nya nanti.${kategoriNote}`;
   } else {
     if(hintEl) hintEl.textContent = 'Pilih dari daftar buat pakai data lomba lama (kategori, jumlah anggota, sampai daftar perlengkapan & harga terakhir ikut tersalin otomatis), atau ketik nama baru untuk buat lomba/database baru.';
   }

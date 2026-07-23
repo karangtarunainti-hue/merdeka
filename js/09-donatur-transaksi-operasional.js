@@ -52,14 +52,12 @@ function openDonaturModal(id){
       </div>
       <div class="hint">Donasi barang dicatat terpisah & TIDAK dihitung sebagai uang masuk/saldo kas — cuma muncul sebagai rincian di Daftar Donatur & LPJ.</div>
     </div>
-    <div class="field"><label>Keterangan (opsional)</label><input id="f-ket" value="${editing?esc(editing.keterangan||''):''}"></div>
   `, [
     {label:'Batal', cls:'secondary', onclick:closeModal},
     {label:editing?'Simpan':'Tambah', cls:'', onclick:()=>{
       const nama = document.getElementById('f-nama').value.trim();
       const jenis = document.getElementById('f-jenis').value;
       const tanggal = document.getElementById('f-tanggal').value||todayISO();
-      const ket = document.getElementById('f-ket').value.trim();
       if(!nama){ toast('Nama wajib'); return; }
       let payload, actionMsg, notifDetail;
       if(jenis==='barang'){
@@ -67,15 +65,15 @@ function openDonaturModal(id){
         const qty = Math.max(1, Number(document.getElementById('f-qty-barang').value||1));
         const satuan = document.getElementById('f-satuan-barang').value.trim();
         if(!nama_barang){ toast('Nama barang wajib'); return; }
-        payload = {jenis:'barang', nama_donatur:nama, nama_barang, qty, satuan, jumlah:0, tanggal, keterangan:ket};
+        payload = {jenis:'barang', nama_donatur:nama, nama_barang, qty, satuan, jumlah:0, tanggal};
         actionMsg = editing ? `✏️ Edit donasi barang: ${editing.nama_donatur} → ${nama}` : `➕ Donasi barang dari ${nama}`;
-        notifDetail = `Nama: ${nama}\nBarang: ${nama_barang} (${qty}${satuan?` ${satuan}`:''})\nTanggal: ${fmtDate(tanggal)}\nKeterangan: ${ket || '-'}`;
+        notifDetail = `Nama: ${nama}\nBarang: ${nama_barang} (${qty}${satuan?` ${satuan}`:''})\nTanggal: ${fmtDate(tanggal)}`;
       } else {
         const jumlah = getCurrencyValue(document.getElementById('f-jumlah'));
         if(jumlah<=0){ toast('Jumlah wajib diisi'); return; }
-        payload = {jenis:'uang', nama_donatur:nama, jumlah, tanggal, keterangan:ket, nama_barang:'', qty:null, satuan:''};
+        payload = {jenis:'uang', nama_donatur:nama, jumlah, tanggal, nama_barang:'', qty:null, satuan:''};
         actionMsg = editing ? `✏️ Edit donasi: ${editing.nama_donatur} → ${nama}` : `➕ Donasi baru dari ${nama}`;
-        notifDetail = `Nama: ${nama}\nJumlah: ${fmtRp(jumlah)}\nTanggal: ${fmtDate(tanggal)}\nKeterangan: ${ket || '-'}`;
+        notifDetail = `Nama: ${nama}\nJumlah: ${fmtRp(jumlah)}\nTanggal: ${fmtDate(tanggal)}`;
       }
       if(editing){ Object.assign(editing, payload); }
       else { db.donatur.push({id:uid(), event_id:eid(), ...payload}); }

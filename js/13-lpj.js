@@ -93,8 +93,8 @@ function renderLPJ(){
   ];
   if (showDonatur) pemasukanSubs.push({ title:'Donatur', html:`
     <div class="lpj-table-scroll"><table class="lpj-table lpj-detail">
-      <thead><tr><th>Tanggal</th><th>Nama</th><th>Keterangan</th><th class="num">Donasi</th></tr></thead>
-      <tbody>${donaturList.map(d=>`<tr><td>${fmtDate(d.tanggal)}</td><td>${esc(d.nama_donatur)}</td><td>${esc(d.keterangan||'-')}</td><td class="num">${donasiValueText(d)}</td></tr>`).join('') || emptyRow(4,'Belum ada donasi.')}</tbody>
+      <thead><tr><th>Tanggal</th><th>Nama</th><th class="num">Donasi</th></tr></thead>
+      <tbody>${donaturList.map(d=>`<tr><td>${fmtDate(d.tanggal)}</td><td>${esc(d.nama_donatur)}</td><td class="num">${donasiValueText(d)}</td></tr>`).join('') || emptyRow(3,'Belum ada donasi.')}</tbody>
     </table></div>` });
   if (showTransaksi) pemasukanSubs.push({ title:'Pemasukan Lain', html:`
     <div class="lpj-table-scroll"><table class="lpj-table lpj-detail">

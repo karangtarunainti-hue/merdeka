@@ -14,11 +14,16 @@
    daftar perlengkapan & harga terakhir sudah kelihatan, tinggal
    dipilih item mana yang mau disalin ke event aktif, lalu panitia
    cukup sesuaikan harga/qty-nya (lihat openPakaiLombaModal di bawah).
-   Halaman ini READ-ONLY (tidak ada hapus/edit di sini) — supaya
-   riwayat lomba tahun-tahun sebelumnya tetap utuh. Untuk edit/hapus
-   data lomba yang MASIH AKTIF, tetap lewat menu Lomba & Perlengkapan
-   di event yang bersangkutan (menghapusnya di sana otomatis membuat
-   snapshot arsip baru, bukan menghilangkan riwayatnya dari sini).
+   Halaman ini tidak bisa dipakai buat edit, dan versi LIVE (lomba yang
+   masih aktif di suatu event) juga tidak bisa dihapus dari sini — tetap
+   lewat menu Lomba & Perlengkapan di event yang bersangkutan (menghapusnya
+   di sana otomatis membuat snapshot arsip baru, bukan menghilangkan
+   riwayatnya dari sini).
+   Versi ARSIP (yang sudah dihapus dari Lomba & Perlengkapan) BISA dihapus
+   permanen langsung dari sini lewat tombol 🗑 di kartunya — dipakai buat
+   beresin riwayat yang salah input/dobel. Beda dengan hapus lomba live:
+   ini beneran menghilangkan snapshot riwayatnya untuk selamanya, tidak
+   membuat arsip baru. Lihat hapusArsipLomba() di bawah.
    ============================================================ */
 let dbLombaSearch = '';
 let dbLombaKategoriFilter = 'semua';
@@ -131,12 +136,36 @@ function renderDatabaseLomba(){
   </div>`;
 }
 
+// Hapus PERMANEN satu versi arsip (bukan versi live) dari db.lombaArsip.
+// Beda dari hapusLomba() di js/10-lomba.js: itu menghapus lomba yang MASIH
+// AKTIF lalu otomatis membuat snapshot arsip baru (riwayatnya justru
+// bertambah). Ini sebaliknya — menghapus snapshot riwayat yang sudah ada
+// di sini untuk selamanya, tidak bisa dikembalikan (mis. buat beresin
+// arsip yang salah input/dobel). Kalau versi arsip yang dihapus adalah
+// satu-satunya versi di grup ini, groupKey ikut dibersihkan dari state
+// (biar tidak ada kartu kosong nyangkut di UI).
+function hapusArsipLomba(groupKey, arsipId){
+  if (!canEditSection('lomba')) { toast('⛔ Login untuk mengedit data'); return; }
+  const a = (db.lombaArsip||[]).find(x=>x.id===arsipId);
+  if(!a){ toast('Data arsip tidak ditemukan'); return; }
+  if(!confirm(`Hapus permanen riwayat "${a.nama}" (${a.event_nama||'Event terhapus'}${a.event_tahun?' · '+a.event_tahun:''})?\n\nBeda dari hapus lomba biasa: ini menghapus SNAPSHOT ARSIPNYA, jadi riwayatnya hilang selamanya dan tidak bisa dikembalikan.`)) return;
+  db.lombaArsip = db.lombaArsip.filter(x=>x.id!==arsipId);
+  saveDB();
+  const g = dbLombaGroups().find(x=>x.key===groupKey);
+  if(!g){ dbLombaOpenKeys.delete(groupKey); delete dbLombaVersionSel[groupKey]; }
+  else if(dbLombaVersionSel[groupKey] >= g.versions.length) dbLombaVersionSel[groupKey] = 0;
+  renderContent();
+  toast(`✓ Riwayat arsip "${a.nama}" dihapus permanen`);
+  notifyTelegram(`🗑️ Hapus riwayat arsip lomba: ${a.nama}`, `Snapshot arsip (${a.event_nama||'Event terhapus'}${a.event_tahun?' · '+a.event_tahun:''}) dihapus permanen dari Database Lomba.`, 'lomba');
+}
+
 function dbLombaApplySearch(v){ dbLombaSearch = v; renderContent(); }
 function dbLombaApplyFilter(v){ dbLombaKategoriFilter = v; renderContent(); }
 function dbLombaToggleCard(key){ dbLombaOpenKeys.has(key)?dbLombaOpenKeys.delete(key):dbLombaOpenKeys.add(key); renderContent(); }
 function dbLombaPilihVersi(key, idx){ dbLombaVersionSel[key]=idx; dbLombaOpenKeys.add(key); renderContent(); }
 
 function renderDbLombaCard(g){
+  const isLoggedIn = !!getCurrentUser();
   const isOpen = dbLombaOpenKeys.has(g.key);
   const selIdx = Math.min(dbLombaVersionSel[g.key]||0, g.versions.length-1);
   const versi = g.versions[selIdx];
@@ -159,7 +188,10 @@ function renderDbLombaCard(g){
     <div class="lomba-card-body">
       <div class="hint" style="margin-bottom:8px;">Pernah dipakai di ${g.versions.length} event — klik salah satu di bawah buat lihat perlengkapan versi tahun itu:</div>
       <div class="lomba-mini-list" style="margin-bottom:12px;display:flex;gap:6px;flex-wrap:wrap;">${eventChips}</div>
-      ${versi.isArsip ? `<div class="hint" style="margin-bottom:12px;">🗄️ Versi ini sudah dihapus dari menu Lomba & Perlengkapan — datanya diarsipkan di sini sebagai riwayat.</div>` : ''}
+      ${versi.isArsip ? `<div class="hint" style="margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+        <span>🗄️ Versi ini sudah dihapus dari menu Lomba & Perlengkapan — datanya diarsipkan di sini sebagai riwayat.</span>
+        <button class="icon-btn" title="Hapus permanen riwayat arsip ini" onclick="event.stopPropagation(); hapusArsipLomba('${g.key}', '${versi.arsipId}')" ${!isLoggedIn ? 'disabled' : ''}>🗑</button>
+      </div>` : ''}
       <div style="overflow-x:auto;">
       <table class="lomba-table"><thead><tr><th>Item Perlengkapan</th><th class="num">Harga Terakhir</th><th class="num">Qty</th><th class="num">Subtotal</th></tr></thead>
       <tbody>${items.map(k=>{

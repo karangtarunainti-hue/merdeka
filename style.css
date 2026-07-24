@@ -1692,14 +1692,14 @@
     /* Transaksi Lain punya susunan kolom beda dari Donatur (No, Tanggal,
        Keterangan, Jumlah — bukan Tanggal, Nama, Keterangan, Jumlah), jadi
        kolom 1 & 2 perlu lebar sendiri di atas aturan tanggal-nominal-table umum. */
-    table.transaksi-lain-table th:nth-child(1), table.transaksi-lain-table td:nth-child(1){ width:32px; min-width:0; white-space:nowrap; padding:8px 4px 8px 14px; text-align:left; }
+    table.transaksi-lain-table th:nth-child(1), table.transaksi-lain-table td:nth-child(1){ width:36px; min-width:0; white-space:nowrap; padding:8px 4px 8px 8px; text-align:left; }
     table.transaksi-lain-table th:nth-child(2), table.transaksi-lain-table td:nth-child(2){ width:68px; min-width:0; white-space:nowrap; padding:8px 4px; text-align:left; font-size:11.5px; }
 
     /* Daftar Donatur di HP: No/Tanggal/Nama diringkas seketat mungkin supaya
        kolom Donasi (termasuk rincian donasi barang) kebagian lebar maksimal. */
-    table.donatur-table th:nth-child(1), table.donatur-table td:nth-child(1){ width:30px; min-width:0; white-space:nowrap; padding:8px 4px 8px 10px; text-align:left; }
+    table.donatur-table th:nth-child(1), table.donatur-table td:nth-child(1){ width:36px; min-width:0; white-space:nowrap; padding:8px 4px 8px 8px; text-align:left; }
     table.donatur-table th:nth-child(2), table.donatur-table td:nth-child(2){ width:64px; min-width:0; white-space:nowrap; padding:8px 4px; text-align:left; font-size:11.5px; }
-    table.donatur-table th:nth-child(3), table.donatur-table td:nth-child(3){ width:70px; min-width:0; padding:8px 4px; text-align:left; }
+    table.donatur-table th:nth-child(3), table.donatur-table td:nth-child(3){ width:64px; min-width:0; padding:8px 4px; text-align:left; }
     table.donatur-table th:nth-child(4), table.donatur-table td:nth-child(4){ width:auto; }
 
     /* --- Agenda Kegiatan: sembunyikan tabel geser, tampilkan kartu --- */
@@ -1758,12 +1758,12 @@
        kali (Harga Satuan × QTY) paling sering jadi angka terpanjang di
        baris — sebelumnya suka kepotong/keluar dari kartu di layar sempit.
        Ruangnya diambil dari kolom No/Keterangan/QTY yang lebih longgar. */
-    table.operasional-table th:nth-child(1), table.operasional-table td:nth-child(1){width:8%; white-space:nowrap; padding:8px 4px 8px 12px;}
+    table.operasional-table th:nth-child(1), table.operasional-table td:nth-child(1){width:10%; white-space:nowrap; padding:8px 4px 8px 8px;}
     table.operasional-table th:nth-child(2), table.operasional-table td:nth-child(2){width:13%; white-space:nowrap; padding:8px 2px; font-size:11.5px;}
     table.operasional-table th:nth-child(3), table.operasional-table td:nth-child(3){width:24%; text-align:left;}
     table.operasional-table th:nth-child(4), table.operasional-table td:nth-child(4){width:16%; white-space:nowrap; padding:8px 4px;}
     table.operasional-table th:nth-child(5), table.operasional-table td:nth-child(5){width:8%; white-space:nowrap; padding:8px 4px;}
-    table.operasional-table th:nth-child(6), table.operasional-table td:nth-child(6){width:26%; white-space:nowrap; padding-right:6px; font-size:11.5px;}
+    table.operasional-table th:nth-child(6), table.operasional-table td:nth-child(6){width:24%; white-space:nowrap; padding-right:6px; font-size:11.5px;}
     table.operasional-table th:nth-child(7), table.operasional-table td:nth-child(7){width:5%; padding-right:8px;}
     table.operasional-table td.operasional-actions{text-align:right;}
 

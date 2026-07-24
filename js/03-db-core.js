@@ -6,6 +6,16 @@ function todayISO(){ return new Date().toISOString().slice(0,10); }
 function fmtRp(n){ return new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',minimumFractionDigits:0}).format(Number(n)||0); }
 function fmtDate(iso){ if(!iso) return '-'; const d=new Date(iso+'T00:00:00'); return d.toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'}); }
 function fmtDateShort(iso){ if(!iso) return '-'; const d=new Date(iso+'T00:00:00'); return d.toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'2-digit'}); }
+// Format super-ringkas khusus layar HP (mis. tabel Pemasukan Lain & Operasional
+// Kegiatan): "23/7/26" — tanpa nama bulan supaya kolom Tanggal bisa dipersempit
+// dan ruang mengalir ke kolom Keterangan/Harga/Jumlah yang lebih butuh lebar.
+function fmtDateMobile(iso){ if(!iso) return '-'; const d=new Date(iso+'T00:00:00'); return `${d.getDate()}/${d.getMonth()+1}/${String(d.getFullYear()).slice(-2)}`; }
+// Bungkus label kolom tabel agar bisa tampil beda antara desktop (teks penuh)
+// dan HP (versi singkat) murni lewat CSS (lihat .th-full/.th-short di style.css),
+// tanpa perlu JS re-render saat resize layar.
+function thResponsive(full, short){ return `<span class="th-full">${esc(full)}</span><span class="th-short">${esc(short)}</span>`; }
+// Sama seperti thResponsive tapi untuk isi sel tanggal (dt-full/dt-short).
+function dateResponsive(iso){ return `<span class="dt-full">${fmtDateShort(iso)}</span><span class="dt-short">${fmtDateMobile(iso)}</span>`; }
 // Tanggal + nama hari, dipakai di mana pun hari acara perlu terlihat jelas (mis. Jadwal Lomba).
 function fmtDateHari(iso){ if(!iso) return '-'; const d=new Date(iso+'T00:00:00'); return d.toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long',year:'numeric'}); }
 function fmtDateHariShort(iso){ if(!iso) return '-'; const d=new Date(iso+'T00:00:00'); return d.toLocaleDateString('id-ID',{weekday:'short',day:'numeric',month:'short',year:'numeric'}); }

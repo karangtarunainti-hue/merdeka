@@ -2353,24 +2353,32 @@ table.absensi-table th:nth-child(1), table.absensi-table td:nth-child(1){text-al
 }
 
 /* ============================================================
-   Rapikan khusus HP: Kebutuhan Hadiah
-   1) Badge info panjang (Stok lebih dari kebutuhan / Kurang butuh X /
-      Budget X · Sisa Y) sebelumnya "white-space:nowrap" bawaan
-      .lomba-badge bikin teksnya kepotong nabrak tepi kartu di layar
-      sempit. Di header grup hadiah, badge ini dibolehkan membungkus
-      & pindah ke barisnya sendiri selebar penuh.
-   2) Header grup (judul+badge vs total+tombol) ditumpuk rapi jadi
-      2 baris dengan pemisah tipis, bukan mengandalkan wrap otomatis
-      yang hasilnya kadang nyangkut rata kiri sendirian.
+   Rapikan khusus HP: Kebutuhan Hadiah — desain lebih ringkas & modern.
+   1) Badge info (Kurang butuh X / Stok lebih / Kebutuhan terpenuhi /
+      Budget X · Sisa Y) TIDAK lagi dipaksa full-width satu baris sendiri
+      (kesannya berat/kaku) — sekarang jadi chip ringkas (radius kecil,
+      tanpa border, auto-width) yang mengalir & wrap natural bareng
+      judul, persis gaya "tag" modern. Chip yang teksnya kepanjangan
+      tetap boleh wrap ke baris kedua di dalam dirinya sendiri saja
+      (word-break), bukan melebar penuh kartu.
+   2) Judul+badge (baris atas) dipisah dari total+tombol aksi (baris
+      bawah) dengan garis putus-putus tipis, supaya tetap jelas
+      terstruktur 2 baris meski chip-nya sekarang ringkas.
    ============================================================ */
 @media (max-width:820px){
   .hadiah-group-header{
     flex-direction:column; align-items:stretch; gap:8px;
+    padding:11px 14px;
+  }
+  .hadiah-group-header > div:first-child{
+    display:flex; flex-wrap:wrap; align-items:center; gap:6px; row-gap:6px;
   }
   .hadiah-group-header .lomba-badge{
-    display:block; width:100%;
-    white-space:normal; word-break:break-word; line-height:1.45;
-    margin-left:0 !important; padding:5px 10px;
+    display:inline-flex; align-items:center;
+    flex:0 1 auto; max-width:100%; min-width:0;
+    white-space:normal; word-break:break-word; line-height:1.35;
+    margin-left:0 !important; padding:3px 9px;
+    border-radius:7px; border:none; font-size:10.5px;
   }
   .hadiah-group-header > div:last-child{
     justify-content:space-between;

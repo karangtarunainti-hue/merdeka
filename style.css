@@ -1637,10 +1637,11 @@
     .sidebar.collapsed .brand{justify-content:center; padding:18px 8px 14px;}
     .sidebar.collapsed .brand-text{display:none;}
     .sidebar.collapsed .sidebar-collapse-toggle svg{transform:rotate(180deg);}
-    .sidebar.collapsed .user-info{justify-content:center; padding:12px 8px;}
-    .sidebar.collapsed #user-name-text,
-    .sidebar.collapsed .user-info .btn-login,
-    .sidebar.collapsed .user-info .btn-logout{display:none;}
+    /* Tombol login/logout diatur display-nya lewat inline style oleh JS
+       (btnLogin.style.display = ...), yang selalu menang atas rule CSS
+       biasa — jadi sembunyikan seluruh blok .user-info, bukan tombolnya
+       satu-satu, supaya tidak "bocor" dan berantakan saat collapsed. */
+    .sidebar.collapsed .user-info{display:none;}
     .sidebar.collapsed .event-block{display:none;}
     .sidebar.collapsed nav.nav,
     .sidebar.collapsed nav.nav-global{padding-left:8px; padding-right:8px;}

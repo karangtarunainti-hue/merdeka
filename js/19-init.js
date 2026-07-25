@@ -26,6 +26,31 @@ function closeSidebar(){
 }
 
 /* ============================================================
+   SIDEBAR MINIMIZE (icon-only) — khusus desktop.
+   State disimpan di localStorage supaya tetap collapsed/expanded
+   walau halaman di-refresh. Tidak berlaku di mobile (di mobile
+   sidebar tetap overlay penuh, lihat CSS @media max-width:820px).
+   ============================================================ */
+const SIDEBAR_COLLAPSED_KEY = 'merdeka_sidebar_collapsed';
+function applySidebarCollapsed(collapsed){
+  const label = collapsed ? 'Perbesar menu' : 'Perkecil menu';
+  document.getElementById('sidebar').classList.toggle('collapsed', collapsed);
+  const btn = document.getElementById('sidebar-collapse-toggle');
+  btn.setAttribute('title', label);
+  btn.setAttribute('aria-label', label);
+}
+(function initSidebarCollapse(){
+  let collapsed = false;
+  try { collapsed = localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === '1'; } catch(e){}
+  applySidebarCollapsed(collapsed);
+})();
+document.getElementById('sidebar-collapse-toggle').addEventListener('click', ()=>{
+  const collapsed = !document.getElementById('sidebar').classList.contains('collapsed');
+  applySidebarCollapsed(collapsed);
+  try { localStorage.setItem(SIDEBAR_COLLAPSED_KEY, collapsed ? '1' : '0'); } catch(e){}
+});
+
+/* ============================================================
    OFFLINE GUARD
    ============================================================
    Kalau perangkat kehilangan koneksi internet, layar dibuat buram +

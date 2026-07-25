@@ -159,7 +159,7 @@ function renderSidebar(){
     });
 
   const renderNavItem = s => `
-    <div class="nav-item ${s.key===currentSection?'active':''} ${!isLoggedIn && !s.adminOnly ? '' : ''}" data-nav="${s.key}">
+    <div class="nav-item ${s.key===currentSection?'active':''} ${!isLoggedIn && !s.adminOnly ? '' : ''}" data-nav="${s.key}" title="${esc(sectionLabel(s))}">
       ${icon(s.icon)} <span>${esc(sectionLabel(s))}</span>
       ${s.adminOnly && !isAdminUser ? `<span class="lock-icon">🔒</span>` : ''}
     </div>`;

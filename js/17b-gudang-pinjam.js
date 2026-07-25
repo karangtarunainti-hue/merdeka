@@ -102,7 +102,7 @@ function gudangComboIconChevron(){
   return `<svg class="combo-chevron" width="15" height="15" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 }
 function gudangComboIconCheck(){
-  return `<svg class="combo-check" width="15" height="15" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  return `<svg class="combo-check" width="15" height="15" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 }
 function gudangComboItemLabel(i){ return i ? `${i.nama} — ${i.gudang}` : ''; }
 function gudangComboPanelHtml(idx, selectedId){

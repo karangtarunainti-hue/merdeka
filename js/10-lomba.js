@@ -203,7 +203,7 @@ function comboIconChevron(){
   return `<svg class="combo-chevron" width="15" height="15" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 }
 function comboIconSearch(){
-  return `<svg width="15" height="15" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2" fill="none"/><path d="M21 21l-3.8-3.8" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>`;
+  return `<svg width="15" height="15" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2" fill="none"/><path d="m21 21-4.34-4.34" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>`;
 }
 let _koordComboLombaId = null;
 let _koordComboPanelEl = null;

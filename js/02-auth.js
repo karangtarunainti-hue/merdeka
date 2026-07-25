@@ -108,6 +108,18 @@ async function login(username, password) {
   const { session_token, ...user } = data[0];
   setSessionToken(session_token || null);
   setCurrentUser(user);
+  // Kalau yang login admin, db.users kemungkinan masih kosong/fallback —
+  // loadDB() saat app pertama dibuka SENGAJA melewati rpc_list_users kalau
+  // saat itu belum ada yang login sebagai admin (lihat 03-db-core.js, RPC ini
+  // wajib session_is_admin() di server). Refresh sekali di sini supaya begitu
+  // admin buka halaman Manajemen User, datanya langsung akurat, bukan
+  // DEFAULT_USERS_FALLBACK.
+  if (user.role === 'admin' && typeof db !== 'undefined') {
+    try {
+      const { data: freshUsers, error: usersErr } = await sb.rpc('rpc_list_users');
+      if (!usersErr && freshUsers) db.users = freshUsers;
+    } catch(e) { console.error('Gagal refresh daftar user setelah login:', e); }
+  }
   return user;
 }
 

@@ -241,11 +241,20 @@ async function loadDB(){
   const result = defaultDB();
   try{
     const entries = Object.entries(ARRAY_TABLE_MAP);
+    // rpc_list_users() di server MEWAJIBKAN session_is_admin() (lihat
+    // supabase-session-auth-migration.sql) — kalau dipanggil untuk user
+    // biasa/petugas/guest, server menolak dengan error 403 "Unauthorized".
+    // db.users sendiri CUMA dipakai di halaman Manajemen User (khusus admin,
+    // lihat getUsers() di 02-auth.js & renderUsers() di 06-login-users.js),
+    // jadi untuk non-admin RPC ini sengaja dilewati sama sekali supaya tidak
+    // ada 403 percuma di console tiap kali app dibuka — halaman Manajemen
+    // User sendiri sudah fetch ulang datanya sendiri saat dibuka/diubah.
+    const usersCall = isAdmin() ? sb.rpc('rpc_list_users') : Promise.resolve({data:null, error:null});
     const [arrayResults, settingsRes, telegramRes, usersRes, guestMenuRes, dokumenGlobalRes, orgProfileRes] = await Promise.all([
       Promise.all(entries.map(([, table]) => sb.from(table).select('*'))),
       sb.from('kt_settings').select('*'),
       sb.from('kt_telegram_settings').select('*').eq('id', 'main').maybeSingle(),
-      sb.rpc('rpc_list_users'),
+      usersCall,
       sb.from('kt_guest_menu_settings').select('*').eq('id', 'main').maybeSingle(),
       sb.from('kt_dokumen_global').select('*').eq('id', 'main').maybeSingle(),
       sb.from('kt_organisasi_profil').select('*').eq('id', 'main').maybeSingle(),

@@ -1809,10 +1809,10 @@
        Lebar kolom sisanya diredistribusi mengisi ruang yang kosong. */
     table.operasional-table th:nth-child(1), table.operasional-table td:nth-child(1),
     table.operasional-table th:nth-child(2), table.operasional-table td:nth-child(2){display:none;}
-    table.operasional-table th:nth-child(3), table.operasional-table td:nth-child(3){width:40%; padding-left:10px;}
-    table.operasional-table th:nth-child(4), table.operasional-table td:nth-child(4){width:20%;}
-    table.operasional-table th:nth-child(5), table.operasional-table td:nth-child(5){width:10%;}
-    table.operasional-table th:nth-child(6), table.operasional-table td:nth-child(6){width:25%;}
+    table.operasional-table th:nth-child(3), table.operasional-table td:nth-child(3){width:36%; padding-left:10px;}
+    table.operasional-table th:nth-child(4), table.operasional-table td:nth-child(4){width:22%; white-space:nowrap; padding:8px 2px; font-size:11px;}
+    table.operasional-table th:nth-child(5), table.operasional-table td:nth-child(5){width:8%;}
+    table.operasional-table th:nth-child(6), table.operasional-table td:nth-child(6){width:29%;}
     table.operasional-table th:nth-child(7), table.operasional-table td:nth-child(7){width:5%; padding-right:6px;}
 
     /* --- Kas Karang Taruna: di HP, tabel desktop (kas-table, 7 kolom

@@ -48,6 +48,37 @@ let snapshotList = [];
 let snapshotListLoaded = false;
 let snapshotListLoading = false;
 
+// Ambil isi 4 tabel kt_gudang_* langsung dari Supabase (bukan dari variabel
+// gudangInventory/gudangTransactions di memori — bisa kosong/basi kalau
+// admin belum pernah membuka halaman Gudang di device ini). Dipakai bersama
+// oleh snapshot otomatis (buildSnapshotPayload) DAN "Backup Semua Data"
+// manual (exportData di js/15-pengaturan-event.js) supaya keduanya selalu
+// konsisten mencakup data yang sama. Return null kalau gagal fetch (mis.
+// koneksi putus) — caller wajib menangani null sebagai "gudang tidak
+// tersedia untuk backup kali ini", BUKAN sebagai "gudang memang kosong".
+async function fetchGudangBackupData(){
+  try{
+    const [invRes, trxRes, itemsRes, seqRes] = await Promise.all([
+      sb.from('kt_gudang_inventory').select('*'),
+      sb.from('kt_gudang_transactions').select('*'),
+      sb.from('kt_gudang_transaction_items').select('*'),
+      sb.from('kt_gudang_resi_seq').select('*'),
+    ]);
+    if (invRes.error || trxRes.error || itemsRes.error || seqRes.error) {
+      throw new Error(invRes.error?.message || trxRes.error?.message || itemsRes.error?.message || seqRes.error?.message);
+    }
+    return {
+      inventory: invRes.data || [],
+      transactions: trxRes.data || [],
+      transactionItems: itemsRes.data || [],
+      resiSeq: seqRes.data || [],
+    };
+  }catch(e){
+    console.error('Gagal mengambil data Gudang untuk backup:', e);
+    return null;
+  }
+}
+
 async function buildSnapshotPayload(){
   // Sama persis seperti exportData() — redaksi token Telegram karena
   // itu kredensial live, bukan "data" yang perlu dikembalikan saat restore.
@@ -61,27 +92,14 @@ async function buildSnapshotPayload(){
   // pernah membuka halaman Gudang di device ini. Makanya di sini datanya
   // di-fetch FRESH langsung dari tabel kt_gudang_* setiap snapshot dibuat,
   // termasuk kt_gudang_resi_seq (counter nomor resi) supaya penomoran resi
-  // tidak kacau kalau nanti dipulihkan.
-  try{
-    const [invRes, trxRes, itemsRes, seqRes] = await Promise.all([
-      sb.from('kt_gudang_inventory').select('*'),
-      sb.from('kt_gudang_transactions').select('*'),
-      sb.from('kt_gudang_transaction_items').select('*'),
-      sb.from('kt_gudang_resi_seq').select('*'),
-    ]);
-    payload._gudang = {
-      inventory: invRes.data || [],
-      transactions: trxRes.data || [],
-      transactionItems: itemsRes.data || [],
-      resiSeq: seqRes.data || [],
-    };
-  }catch(e){
-    // Jangan sampai gagal ambil data Gudang menggagalkan seluruh snapshot —
-    // lebih baik snapshot tetap dibuat (tanpa data gudang) daripada tidak
-    // ada jaring pengaman sama sekali. `_gudang` akan absen di payload,
-    // ditangani sebagai kasus "snapshot lama" oleh restoreGudangFromPayload().
-    console.error('Gagal mengambil data Gudang untuk snapshot:', e);
-  }
+  // tidak kacau kalau nanti dipulihkan. Kalau fetch gagal, `_gudang` sengaja
+  // dibiarkan absen (bukan array kosong) — jangan sampai gagal ambil data
+  // Gudang menggagalkan seluruh snapshot; lebih baik snapshot tetap dibuat
+  // tanpa data gudang daripada tidak ada jaring pengaman sama sekali.
+  // Absennya `_gudang` ditangani sebagai kasus "snapshot lama" oleh
+  // restoreGudangFromPayload().
+  const gudangData = await fetchGudangBackupData();
+  if (gudangData) payload._gudang = gudangData;
   return payload;
 }
 
@@ -177,10 +195,12 @@ async function buatSnapshotManualUI(){
 
 // Menimpa isi tabel kt_gudang_* di server dengan isi payload._gudang.
 // Dipanggil terpisah dari restore `db` karena gudang tidak lewat saveDB()/
-// syncArrayTable (lihat catatan di buildSnapshotPayload di atas).
-// Return: true = ada data gudang yang dipulihkan, false = snapshot lama
-// (dibuat sebelum fitur ini ada) sehingga data Gudang saat ini DIBIARKAN
-// apa adanya, tidak ikut ditimpa/dikosongkan.
+// syncArrayTable (lihat catatan di buildSnapshotPayload di atas). Dipakai
+// baik oleh pulihkanSnapshot() di sini maupun importData() di
+// js/15-pengaturan-event.js (Impor "Timpa Semua").
+// Return: true = ada data gudang yang dipulihkan, false = payload lama
+// (snapshot/file backup dibuat sebelum fitur ini ada) sehingga data Gudang
+// saat ini DIBIARKAN apa adanya, tidak ikut ditimpa/dikosongkan.
 async function restoreGudangFromPayload(payload){
   const g = payload && payload._gudang;
   if (!g) return false;

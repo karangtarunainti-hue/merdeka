@@ -195,7 +195,7 @@ function renderPengaturan(){
     <div class="backup-row">
       <div class="backup-info">
         <div class="backup-title">🏬 Backup Gudang Aset</div>
-        <div class="backup-desc">Inventaris + riwayat peminjaman. Data ini eventless, tidak ikut Backup Per-Event. Impor akan <b>MENAMBAH</b> data, tidak menimpa.</div>
+        <div class="backup-desc">Inventaris + riwayat peminjaman. Data ini eventless, tidak ikut Backup Per-Event — tapi IKUT ke Backup Semua Data. Impor lewat sini akan <b>MENAMBAH</b> data, tidak menimpa (beda dari Impor Backup Semua Data yang MENIMPA).</div>
       </div>
       <div class="backup-actions">
         <button class="btn secondary" onclick="gudangExportJSON()">⬇ Ekspor</button>
@@ -400,17 +400,28 @@ async function hapusEvent(id){
   notifyTelegram(`🗑️ Hapus event: ${e.nama}`, '', 'sistem');
 }
 
-function exportData(){
+async function exportData(){
   if (!canEdit()) { toast('⛔ Login untuk ekspor data'); return; }
+  toast('⏳ Menyiapkan data ekspor...');
   // Redaksi token Telegram — ini kredensial live, bukan "data", tidak perlu ikut ke file backup.
   const exportable = JSON.parse(JSON.stringify(db));
   if (exportable.telegram) exportable.telegram.botToken = '';
+  // Gudang Aset Desa TIDAK tersimpan di object `db` (lihat catatan di
+  // js/15b-snapshot.js) — diambil terpisah lewat fetchGudangBackupData()
+  // supaya "Backup Semua Data" ini benar-benar memuat SEMUA data, bukan
+  // cuma sebagian modul. Kalau fetch-nya gagal, file tetap diekspor tanpa
+  // data gudang (mending dapat backup sebagian daripada gagal total) —
+  // toast di bawah memberi tahu admin kalau itu terjadi.
+  const gudangData = await fetchGudangBackupData();
+  if (gudangData) exportable._gudang = gudangData;
   const blob = new Blob([JSON.stringify(exportable, null, 2)], {type:'application/json'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = `buku-keuangan-${todayISO()}.json`;
   a.click();
-  toast('✅ Data diekspor (token Telegram tidak disertakan, atur ulang jika perlu)');
+  toast(gudangData
+    ? '✅ Data diekspor (token Telegram tidak disertakan, atur ulang jika perlu)'
+    : '⚠️ Data diekspor, TAPI data Gudang gagal diambil dan tidak ikut ke file ini — coba ekspor ulang.', gudangData ? 4000 : 7000);
   notifyTelegram(`⬇️ Ekspor data`, `File: buku-keuangan-${todayISO()}.json`, 'sistem');
 }
 
@@ -428,7 +439,16 @@ function importData(evt){
       toast('⏳ Menyimpan kondisi saat ini sebagai jaring pengaman...');
       await buatSnapshot('pra-aksi', `Sebelum impor ${file.name}`);
       db = Object.assign(defaultDB(), parsed);
-      saveDB(); renderSidebar(); goSection('dashboard'); toast('Data diimpor');
+      saveDB();
+      // Pulihkan juga data Gudang kalau file backup-nya punya `_gudang`
+      // (dibuat oleh exportData() versi baru). File backup lama (dibuat
+      // sebelum perbaikan ini) tidak punya field ini — data Gudang saat
+      // ini sengaja DIBIARKAN, tidak ikut ditimpa/dikosongkan.
+      const gudangDipulihkan = await restoreGudangFromPayload(parsed);
+      renderSidebar(); goSection('dashboard'); toast('Data diimpor');
+      if (!gudangDipulihkan) {
+        toast('ℹ️ File ini dibuat sebelum data Gudang ikut di-backup — data Gudang saat ini tidak diubah.', 8000);
+      }
       notifyTelegram(`⬆️ Impor data`, `File: ${file.name}\nUkuran: ${(file.size/1024).toFixed(1)} KB`, 'sistem');
     }catch(e){ toast('File tidak valid'); }
   };

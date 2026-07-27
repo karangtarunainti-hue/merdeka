@@ -19,6 +19,14 @@
    mengubah suatu baris, perubahan itu TIDAK ditimpa diam-diam —
    admin akan lihat toast peringatan & perlu muat ulang untuk cek).
 
+   PENGECUALIAN — GUDANG: modul Gudang Aset Desa (js/17a-gudang-core.js)
+   tidak menyimpan datanya di object `db`, jadi TIDAK ikut kebawa lewat
+   JSON.stringify(db) di atas. Datanya diambil & dipulihkan terpisah
+   lewat payload._gudang — lihat buildSnapshotPayload() dan
+   restoreGudangFromPayload() di bawah. Snapshot lama (dibuat sebelum
+   perbaikan ini) tidak punya payload._gudang — saat dipulihkan, data
+   Gudang saat ini sengaja DIBIARKAN (tidak ikut ditimpa/dikosongkan).
+
    RETENSI: cuma 10 snapshot terakhir yang disimpan (dipilih sendiri
    oleh admin Karang Taruna Inti). Konsekuensinya: kalau snapshot
    harian + pra-aksi terjadi beruntun dalam waktu berdekatan, yang
@@ -40,18 +48,47 @@ let snapshotList = [];
 let snapshotListLoaded = false;
 let snapshotListLoading = false;
 
-function buildSnapshotPayload(){
+async function buildSnapshotPayload(){
   // Sama persis seperti exportData() — redaksi token Telegram karena
   // itu kredensial live, bukan "data" yang perlu dikembalikan saat restore.
   const payload = JSON.parse(JSON.stringify(db));
   if (payload.telegram) payload.telegram.botToken = '';
+
+  // Gudang Aset Desa (js/17a-gudang-core.js) TIDAK menyimpan datanya di
+  // object `db` — dia punya variabel modul sendiri (gudangInventory dkk)
+  // yang dibaca langsung dari/ke Supabase. Kalau kita ambil dari variabel
+  // itu, snapshot bisa kosong/basi kalau admin yang membuat snapshot belum
+  // pernah membuka halaman Gudang di device ini. Makanya di sini datanya
+  // di-fetch FRESH langsung dari tabel kt_gudang_* setiap snapshot dibuat,
+  // termasuk kt_gudang_resi_seq (counter nomor resi) supaya penomoran resi
+  // tidak kacau kalau nanti dipulihkan.
+  try{
+    const [invRes, trxRes, itemsRes, seqRes] = await Promise.all([
+      sb.from('kt_gudang_inventory').select('*'),
+      sb.from('kt_gudang_transactions').select('*'),
+      sb.from('kt_gudang_transaction_items').select('*'),
+      sb.from('kt_gudang_resi_seq').select('*'),
+    ]);
+    payload._gudang = {
+      inventory: invRes.data || [],
+      transactions: trxRes.data || [],
+      transactionItems: itemsRes.data || [],
+      resiSeq: seqRes.data || [],
+    };
+  }catch(e){
+    // Jangan sampai gagal ambil data Gudang menggagalkan seluruh snapshot —
+    // lebih baik snapshot tetap dibuat (tanpa data gudang) daripada tidak
+    // ada jaring pengaman sama sekali. `_gudang` akan absen di payload,
+    // ditangani sebagai kasus "snapshot lama" oleh restoreGudangFromPayload().
+    console.error('Gagal mengambil data Gudang untuk snapshot:', e);
+  }
   return payload;
 }
 
 async function buatSnapshot(trigger, label){
   if (!canEdit()) return null;
   try{
-    const payload = buildSnapshotPayload();
+    const payload = await buildSnapshotPayload();
     const json = JSON.stringify(payload);
     const { error } = await sb.from('kt_snapshot').insert({
       trigger, label: label || null, payload,
@@ -138,6 +175,45 @@ async function buatSnapshotManualUI(){
   else toast('⛔ Gagal membuat snapshot');
 }
 
+// Menimpa isi tabel kt_gudang_* di server dengan isi payload._gudang.
+// Dipanggil terpisah dari restore `db` karena gudang tidak lewat saveDB()/
+// syncArrayTable (lihat catatan di buildSnapshotPayload di atas).
+// Return: true = ada data gudang yang dipulihkan, false = snapshot lama
+// (dibuat sebelum fitur ini ada) sehingga data Gudang saat ini DIBIARKAN
+// apa adanya, tidak ikut ditimpa/dikosongkan.
+async function restoreGudangFromPayload(payload){
+  const g = payload && payload._gudang;
+  if (!g) return false;
+  try{
+    // Urutan hapus: transaction_items dulu (FK ke transactions, cascade
+    // sebenarnya sudah otomatis kalau transactions dihapus, tapi dihapus
+    // eksplisit di sini juga supaya urutan aman walau cascade-nya berubah
+    // di migrasi nanti), baru transactions, baru inventory.
+    await sb.from('kt_gudang_transaction_items').delete().not('id', 'is', null);
+    await sb.from('kt_gudang_transactions').delete().not('id', 'is', null);
+    await sb.from('kt_gudang_inventory').delete().not('id', 'is', null);
+
+    // Urutan insert kebalikannya: inventory & transactions dulu (parent),
+    // baru transaction_items (child, referensi transaction_id harus sudah ada).
+    if (g.inventory?.length) await sb.from('kt_gudang_inventory').insert(g.inventory);
+    if (g.transactions?.length) await sb.from('kt_gudang_transactions').insert(g.transactions);
+    if (g.transactionItems?.length) await sb.from('kt_gudang_transaction_items').insert(g.transactionItems);
+    if (g.resiSeq?.length) {
+      for (const row of g.resiSeq) {
+        await sb.from('kt_gudang_resi_seq').upsert(row);
+      }
+    }
+    // Paksa reload berikutnya kali halaman Gudang dibuka, jangan pakai
+    // gudangInventory/gudangTransactions lama yang masih di memori.
+    gudangLoaded = false;
+    return true;
+  }catch(e){
+    console.error('Gagal memulihkan data Gudang dari snapshot:', e);
+    toast('⚠️ Data lain sudah dipulihkan, tapi data Gudang GAGAL dipulihkan — cek konsol.', 6000);
+    return false;
+  }
+}
+
 async function pulihkanSnapshot(id){
   if (!isAdmin()) { toast('⛔ Hanya Admin'); return; }
   const s = snapshotList.find(x=>x.id===id); if(!s) return;
@@ -154,8 +230,12 @@ async function pulihkanSnapshot(id){
   toast('⏳ Memulihkan data...');
   db = Object.assign(defaultDB(), data.payload);
   saveDB();
+  const gudangDipulihkan = await restoreGudangFromPayload(data.payload);
   renderSidebar(); goSection('dashboard');
   toast('✅ Data dipulihkan dari snapshot. Muat ulang halaman disarankan untuk memastikan tampilan segar.', 6000);
+  if (!gudangDipulihkan) {
+    toast('ℹ️ Snapshot ini dibuat sebelum data Gudang ikut dicadangkan — data Gudang saat ini tidak diubah.', 8000);
+  }
   notifyTelegram('↺ Pulihkan snapshot', `Waktu snapshot: ${waktu}`, 'sistem');
   snapshotListLoaded = false;
 }

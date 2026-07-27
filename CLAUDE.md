@@ -33,6 +33,11 @@ dideploy ke **Cloudflare Workers (assets)** dengan backend **Supabase**.
   ada modul eventless baru yang dibangun dengan pola serupa Gudang (fetch
   langsung, bukan lewat `db`), cek dulu apakah dia perlu ditambahkan secara
   eksplisit ke jalur backup — jangan asumsikan otomatis ikut ter-cover.
+  Restore data Gudang sendiri lewat RPC atomik `kt_gudang_restore_snapshot`
+  (full wipe+insert dalam satu transaksi server, lihat
+  `supabase-gudang-restore-snapshot-migration.sql`) — BUKAN beberapa
+  delete()/insert() terpisah dari JS, supaya koneksi putus di tengah
+  restore tidak meninggalkan tabel Gudang kosong separuh.
 - **Sistem backup/restore** — ada 3 jalur, cakupannya kini sinkron (sama-sama
   mencakup `db` + Gudang) sejak diperbaiki:
   1. **Snapshot otomatis** (`15b-snapshot.js`, tabel `kt_snapshot`) — 1×/hari
@@ -142,3 +147,18 @@ runner — situs 100% statis, testing manual di browser.
   backup, kalau tidak akan diam-diam tidak ter-backup — riwayat bug:
   modul Gudang sempat tidak ikut snapshot maupun Backup Semua Data
   selama beberapa waktu tanpa ada indikasi error apa pun ke admin).
+- **KETERBATASAN DIKETAHUI — "Pulihkan Snapshot"/"Impor Timpa Semua"
+  tidak 100% full-overwrite untuk data `db.xxx`.** `syncArrayTable()`
+  (`03-db-core.js`) hanya menghapus baris yang ID-nya PERNAH dikenal tab
+  ini (`_lastKnownIds`, diisi saat tab terakhir memuat data) — baris yang
+  ditambahkan device/admin LAIN setelah tab ini terakhir memuat data
+  TIDAK ikut terhapus walau tidak ada di payload yang dipulihkan. Ini
+  proteksi yang disengaja untuk kasus edit harian normal (supaya sync
+  satu device tidak menghapus data baru device lain), tapi untuk aksi
+  restore eksplisit, ini bisa meleset dari janji dialog konfirmasinya
+  ("Seluruh data SAAT INI akan ditimpa"). Belum diperbaiki — perlu
+  didiskusikan dulu trade-off-nya (full-wipe-paksa vs proteksi
+  concurrent-edit) sebelum diubah, karena keduanya sama-sama valid
+  tergantung prioritas: mana yang lebih penting, restore yang benar-benar
+  akurat 100%, atau tidak pernah kehilangan data device lain tanpa
+  peringatan.

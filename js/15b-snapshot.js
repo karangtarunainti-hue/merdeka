@@ -193,10 +193,13 @@ async function buatSnapshotManualUI(){
   else toast('⛔ Gagal membuat snapshot');
 }
 
-// Menimpa isi tabel kt_gudang_* di server dengan isi payload._gudang.
-// Dipanggil terpisah dari restore `db` karena gudang tidak lewat saveDB()/
-// syncArrayTable (lihat catatan di buildSnapshotPayload di atas). Dipakai
-// baik oleh pulihkanSnapshot() di sini maupun importData() di
+// Menimpa isi tabel kt_gudang_* di server dengan isi payload._gudang, lewat
+// RPC atomik `kt_gudang_restore_snapshot` (lihat
+// supabase-gudang-restore-snapshot-migration.sql) — SATU transaksi server,
+// bukan beberapa delete()/insert() terpisah dari JS. Kalau ada langkah yang
+// gagal di tengah jalan (mis. koneksi putus), PostgreSQL rollback semuanya
+// dan tabel Gudang tetap dalam kondisi SEMULA, tidak berakhir kosong separuh.
+// Dipakai baik oleh pulihkanSnapshot() di sini maupun importData() di
 // js/15-pengaturan-event.js (Impor "Timpa Semua").
 // Return: true = ada data gudang yang dipulihkan, false = payload lama
 // (snapshot/file backup dibuat sebelum fitur ini ada) sehingga data Gudang
@@ -205,31 +208,20 @@ async function restoreGudangFromPayload(payload){
   const g = payload && payload._gudang;
   if (!g) return false;
   try{
-    // Urutan hapus: transaction_items dulu (FK ke transactions, cascade
-    // sebenarnya sudah otomatis kalau transactions dihapus, tapi dihapus
-    // eksplisit di sini juga supaya urutan aman walau cascade-nya berubah
-    // di migrasi nanti), baru transactions, baru inventory.
-    await sb.from('kt_gudang_transaction_items').delete().not('id', 'is', null);
-    await sb.from('kt_gudang_transactions').delete().not('id', 'is', null);
-    await sb.from('kt_gudang_inventory').delete().not('id', 'is', null);
-
-    // Urutan insert kebalikannya: inventory & transactions dulu (parent),
-    // baru transaction_items (child, referensi transaction_id harus sudah ada).
-    if (g.inventory?.length) await sb.from('kt_gudang_inventory').insert(g.inventory);
-    if (g.transactions?.length) await sb.from('kt_gudang_transactions').insert(g.transactions);
-    if (g.transactionItems?.length) await sb.from('kt_gudang_transaction_items').insert(g.transactionItems);
-    if (g.resiSeq?.length) {
-      for (const row of g.resiSeq) {
-        await sb.from('kt_gudang_resi_seq').upsert(row);
-      }
-    }
+    const { error } = await sb.rpc('kt_gudang_restore_snapshot', {
+      p_inventory: g.inventory || [],
+      p_transactions: g.transactions || [],
+      p_items: g.transactionItems || [],
+      p_resi_seq: g.resiSeq || [],
+    });
+    if (error) throw new Error(error.message);
     // Paksa reload berikutnya kali halaman Gudang dibuka, jangan pakai
     // gudangInventory/gudangTransactions lama yang masih di memori.
     gudangLoaded = false;
     return true;
   }catch(e){
     console.error('Gagal memulihkan data Gudang dari snapshot:', e);
-    toast('⚠️ Data lain sudah dipulihkan, tapi data Gudang GAGAL dipulihkan — cek konsol.', 6000);
+    toast('⚠️ Data lain sudah dipulihkan, tapi data Gudang GAGAL dipulihkan (tidak ada perubahan, aman dicoba ulang) — cek konsol.', 7000);
     return false;
   }
 }

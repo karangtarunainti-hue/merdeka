@@ -13,6 +13,41 @@ dideploy ke **Cloudflare Workers (assets)** dengan backend **Supabase**.
 - **Tanpa ES modules** — semua modul di `js/*.js` adalah script biasa yang
   saling bergantung lewat variabel/fungsi **global**. Urutan load di
   `index.html` HARUS sama persis dengan `MODULE_ORDER` di `build.js`.
+- **Pola sinkronisasi data utama**: hampir semua modul menyimpan datanya di
+  satu object global `db` (didefinisikan lewat `defaultDB()` di
+  `03-db-core.js`). Tiap array di `db` dipetakan ke satu tabel Supabase
+  lewat `ARRAY_TABLE_MAP`. Perubahan data memanipulasi `db.xxx` di memori,
+  lalu memanggil `saveDB()` — yang men-diff tiap tabel (`syncArrayTable` dkk)
+  terhadap server: baris yang tidak ada lagi di `db.xxx` dihapus, yang ada
+  di-upsert, sambil tetap mendeteksi konflik multi-device.
+- **PENGECUALIAN — modul Gudang (`17a`-`17c`) TIDAK ikut pola di atas.**
+  Gudang punya variabel modul sendiri (`gudangInventory`,
+  `gudangTransactions`) yang fetch/tulis **langsung** ke tabel `kt_gudang_*`
+  via Supabase, di luar `db`. Konsekuensi penting: kode mana pun yang
+  mengasumsikan "seluruh data aplikasi" = `JSON.stringify(db)` (backup,
+  ekspor, migrasi, laporan lintas-modul, dll) akan **melewatkan Gudang**
+  kecuali ditangani terpisah secara eksplisit — lihat contoh penanganannya
+  di `fetchGudangBackupData()`/`restoreGudangFromPayload()` (`15b-snapshot.js`)
+  yang dipakai baik oleh snapshot otomatis maupun "Backup Semua Data" manual
+  (`exportData()`/`importData()` di `15-pengaturan-event.js`). Kalau nanti
+  ada modul eventless baru yang dibangun dengan pola serupa Gudang (fetch
+  langsung, bukan lewat `db`), cek dulu apakah dia perlu ditambahkan secara
+  eksplisit ke jalur backup — jangan asumsikan otomatis ikut ter-cover.
+- **Sistem backup/restore** — ada 3 jalur, cakupannya kini sinkron (sama-sama
+  mencakup `db` + Gudang) sejak diperbaiki:
+  1. **Snapshot otomatis** (`15b-snapshot.js`, tabel `kt_snapshot`) — 1×/hari
+     + tepat sebelum aksi berisiko (Impor "Timpa Semua", restore snapshot
+     lain), retensi 10 baris terakhir, tersimpan di server (bukan file).
+  2. **Backup Semua Data manual** (`exportData()`/`importData()` di
+     `15-pengaturan-event.js`) — file `.json` diunduh admin, impor MENIMPA
+     seluruh data.
+  3. **Backup per-modul** (mis. `gudangExportJSON()`/`gudangImportJSON()`,
+     `kasExportJSON()`, dll) — file terpisah per modul, impor MENAMBAH
+     (bukan menimpa), semantik beda dari jalur #2.
+  Payload snapshot & backup manual sama-sama redaksi `telegram.botToken`
+  (kredensial live, bukan data). Payload lama (dibuat sebelum data Gudang
+  ikut ter-backup) tidak punya field `_gudang` — saat direstore, ini
+  ditangani sebagai "data Gudang saat ini dibiarkan", bukan dikosongkan.
 - **File yang di-deploy vs file source**:
   - Source: `js/00-config.js` ... `js/25-tour.js`, `style.css`,
     `icons/lucide-icons.local.js`
@@ -99,3 +134,11 @@ runner — situs 100% statis, testing manual di browser.
 - Jangan tambah dependency runtime baru tanpa alasan kuat — proyek
   sengaja statis tanpa framework/bundler runtime (`esbuild` cuma untuk
   build lokal).
+- Sebelum menambah modul "eventless" baru (data yang tidak terikat
+  event, seperti Kas/Agenda/Gudang/Dana Sosial), putuskan sejak awal:
+  ikut pola `db.xxx` + `ARRAY_TABLE_MAP` (otomatis ke-cover semua jalur
+  backup), atau fetch/tulis langsung ke Supabase seperti Gudang (harus
+  ditambahkan manual ke `fetchGudangBackupData()`-style helper di jalur
+  backup, kalau tidak akan diam-diam tidak ter-backup — riwayat bug:
+  modul Gudang sempat tidak ikut snapshot maupun Backup Semua Data
+  selama beberapa waktu tanpa ada indikasi error apa pun ke admin).

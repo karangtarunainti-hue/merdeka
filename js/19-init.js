@@ -152,6 +152,12 @@ initOfflineGuard();
   // saat pertama kali buka menu Gudang, datanya sudah siap tanpa jeda loading.
   loadGudangData();
 
+  // Log Error (kt_error_log) — cuma di-preload utk Admin (yg satu-satunya
+  // role yang bisa melihatnya, lihat card notifikasi Dashboard & Pengaturan
+  // di 07-dashboard.js/15-pengaturan-event.js). Sama pola dgn loadGudangData()
+  // di atas: jalan di belakang layar, tidak memblokir tampilan awal.
+  if (isAdmin()) loadErrorLogFromCloud();
+
   // Snapshot otomatis harian (lihat js/15b-snapshot.js) — jalan di belakang
   // layar, tidak memblokir tampilan awal. Cuma benar-benar bikin snapshot
   // kalau hari ini belum ada snapshot sama sekali & user sedang login.
@@ -174,4 +180,11 @@ initOfflineGuard();
   flushTelegramQueue();
   window.addEventListener('online', flushTelegramQueue);
   setInterval(flushTelegramQueue, 5 * 60 * 1000);
+
+  // Antrian log error yang gagal tersimpan ke server (mis. toast error-nya
+  // sendiri terjadi pas lagi offline) — pola sama persis dgn antrian
+  // Telegram di atas. Lihat flushErrorLogQueue() di js/16-ui-helpers.js.
+  flushErrorLogQueue();
+  window.addEventListener('online', flushErrorLogQueue);
+  setInterval(flushErrorLogQueue, 5 * 60 * 1000);
 })();

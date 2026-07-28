@@ -5,6 +5,9 @@ function renderPengaturan(){
   if (!isAdmin()) {
     return `<div class="empty-state"><h3>⛔ Akses Ditolak</h3><p>Halaman Pengaturan hanya untuk Admin.</p><button class="btn" onclick="goSection('dashboard')">Kembali ke Dashboard</button></div>`;
   }
+  if (!errorLogCloudLoaded && !errorLogCloudLoading) {
+    loadErrorLogFromCloud().then(() => { if (currentSection === 'pengaturan') renderContent(); });
+  }
   
   const s = getSettings();
   const telegram = getTelegramSettings();
@@ -235,7 +238,7 @@ function renderPengaturan(){
     <div class="backup-row">
       <div class="backup-info">
         <div class="backup-title">🚨 Log Error (Toast Merah)</div>
-        <div class="backup-desc">Riwayat semua toast merah/peringatan (⛔❌⚠) yang pernah muncul di perangkat ini — ${getToastErrorLogCount()} tercatat. Bukan bagian dari data organisasi, murni bantuan diagnosis kalau ada masalah teknis; tidak ikut Backup Semua Data.</div>
+        <div class="backup-desc">Riwayat semua toast merah/peringatan (⛔❌⚠) dari SEMUA perangkat/pengurus, disimpan di server — ${errorLogCloudLoaded ? errorLogCloud.length : '...'} tercatat${getErrorLogPendingCount() > 0 ? `, ${getErrorLogPendingCount()} lagi menunggu sinkron dari perangkat ini` : ''}. Bukan bagian dari data organisasi, murni bantuan diagnosis kalau ada masalah teknis; tidak ikut Backup Semua Data.</div>
       </div>
       <div class="backup-actions">
         <button class="btn secondary" onclick="toastErrorLogExportJSON()">⬇ Ekspor</button>

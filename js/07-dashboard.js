@@ -239,25 +239,38 @@ function generateReminders(){
   }
 
   // Kartu Log Error — KHUSUS ADMIN. Ini murni info teknis/diagnosis
-  // (riwayat toast merah/peringatan ⛔❌⚠ yg pernah muncul di perangkat
-  // ini, lihat 16-ui-helpers.js), bukan data organisasi — jadi jangan
-  // sampai kelihatan oleh user non-admin (termasuk guest & petugas).
+  // (riwayat toast merah/peringatan ⛔❌⚠ yg pernah muncul di SEMUA
+  // perangkat/pengurus, disimpan di tabel kt_error_log — lihat
+  // 16-ui-helpers.js), bukan data organisasi — jadi jangan sampai
+  // kelihatan oleh user non-admin (termasuk guest & petugas).
   if (isAdmin()) {
-    const toastErrors = getToastErrorLogEntries();
-    if (toastErrors.length > 0) {
-      const recent = toastErrors.slice(-3).reverse();
+    // Data server dimuat di belakang layar (lihat js/19-init.js -- dipreload
+    // sekali saat app dibuka utk admin, sama pola dgn loadGudangData()).
+    // Kalau ternyata belum sempat/gagal dimuat pas render dashboard ini
+    // (mis. baru login), kick off sekali lagi di sini & render ulang begitu
+    // selesai, supaya tidak perlu nunggu refresh manual.
+    if (!errorLogCloudLoaded && !errorLogCloudLoading) {
+      loadErrorLogFromCloud().then(() => { if (currentSection === 'dashboard') renderContent(); });
+    }
+    const pendingCount = getErrorLogPendingCount();
+    const totalCount = errorLogCloud.length + pendingCount;
+    if (totalCount > 0) {
+      const recent = errorLogCloud.slice(0, 3);
       const items = recent.map(e => ({
-        label: new Date(e.timestamp).toLocaleString('id-ID', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'}) + ':',
+        label: new Date(e.created_at).toLocaleString('id-ID', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'}) + ':',
         value: e.message
       }));
-      if (toastErrors.length > recent.length) {
-        items.push({label: '', value: `+${toastErrors.length - recent.length} lainnya — ekspor log lengkap di Pengaturan`});
+      if (errorLogCloud.length > recent.length) {
+        items.push({label: '', value: `+${errorLogCloud.length - recent.length} lainnya — ekspor log lengkap di Pengaturan`});
+      }
+      if (pendingCount > 0) {
+        items.push({label: '📶 Belum tersinkron:', value: `${pendingCount} error tercatat offline di perangkat ini, menunggu koneksi`});
       }
       reminders.push({
-        type: toastErrors.length > 10 ? 'danger' : 'warning',
+        type: totalCount > 10 ? 'danger' : 'warning',
         icon: '🚨',
         title: 'Log Error Aplikasi (Admin)',
-        count: toastErrors.length,
+        count: totalCount,
         items: items,
         action: {label: 'Kelola Log →', link: 'pengaturan'}
       });

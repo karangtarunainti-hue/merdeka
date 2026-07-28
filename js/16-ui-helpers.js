@@ -34,65 +34,132 @@ document.getElementById('overlay').addEventListener('click', (e)=>{ if(e.target.
 let toastTimer;
 
 /* ============================================================
-   LOG ERROR TOAST (untuk export lewat Pengaturan → Cadangan Data)
+   LOG ERROR TOAST — disimpan di SERVER (tabel kt_error_log,
+   lihat supabase-error-log-migration.sql), bukan cuma localStorage.
    ------------------------------------------------------------
    App ini belum punya konsep "toast merah" terpisah dari toast biasa —
    semua toast() dulu tampil dgn warna sama, cuma dibedakan lewat emoji
    di depan pesannya (konvensi yg sudah dipakai di ~500 pemanggilan
-   toast() di seluruh app: ⛔ = ditolak/gagal keras, ❌ = gagal, ⚠ = 
+   toast() di seluruh app: ⛔ = ditolak/gagal keras, ❌ = gagal, ⚠ =
    peringatan/gagal sebagian). Daripada mengubah semua pemanggilan itu
    satu-satu (berisiko & memakan waktu besar), deteksi dilakukan di sini,
-   di satu titik (toast() sendiri), berdasarkan emoji di awal pesan:
-   - Toast yg cocok otomatis diberi class 'toast-error' (merah, pakai
-     var(--bahaya) - lihat style.css) DAN dicatat ke localStorage supaya
-     admin bisa lihat riwayat kegagalan & ekspor sebagai file .json lewat
-     tombol di Pengaturan → Cadangan Data (lihat toastErrorLogExportJSON
-     & toastErrorLogClear di bawah, serta render tombolnya di
-     15-pengaturan-event.js).
-   - Deteksi berbasis teks msg SEBELUM DOM di-render, jadi tidak
-     terpengaruh MutationObserver auto-replace emoji→ikon Lucide di
-     21-icons-lucide.js (yg jalan belakangan, di rAF terpisah).
-   - Disimpan maks TOAST_ERROR_LOG_MAX entri terbaru (FIFO) supaya
-     localStorage tidak membengkak tanpa batas.
-   ============================================================ */
-const TOAST_ERROR_LOG_KEY = 'kt_toast_error_log';
-const TOAST_ERROR_LOG_MAX = 200;
-const TOAST_ERROR_EMOJI_REGEX = /^\s*[⛔❌⚠]/u;
+   di satu titik (toast() sendiri), berdasarkan emoji di awal pesan.
+   Deteksi berbasis teks msg SEBELUM DOM di-render, jadi tidak
+   terpengaruh MutationObserver auto-replace emoji→ikon Lucide di
+   21-icons-lucide.js (yg jalan belakangan, di rAF terpisah).
 
-function _recordToastError(msg){
+   Kenapa di server (bukan cuma localStorage per device seperti versi
+   awal fitur ini): supaya Admin bisa lihat error dari SEMUA
+   perangkat/pengurus di satu tempat (card notifikasi Dashboard &
+   Pengaturan → Cadangan Data), bukan cuma error di device dia sendiri.
+
+   Resiliensi offline: kalau INSERT ke server gagal (mis. toast errornya
+   sendiri justru karena lagi offline), baris itu diantrikan dulu ke
+   localStorage (ERROR_LOG_PENDING_QUEUE_KEY) lalu dicoba kirim ulang
+   otomatis lewat flushErrorLogQueue() — dipanggil dari js/19-init.js
+   sekali saat app dibuka, tiap koneksi online lagi, dan berkala tiap 5
+   menit, pola sama persis dgn antrian notifikasi Telegram
+   (_queueTelegramMessage/flushTelegramQueue di js/04-event-settings.js).
+   Ini SENGAJA fire-and-forget (tidak di-await di dalam toast()) supaya
+   toast() sendiri tidak pernah ketunda/gagal gara-gara pencatatan log.
+   ============================================================ */
+const TOAST_ERROR_EMOJI_REGEX = /^\s*[⛔❌⚠]/u;
+const ERROR_LOG_PENDING_QUEUE_KEY = 'kt_error_log_pending_queue';
+const ERROR_LOG_PENDING_QUEUE_MAX = 100; // batasi antrian offline biar tidak numpuk tanpa batas
+const ERROR_LOG_FETCH_LIMIT = 300; // ambil 300 terbaru saja dari server, cukup buat diagnosis
+
+let errorLogCloud = [];
+let errorLogCloudLoaded = false;
+let errorLogCloudLoading = false;
+
+function _buildErrorLogRow(msg){
+  return {
+    message: String(msg).slice(0, 2000), // jaga-jaga biar 1 pesan aneh tidak bikin row raksasa
+    section: (typeof currentSection !== 'undefined' ? currentSection : null),
+    event_nama: (typeof activeEvent === 'function' && activeEvent()) ? activeEvent().nama : null,
+    user_name: (typeof getCurrentUser === 'function' && getCurrentUser()) ? getCurrentUser().name : null,
+    device_info: (navigator.userAgent || '').slice(0, 200),
+    url: location.href
+  };
+}
+
+function _loadErrorLogPendingQueue(){
+  try{ return JSON.parse(localStorage.getItem(ERROR_LOG_PENDING_QUEUE_KEY) || '[]'); }
+  catch{ return []; }
+}
+function _saveErrorLogPendingQueue(queue){
+  try{ localStorage.setItem(ERROR_LOG_PENDING_QUEUE_KEY, JSON.stringify(queue)); }catch(e){}
+}
+function _queueErrorLogRow(row){
+  let queue = _loadErrorLogPendingQueue();
+  queue.push(row);
+  if(queue.length > ERROR_LOG_PENDING_QUEUE_MAX) queue = queue.slice(queue.length - ERROR_LOG_PENDING_QUEUE_MAX);
+  _saveErrorLogPendingQueue(queue);
+}
+
+async function _recordToastError(msg){
+  const row = _buildErrorLogRow(msg);
   try{
-    const log = JSON.parse(localStorage.getItem(TOAST_ERROR_LOG_KEY) || '[]');
-    log.push({
-      timestamp: new Date().toISOString(),
-      message: msg,
-      section: (typeof currentSection !== 'undefined' ? currentSection : null),
-      event: (typeof activeEvent === 'function' && activeEvent()) ? activeEvent().nama : null,
-      user: (typeof getCurrentUser === 'function' && getCurrentUser()) ? getCurrentUser().name : null,
-      url: location.href
-    });
-    if(log.length > TOAST_ERROR_LOG_MAX) log.splice(0, log.length - TOAST_ERROR_LOG_MAX);
-    localStorage.setItem(TOAST_ERROR_LOG_KEY, JSON.stringify(log));
+    const {error} = await sb.from('kt_error_log').insert(row);
+    if(error) throw error;
+    errorLogCloudLoaded = false; // ada data baru di server, cache lama basi
   }catch(e){
-    // Jangan sampai pencatatan log ini sendiri bikin toast asli gagal tampil.
-    console.error('Gagal mencatat toast error log:', e);
+    // Jangan sampai kegagalan mencatat log INI malah memicu toast error baru
+    // (potensi loop) -- cukup ke console + antrikan utk dicoba lagi nanti.
+    console.error('Gagal simpan log error ke server, diantrikan lokal:', e);
+    _queueErrorLogRow(row);
   }
 }
 
-function getToastErrorLogCount(){
-  try{ return (JSON.parse(localStorage.getItem(TOAST_ERROR_LOG_KEY) || '[]')).length; }
-  catch{ return 0; }
+async function flushErrorLogQueue(){
+  const queue = _loadErrorLogPendingQueue();
+  if(!queue.length) return;
+  const remaining = [];
+  for(const row of queue){
+    try{
+      const {error} = await sb.from('kt_error_log').insert(row);
+      if(error) throw error;
+    }catch(e){
+      remaining.push(row);
+    }
+  }
+  _saveErrorLogPendingQueue(remaining);
+  if(remaining.length !== queue.length) errorLogCloudLoaded = false;
 }
 
-function getToastErrorLogEntries(){
-  try{ return JSON.parse(localStorage.getItem(TOAST_ERROR_LOG_KEY) || '[]'); }
-  catch{ return []; }
+async function loadErrorLogFromCloud(){
+  if(errorLogCloudLoading) return;
+  errorLogCloudLoading = true;
+  try{
+    const {data, error} = await sb.from('kt_error_log').select('*').order('created_at', {ascending:false}).limit(ERROR_LOG_FETCH_LIMIT);
+    if(error) throw error;
+    errorLogCloud = data || [];
+    errorLogCloudLoaded = true;
+  }catch(e){
+    console.error('Gagal memuat log error dari server:', e);
+  }finally{
+    errorLogCloudLoading = false;
+  }
 }
 
-function toastErrorLogExportJSON(){
-  let log = [];
-  try{ log = JSON.parse(localStorage.getItem(TOAST_ERROR_LOG_KEY) || '[]'); }catch{}
-  if(!log.length){ toast('Belum ada error tercatat.'); return; }
-  const payload = { exported_at: new Date().toISOString(), app: 'merdeka', count: log.length, entries: log };
+function getErrorLogPendingCount(){ return _loadErrorLogPendingQueue().length; }
+
+async function toastErrorLogExportJSON(){
+  toast('⏳ Mengambil log error dari server...');
+  await loadErrorLogFromCloud();
+  const pending = _loadErrorLogPendingQueue();
+  const cloudEntries = errorLogCloud.map(e => ({
+    timestamp: e.created_at, message: e.message, section: e.section,
+    event: e.event_nama, user: e.user_name, device: e.device_info, url: e.url
+  }));
+  const pendingEntries = pending.map(e => ({
+    timestamp: null, message: e.message, section: e.section,
+    event: e.event_nama, user: e.user_name, device: e.device_info, url: e.url,
+    _belum_tersinkron_ke_server: true
+  }));
+  const entries = [...cloudEntries, ...pendingEntries];
+  if(!entries.length){ toast('Belum ada error tercatat.'); return; }
+  const payload = { exported_at: new Date().toISOString(), app: 'merdeka', count: entries.length, entries };
   const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -101,11 +168,21 @@ function toastErrorLogExportJSON(){
   toast('✅ Log error berhasil diekspor.');
 }
 
-function toastErrorLogClear(){
-  if(!getToastErrorLogCount()){ toast('Log error sudah kosong.'); return; }
-  localStorage.removeItem(TOAST_ERROR_LOG_KEY);
-  toast('🗑 Log error dibersihkan.');
-  if(typeof currentSection!=='undefined' && currentSection==='pengaturan' && typeof renderContent==='function') renderContent();
+async function toastErrorLogClear(){
+  if(!isAdmin()){ toast('⛔ Hanya Admin'); return; }
+  if(!await confirmModal('Hapus SEMUA log error di SERVER (dari semua perangkat/pengurus)? Tidak bisa dibatalkan.')) return;
+  try{
+    const {error} = await sb.from('kt_error_log').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    if(error) throw error;
+    _saveErrorLogPendingQueue([]);
+    errorLogCloud = [];
+    errorLogCloudLoaded = true;
+    toast('🗑 Log error server dibersihkan.');
+    if(typeof currentSection!=='undefined' && currentSection==='pengaturan' && typeof renderContent==='function') renderContent();
+  }catch(e){
+    console.error('Gagal menghapus log error di server:', e);
+    toast('⛔ Gagal menghapus log error: ' + (e.message || 'error tak dikenal'));
+  }
 }
 
 function toast(msg, durationMs = 2400){

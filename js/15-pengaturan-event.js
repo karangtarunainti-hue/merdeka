@@ -232,6 +232,16 @@ function renderPengaturan(){
         <label class="btn secondary">⬆ Impor<input type="file" accept=".json" style="display:none;" onchange="bookmarkImportJSON(this)"></label>
       </div>
     </div>
+    <div class="backup-row">
+      <div class="backup-info">
+        <div class="backup-title">🚨 Log Error (Toast Merah)</div>
+        <div class="backup-desc">Riwayat semua toast merah/peringatan (⛔❌⚠) yang pernah muncul di perangkat ini — ${getToastErrorLogCount()} tercatat. Bukan bagian dari data organisasi, murni bantuan diagnosis kalau ada masalah teknis; tidak ikut Backup Semua Data.</div>
+      </div>
+      <div class="backup-actions">
+        <button class="btn secondary" onclick="toastErrorLogExportJSON()">⬇ Ekspor</button>
+        <button class="btn secondary" onclick="toastErrorLogClear()">🗑 Hapus Log</button>
+      </div>
+    </div>
   </div>
   ${renderSnapshotPanel()}`;
 }

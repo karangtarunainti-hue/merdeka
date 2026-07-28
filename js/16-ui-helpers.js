@@ -32,9 +32,83 @@ document.getElementById('overlay').addEventListener('mousedown', (e)=>{ overlayM
 document.getElementById('overlay').addEventListener('click', (e)=>{ if(e.target.id==='overlay' && overlayMouseDownOnBackdrop) closeModal(); overlayMouseDownOnBackdrop = false; });
 
 let toastTimer;
+
+/* ============================================================
+   LOG ERROR TOAST (untuk export lewat Pengaturan → Cadangan Data)
+   ------------------------------------------------------------
+   App ini belum punya konsep "toast merah" terpisah dari toast biasa —
+   semua toast() dulu tampil dgn warna sama, cuma dibedakan lewat emoji
+   di depan pesannya (konvensi yg sudah dipakai di ~500 pemanggilan
+   toast() di seluruh app: ⛔ = ditolak/gagal keras, ❌ = gagal, ⚠ = 
+   peringatan/gagal sebagian). Daripada mengubah semua pemanggilan itu
+   satu-satu (berisiko & memakan waktu besar), deteksi dilakukan di sini,
+   di satu titik (toast() sendiri), berdasarkan emoji di awal pesan:
+   - Toast yg cocok otomatis diberi class 'toast-error' (merah, pakai
+     var(--bahaya) - lihat style.css) DAN dicatat ke localStorage supaya
+     admin bisa lihat riwayat kegagalan & ekspor sebagai file .json lewat
+     tombol di Pengaturan → Cadangan Data (lihat toastErrorLogExportJSON
+     & toastErrorLogClear di bawah, serta render tombolnya di
+     15-pengaturan-event.js).
+   - Deteksi berbasis teks msg SEBELUM DOM di-render, jadi tidak
+     terpengaruh MutationObserver auto-replace emoji→ikon Lucide di
+     21-icons-lucide.js (yg jalan belakangan, di rAF terpisah).
+   - Disimpan maks TOAST_ERROR_LOG_MAX entri terbaru (FIFO) supaya
+     localStorage tidak membengkak tanpa batas.
+   ============================================================ */
+const TOAST_ERROR_LOG_KEY = 'kt_toast_error_log';
+const TOAST_ERROR_LOG_MAX = 200;
+const TOAST_ERROR_EMOJI_REGEX = /^\s*[⛔❌⚠]/u;
+
+function _recordToastError(msg){
+  try{
+    const log = JSON.parse(localStorage.getItem(TOAST_ERROR_LOG_KEY) || '[]');
+    log.push({
+      timestamp: new Date().toISOString(),
+      message: msg,
+      section: (typeof currentSection !== 'undefined' ? currentSection : null),
+      event: (typeof activeEvent === 'function' && activeEvent()) ? activeEvent().nama : null,
+      user: (typeof getCurrentUser === 'function' && getCurrentUser()) ? getCurrentUser().name : null,
+      url: location.href
+    });
+    if(log.length > TOAST_ERROR_LOG_MAX) log.splice(0, log.length - TOAST_ERROR_LOG_MAX);
+    localStorage.setItem(TOAST_ERROR_LOG_KEY, JSON.stringify(log));
+  }catch(e){
+    // Jangan sampai pencatatan log ini sendiri bikin toast asli gagal tampil.
+    console.error('Gagal mencatat toast error log:', e);
+  }
+}
+
+function getToastErrorLogCount(){
+  try{ return (JSON.parse(localStorage.getItem(TOAST_ERROR_LOG_KEY) || '[]')).length; }
+  catch{ return 0; }
+}
+
+function toastErrorLogExportJSON(){
+  let log = [];
+  try{ log = JSON.parse(localStorage.getItem(TOAST_ERROR_LOG_KEY) || '[]'); }catch{}
+  if(!log.length){ toast('Belum ada error tercatat.'); return; }
+  const payload = { exported_at: new Date().toISOString(), app: 'merdeka', count: log.length, entries: log };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `toast-error-log-${todayISO()}.json`;
+  a.click();
+  toast('✅ Log error berhasil diekspor.');
+}
+
+function toastErrorLogClear(){
+  if(!getToastErrorLogCount()){ toast('Log error sudah kosong.'); return; }
+  localStorage.removeItem(TOAST_ERROR_LOG_KEY);
+  toast('🗑 Log error dibersihkan.');
+  if(typeof currentSection!=='undefined' && currentSection==='pengaturan' && typeof renderContent==='function') renderContent();
+}
+
 function toast(msg, durationMs = 2400){
   const t = document.getElementById('toast');
   t.textContent = msg;
+  const isError = TOAST_ERROR_EMOJI_REGEX.test(msg);
+  t.classList.toggle('toast-error', isError);
+  if(isError) _recordToastError(msg);
   t.classList.add('show');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(()=>t.classList.remove('show'), durationMs);

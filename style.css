@@ -1061,6 +1061,7 @@
     opacity:0; pointer-events:none; transition:all .25s ease; z-index:200;
   }
   .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+  .toast.toast-error{background:var(--bahaya);}
 
   .belanja-item{
     display:flex; align-items:center; gap:12px;

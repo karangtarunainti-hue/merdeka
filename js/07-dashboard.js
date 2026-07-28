@@ -238,6 +238,32 @@ function generateReminders(){
     });
   }
 
+  // Kartu Log Error — KHUSUS ADMIN. Ini murni info teknis/diagnosis
+  // (riwayat toast merah/peringatan ⛔❌⚠ yg pernah muncul di perangkat
+  // ini, lihat 16-ui-helpers.js), bukan data organisasi — jadi jangan
+  // sampai kelihatan oleh user non-admin (termasuk guest & petugas).
+  if (isAdmin()) {
+    const toastErrors = getToastErrorLogEntries();
+    if (toastErrors.length > 0) {
+      const recent = toastErrors.slice(-3).reverse();
+      const items = recent.map(e => ({
+        label: new Date(e.timestamp).toLocaleString('id-ID', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'}) + ':',
+        value: e.message
+      }));
+      if (toastErrors.length > recent.length) {
+        items.push({label: '', value: `+${toastErrors.length - recent.length} lainnya — ekspor log lengkap di Pengaturan`});
+      }
+      reminders.push({
+        type: toastErrors.length > 10 ? 'danger' : 'warning',
+        icon: '🚨',
+        title: 'Log Error Aplikasi (Admin)',
+        count: toastErrors.length,
+        items: items,
+        action: {label: 'Kelola Log →', link: 'pengaturan'}
+      });
+    }
+  }
+
   if (reminders.length === 0) {
     return `
     <div class="reminder-grid">

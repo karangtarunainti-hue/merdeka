@@ -83,6 +83,11 @@ function getToastErrorLogCount(){
   catch{ return 0; }
 }
 
+function getToastErrorLogEntries(){
+  try{ return JSON.parse(localStorage.getItem(TOAST_ERROR_LOG_KEY) || '[]'); }
+  catch{ return []; }
+}
+
 function toastErrorLogExportJSON(){
   let log = [];
   try{ log = JSON.parse(localStorage.getItem(TOAST_ERROR_LOG_KEY) || '[]'); }catch{}

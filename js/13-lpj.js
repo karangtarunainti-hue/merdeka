@@ -42,10 +42,13 @@ function renderLPJ(){
   const operasionalList = gOperasional().slice().sort((x,y)=>(x.tanggal||'').localeCompare(y.tanggal||''));
 
   const kebutuhanRows = [];
+  const belanjaPerlengkapan = new Map(gDaftarBelanjaPerlengkapan().filter(b=>b.status==='dibeli').map(b=>[b.kebutuhan_id,b]));
   gLomba().forEach(l=>{
     gKebutuhan(l.id).forEach(k=>{
-      const harga = Number(k.harga_realisasi ?? k.harga_estimasi ?? 0);
-      kebutuhanRows.push({ lomba:l.nama, nama:k.nama_item, qty:k.qty, harga, subtotal: harga*Number(k.qty||0) });
+      const belanja=belanjaPerlengkapan.get(k.id); if(!belanja) return;
+      const subtotal=Number(belanja.nominal_realisasi ?? (Number(k.harga_realisasi ?? k.harga_estimasi ?? 0)*Number(k.qty||0)));
+      const harga=Number(k.qty||0)>0 ? subtotal/Number(k.qty) : 0;
+      kebutuhanRows.push({ lomba:l.nama, nama:k.nama_item, qty:k.qty, harga, subtotal });
     });
   });
 
@@ -57,7 +60,7 @@ function renderLPJ(){
   // rumus flat harga_satuan*qty_dibeli mengabaikan harga_eceran untuk sisa pcs
   // yang dibeli satuan (lihat Bug #2). "harga" di sini jadi harga efektif per
   // pcs (hasil subtotal/qty) supaya qty × harga tetap sama dengan subtotal.
-  const hadiahAktual = hitungHargaAktualHadiahLomba();
+  const hadiahAktual = hitungHargaAktualHadiahLomba({onlyPurchased:true});
   gHadiahKategori().slice().sort((a,b)=>{
     const ka = urutanKategori.indexOf(a.kategori_peserta), kb = urutanKategori.indexOf(b.kategori_peserta);
     if(ka !== kb) return ka - kb;
@@ -71,7 +74,7 @@ function renderLPJ(){
     });
   });
 
-  const hadiahJalanList = gHadiahJalanSantai();
+  const hadiahJalanList = gHadiahJalanSantai().filter(h=>{ const b=gDaftarBelanjaJalanSantai().find(x=>x.hadiah_jalan_id===h.id); return b?.status==='dibeli'; });
   const isLoggedIn = !!getCurrentUser();
 
   const emptyRow = (n,text)=>`<tr class="empty-row"><td colspan="${n}">${text}</td></tr>`;
@@ -253,5 +256,4 @@ function renderDaftarAnggota(){
     <button class="btn small" onclick="window.print()">🖨️ Cetak / Simpan sebagai PDF</button>
   </div>` : ''}`;
 }
-
 

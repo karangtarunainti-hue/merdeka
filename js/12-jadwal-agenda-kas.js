@@ -465,15 +465,17 @@ function getDanaSosialKasAutoEntries(){
       const r = hitungRekapBulanDanaSosial(y, b);
       if (r.wajib === 0 || !r.sudahBerjalan) continue;
       const netBulan = r.terkumpul - r.potongan;
-      if (netBulan <= 0) continue;
+      // Defisit tetap harus tercermin sebagai kredit; melewatinya membuat
+      // akumulasi Kas lebih besar daripada saldo Dana Sosial sebenarnya.
+      if (netBulan === 0) continue;
       const tglAkhirBulan = new Date(y, b, 0).getDate();
       const tanggal = `${y}-${String(b).padStart(2,'0')}-${String(tglAkhirBulan).padStart(2,'0')}`;
       entries.push({
         id: `auto-ds-${y}-${b}`,
         tanggal,
         keterangan: `Rekap Dana Sosial ${DANA_SOSIAL_BULAN_LABEL[b-1]} ${y}`,
-        debit: netBulan,
-        kredit: 0,
+        debit: netBulan > 0 ? netBulan : 0,
+        kredit: netBulan < 0 ? Math.abs(netBulan) : 0,
         created_at: `${tanggal}T00:00:00.000Z`,
         _autoDanaSosial: true,
       });
@@ -638,14 +640,17 @@ function kasImportJSON(input){
       if(!Array.isArray(parsed.kas)) throw new Error('Format file backup tidak dikenali.');
       if(!(await confirmModal(`Import akan MENAMBAH ${parsed.kas.length} transaksi baru ke ${getOrgNamaKas()} (data lama tidak dihapus). Lanjutkan?`))) return;
       toast('⏳ Mengimpor data...');
-      const rows = parsed.kas.map(k => ({
-        id: k.id || uid(),
+      const rows = parsed.kas.map(k => {
+        const debit = Number(k.debit||0), kredit = Number(k.kredit||0);
+        if(!Number.isFinite(debit) || !Number.isFinite(kredit) || debit < 0 || kredit < 0 || (debit > 0 && kredit > 0) || (debit === 0 && kredit === 0)) throw new Error('Setiap transaksi harus punya tepat satu nominal debit atau kredit yang positif.');
+        return {
+        // Import adalah mode tambah: ID baru mencegah backup menimpa transaksi lama.
+        id: uid(),
         tanggal: k.tanggal || todayISO(),
         keterangan: k.keterangan || '',
-        debit: Number(k.debit||0),
-        kredit: Number(k.kredit||0),
+        debit, kredit,
         created_at: k.created_at || new Date().toISOString(),
-      }));
+      }; });
       const ins = await sb.from('kt_kas').upsert(rows, {onConflict:'id'});
       if(ins.error) throw new Error(ins.error.message);
 
@@ -665,5 +670,4 @@ function kasImportJSON(input){
   };
   reader.readAsText(file);
 }
-
 

@@ -311,13 +311,16 @@ function hitungBukuUtama(){
   const opsional = operasionalList.reduce((s,o)=>s+Number(o.jumlah||0),0);
   const lombaIds = gLomba().map(l=>l.id);
   const kebutuhanLombaList = db.lombaKebutuhan.filter(k=>lombaIds.includes(k.lomba_id));
-  const kebutuhanLomba = kebutuhanLombaList
-    .reduce((s,k)=> s + (Number(k.harga_realisasi ?? k.harga_estimasi ?? 0) * Number(k.qty||0)), 0);
+  const belanjaPerlengkapan = new Map(gDaftarBelanjaPerlengkapan().filter(b=>b.status==='dibeli').map(b=>[b.kebutuhan_id,b]));
+  const kebutuhanLomba = kebutuhanLombaList.reduce((s,k)=> {
+    const b=belanjaPerlengkapan.get(k.id); if(!b) return s;
+    return s + Number(b.nominal_realisasi ?? (Number(k.harga_realisasi ?? k.harga_estimasi ?? 0)*Number(k.qty||0)));
+  }, 0);
 
   // Pakai hitungHargaAktualHadiahLomba() (di 11-belanja.js) supaya konsisten
   // dengan Belanja Hadiah — rumus flat harga_satuan*qty_dibeli mengabaikan
   // harga_eceran untuk sisa pcs yang dibeli satuan (lihat Bug #2).
-  const hadiahAktual = hitungHargaAktualHadiahLomba();
+  const hadiahAktual = hitungHargaAktualHadiahLomba({onlyPurchased:true});
   let hadiahLomba = hadiahAktual.total; let jumlahItemHadiahLomba = 0;
   gHadiahKategori().forEach(h => {
     // Hanya hitung item yang benar-benar sudah dibeli (qty_dibeli > 0),
@@ -330,7 +333,8 @@ function hitungBukuUtama(){
   });
 
   const hadiahJalanList = gHadiahJalanSantai();
-  const hadiahJalan = hadiahJalanList.reduce((s,h) => s + (Number(h.harga_satuan||0) * Number(h.qty||0)), 0);
+  const belanjaJalan = new Map(gDaftarBelanjaJalanSantai().filter(b=>b.status==='dibeli').map(b=>[b.hadiah_jalan_id,b]));
+  const hadiahJalan = hadiahJalanList.reduce((s,h) => { const b=belanjaJalan.get(h.id); return s + (b ? Number(b.nominal_realisasi ?? (Number(h.harga_satuan||0)*Number(h.qty||0))) : 0); }, 0);
 
   const pengeluaran = opsional + kebutuhanLomba + hadiahLomba + hadiahJalan;
   return {
@@ -345,4 +349,3 @@ function hitungBukuUtama(){
     jumlahHadiahJalan: hadiahJalanList.length,
   };
 }
-

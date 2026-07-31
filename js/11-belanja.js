@@ -23,17 +23,28 @@
    pack/eceran per grup — HANYA ADA SATU implementasi rumus ini di
    seluruh app, supaya kelas bug ini tidak bisa terulang lagi.
    ============================================================ */
-function hitungHargaAktualHadiahLomba(){
+function snapshotBelanjaHadiah(item){
+  return { qty_snapshot:Number(item.qty_dibeli||0), harga_satuan_snapshot:Number(item.harga_satuan||0), harga_eceran_snapshot:Number(item.harga_eceran!=null?item.harga_eceran:item.harga_satuan||0), isi_per_pack_snapshot:Math.max(1,Number(item.isi_per_pack||1)) };
+}
+
+// onlyPurchased dipakai oleh buku kas/LPJ. Halaman belanja tetap memakai
+// default false supaya bisa menampilkan estimasi target yang belum dibeli.
+function hitungHargaAktualHadiahLomba({onlyPurchased=false}={}){
+  const statusMap = onlyPurchased ? new Map(gDaftarBelanjaHadiah().filter(b=>b.status==='dibeli').map(b=>[`${b.hadiah_kategori_id}_${b.item_id}`,b])) : null;
   const items = [];
   gHadiahKategori().forEach(h => {
     h.items.forEach(item => {
       if (Number(item.qty_dibeli||0) <= 0) return;
+      const belanja = statusMap && statusMap.get(`${h.id}_${item.id}`);
+      if(onlyPurchased && !belanja) return;
       items.push({
         hadiahId: h.id, itemId: item.id, itemNama: item.nama,
-        itemHarga: item.harga_satuan,
-        itemHargaEceran: (item.harga_eceran!=null ? item.harga_eceran : item.harga_satuan),
-        itemQtyDibeli: item.qty_dibeli,
-        isi_per_pack: item.isi_per_pack||1,
+        // Baris lama tanpa snapshot tetap kompatibel, tetapi transaksi baru
+        // selalu memakai nilai saat statusnya menjadi "dibeli".
+        itemHarga: belanja?.harga_satuan_snapshot ?? item.harga_satuan,
+        itemHargaEceran: belanja?.harga_eceran_snapshot ?? (item.harga_eceran!=null ? item.harga_eceran : item.harga_satuan),
+        itemQtyDibeli: belanja?.qty_snapshot ?? item.qty_dibeli,
+        isi_per_pack: belanja?.isi_per_pack_snapshot ?? (item.isi_per_pack||1),
         kategori_peserta: h.kategori_peserta, juara_ke: h.juara_ke
       });
     });
@@ -466,12 +477,12 @@ function toggleBelanjaHadiah(hadiahId, itemId){
       toast(`"${item.nama}" → belum dibeli`); 
     }
     else { 
-      existing.status = 'dibeli'; existing.tanggal_beli = todayISO(); 
+      existing.status = 'dibeli'; existing.tanggal_beli = todayISO(); Object.assign(existing, snapshotBelanjaHadiah(item));
       actionMsg = `✅ Belanja hadiah DIBELI: ${item.nama}`;
       toast(`✓ "${item.nama}" dibeli`); 
     }
   } else {
-    db.daftarBelanjaHadiah.push({id:uid(), event_id:eid(), hadiah_kategori_id:hadiahId, item_id:itemId, status:'dibeli', tanggal_beli:todayISO()});
+    db.daftarBelanjaHadiah.push({id:uid(), event_id:eid(), hadiah_kategori_id:hadiahId, item_id:itemId, status:'dibeli', tanggal_beli:todayISO(), ...snapshotBelanjaHadiah(item)});
     actionMsg = `✅ Belanja hadiah DIBELI: ${item.nama}`;
     toast(`✓ "${item.nama}" dibeli`);
   }
@@ -493,8 +504,9 @@ async function toggleBelanjaHadiahGroup(gi){
     const h = db.hadiahKategori.find(x=>x.id===r.hadiahId);
     if(!h || !h.items.find(it=>it.id===r.itemId)) return;
     let existing = db.daftarBelanjaHadiah.find(b=>b.hadiah_kategori_id===r.hadiahId && b.item_id===r.itemId && b.event_id===eid());
-    if(existing){ existing.status = newStatus; existing.tanggal_beli = tgl; }
-    else { db.daftarBelanjaHadiah.push({id:uid(), event_id:eid(), hadiah_kategori_id:r.hadiahId, item_id:r.itemId, status:newStatus, tanggal_beli:tgl}); }
+    const item = h.items.find(it=>it.id===r.itemId);
+    if(existing){ existing.status = newStatus; existing.tanggal_beli = tgl; if(newStatus==='dibeli') Object.assign(existing, snapshotBelanjaHadiah(item)); }
+    else { db.daftarBelanjaHadiah.push({id:uid(), event_id:eid(), hadiah_kategori_id:r.hadiahId, item_id:r.itemId, status:newStatus, tanggal_beli:tgl, ...(newStatus==='dibeli'?snapshotBelanjaHadiah(item):{})}); }
     detail.push(`${labelPeserta(h.kategori_peserta)} - ${labelJuara(h.juara_ke)}`);
   });
   saveDB(); renderContent(); renderTopbarSaldo();
@@ -780,6 +792,7 @@ function toggleBelanjaPerlengkapan(kebutuhanId, belanjaId){
   if(!k) { toast('Item tidak ditemukan'); return; }
   let existing = db.daftarBelanjaPerlengkapan.find(b => b.kebutuhan_id === kebutuhanId && b.event_id === eid());
   let actionMsg = '';
+  const nominalRealisasi = Number(k.harga_realisasi ?? k.harga_estimasi ?? 0) * Number(k.qty||0);
   if (existing) {
     if (existing.status === 'dibeli') { 
       existing.status = 'belum_dibeli'; existing.tanggal_beli = null; 
@@ -787,12 +800,12 @@ function toggleBelanjaPerlengkapan(kebutuhanId, belanjaId){
       toast(`"${k.nama_item}" → belum dibeli`); 
     }
     else { 
-      existing.status = 'dibeli'; existing.tanggal_beli = todayISO(); 
+      existing.status = 'dibeli'; existing.tanggal_beli = todayISO(); existing.nominal_realisasi = nominalRealisasi;
       actionMsg = `✅ Belanja perlengkapan DIBELI: ${k.nama_item}`;
       toast(`✓ "${k.nama_item}" dibeli`); 
     }
   } else {
-    db.daftarBelanjaPerlengkapan.push({id:uid(), event_id:eid(), kebutuhan_id:kebutuhanId, status:'dibeli', tanggal_beli:todayISO()});
+    db.daftarBelanjaPerlengkapan.push({id:uid(), event_id:eid(), kebutuhan_id:kebutuhanId, status:'dibeli', tanggal_beli:todayISO(), nominal_realisasi:nominalRealisasi});
     actionMsg = `✅ Belanja perlengkapan DIBELI: ${k.nama_item}`;
     toast(`✓ "${k.nama_item}" dibeli`);
   }
@@ -958,6 +971,7 @@ function toggleBelanjaJalan(hadiahId){
     } else {
       existing.status = 'dibeli';
       existing.tanggal_beli = todayISO();
+      existing.nominal_realisasi = Number(h.harga_satuan||0)*Number(h.qty||0);
       actionMsg = `✅ Belanja jalan santai DIBELI: ${h.nama_hadiah}`;
       toast(`✓ "${h.nama_hadiah}" dibeli`);
     }
@@ -967,7 +981,8 @@ function toggleBelanjaJalan(hadiahId){
       event_id: eid(),
       hadiah_jalan_id: hadiahId,
       status: 'dibeli',
-      tanggal_beli: todayISO()
+      tanggal_beli: todayISO(),
+      nominal_realisasi: Number(h.harga_satuan||0)*Number(h.qty||0)
     });
     actionMsg = `✅ Belanja jalan santai DIBELI: ${h.nama_hadiah}`;
     toast(`✓ "${h.nama_hadiah}" dibeli`);
@@ -1123,8 +1138,9 @@ function tandaiSemuaBelanjaJalan(){
   list.forEach(h => {
     const existing = db.daftarBelanjaJalanSantai.find(b => b.hadiah_jalan_id === h.id && b.event_id === eid());
     if (!existing || existing.status !== 'dibeli') {
-      if (existing) { existing.status = 'dibeli'; existing.tanggal_beli = todayISO(); }
-      else { db.daftarBelanjaJalanSantai.push({id:uid(), event_id:eid(), hadiah_jalan_id:h.id, status:'dibeli', tanggal_beli:todayISO()}); }
+      const nominalRealisasi=Number(h.harga_satuan||0)*Number(h.qty||0);
+      if (existing) { existing.status = 'dibeli'; existing.tanggal_beli = todayISO(); existing.nominal_realisasi=nominalRealisasi; }
+      else { db.daftarBelanjaJalanSantai.push({id:uid(), event_id:eid(), hadiah_jalan_id:h.id, status:'dibeli', tanggal_beli:todayISO(), nominal_realisasi:nominalRealisasi}); }
       count++;
       detail.push(`${h.nama_hadiah}`);
     }
@@ -1142,4 +1158,3 @@ async function resetSemuaBelanjaJalan(){
   saveDB(); renderContent(); toast('Reset semua status');
   notifyTelegram(`↩️ Reset semua status belanja jalan santai`, `Semua status dikembalikan ke "belum dibeli"`, 'belanja');
 }
-

@@ -17,8 +17,15 @@ create table if not exists kt_kas (
   keterangan text not null default '',
   debit numeric not null default 0,
   kredit numeric not null default 0,
-  created_at timestamptz default now()
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
 );
+
+create or replace function kt_set_updated_at()
+returns trigger language plpgsql as $$ begin new.updated_at = now(); return new; end; $$;
+drop trigger if exists trg_set_updated_at on kt_kas;
+create trigger trg_set_updated_at before update on kt_kas
+  for each row execute function kt_set_updated_at();
 
 alter table kt_kas enable row level security;
 drop policy if exists "anon_full_access" on kt_kas;

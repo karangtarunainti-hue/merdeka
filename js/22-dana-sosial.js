@@ -73,7 +73,13 @@ function isWajibDanaSosial(anggota, tahun, bulan){
   // karena pindah/keluar tapi datanya tetap disimpan (bukan dihapus, supaya
   // riwayat bayar lama tidak hilang). Anggota nonaktif tidak lagi wajib
   // bayar bulan manapun sejak dinonaktifkan.
-  if (anggota.aktif === false) return false;
+  // Nonaktif berlaku setelah bulan keluar, bukan mundur ke seluruh riwayat.
+  if (anggota.aktif === false && anggota.tanggal_nonaktif) {
+    const d = new Date(anggota.tanggal_nonaktif + 'T00:00:00');
+    const nonaktifKey = d.getFullYear() * 12 + d.getMonth();
+    const targetKey = Number(tahun) * 12 + (Number(bulan) - 1);
+    if (targetKey > nonaktifKey) return false;
+  }
   if (!anggota.tanggal_gabung) return true;
   const g = new Date(anggota.tanggal_gabung + 'T00:00:00');
   const gKey = g.getFullYear() * 12 + g.getMonth(); // bulan 0-11
@@ -577,6 +583,7 @@ async function toggleAktifDanaSosialAnggota(id){
   const jadiAktif = a.aktif === false; // sebelumnya nonaktif -> aktifkan, sebaliknya nonaktifkan
   if (!jadiAktif && !(await confirmModal(`Nonaktifkan "${a.nama}" dari Dana Sosial? Anggota ini akan hilang dari tabel Daftar Bayar & Rekap Bulanan, tapi riwayat bayarnya tetap tersimpan dan bisa diaktifkan lagi kapan saja.`))) return;
   a.aktif = jadiAktif;
+  a.tanggal_nonaktif = jadiAktif ? null : todayISO();
   saveDB(); renderContent();
   toast(jadiAktif ? `✓ ${a.nama} diaktifkan kembali` : `⏸ ${a.nama} dinonaktifkan`);
   notifyTelegram(jadiAktif ? `↩️ Aktifkan kembali anggota Dana Sosial: ${a.nama}` : `⏸ Nonaktifkan anggota Dana Sosial: ${a.nama}`, 'dana_sosial');

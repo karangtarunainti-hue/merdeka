@@ -1969,7 +1969,7 @@ table.lpj-hadiah-table th:nth-child(5), table.lpj-hadiah-table td:nth-child(5){ 
 
 /* Tabel 3.4 Hadiah Jalan Santai: sama seperti 3.3, Nama Barang lebih lega,
    Qty didekatkan ke Harga. */
-table.lpj-jalan-santai-table th:nth-child(1), table.lpj-jalan-santai-table td:nth-child(1){ width:52%; padding-right:20px; }
+table.lpj-jalan-santai-table th:nth-child(1), table.lpj-jalan-santai-table td:nth-child(1){ width:52%; padding-right:20px; text-align:left; padding-left:8px; }
 table.lpj-jalan-santai-table th:nth-child(2), table.lpj-jalan-santai-table td:nth-child(2){ width:10%; padding-left:6px; padding-right:6px; }
 table.lpj-jalan-santai-table th:nth-child(3), table.lpj-jalan-santai-table td:nth-child(3){ padding-left:6px; }
 

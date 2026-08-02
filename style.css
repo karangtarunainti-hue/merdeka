@@ -1966,6 +1966,30 @@
   border-radius:0;
   max-width:none;
   aspect-ratio:auto;
+  /* Margin atas-bawah per halaman sekarang ditangani .a4-page-clip (lihat
+     di bawah) supaya konsisten di SETIAP halaman, bukan cuma di halaman
+     pertama/terakhir — makanya padding vertikal bawaan .lpj-print-area
+     (32px) dimatikan di sini. Padding kiri-kanan (dari .surat-print-area)
+     tetap dipakai apa adanya, tidak bermasalah karena sama di semua
+     halaman. */
+  padding-top:0;
+  padding-bottom:0;
+}
+/* Jendela "aman" tempat konten sebuah halaman ditampilkan, disisipkan di
+   antara .a4-page (kotak kertas penuh, tinggi = lebar × 297/210) dan
+   .a4-page-inner (konten yang digeser via margin-top negatif). Sebelum ada
+   elemen ini, margin atas/bawah cuma nempel di halaman pertama & terakhir
+   karena mengikuti padding .a4-page-inner yang ikut tergeser oleh
+   margin-top negatif — akibatnya di setiap pertemuan antar halaman, teks
+   langsung terpotong pas di garis batas tanpa jarak sama sekali. Dengan
+   .a4-page-clip, top/bottom (=marginPx dari JS, lihat renderProposalA4Pages
+   di js/14-dokumen.js) selalu tetap di posisi yang sama walau isinya
+   digeser, jadi tiap halaman punya margin atas-bawah yang rapi & konsisten. */
+.a4-page-clip{
+  position:absolute;
+  left:0;
+  right:0;
+  overflow:hidden;
 }
 .a4-page-label{
   text-align:center;

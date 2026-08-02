@@ -301,15 +301,24 @@ function renderProposalA4Pages(){
   if(!host || !source || !host.classList.contains('a4-pages')) return;
   const pageWidth = source.clientWidth;
   if(!pageWidth) return;
-  const pageHeight = pageWidth * (297 / 210);
+  // Margin atas-bawah pratinjau disamakan dengan margin @page saat cetak
+  // (15mm, lihat aturan @media print di style.css) supaya potongan antar
+  // halaman di layar terlihat rapi (ada jarak, tidak nempel/terpotong pas
+  // di garis batas) dan kira-kira mendekati hasil cetak/PDF asli.
+  const scale = pageWidth / 210; // px per mm (lebar kertas A4 = 210mm)
+  const marginPx = Math.round(15 * scale);
+  const pageHeight = pageWidth * (297 / 210); // tinggi kotak "kertas" penuh
+  const usableHeight = pageHeight - (marginPx * 2); // tinggi konten yang ditampilkan per halaman, di luar margin atas-bawah
   const contentHeight = source.scrollHeight;
-  const numPages = Math.max(1, Math.ceil(contentHeight / pageHeight));
+  const numPages = Math.max(1, Math.ceil(contentHeight / usableHeight));
   const contentHtml = source.innerHTML;
   let html = '';
   for(let i = 0; i < numPages; i++){
     html += `<div class="a4-page-wrap">
       <div class="a4-page" style="height:${pageHeight}px;">
-        <div class="a4-page-inner lpj-print-area surat-print-area" style="margin-top:-${i * pageHeight}px;">${contentHtml}</div>
+        <div class="a4-page-clip" style="top:${marginPx}px; bottom:${marginPx}px;">
+          <div class="a4-page-inner lpj-print-area surat-print-area" style="margin-top:-${i * usableHeight}px;">${contentHtml}</div>
+        </div>
       </div>
       <div class="a4-page-label no-print">Halaman ${i + 1} dari ${numPages}</div>
     </div>`;

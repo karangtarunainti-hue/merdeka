@@ -100,7 +100,7 @@ function renderTransaksi(){
     <button class="icon-btn" onclick="event.stopPropagation();hapusTransaksi('${t.id}')">🗑</button>
   </td>` : ''}</tr>`).join('');
   return `<div class="stat-grid"><div class="stat-card pemasukan"><div class="lbl">Total Pemasukan Lain</div><div class="val">${fmtRp(total)}</div></div></div>
-  <div class="panel"><div class="panel-head"><h3>Pemasukan Lain</h3>${isLoggedIn ? `<div style="display:flex;gap:8px;flex-wrap:wrap;"><button class="btn secondary" onclick="openKuponJalanModal()">🎟️ Jual Kupon Jalan Santai</button><button class="btn" onclick="openTransaksiModal()">+ Tambah</button></div>` : ''}</div>
+  <div class="panel"><div class="panel-head"><h3>Pemasukan Lain</h3>${isLoggedIn ? `<div style="display:flex;gap:8px;flex-wrap:wrap;"><button class="btn secondary" onclick="openKuponJalanModal()">Penjualan Kupon Harian</button><button class="btn" onclick="openTransaksiModal()">+ Tambah</button></div>` : ''}</div>
   <div class="panel-body flush"><table class="general-table tanggal-nominal-table transaksi-lain-table"><thead><tr><th>No</th><th>${thResponsive('Tanggal','Tgl')}</th><th>Keterangan</th><th class="num">Jumlah</th>${isLoggedIn ? '<th></th>' : ''}</tr></thead>
   <tbody>${rows||`<tr class="empty-row"><td colspan="${isLoggedIn?5:4}">Belum ada transaksi.</td></tr>`}</tbody></table></div></div>`;
 }
@@ -138,7 +138,7 @@ function openKuponJalanModal(){
   const s = getSettings();
   const harga = Number((s.kuponJalanSantai && s.kuponJalanSantai.harga) || 0);
   if(harga<=0){
-    setModal('🎟️ Jual Kupon Jalan Santai', `
+    setModal('Penjualan Kupon Harian', `
       <div class="hint">Harga per kupon belum diatur. Atur dulu di <b>Pengaturan → Harga Kupon Jalan Santai</b>, baru penjualan bisa dicatat di sini.</div>
     `, [
       {label:'Tutup', cls:'secondary', onclick:closeModal},
@@ -146,7 +146,7 @@ function openKuponJalanModal(){
     ]);
     return;
   }
-  setModal('🎟️ Jual Kupon Jalan Santai', `
+  setModal('Penjualan Kupon Harian', `
     <div class="hint">Harga per kupon: <b>${fmtRp(harga)}</b> (bisa diubah di Pengaturan)</div>
     <div class="field-row">
       <div class="field"><label>Jumlah Kupon Terjual</label><input id="f-kupon-qty" type="number" min="1" step="1" value="1" oninput="updateKuponJalanTotal(${harga})"></div>

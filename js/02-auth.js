@@ -123,6 +123,20 @@ async function login(username, password) {
   return user;
 }
 
+// Catat waktu terakhir user membuka aplikasi. Dipanggil di 2 tempat:
+// 1. Sesudah initApp() selesai load data & ada sesi user yang masih valid
+//    (localStorage) — ini kasus paling umum, app dibuka lagi tanpa login
+//    ulang lewat form (lihat js/19-init.js).
+// 2. login() di bawah juga sudah menyetel last_seen_at langsung lewat
+//    rpc_login di server, jadi tidak perlu panggil ini lagi setelah login.
+// Sengaja tidak melempar error kalau gagal (mis. offline) — cuma catatan,
+// bukan aksi kritikal, jadi tidak boleh mengganggu alur pemakaian app.
+async function touchLastSeen(id) {
+  if (!id) return;
+  try { await sb.rpc('rpc_touch_last_seen', { p_id: id }); }
+  catch (e) { console.error('Gagal mencatat waktu terakhir dibuka:', e); }
+}
+
 async function logout() {
   // Matikan sesi di SERVER dulu (bukan cuma hapus token di localStorage) --
   // kalau token ini sempat bocor, logout beneran membuatnya tidak berlaku lagi.

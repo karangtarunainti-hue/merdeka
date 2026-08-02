@@ -64,6 +64,13 @@ alter table kt_users alter column password drop not null;
 -- diakses & dikelola. Kosong untuk role admin/user (mereka tidak dibatasi).
 alter table kt_users add column if not exists allowed_sections text[] not null default '{}'::text[];
 
+-- Kolom waktu terakhir user membuka aplikasi (bukan cuma saat login lewat
+-- form, tapi juga saat sesi lama di localStorage masih valid dan app
+-- dibuka lagi) — dipakai untuk kolom "Terakhir Dibuka" di halaman
+-- Manajemen User. Diisi lewat rpc_login (saat login) dan rpc_touch_last_seen
+-- (saat app dibuka dengan sesi yang sudah ada, lihat 19-init.js).
+alter table kt_users add column if not exists last_seen_at timestamptz;
+
 alter table kt_users enable row level security;
 -- SENGAJA tidak dibuatkan policy apa pun untuk anon di sini.
 -- RLS aktif + nol policy = default DENY total (termasuk SELECT) untuk anon.
@@ -100,13 +107,14 @@ begin
 
   if v_user."passwordHash" is not null then
     if v_user."passwordHash" = v_hash then
+      update kt_users set last_seen_at = now() where id = v_user.id;
       return query select v_user.id, v_user.name, v_user.username, v_user.role, v_user.allowed_sections;
     end if;
     return;
   elsif v_user.password is not null then
     -- kompatibilitas mundur: user lama yang masih plaintext, migrasi otomatis
     if v_user.password = p_password then
-      update kt_users set "passwordHash" = v_hash, password = null where id = v_user.id;
+      update kt_users set "passwordHash" = v_hash, password = null, last_seen_at = now() where id = v_user.id;
       return query select v_user.id, v_user.name, v_user.username, v_user.role, v_user.allowed_sections;
     end if;
     return;
@@ -119,14 +127,27 @@ grant execute on function rpc_login(text, text) to anon;
 -- ---- rpc_list_users: daftar user untuk halaman Manajemen User (tanpa password) ----
 drop function if exists rpc_list_users();
 create function rpc_list_users()
-returns table(id text, name text, username text, role text, allowed_sections text[])
+returns table(id text, name text, username text, role text, allowed_sections text[], last_seen_at timestamptz)
 language sql
 security definer
 set search_path = public
 as $$
-  select id, name, username, role, allowed_sections from kt_users order by name;
+  select id, name, username, role, allowed_sections, last_seen_at from kt_users order by name;
 $$;
 grant execute on function rpc_list_users() to anon;
+
+-- ---- rpc_touch_last_seen: catat waktu app dibuka lagi lewat sesi yang
+-- sudah tersimpan (localStorage), tanpa perlu login ulang lewat form ----
+drop function if exists rpc_touch_last_seen(text);
+create function rpc_touch_last_seen(p_id text)
+returns void
+language sql
+security definer
+set search_path = public
+as $$
+  update kt_users set last_seen_at = now() where id = p_id;
+$$;
+grant execute on function rpc_touch_last_seen(text) to anon;
 
 -- ---- rpc_upsert_user: tambah/edit user (password di-hash di server) ----
 drop function if exists rpc_upsert_user(text, text, text, text, text);

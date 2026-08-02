@@ -24,6 +24,26 @@ function fmtDateHariShort(iso){ if(!iso) return '-'; const d=new Date(iso+'T00:0
 // Gabungan hari, tanggal, dan jam (kalau jam-nya diisi) — format siap-tampil.
 function fmtDateJam(iso, jam, {short}={}){ const tgl = short ? fmtDateHariShort(iso) : fmtDateHari(iso); return jam ? `${tgl} · ${jam}` : tgl; }
 function esc(s){ return String(s??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+// Waktu terakhir user membuka aplikasi (kt_users.last_seen_at, timestamp
+// lengkap dgn jam — beda dari fmtDate* di atas yg cuma untuk tanggal form).
+// Dipakai di halaman Manajemen User. Format relatif untuk yg baru-baru ini
+// (lebih gampang dibaca sekilas), balik ke tanggal absolut kalau sudah lama.
+function fmtWaktuTerakhir(iso){
+  if(!iso) return 'Belum pernah';
+  const d = new Date(iso);
+  if(isNaN(d.getTime())) return 'Belum pernah';
+  const diffMs = Date.now() - d.getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+  if(diffMin < 1) return 'Baru saja';
+  if(diffMin < 60) return `${diffMin} menit lalu`;
+  const diffJam = Math.floor(diffMin / 60);
+  if(diffJam < 24) return `${diffJam} jam lalu`;
+  const diffHari = Math.floor(diffJam / 24);
+  const jamMenit = d.toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'});
+  if(diffHari === 1) return `Kemarin, ${jamMenit}`;
+  if(diffHari < 7) return `${diffHari} hari lalu`;
+  return `${d.toLocaleDateString('id-ID', {day:'numeric', month:'short', year:'numeric'})}, ${jamMenit}`;
+}
 
 // Profil Organisasi — inilah SATU-SATUNYA tempat nama organisasi, logo, dan
 // nama buku kas "di-hardcode". Nilai di bawah ini cuma FALLBACK yang dipakai

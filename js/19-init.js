@@ -134,6 +134,12 @@ initOfflineGuard();
     return;
   }
 
+  // Catat waktu terakhir app dibuka untuk user yang sesinya masih tersimpan
+  // di localStorage (kasus login lewat form sudah dicatat sendiri oleh
+  // rpc_login). Jalan di belakang layar, tidak memblokir tampilan awal.
+  const _loggedInUser = getCurrentUser();
+  if (_loggedInUser) touchLastSeen(_loggedInUser.id);
+
   applyTemaWarna(eventTema(activeEvent()).key);
   applyOrgBranding();
   renderSidebar();

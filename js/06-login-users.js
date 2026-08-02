@@ -80,6 +80,7 @@ function renderUsers() {
       <td data-label="Role"><span class="badge ${roleBadgeClass(u)}">${roleLabel[u.role] || u.role}</span></td>
       <td data-label="Username">${esc(u.username)}</td>
       <td data-label="Bidang">${bidangHtml(u)}</td>
+      <td data-label="Terakhir Dibuka">${fmtWaktuTerakhir(u.last_seen_at)}</td>
       <td data-label="Password"><span class="password-pill">🔒 ••••••</span></td>
       <td data-label="Aksi" class="users-actions">
         <button class="btn secondary small" onclick="openUserModal('${u.id}')">✎ Edit</button>
@@ -100,6 +101,7 @@ function renderUsers() {
       </div>
       <div class="lomba-detail-row"><span class="lbl">👤 Username</span><span class="val">${esc(u.username)}</span></div>
       <div class="lomba-detail-row"><span class="lbl">🛠️ Bidang</span><span class="val">${bidangHtml(u)}</span></div>
+      <div class="lomba-detail-row"><span class="lbl">🕒 Terakhir Dibuka</span><span class="val">${fmtWaktuTerakhir(u.last_seen_at)}</span></div>
       <div class="jadwal-item-actions">
         <button class="btn secondary small" onclick="openUserModal('${u.id}')">✎ Edit</button>
         <button class="icon-btn" onclick="hapusUser('${u.id}')" ${users.length <= 1 ? 'disabled' : ''}>🗑</button>
@@ -117,8 +119,8 @@ function renderUsers() {
     </div>
     <div class="panel-body flush users-table-wrap">
       <table class="users-table">
-        <thead><tr><th>Nama</th><th>Role</th><th>Username</th><th>Bidang</th><th>Password</th><th></th></tr></thead>
-        <tbody>${rows || `<tr class="empty-row"><td colspan="6">Belum ada user.</td></tr>`}</tbody>
+        <thead><tr><th>Nama</th><th>Role</th><th>Username</th><th>Bidang</th><th>Terakhir Dibuka</th><th>Password</th><th></th></tr></thead>
+        <tbody>${rows || `<tr class="empty-row"><td colspan="7">Belum ada user.</td></tr>`}</tbody>
       </table>
     </div>
     <div class="panel-body users-mobile-wrap">

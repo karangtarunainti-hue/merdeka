@@ -2435,7 +2435,39 @@ table.absensi-table th:nth-child(1), table.absensi-table td:nth-child(1){text-al
     justify-content:space-between;
     padding-top:8px; border-top:1px dashed var(--garis);
   }
+
+  /* Baris item (Kotak Pensil, Pensil, dst) — sebelumnya nama/qty/harga/tombol
+     dipaksa satu baris sejajar, jadi kolom nama kepepet sempit (kata jadi
+     terpotong per-suku-kata) begitu ada "N buah per paket", dan tombol
+     hapus (🗑) bisa ikut terpotong di tepi layar kalau totalnya kepanjangan.
+     Sekarang nama SELALU ambil satu baris penuh sendiri (flex-basis 100%),
+     baru di baris berikutnya qty+harga satuan+total+tombol aksi mengalir
+     rata kanan — jadi tidak ada lagi elemen yang berebut lebar sama nama. */
+  .hadiah-item-row{
+    flex-wrap:wrap;
+    row-gap:4px;
+    padding:9px 0;
+  }
+  .hadiah-item-row .item-name{
+    flex:1 1 100%;
+    font-size:13.5px;
+    white-space:normal;
+    word-break:break-word;
+  }
+  .hadiah-item-row .item-qty{
+    flex:1 1 auto;
+    min-width:0;
+    white-space:normal;
+  }
+  .hadiah-item-row .item-price{
+    flex:0 0 auto;
+    margin-left:auto;
+  }
+  .hadiah-item-row .icon-btn{
+    flex:0 0 auto;
+  }
 }
+
 
 /* ============================================================
    LUCIDE ICONS — ukuran & alignment icon pengganti emoji

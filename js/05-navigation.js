@@ -333,6 +333,12 @@ function renderContent(){
   if (currentSection === 'lpj' || currentSection === 'dokumen' || currentSection === 'daftar-anggota' || currentSection === 'jadwal-sinoman') {
     requestAnimationFrame(applyLpjMobileScale);
   }
+  // Tab Proposal di menu Surat & Dokumen dipecah jadi beberapa lembar A4
+  // (lihat renderProposalA4Pages di js/14-dokumen.js) — perlu diukur ulang
+  // setiap render karena tergantung lebar kolom pratinjau saat ini.
+  if (currentSection === 'dokumen' && typeof _dokumenTab !== 'undefined' && _dokumenTab === 'proposal') {
+    requestAnimationFrame(renderProposalA4Pages);
+  }
 
   // Kembalikan fokus & posisi kursor ke input yang sama (jika masih ada di DOM baru)
   if (focusInfo) {

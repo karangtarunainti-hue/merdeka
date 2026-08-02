@@ -170,17 +170,28 @@ function liveUndangan(field, value){
 }
 
 /* ---------- 2. Proposal Kegiatan ---------- */
+// Pratinjau Proposal ditampilkan sebagai beberapa LEMBAR A4 terpisah (Halaman 1,
+// Halaman 2, dst — mirip mode "Print Layout" di Word/Google Docs), bukan cuma
+// 1 kotak yang memanjang ke bawah. Triknya:
+//   1. Seluruh isi dokumen dirender UTUH & mengalir apa adanya (tanpa dipotong)
+//      di dalam elemen tersembunyi #lpj-print-source — elemen ini juga yang
+//      dipakai browser saat Cetak/Simpan PDF (lihat .a4-print-source & aturan
+//      lain punya class surat-print-area di style.css).
+//   2. renderProposalA4Pages() mengukur tinggi elemen itu, membaginya per
+//      kelipatan tinggi 1 halaman A4 (rasio 210:297 dari lebar render saat
+//      ini), lalu untuk tiap halaman menampilkan "jendela" kotak berukuran
+//      A4 yang isinya digeser ke atas (margin-top negatif) supaya cuma
+//      menampilkan potongan konten milik halaman itu — hasilnya beberapa
+//      kotak A4 terpisah di #lpj-print-area (class .a4-pages).
+// Catatan: ini cuma potongan VISUAL untuk pratinjau di layar. Pembagian
+// halaman yang sebenarnya saat dicetak/disimpan PDF tetap ditentukan browser
+// dari #lpj-print-source (lebih akurat, menghormati page-break-avoid di
+// style.css supaya judul/tabel tidak terpotong di tengah halaman) — jadi
+// hasil cetak boleh beda 1-2 baris dari potongan pratinjau ini.
 function renderProposalKegiatan(ev){
   const isLoggedIn = !!getCurrentUser();
   const d = getDokumenGlobal().proposal || {};
-  const b = hitungBukuUtama();
   const temaDefault = d.tema || (ev ? ev.nama : '');
-  const showDonatur = isMenuAktif('donatur');
-  const showTransaksi = isMenuAktif('transaksi');
-  const showOperasional = isMenuAktif('operasional');
-  const showLomba = isMenuAktif('lomba');
-  const showHadiah = isMenuAktif('hadiah');
-  const showJalan = isMenuAktif('jalan_santai');
 
   const editForm = isLoggedIn ? `
   <div class="panel no-print">
@@ -203,32 +214,54 @@ function renderProposalKegiatan(ev){
     </div>
   </div>` : '';
 
-  const tujuanItems = (d.tujuan||'').split('\n').map(s=>s.trim()).filter(Boolean);
-  const susunanItems = (d.susunan_acara||'').split('\n').map(s=>s.trim()).filter(Boolean);
+  const contentHtml = proposalContentHtml(ev, d);
 
   return wrapDokumenLayout(editForm, `
   <div class="lpj-scale-wrap" id="lpj-scale-wrap">
-  <div class="lpj-print-area surat-print-area dokumen-a4-fixed" id="lpj-print-area">
+    <div class="a4-pages no-print" id="lpj-print-area"></div>
+  </div>
+  <div class="lpj-print-area surat-print-area a4-print-source" id="lpj-print-source">${contentHtml}</div>
+  <p class="field-hint no-print" style="color:var(--ink-soft); font-size:12.5px; text-align:center; margin-top:8px;">📄 Pratinjau dipecah per lembar A4 (lihat label "Halaman X dari Y") — pembagiannya perkiraan, hasil cetak/PDF asli bisa beda 1-2 baris karena judul &amp; tabel diusahakan tidak terpotong di tengah halaman.</p>
+  ${isLoggedIn ? `<div class="lpj-toolbar no-print"><button class="btn small" onclick="window.print()">🖨️ Cetak / Simpan sebagai PDF</button></div>` : ''}`);
+}
+
+// Isi dokumen Proposal saja (tanpa pembungkus kotak/A4), dipakai ulang oleh
+// renderProposalKegiatan() (render awal) dan refreshProposalPreview() (saat
+// mengetik di form, lihat liveProposal()).
+function proposalContentHtml(ev, d){
+  d = d || {};
+  const temaDefault = d.tema || (ev ? ev.nama : '');
+  const b = hitungBukuUtama();
+  const showDonatur = isMenuAktif('donatur');
+  const showTransaksi = isMenuAktif('transaksi');
+  const showOperasional = isMenuAktif('operasional');
+  const showLomba = isMenuAktif('lomba');
+  const showHadiah = isMenuAktif('hadiah');
+  const showJalan = isMenuAktif('jalan_santai');
+  const tujuanItems = (d.tujuan||'').split('\n').map(s=>s.trim()).filter(Boolean);
+  const susunanItems = (d.susunan_acara||'').split('\n').map(s=>s.trim()).filter(Boolean);
+
+  return `
     <div class="lpj-header">
       <div class="lpj-header-inner">
         <img src="${esc(getOrgLogo())}" alt="Logo ${esc(getOrgNama())}" class="lpj-logo">
         <div class="lpj-header-text">
           <div class="lpj-eyebrow">${esc(getOrgNama())}</div>
           <h2>PROPOSAL KEGIATAN</h2>
-          <div class="lpj-sub" id="prop-prev-tema">${esc(temaDefault||'-')}${ev ? ` — Tahun ${esc(String(ev.tahun))}` : ''}</div>
+          <div class="lpj-sub">${esc(temaDefault||'-')}${ev ? ` — Tahun ${esc(String(ev.tahun))}` : ''}</div>
         </div>
         <div class="lpj-header-spacer" aria-hidden="true"></div>
       </div>
     </div>
 
     <h3>1. Latar Belakang</h3>
-    <p class="surat-body" id="prop-prev-latar">${d.latar_belakang ? nl2br(d.latar_belakang) : '<span class="hint">Belum diisi.</span>'}</p>
+    <p class="surat-body">${d.latar_belakang ? nl2br(d.latar_belakang) : '<span class="hint">Belum diisi.</span>'}</p>
 
     <h3>2. Maksud &amp; Tujuan</h3>
-    <div id="prop-prev-tujuan">${tujuanItems.length ? `<ul class="proposal-list">${tujuanItems.map(t=>`<li>${esc(t)}</li>`).join('')}</ul>` : '<p class="surat-body"><span class="hint">Belum diisi.</span></p>'}</div>
+    <div>${tujuanItems.length ? `<ul class="proposal-list">${tujuanItems.map(t=>`<li>${esc(t)}</li>`).join('')}</ul>` : '<p class="surat-body"><span class="hint">Belum diisi.</span></p>'}</div>
 
     <h3>3. Susunan Acara</h3>
-    <div id="prop-prev-susunan">${susunanItems.length ? `<ul class="proposal-list">${susunanItems.map(t=>`<li>${esc(t)}</li>`).join('')}</ul>` : '<p class="surat-body"><span class="hint">Belum diisi.</span></p>'}</div>
+    <div>${susunanItems.length ? `<ul class="proposal-list">${susunanItems.map(t=>`<li>${esc(t)}</li>`).join('')}</ul>` : '<p class="surat-body"><span class="hint">Belum diisi.</span></p>'}</div>
 
     <h3>4. Rencana Anggaran</h3>
     <p class="field-hint" style="color:var(--ink-soft); font-size:12.5px; margin:-4px 0 10px;">${ev ? 'Diambil otomatis dari data yang sudah tercatat di sistem saat ini — sesuaikan lewat menu terkait sebelum dicetak bila perlu.' : 'Belum ada event aktif dipilih di sidebar, jadi rincian di bawah masih menunjukkan Rp 0. Pilih event aktif dulu kalau ingin rincian anggaran terisi otomatis.'}</p>
@@ -248,61 +281,65 @@ function renderProposalKegiatan(ev){
     </table>
 
     <h3>5. Penutup</h3>
-    <p class="surat-body" id="prop-prev-penutup">${d.penutup ? nl2br(d.penutup) : `Demikian proposal kegiatan <strong>${esc(temaDefault||'ini')}</strong> ini kami susun. Besar harapan kami atas dukungan dan partisipasi semua pihak demi kelancaran acara ini.`}</p>
+    <p class="surat-body">${d.penutup ? nl2br(d.penutup) : `Demikian proposal kegiatan <strong>${esc(temaDefault||'ini')}</strong> ini kami susun. Besar harapan kami atas dukungan dan partisipasi semua pihak demi kelancaran acara ini.`}</p>
 
     <div class="lpj-signature">
-      <div class="surat-ttd"><div id="prop-prev-jab1">${esc(d.jabatan1||'Ketua Panitia')}</div><div class="surat-ttd-space"></div><div><strong id="prop-prev-nama1">${esc(d.nama1||'(.....................)')}</strong></div></div>
-      <div class="surat-ttd"><div id="prop-prev-jab2">${esc(d.jabatan2||'Ketua Karang Taruna')}</div><div class="surat-ttd-space"></div><div><strong id="prop-prev-nama2">${esc(d.nama2||'(.....................)')}</strong></div></div>
-    </div>
-  </div>
-  </div>
-  <p class="field-hint no-print" style="color:var(--ink-soft); font-size:12.5px; text-align:center; margin-top:8px;">📄 Kotak pratinjau berukuran tetap seperti kertas A4 — kalau isi lebih dari 1 halaman, scroll di dalam kotak untuk lihat semuanya. Saat dicetak/disimpan sebagai PDF, isinya otomatis terbagi rapi ke beberapa halaman A4.</p>
-  ${isLoggedIn ? `<div class="lpj-toolbar no-print"><button class="btn small" onclick="window.print()">🖨️ Cetak / Simpan sebagai PDF</button></div>` : ''}`);
+      <div class="surat-ttd"><div>${esc(d.jabatan1||'Ketua Panitia')}</div><div class="surat-ttd-space"></div><div><strong>${esc(d.nama1||'(.....................)')}</strong></div></div>
+      <div class="surat-ttd"><div>${esc(d.jabatan2||'Ketua Karang Taruna')}</div><div class="surat-ttd-space"></div><div><strong>${esc(d.nama2||'(.....................)')}</strong></div></div>
+    </div>`;
 }
 
-// Autosave: sama seperti liveUndangan — simpan ke db + Supabase (debounced)
-// tanpa renderContent(), lalu update pratinjau langsung lewat DOM.
+// Memecah #lpj-print-source (dokumen utuh, tidak terpotong) jadi beberapa
+// kotak "lembar" A4 di #lpj-print-area. Dipanggil setelah render awal (lihat
+// hook di js/05-navigation.js), setelah resize (js/13-lpj.js), dan setelah
+// tiap perubahan form (refreshProposalPreview di bawah). Aman dipanggil dari
+// tab dokumen lain / section lain — langsung keluar kalau elemennya bukan
+// milik pratinjau Proposal.
+function renderProposalA4Pages(){
+  const host = document.getElementById('lpj-print-area');
+  const source = document.getElementById('lpj-print-source');
+  if(!host || !source || !host.classList.contains('a4-pages')) return;
+  const pageWidth = source.clientWidth;
+  if(!pageWidth) return;
+  const pageHeight = pageWidth * (297 / 210);
+  const contentHeight = source.scrollHeight;
+  const numPages = Math.max(1, Math.ceil(contentHeight / pageHeight));
+  const contentHtml = source.innerHTML;
+  let html = '';
+  for(let i = 0; i < numPages; i++){
+    html += `<div class="a4-page-wrap">
+      <div class="a4-page" style="height:${pageHeight}px;">
+        <div class="a4-page-inner lpj-print-area surat-print-area" style="margin-top:-${i * pageHeight}px;">${contentHtml}</div>
+      </div>
+      <div class="a4-page-label no-print">Halaman ${i + 1} dari ${numPages}</div>
+    </div>`;
+  }
+  host.innerHTML = html;
+}
+
+let _proposalPreviewTimer = null;
+// Autosave: sama seperti liveUndangan — simpan ke db + Supabase (debounced),
+// lalu render ulang isi dokumen (proposalContentHtml) & paginasi A4-nya.
+// Full re-render (bukan patch DOM per elemen seperti sebelumnya) sengaja
+// dipilih karena isi dokumen sekarang digandakan ke beberapa halaman + 1
+// sumber tersembunyi — patch id satu-satu jadi tidak cukup lagi. Di-debounce
+// 150ms supaya tidak mengukur ulang tinggi halaman di setiap ketikan huruf.
 function liveProposal(field, value){
   if (!canEditSection('dokumen')) { toast('⛔ Login untuk mengedit data'); return; }
   const s = getDokumenGlobal();
   s.proposal = s.proposal || {};
   s.proposal[field] = value;
   saveDB();
-
-  if(field === 'tema'){
-    const ev = activeEvent();
-    const el = document.getElementById('prop-prev-tema');
-    if(el) el.textContent = (value || '-') + (ev ? ` — Tahun ${ev.tahun}` : '');
-    const penutupEl = document.getElementById('prop-prev-penutup');
-    const penutupVal = document.getElementById('doc-prop-penutup');
-    if(penutupEl && penutupVal && !penutupVal.value.trim()){
-      penutupEl.innerHTML = `Demikian proposal kegiatan <strong>${esc(value||'ini')}</strong> ini kami susun. Besar harapan kami atas dukungan dan partisipasi semua pihak demi kelancaran acara ini.`;
-    }
-  }
-  else if(field === 'latar_belakang'){
-    const el = document.getElementById('prop-prev-latar');
-    if(el) el.innerHTML = value ? nl2br(value) : '<span class="hint">Belum diisi.</span>';
-  }
-  else if(field === 'tujuan'){
-    const items = value.split('\n').map(s=>s.trim()).filter(Boolean);
-    const el = document.getElementById('prop-prev-tujuan');
-    if(el) el.innerHTML = items.length ? `<ul class="proposal-list">${items.map(t=>`<li>${esc(t)}</li>`).join('')}</ul>` : '<p class="surat-body"><span class="hint">Belum diisi.</span></p>';
-  }
-  else if(field === 'susunan_acara'){
-    const items = value.split('\n').map(s=>s.trim()).filter(Boolean);
-    const el = document.getElementById('prop-prev-susunan');
-    if(el) el.innerHTML = items.length ? `<ul class="proposal-list">${items.map(t=>`<li>${esc(t)}</li>`).join('')}</ul>` : '<p class="surat-body"><span class="hint">Belum diisi.</span></p>';
-  }
-  else if(field === 'penutup'){
-    const el = document.getElementById('prop-prev-penutup');
-    const temaVal = document.getElementById('doc-prop-tema');
-    if(el) el.innerHTML = value ? nl2br(value) : `Demikian proposal kegiatan <strong>${esc(temaVal ? temaVal.value.trim() : 'ini') || 'ini'}</strong> ini kami susun. Besar harapan kami atas dukungan dan partisipasi semua pihak demi kelancaran acara ini.`;
-  }
-  else if(field === 'jabatan1') setPrevText('prop-prev-jab1', value || 'Ketua Panitia');
-  else if(field === 'nama1') setPrevText('prop-prev-nama1', value || '(.....................)');
-  else if(field === 'jabatan2') setPrevText('prop-prev-jab2', value || 'Ketua Karang Taruna');
-  else if(field === 'nama2') setPrevText('prop-prev-nama2', value || '(.....................)');
+  refreshProposalPreview();
 }
+function refreshProposalPreview(){
+  const source = document.getElementById('lpj-print-source');
+  if(!source) return; // sedang tidak di tab Proposal
+  source.innerHTML = proposalContentHtml(activeEvent(), getDokumenGlobal().proposal || {});
+  clearTimeout(_proposalPreviewTimer);
+  _proposalPreviewTimer = setTimeout(renderProposalA4Pages, 150);
+}
+
 
 /* ---------- 3. Form Absensi (dari Database Anggota) ---------- */
 function renderFormAbsensi(ev){

@@ -1909,26 +1909,69 @@
    sengaja ditaruh SETELAH aspect-ratio A4 di atas supaya menang lewat urutan
    (specificity dua-duanya sama, dua kelas). */
 .lpj-print-area.js-f4-area{aspect-ratio:215/330;}
-/* Preview Proposal Kegiatan (js/14-dokumen.js, renderProposalKegiatan) dibuat
-   BENAR-BENAR tetap berukuran A4 di layar — bukan cuma tinggi minimum seperti
-   dokumen surat-print-area lain di menu ini. Isi Proposal (5 bagian + tabel
-   anggaran) hampir selalu lebih panjang dari 1 halaman, jadi kalau dibiarkan
-   pakai aturan aspect-ratio biasa (yang cuma jadi tinggi minimum, lihat
-   komentar di atas), kotaknya jadi memanjang terus ke bawah dan tidak lagi
-   kelihatan seperti selembar kertas A4. min-height:0 di sini "mematikan"
-   tinggi minimum otomatis berbasis konten itu, supaya aspect-ratio 210/297
-   benar-benar jadi tinggi TETAP; kelebihan isi di-scroll di dalam kotak
-   (overflow-y:auto) — cuma berlaku di layar (lihat @media print di bawah,
-   dikembalikan lagi ke aspect-ratio:auto + overflow:visible supaya saat
-   dicetak/disimpan PDF isinya tetap lengkap terbagi ke beberapa halaman,
-   tidak terpotong). */
-.lpj-print-area.dokumen-a4-fixed{
-  min-height:0;
-  overflow-y:auto;
-}
 @media print{
   .lpj-print-area.surat-print-area{aspect-ratio:auto !important;}
-  .lpj-print-area.dokumen-a4-fixed{overflow:visible !important;}
+}
+
+/* ------------------------------------------------------------
+   Pratinjau Proposal Kegiatan sebagai beberapa LEMBAR A4 terpisah
+   (Halaman 1, Halaman 2, dst — mirip mode Print Layout Word/Google
+   Docs). Lihat renderProposalA4Pages() & proposalContentHtml() di
+   js/14-dokumen.js untuk cara kerja pemecahannya (potong per tinggi
+   1 halaman A4 dari elemen sumber #lpj-print-source yang isinya
+   mengalir utuh tanpa dipotong).
+   ------------------------------------------------------------ */
+/* #lpj-print-source: dokumen utuh yang TIDAK ditampilkan di layar (cuma
+   dipakai untuk mengukur tinggi & sebagai sumber saat Cetak/PDF). Pakai
+   visibility+height:0 (bukan display:none) supaya lebarnya tetap
+   mengikuti lebar kolom pratinjau seperti biasa (dibutuhkan untuk hitung
+   proporsi A4 yang akurat) dan scrollHeight-nya tetap bisa diukur. */
+.a4-print-source{
+  visibility:hidden;
+  height:0;
+  overflow:hidden;
+}
+@media print{
+  .a4-print-source{
+    visibility:visible;
+    height:auto;
+    overflow:visible;
+  }
+}
+.a4-pages{max-width:820px; margin:0 auto;}
+.dokumen-preview-col .a4-pages{max-width:none; width:100%;}
+.a4-page-wrap{margin-bottom:28px;}
+.a4-page-wrap:last-child{margin-bottom:0;}
+/* Kotak "kertas" A4 itu sendiri — tingginya diisi lewat inline style
+   (hasil hitungan lebar × 297/210 di JS) supaya benar-benar proporsional
+   A4, bukan cuma tinggi minimum seperti .surat-print-area biasa. Konten
+   yang lebih dari 1 halaman disembunyikan lewat overflow:hidden di sini
+   (bagian itu muncul lagi di lembar/kotak berikutnya). */
+.a4-page{
+  position:relative;
+  overflow:hidden;
+  background:var(--surface);
+  border:1px solid var(--garis);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+}
+/* Isi lembar cuma "jendela" dari dokumen penuh, digeser ke atas lewat
+   margin-top negatif (inline style). Chrome visual (border/shadow/dsb)
+   dimatikan di sini karena sudah disediakan .a4-page di atas — kalau
+   tidak, border/shadow ikut kepotong aneh tiap gonta-ganti halaman. */
+.a4-page-inner.lpj-print-area{
+  background:none;
+  border:none;
+  box-shadow:none;
+  border-radius:0;
+  max-width:none;
+  aspect-ratio:auto;
+}
+.a4-page-label{
+  text-align:center;
+  font-size:11.5px;
+  color:var(--ink-soft);
+  margin-top:8px;
 }
 .lpj-header{text-align:center; border-bottom:2px solid var(--ink); padding-bottom:16px; margin-bottom:24px;}
 .lpj-header-inner{display:flex; align-items:center; gap:16px;}

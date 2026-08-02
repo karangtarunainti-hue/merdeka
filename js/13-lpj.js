@@ -19,6 +19,7 @@ function applyLpjMobileScale(){
 }
 window.addEventListener('resize', ()=>{
   if (currentSection === 'lpj' || currentSection === 'dokumen' || currentSection === 'daftar-anggota') applyLpjMobileScale();
+  if (currentSection === 'dokumen' && typeof _dokumenTab !== 'undefined' && _dokumenTab === 'proposal' && typeof renderProposalA4Pages === 'function') renderProposalA4Pages();
 });
 
 /* ============================================================

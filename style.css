@@ -1382,7 +1382,8 @@
   }
   .hadiah-item-row:last-child{border-bottom:none;}
   .hadiah-item-row .item-name{flex:1; font-size:13px;}
-  .hadiah-item-row .item-qty{font-size:12px; color:var(--ink-soft);}
+  .hadiah-item-row .item-qty{font-size:12px; color:var(--ink-soft); white-space:nowrap;}
+  .hadiah-item-row .item-harga-satuan{font-family:'JetBrains Mono',monospace;}
   .hadiah-item-row .item-price{font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:600;}
 
   .add-item-row{

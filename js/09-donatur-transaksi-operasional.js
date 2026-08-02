@@ -100,7 +100,7 @@ function renderTransaksi(){
     <button class="icon-btn" onclick="event.stopPropagation();hapusTransaksi('${t.id}')">🗑</button>
   </td>` : ''}</tr>`).join('');
   return `<div class="stat-grid"><div class="stat-card pemasukan"><div class="lbl">Total Pemasukan Lain</div><div class="val">${fmtRp(total)}</div></div></div>
-  <div class="panel"><div class="panel-head"><h3>Pemasukan Lain</h3>${isLoggedIn ? `<button class="btn" onclick="openTransaksiModal()">+ Tambah</button>` : ''}</div>
+  <div class="panel"><div class="panel-head"><h3>Pemasukan Lain</h3>${isLoggedIn ? `<div style="display:flex;gap:8px;flex-wrap:wrap;"><button class="btn secondary" onclick="openKuponJalanModal()">🎟️ Jual Kupon Jalan Santai</button><button class="btn" onclick="openTransaksiModal()">+ Tambah</button></div>` : ''}</div>
   <div class="panel-body flush"><table class="general-table tanggal-nominal-table transaksi-lain-table"><thead><tr><th>No</th><th>${thResponsive('Tanggal','Tgl')}</th><th>Keterangan</th><th class="num">Jumlah</th>${isLoggedIn ? '<th></th>' : ''}</tr></thead>
   <tbody>${rows||`<tr class="empty-row"><td colspan="${isLoggedIn?5:4}">Belum ada transaksi.</td></tr>`}</tbody></table></div></div>`;
 }
@@ -126,6 +126,56 @@ function openTransaksiModal(id){
     }}
   ]);
   setTimeout(setupAllCurrencyInputs, 50);
+}
+// Jual Kupon Jalan Santai — shortcut di atas menu Pemasukan Lain: user cuma
+// input jumlah kupon terjual, nominal dihitung otomatis dari harga per kupon
+// yang diatur admin di Pengaturan (lihat getSettings().kuponJalanSantai &
+// simpanHargaKupon() di js/15-pengaturan-event.js). Hasilnya tetap disimpan
+// sebagai baris biasa di db.transaksiLain (tidak ada tabel/kolom baru),
+// rincian jumlah kupon & harga per lembar ditulis di kolom keterangan.
+function openKuponJalanModal(){
+  if (!canEditSection('transaksi')) { toast('⛔ Login untuk mengedit data'); return; }
+  const s = getSettings();
+  const harga = Number((s.kuponJalanSantai && s.kuponJalanSantai.harga) || 0);
+  if(harga<=0){
+    setModal('🎟️ Jual Kupon Jalan Santai', `
+      <div class="hint">Harga per kupon belum diatur. Atur dulu di <b>Pengaturan → Harga Kupon Jalan Santai</b>, baru penjualan bisa dicatat di sini.</div>
+    `, [
+      {label:'Tutup', cls:'secondary', onclick:closeModal},
+      {label:'Ke Pengaturan', cls:'', onclick:()=>{ closeModal(); goSection('pengaturan'); }}
+    ]);
+    return;
+  }
+  setModal('🎟️ Jual Kupon Jalan Santai', `
+    <div class="hint">Harga per kupon: <b>${fmtRp(harga)}</b> (bisa diubah di Pengaturan)</div>
+    <div class="field-row">
+      <div class="field"><label>Jumlah Kupon Terjual</label><input id="f-kupon-qty" type="number" min="1" step="1" value="1" oninput="updateKuponJalanTotal(${harga})"></div>
+      <div class="field"><label>Tanggal</label><input id="f-kupon-tanggal" type="date" value="${todayISO()}"></div>
+    </div>
+    <div class="field"><label>Total Nominal</label><div id="f-kupon-total" class="stat-card pemasukan" style="padding:10px 12px;font-size:18px;font-weight:700;">${fmtRp(harga)}</div></div>
+    <div class="field"><label>Keterangan Tambahan (opsional)</label><input id="f-kupon-ket" value="" placeholder="mis. dijual di RT 03"></div>
+  `, [
+    {label:'Batal', cls:'secondary', onclick:closeModal},
+    {label:'Simpan', cls:'', onclick:()=>simpanKuponJalan(harga)}
+  ]);
+}
+function updateKuponJalanTotal(harga){
+  const qtyEl = document.getElementById('f-kupon-qty');
+  const totalEl = document.getElementById('f-kupon-total');
+  if(!qtyEl || !totalEl) return;
+  const qty = Math.max(0, Math.floor(Number(qtyEl.value||0)));
+  totalEl.textContent = fmtRp(qty*harga);
+}
+function simpanKuponJalan(harga){
+  const qty = Math.max(0, Math.floor(Number(document.getElementById('f-kupon-qty').value||0)));
+  const tanggal = document.getElementById('f-kupon-tanggal').value||todayISO();
+  const tambahanKet = document.getElementById('f-kupon-ket').value.trim();
+  if(qty<=0){ toast('Jumlah kupon wajib diisi'); return; }
+  const jumlah = qty*harga;
+  const keterangan = `Penjualan Kupon Jalan Santai (${qty} lembar × ${fmtRp(harga)})${tambahanKet ? ` — ${tambahanKet}` : ''}`;
+  db.transaksiLain.push({id:uid(), event_id:eid(), jumlah, tanggal, keterangan});
+  saveDB(); closeModal(); renderContent(); renderTopbarSaldo(); toast('Disimpan');
+  notifyTelegram('🎟️ Penjualan kupon jalan santai', `Jumlah kupon: ${qty} lembar\nHarga per kupon: ${fmtRp(harga)}\nTotal: ${fmtRp(jumlah)}\nTanggal: ${fmtDate(tanggal)}${tambahanKet ? `\nKeterangan: ${tambahanKet}` : ''}`, 'transaksi');
 }
 async function hapusTransaksi(id){ 
   if (!canEditSection('transaksi')) { toast('⛔ Login untuk mengedit data'); return; }

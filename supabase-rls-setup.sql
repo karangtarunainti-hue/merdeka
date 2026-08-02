@@ -107,14 +107,14 @@ begin
 
   if v_user."passwordHash" is not null then
     if v_user."passwordHash" = v_hash then
-      update kt_users set last_seen_at = now() where id = v_user.id;
+      update kt_users set last_seen_at = now() where kt_users.id = v_user.id;
       return query select v_user.id, v_user.name, v_user.username, v_user.role, v_user.allowed_sections;
     end if;
     return;
   elsif v_user.password is not null then
     -- kompatibilitas mundur: user lama yang masih plaintext, migrasi otomatis
     if v_user.password = p_password then
-      update kt_users set "passwordHash" = v_hash, password = null, last_seen_at = now() where id = v_user.id;
+      update kt_users set "passwordHash" = v_hash, password = null, last_seen_at = now() where kt_users.id = v_user.id;
       return query select v_user.id, v_user.name, v_user.username, v_user.role, v_user.allowed_sections;
     end if;
     return;

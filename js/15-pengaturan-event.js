@@ -60,7 +60,17 @@ function renderPengaturan(){
       <button class="btn" onclick="simpanTarif()">Simpan Tarif</button>
     </div>
   </div>
-  
+
+  <!-- HARGA KUPON JALAN SANTAI: dipakai menu "Jual Kupon Jalan Santai" di Pemasukan
+       Lain supaya nominal terhitung otomatis dari jumlah kupon terjual x harga ini. -->
+  <div class="panel">
+    <div class="panel-head"><div><h3>🎟️ Harga Kupon Jalan Santai</h3><div class="desc">Dipakai di menu Pemasukan Lain → Jual Kupon Jalan Santai, supaya nominal terhitung otomatis dari jumlah kupon terjual.</div></div></div>
+    <div class="panel-body">
+      <div class="field"><label>Harga per Kupon (Rp)</label><input id="kupon-harga" class="currency-input" type="text" value="${formatCurrency(s.kuponJalanSantai.harga)}"></div>
+      <button class="btn" onclick="simpanHargaKupon()">Simpan Harga Kupon</button>
+    </div>
+  </div>
+
   <!-- TELEGRAM NOTIFICATION SETTINGS -->
   <div class="panel">
     <div class="panel-head">
@@ -257,6 +267,14 @@ function simpanTarif(){
   s.tarif.perantauan = getCurrencyValue(document.getElementById('tarif-perantauan'));
   saveDB(); toast('Tarif iuran disimpan');
   notifyTelegram(`⚙️ Update tarif iuran`, `Sekolah: ${fmtRp(s.tarif.sekolah)}\nBekerja: ${fmtRp(s.tarif.bekerja)}\nPerantauan: ${fmtRp(s.tarif.perantauan)}\nKhusus: bebas (manual per anggota)`, 'sistem');
+}
+
+function simpanHargaKupon(){
+  if (!isAdmin()) { toast('⛔ Hanya Admin'); return; }
+  const s = getSettings();
+  s.kuponJalanSantai.harga = getCurrencyValue(document.getElementById('kupon-harga'));
+  saveDB(); toast('Harga kupon disimpan');
+  notifyTelegram(`⚙️ Update harga kupon jalan santai`, `Harga per kupon: ${fmtRp(s.kuponJalanSantai.harga)}`, 'sistem');
 }
 
 // Dipegang sementara (belum disimpan ke db.orgProfile) begitu admin memilih
@@ -486,7 +504,7 @@ function exportDataEvent(){
     _version: 1,
     exported_at: new Date().toISOString(),
     event: { nama: ev.nama, tahun: ev.tahun, fitur: ev.fitur || null },
-    settings: db.settings[id] ? { tarif: db.settings[id].tarif, hadiahBudget: db.settings[id].hadiahBudget || {}, kategoriToko: db.settings[id].kategoriToko || {customCategories:[],keywords:{}} } : { tarif:{sekolah:0,bekerja:0,perantauan:0,khusus:0}, hadiahBudget:{}, kategoriToko:{customCategories:[],keywords:{}} },
+    settings: db.settings[id] ? { tarif: db.settings[id].tarif, hadiahBudget: db.settings[id].hadiahBudget || {}, kategoriToko: db.settings[id].kategoriToko || {customCategories:[],keywords:{}}, kuponJalanSantai: db.settings[id].kuponJalanSantai || {harga:0} } : { tarif:{sekolah:0,bekerja:0,perantauan:0,khusus:0}, hadiahBudget:{}, kategoriToko:{customCategories:[],keywords:{}}, kuponJalanSantai:{harga:0} },
     anggota: db.anggota.filter(x=>x.event_id===id),
     donatur: db.donatur.filter(x=>x.event_id===id),
     transaksiLain: db.transaksiLain.filter(x=>x.event_id===id),
@@ -531,7 +549,8 @@ function importDataEvent(evt){
       db.settings[newEventId] = {
         tarif: (parsed.settings && parsed.settings.tarif) ? {...parsed.settings.tarif} : {sekolah:0,bekerja:0,perantauan:0,khusus:0},
         hadiahBudget: (parsed.settings && parsed.settings.hadiahBudget) ? JSON.parse(JSON.stringify(parsed.settings.hadiahBudget)) : {},
-        kategoriToko: (parsed.settings && parsed.settings.kategoriToko) ? JSON.parse(JSON.stringify(parsed.settings.kategoriToko)) : {customCategories:[],keywords:{}}
+        kategoriToko: (parsed.settings && parsed.settings.kategoriToko) ? JSON.parse(JSON.stringify(parsed.settings.kategoriToko)) : {customCategories:[],keywords:{}},
+        kuponJalanSantai: (parsed.settings && parsed.settings.kuponJalanSantai) ? JSON.parse(JSON.stringify(parsed.settings.kuponJalanSantai)) : {harga:0}
       };
 
       (parsed.anggota||[]).forEach(x=>{ db.anggota.push({...x, id:uid(), event_id:newEventId}); });

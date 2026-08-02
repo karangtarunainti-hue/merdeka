@@ -1909,8 +1909,26 @@
    sengaja ditaruh SETELAH aspect-ratio A4 di atas supaya menang lewat urutan
    (specificity dua-duanya sama, dua kelas). */
 .lpj-print-area.js-f4-area{aspect-ratio:215/330;}
+/* Preview Proposal Kegiatan (js/14-dokumen.js, renderProposalKegiatan) dibuat
+   BENAR-BENAR tetap berukuran A4 di layar — bukan cuma tinggi minimum seperti
+   dokumen surat-print-area lain di menu ini. Isi Proposal (5 bagian + tabel
+   anggaran) hampir selalu lebih panjang dari 1 halaman, jadi kalau dibiarkan
+   pakai aturan aspect-ratio biasa (yang cuma jadi tinggi minimum, lihat
+   komentar di atas), kotaknya jadi memanjang terus ke bawah dan tidak lagi
+   kelihatan seperti selembar kertas A4. min-height:0 di sini "mematikan"
+   tinggi minimum otomatis berbasis konten itu, supaya aspect-ratio 210/297
+   benar-benar jadi tinggi TETAP; kelebihan isi di-scroll di dalam kotak
+   (overflow-y:auto) — cuma berlaku di layar (lihat @media print di bawah,
+   dikembalikan lagi ke aspect-ratio:auto + overflow:visible supaya saat
+   dicetak/disimpan PDF isinya tetap lengkap terbagi ke beberapa halaman,
+   tidak terpotong). */
+.lpj-print-area.dokumen-a4-fixed{
+  min-height:0;
+  overflow-y:auto;
+}
 @media print{
   .lpj-print-area.surat-print-area{aspect-ratio:auto !important;}
+  .lpj-print-area.dokumen-a4-fixed{overflow:visible !important;}
 }
 .lpj-header{text-align:center; border-bottom:2px solid var(--ink); padding-bottom:16px; margin-bottom:24px;}
 .lpj-header-inner{display:flex; align-items:center; gap:16px;}

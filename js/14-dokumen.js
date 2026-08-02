@@ -208,7 +208,7 @@ function renderProposalKegiatan(ev){
 
   return wrapDokumenLayout(editForm, `
   <div class="lpj-scale-wrap" id="lpj-scale-wrap">
-  <div class="lpj-print-area surat-print-area" id="lpj-print-area">
+  <div class="lpj-print-area surat-print-area dokumen-a4-fixed" id="lpj-print-area">
     <div class="lpj-header">
       <div class="lpj-header-inner">
         <img src="${esc(getOrgLogo())}" alt="Logo ${esc(getOrgNama())}" class="lpj-logo">
@@ -256,6 +256,7 @@ function renderProposalKegiatan(ev){
     </div>
   </div>
   </div>
+  <p class="field-hint no-print" style="color:var(--ink-soft); font-size:12.5px; text-align:center; margin-top:8px;">📄 Kotak pratinjau berukuran tetap seperti kertas A4 — kalau isi lebih dari 1 halaman, scroll di dalam kotak untuk lihat semuanya. Saat dicetak/disimpan sebagai PDF, isinya otomatis terbagi rapi ke beberapa halaman A4.</p>
   ${isLoggedIn ? `<div class="lpj-toolbar no-print"><button class="btn small" onclick="window.print()">🖨️ Cetak / Simpan sebagai PDF</button></div>` : ''}`);
 }
 

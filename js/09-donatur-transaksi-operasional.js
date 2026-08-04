@@ -154,7 +154,8 @@ function openKuponJalanModal(){
     return;
   }
   const stok = Number((s.kuponJalanSantai && s.kuponJalanSantai.stok) || 0);
-  const sisa = Math.max(0, stok - totalKuponTerjual());
+  const terjual = totalKuponTerjual();
+  const sisa = Math.max(0, stok - terjual);
   if(stok>0 && sisa<=0){
     setModal('Penjualan Kupon Harian', `
       <div class="hint">⚠️ Stok kupon sudah habis (${stok} lembar sudah terjual semua). Tambah stok dulu di <b>Pengaturan → Kupon Jalan Santai</b>.</div>
@@ -165,9 +166,13 @@ function openKuponJalanModal(){
     return;
   }
   setModal('Penjualan Kupon Harian', `
-    <div class="hint">Harga per kupon: <b>${fmtRp(harga)}</b>${stok>0 ? ` &middot; Sisa stok: <b>${sisa}</b> lembar` : ''} (bisa diubah di Pengaturan)</div>
+    <div class="stat-grid" style="margin-bottom:14px;">
+      <div class="stat-card"><div class="lbl">Harga/Kupon</div><div class="val">${fmtRp(harga)}</div></div>
+      ${stok>0 ? `<div class="stat-card${sisa<=Math.ceil(stok*0.1) ? ' stok-lebih' : ''}"><div class="lbl">Sisa Stok</div><div id="f-kupon-sisa-val" class="val">${sisa}</div></div>
+      <div class="stat-card"><div class="lbl">Terjual</div><div class="val">${terjual}</div></div>` : `<div class="stat-card"><div class="lbl">Stok</div><div class="val">Tak terbatas</div></div>`}
+    </div>
     <div class="field-row">
-      <div class="field"><label>Jumlah Kupon Terjual</label><input id="f-kupon-qty" type="number" min="1" ${stok>0 ? `max="${sisa}"` : ''} step="1" value="1" oninput="updateKuponJalanTotal(${harga})"></div>
+      <div class="field"><label>Jumlah Kupon Terjual</label><input id="f-kupon-qty" type="number" min="1" ${stok>0 ? `max="${sisa}"` : ''} step="1" value="1" oninput="updateKuponJalanTotal(${harga}${stok>0 ? `,${sisa}` : ''})"></div>
       <div class="field"><label>Tanggal</label><input id="f-kupon-tanggal" type="date" value="${todayISO()}"></div>
     </div>
     <div class="field"><label>Total Nominal</label><div id="f-kupon-total" class="stat-card pemasukan" style="padding:10px 12px;font-size:18px;font-weight:700;">${fmtRp(harga)}</div></div>
@@ -177,12 +182,16 @@ function openKuponJalanModal(){
     {label:'Simpan', cls:'', onclick:()=>simpanKuponJalan(harga, stok>0?sisa:Infinity)}
   ]);
 }
-function updateKuponJalanTotal(harga){
+function updateKuponJalanTotal(harga, sisaStok){
   const qtyEl = document.getElementById('f-kupon-qty');
   const totalEl = document.getElementById('f-kupon-total');
   if(!qtyEl || !totalEl) return;
   const qty = Math.max(0, Math.floor(Number(qtyEl.value||0)));
   totalEl.textContent = fmtRp(qty*harga);
+  const sisaEl = document.getElementById('f-kupon-sisa-val');
+  if(sisaEl && Number.isFinite(sisaStok)){
+    sisaEl.textContent = Math.max(0, sisaStok - qty);
+  }
 }
 function simpanKuponJalan(harga, sisaStok){
   const qty = Math.max(0, Math.floor(Number(document.getElementById('f-kupon-qty').value||0)));

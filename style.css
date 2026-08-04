@@ -2437,6 +2437,12 @@ table.absensi-table th:nth-child(1), table.absensi-table td:nth-child(1){text-al
 .lomba-head-subtotal{ font-size:13px; }
 .lomba-head-actions{ display:inline-flex; align-items:center; gap:8px; }
 
+/* Progress kelengkapan setup lomba (kebutuhan barang + hadiah + koordinator) */
+.lomba-progress-wrap{ display:inline-flex; align-items:center; gap:6px; }
+.lomba-progress-bar{ display:inline-block; width:48px; height:6px; border-radius:4px; background:var(--garis); overflow:hidden; }
+.lomba-progress-fill{ display:block; height:100%; min-width:4px; border-radius:4px; transition:width .15s; }
+.lomba-progress-txt{ font-size:11px; color:var(--ink-soft); font-weight:600; white-space:nowrap; }
+
 /* ===== Rapikan khusus HP: Lomba & Perlengkapan ===== */
 @media (max-width:820px){
   /* Head kartu lomba: judul & meta ditumpuk masing-masing selebar penuh,

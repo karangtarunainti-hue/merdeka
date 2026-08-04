@@ -13,6 +13,16 @@ function renderLomba(){
     .reduce((s,k)=>s + (Number(k.harga_realisasi ?? k.harga_estimasi ?? 0)*Number(k.qty||0)), 0);
   const isLoggedIn = !!getCurrentUser();
 
+  // Ringkasan kelengkapan setup lintas semua lomba (lihat setupChecks di
+  // renderLombaCard) — dipakai untuk stat-card "Lomba Siap" di atas daftar,
+  // supaya kelihatan berapa lomba yang sudah 100% lengkap tanpa buka satu-satu.
+  const juaraUtama = JUARA_LIST.filter(j=>j.v!=='partisipasi');
+  const lombaLengkapCount = list.filter(l=>{
+    const punyaKebutuhan = gKebutuhan(l.id).length>0;
+    const juaraTersedia = juaraUtama.filter(j=>gHadiahKategori().some(h=>h.kategori_peserta===l.kategori_peserta && h.juara_ke===j.v));
+    return punyaKebutuhan && juaraTersedia.length===juaraUtama.length && getKoordinatorIds(l).length>0;
+  }).length;
+
   // Kelompokkan lomba berdasarkan jadwal (tanggal). Lomba dengan jam berbeda
   // di tanggal yang sama tetap satu grup, diurutkan berdasarkan jam.
   const grupTanggal = {};
@@ -40,6 +50,15 @@ function renderLomba(){
     const hadiahBadge = juaraTersedia.length===0
       ? `<span class="lomba-badge warn">Hadiah belum diatur</span>`
       : (juaraTersedia.length<juaraUtama.length ? `<span class="lomba-badge warn">Hadiah sebagian</span>` : '');
+    // Progress kelengkapan setup lomba: 3 aspek yang perlu dilengkapi supaya
+    // lomba siap jalan — kebutuhan barang diisi, hadiah diatur lengkap untuk
+    // semua juara, dan koordinator sudah ditunjuk. Dipakai untuk progress bar
+    // ringkas di kepala kartu supaya kelengkapan tiap lomba kelihatan tanpa
+    // perlu buka kartunya satu-satu.
+    const setupChecks = [items.length>0, juaraTersedia.length===juaraUtama.length, getKoordinatorIds(l).length>0];
+    const setupDone = setupChecks.filter(Boolean).length;
+    const setupPct = Math.round(setupDone/setupChecks.length*100);
+    const setupColor = setupPct===100 ? 'var(--hijau)' : (setupPct===0 ? 'var(--merah)' : 'var(--orange)');
     return `
     <div class="lomba-card ${isOpen?'open':''}">
       <div class="lomba-card-head" onclick="toggleLombaCard('${l.id}')" style="cursor:pointer;">
@@ -48,6 +67,10 @@ function renderLomba(){
           <span class="lomba-badge">${items.length} item</span>
           ${hadiahBadge}
           <span class="mono lomba-head-subtotal">${fmtRp(subtotal)}</span>
+          <span class="lomba-progress-wrap" title="Kelengkapan setup: ${setupDone}/${setupChecks.length} (kebutuhan barang, hadiah, koordinator)">
+            <span class="lomba-progress-bar"><span class="lomba-progress-fill" style="width:${setupPct}%;background:${setupColor};"></span></span>
+            <span class="lomba-progress-txt">${setupDone}/${setupChecks.length}</span>
+          </span>
           <span class="lomba-head-actions">
             <button class="icon-btn" onclick="event.stopPropagation(); openLombaModal('${l.id}')" ${!isLoggedIn ? 'disabled' : ''}>✎</button>
             <button class="icon-btn" onclick="event.stopPropagation(); hapusLomba('${l.id}')" ${!isLoggedIn ? 'disabled' : ''}>🗑</button>
@@ -116,7 +139,7 @@ function renderLomba(){
       'jadwal-group-none'
     ) : '');
 
-  return `<div class="stat-grid"><div class="stat-card pengeluaran"><div class="lbl">Total Kebutuhan</div><div class="val">${fmtRp(totalKebutuhan)}</div></div></div>
+  return `<div class="stat-grid"><div class="stat-card pengeluaran"><div class="lbl">Total Kebutuhan</div><div class="val">${fmtRp(totalKebutuhan)}</div></div>${list.length ? `<div class="stat-card${lombaLengkapCount<list.length ? ' stok-lebih' : ' saldo'}"><div class="lbl">Lomba Siap</div><div class="val">${lombaLengkapCount}/${list.length}</div><div style="font-size:11px; color:var(--abu); margin-top:4px;">Kebutuhan barang + hadiah + koordinator lengkap</div></div>` : ''}</div>
   <div class="panel"><div class="panel-head"><div><h3>Daftar Lomba</h3><div class="desc">Dikelompokkan berdasarkan jadwal · klik kartu untuk buka rincian</div></div>${isLoggedIn ? `<button class="btn" onclick="openLombaModal()">+ Tambah Lomba</button>` : ''}</div>
   <div class="panel-body">${groupsHtml||`<div class="empty-row" style="padding:30px;text-align:center;">Belum ada lomba.</div>`}</div></div>`;
 }

@@ -376,13 +376,16 @@ function notaFieldHTML(existingNota){
   return `
     <div class="field">
       <label>Nota / Bukti Transaksi (opsional)</label>
-      <div class="nota-upload-wrap">
-        <img id="f-nota-preview" src="${existingNota ? esc(existingNota) : ''}" style="display:${existingNota?'block':'none'};max-width:160px;max-height:160px;border-radius:8px;border:1px solid var(--border);margin-bottom:8px;object-fit:cover;">
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <label class="btn secondary small">📷 ${existingNota?'Ganti Foto':'Pilih Foto'}<input type="file" accept="image/*" style="display:none;" onchange="pilihNotaTransaksi(event)"></label>
-          <button type="button" id="f-nota-hapus-btn" class="btn secondary small" style="display:${existingNota?'inline-flex':'none'};" onclick="hapusNotaTransaksi()">Hapus Foto</button>
+      <div class="nota-upload-compact">
+        <div class="nota-upload-thumb">
+          <label class="nota-upload-box${existingNota?' has-photo':''}" id="f-nota-box" title="${existingNota?'Ganti foto':'Pilih foto'}">
+            <img id="f-nota-preview" src="${existingNota ? esc(existingNota) : ''}" style="display:${existingNota?'block':'none'};">
+            <span id="f-nota-placeholder" class="nota-placeholder" style="display:${existingNota?'none':'flex'};"><span class="ic">📷</span>Pilih<br>Foto</span>
+            <input type="file" accept="image/*" style="display:none;" onchange="pilihNotaTransaksi(event)">
+          </label>
+          <button type="button" id="f-nota-hapus-btn" class="nota-remove-btn" style="display:${existingNota?'flex':'none'};" onclick="hapusNotaTransaksi(event)" title="Hapus foto">✕</button>
         </div>
-        <div class="hint">Foto struk/nota, maks 5 MB, otomatis dikompres sebelum disimpan.</div>
+        <div class="nota-upload-meta"><div class="hint" style="margin:0;">Foto struk/nota, maks 5 MB — otomatis dikompres, ketuk kotak untuk pilih/ganti.</div></div>
       </div>
     </div>`;
 }
@@ -396,18 +399,27 @@ function pilihNotaTransaksi(event){
   kompresGambarNota(file).then(dataUrl=>{
     _pendingNota = dataUrl;
     const prev = document.getElementById('f-nota-preview');
+    const placeholder = document.getElementById('f-nota-placeholder');
+    const box = document.getElementById('f-nota-box');
     const hapusBtn = document.getElementById('f-nota-hapus-btn');
     if(prev){ prev.src = dataUrl; prev.style.display = 'block'; }
-    if(hapusBtn){ hapusBtn.style.display = 'inline-flex'; }
+    if(placeholder){ placeholder.style.display = 'none'; }
+    if(box){ box.classList.add('has-photo'); box.title = 'Ganti foto'; }
+    if(hapusBtn){ hapusBtn.style.display = 'flex'; }
   }).catch(()=> toast('⚠️ Gagal memproses foto, coba foto lain'));
   event.target.value = '';
 }
 
-function hapusNotaTransaksi(){
+function hapusNotaTransaksi(event){
+  if(event){ event.preventDefault(); event.stopPropagation(); }
   _pendingNota = '';
   const prev = document.getElementById('f-nota-preview');
+  const placeholder = document.getElementById('f-nota-placeholder');
+  const box = document.getElementById('f-nota-box');
   const hapusBtn = document.getElementById('f-nota-hapus-btn');
   if(prev){ prev.src = ''; prev.style.display = 'none'; }
+  if(placeholder){ placeholder.style.display = 'flex'; }
+  if(box){ box.classList.remove('has-photo'); box.title = 'Pilih foto'; }
   if(hapusBtn){ hapusBtn.style.display = 'none'; }
 }
 

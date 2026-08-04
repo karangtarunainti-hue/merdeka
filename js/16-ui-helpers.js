@@ -349,3 +349,124 @@ function hitungBukuUtama(){
     jumlahHadiahJalan: hadiahJalanList.length,
   };
 }
+
+/* ============================================================
+   UPLOAD NOTA / BUKTI TRANSAKSI
+   Dipakai bareng oleh modal Kas, Donatur, Pemasukan Lain (Transaksi
+   Lain), & Operasional — supaya tiap transaksi keuangan bisa dilampiri
+   foto struk/bukti. Sama seperti logo organisasi (lihat pilihOrgLogo di
+   15-pengaturan-event.js), nota disimpan sebagai base64 data URI LANGSUNG
+   di kolom `nota` tabelnya (bukan Supabase Storage — proyek ini sengaja
+   tanpa dependency/bucket tambahan). Beda dari logo, foto nota dikompres
+   dulu (resize + JPEG quality) sebelum disimpan: nota adalah foto kamera
+   HP yang bisa berukuran beberapa MB, sedangkan tiap kali aplikasi dimuat
+   SEMUA baris kas/donatur/operasional/transaksi ikut di-fetch lewat
+   `select('*')` (lihat ARRAY_TABLE_MAP di 03-db-core.js), jadi ukuran per
+   baris penting untuk performa muat data.
+   ============================================================ */
+// undefined = field belum disentuh user (saat simpan: pertahankan nilai
+// lama kalau sedang edit); '' = nota dihapus user; string = data URI baru.
+let _pendingNota;
+
+// Dipanggil di dalam setModal(...) tiap modal transaksi keuangan untuk
+// merender field upload + preview-nya. `existingNota` = nilai kolom
+// `nota` baris yang sedang diedit (kosong/undefined kalau tambah baru).
+function notaFieldHTML(existingNota){
+  _pendingNota = undefined;
+  return `
+    <div class="field">
+      <label>Nota / Bukti Transaksi (opsional)</label>
+      <div class="nota-upload-wrap">
+        <img id="f-nota-preview" src="${existingNota ? esc(existingNota) : ''}" style="display:${existingNota?'block':'none'};max-width:160px;max-height:160px;border-radius:8px;border:1px solid var(--border);margin-bottom:8px;object-fit:cover;">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <label class="btn secondary small">📷 ${existingNota?'Ganti Foto':'Pilih Foto'}<input type="file" accept="image/*" style="display:none;" onchange="pilihNotaTransaksi(event)"></label>
+          <button type="button" id="f-nota-hapus-btn" class="btn secondary small" style="display:${existingNota?'inline-flex':'none'};" onclick="hapusNotaTransaksi()">Hapus Foto</button>
+        </div>
+        <div class="hint">Foto struk/nota, maks 5 MB, otomatis dikompres sebelum disimpan.</div>
+      </div>
+    </div>`;
+}
+
+function pilihNotaTransaksi(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  if(!file.type.startsWith('image/')){ toast('⚠️ File harus berupa gambar'); event.target.value=''; return; }
+  if(file.size > 5*1024*1024){ toast('⚠️ Ukuran foto maksimal 5 MB, coba foto ulang/kompres dulu'); event.target.value=''; return; }
+  toast('⏳ Memproses foto...');
+  kompresGambarNota(file).then(dataUrl=>{
+    _pendingNota = dataUrl;
+    const prev = document.getElementById('f-nota-preview');
+    const hapusBtn = document.getElementById('f-nota-hapus-btn');
+    if(prev){ prev.src = dataUrl; prev.style.display = 'block'; }
+    if(hapusBtn){ hapusBtn.style.display = 'inline-flex'; }
+  }).catch(()=> toast('⚠️ Gagal memproses foto, coba foto lain'));
+  event.target.value = '';
+}
+
+function hapusNotaTransaksi(){
+  _pendingNota = '';
+  const prev = document.getElementById('f-nota-preview');
+  const hapusBtn = document.getElementById('f-nota-hapus-btn');
+  if(prev){ prev.src = ''; prev.style.display = 'none'; }
+  if(hapusBtn){ hapusBtn.style.display = 'none'; }
+}
+
+// Resize ke lebar maksimal 1000px & encode ulang sebagai JPEG quality 0.65
+// supaya ukuran per foto tetap wajar (biasanya turun jadi ratusan KB,
+// bukan beberapa MB seperti foto asli kamera HP).
+function kompresGambarNota(file){
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      const img = new Image();
+      img.onload = ()=>{
+        const maxW = 1000;
+        const scale = img.width > maxW ? maxW / img.width : 1;
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(img.width * scale));
+        canvas.height = Math.max(1, Math.round(img.height * scale));
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', 0.65));
+      };
+      img.onerror = () => reject(new Error('Gagal memuat gambar'));
+      img.src = reader.result;
+    };
+    reader.onerror = () => reject(new Error('Gagal membaca file'));
+    reader.readAsDataURL(file);
+  });
+}
+
+// Dipanggil saat tombol Simpan/Tambah ditekan: kembalikan nilai final
+// kolom `nota` untuk disimpan ke baris. `existingNota` = nilai lama
+// (waktu edit) atau undefined/'' (waktu tambah baru).
+function resolveNotaValue(existingNota){
+  if(_pendingNota === undefined) return existingNota || '';
+  return _pendingNota; // '' (dihapus) atau data URI baru
+}
+
+// Getter tiap modul yang punya kolom `nota`, dipakai lihatNotaTransaksi()
+// supaya tombol 🧾 di tabel cuma perlu kirim id (bukan seluruh base64
+// nota) lewat onclick — jauh lebih ringan daripada nge-embed data URI
+// langsung di atribut HTML tiap baris tabel.
+const NOTA_MODUL_GETTER = {
+  kas: () => db.kas,
+  donatur: () => db.donatur,
+  operasional: () => db.operasional,
+  transaksiLain: () => db.transaksiLain,
+};
+
+// Tombol kecil di tabel/daftar transaksi untuk lihat nota (kalau ada).
+function notaViewBtnHTML(modul, id, nota){
+  if(!nota) return '';
+  return `<button type="button" class="icon-btn" onclick="event.stopPropagation();lihatNotaTransaksi('${modul}','${id}')" title="Lihat Nota">🧾</button>`;
+}
+
+function lihatNotaTransaksi(modul, id){
+  const getter = NOTA_MODUL_GETTER[modul];
+  const row = getter && getter().find(r=>r.id===id);
+  if(!row || !row.nota){ toast('Nota tidak ditemukan'); return; }
+  setModal('🧾 Nota / Bukti Transaksi', `<img src="${row.nota}" style="max-width:100%;border-radius:8px;display:block;margin:0 auto;">`, [
+    {label:'Tutup', cls:'secondary', onclick:closeModal}
+  ]);
+}

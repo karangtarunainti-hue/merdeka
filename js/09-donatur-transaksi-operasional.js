@@ -16,7 +16,7 @@ function renderDonatur(){
   const total = list.reduce((s,d)=>s + (d.jenis==='barang' ? 0 : Number(d.jumlah||0)), 0);
   const isLoggedIn = !!getCurrentUser();
   const rows = list.map((d,idx)=>`<tr${isLoggedIn ? ` class="row-clickable" onclick="openDonaturModal('${d.id}')"` : ''}><td>${idx+1}</td><td>${dateResponsive(d.tanggal)}</td><td>${esc(d.nama_donatur)}</td><td class="num">${donasiValueText(d)}</td>${isLoggedIn ? `<td style="text-align:right;">
-    <button class="icon-btn" onclick="event.stopPropagation();hapusDonatur('${d.id}')">🗑</button>
+    ${notaViewBtnHTML('donatur', d.id, d.nota)}<button class="icon-btn" onclick="event.stopPropagation();hapusDonatur('${d.id}')">🗑</button>
   </td>` : ''}</tr>`).join('');
   return `<div class="stat-grid"><div class="stat-card pemasukan"><div class="lbl">Total Donasi (Uang)</div><div class="val">${fmtRp(total)}</div></div>${barangList.length ? `<div class="stat-card"><div class="lbl">Sumbangan Barang</div><div class="val">${barangList.length}</div></div>` : ''}</div>
   <div class="panel"><div class="panel-head"><h3>Daftar Donatur</h3>${isLoggedIn ? `<button class="btn" onclick="openDonaturModal()">+ Tambah</button>` : ''}</div>
@@ -52,6 +52,7 @@ function openDonaturModal(id){
       </div>
       <div class="hint">Donasi barang dicatat terpisah & TIDAK dihitung sebagai uang masuk/saldo kas — cuma muncul sebagai rincian di Daftar Donatur & LPJ.</div>
     </div>
+    ${notaFieldHTML(editing?editing.nota:'')}
   `, [
     {label:'Batal', cls:'secondary', onclick:closeModal},
     {label:editing?'Simpan':'Tambah', cls:'', onclick:()=>{
@@ -59,19 +60,20 @@ function openDonaturModal(id){
       const jenis = document.getElementById('f-jenis').value;
       const tanggal = document.getElementById('f-tanggal').value||todayISO();
       if(!nama){ toast('Nama wajib'); return; }
+      const nota = resolveNotaValue(editing?editing.nota:'');
       let payload, actionMsg, notifDetail;
       if(jenis==='barang'){
         const nama_barang = document.getElementById('f-nama-barang').value.trim();
         const qty = Math.max(1, Number(document.getElementById('f-qty-barang').value||1));
         const satuan = document.getElementById('f-satuan-barang').value.trim();
         if(!nama_barang){ toast('Nama barang wajib'); return; }
-        payload = {jenis:'barang', nama_donatur:nama, nama_barang, qty, satuan, jumlah:0, tanggal};
+        payload = {jenis:'barang', nama_donatur:nama, nama_barang, qty, satuan, jumlah:0, tanggal, nota};
         actionMsg = editing ? `✏️ Edit donasi barang: ${editing.nama_donatur} → ${nama}` : `➕ Donasi barang dari ${nama}`;
         notifDetail = `Nama: ${nama}\nBarang: ${nama_barang} (${qty}${satuan?` ${satuan}`:''})\nTanggal: ${fmtDate(tanggal)}`;
       } else {
         const jumlah = getCurrencyValue(document.getElementById('f-jumlah'));
         if(jumlah<=0){ toast('Jumlah wajib diisi'); return; }
-        payload = {jenis:'uang', nama_donatur:nama, jumlah, tanggal, nama_barang:'', qty:null, satuan:''};
+        payload = {jenis:'uang', nama_donatur:nama, jumlah, tanggal, nama_barang:'', qty:null, satuan:'', nota};
         actionMsg = editing ? `✏️ Edit donasi: ${editing.nama_donatur} → ${nama}` : `➕ Donasi baru dari ${nama}`;
         notifDetail = `Nama: ${nama}\nJumlah: ${fmtRp(jumlah)}\nTanggal: ${fmtDate(tanggal)}`;
       }
@@ -97,7 +99,7 @@ function renderTransaksi(){
   const total = list.reduce((s,t)=>s+Number(t.jumlah||0),0);
   const isLoggedIn = !!getCurrentUser();
   const rows = list.map((t,idx)=>`<tr${isLoggedIn ? ` class="row-clickable" onclick="openTransaksiModal('${t.id}')"` : ''}><td>${idx+1}</td><td>${dateResponsive(t.tanggal)}</td><td>${esc(t.keterangan||'-')}</td><td class="num">${fmtRp(t.jumlah)}</td>${isLoggedIn ? `<td style="text-align:right;">
-    <button class="icon-btn" onclick="event.stopPropagation();hapusTransaksi('${t.id}')">🗑</button>
+    ${notaViewBtnHTML('transaksiLain', t.id, t.nota)}<button class="icon-btn" onclick="event.stopPropagation();hapusTransaksi('${t.id}')">🗑</button>
   </td>` : ''}</tr>`).join('');
   return `<div class="stat-grid"><div class="stat-card pemasukan"><div class="lbl">Total Pemasukan Lain</div><div class="val">${fmtRp(total)}</div></div></div>
   <div class="panel"><div class="panel-head"><h3>Pemasukan Lain</h3>${isLoggedIn ? `<div style="display:flex;gap:8px;flex-wrap:wrap;"><button class="btn secondary" onclick="openKuponJalanModal()">Penjualan Kupon Harian</button><button class="btn" onclick="openTransaksiModal()">+ Tambah</button></div>` : ''}</div>
@@ -111,6 +113,7 @@ function openTransaksiModal(id){
     <div class="field-row"><div class="field"><label>Jumlah (Rp)</label><input id="f-jumlah" class="currency-input" type="text" value="${editing?formatCurrency(editing.jumlah):''}"></div>
     <div class="field"><label>Tanggal</label><input id="f-tanggal" type="date" value="${editing?editing.tanggal:todayISO()}"></div></div>
     <div class="field"><label>Keterangan</label><input id="f-ket" value="${editing?esc(editing.keterangan||''):''}"></div>
+    ${notaFieldHTML(editing?editing.nota:'')}
   `, [
     {label:'Batal', cls:'secondary', onclick:closeModal},
     {label:editing?'Simpan':'Tambah', cls:'', onclick:()=>{
@@ -118,9 +121,10 @@ function openTransaksiModal(id){
       const tanggal = document.getElementById('f-tanggal').value||todayISO();
       const ket = document.getElementById('f-ket').value.trim();
       if(!ket||jumlah<=0){ toast('Keterangan & jumlah wajib'); return; }
+      const nota = resolveNotaValue(editing?editing.nota:'');
       let actionMsg = '';
-      if(editing){ actionMsg = `✏️ Edit transaksi: ${ket}`; Object.assign(editing,{jumlah,tanggal,keterangan:ket}); }
-      else{ actionMsg = `➕ Transaksi baru: ${ket}`; db.transaksiLain.push({id:uid(),event_id:eid(),jumlah,tanggal,keterangan:ket}); }
+      if(editing){ actionMsg = `✏️ Edit transaksi: ${ket}`; Object.assign(editing,{jumlah,tanggal,keterangan:ket,nota}); }
+      else{ actionMsg = `➕ Transaksi baru: ${ket}`; db.transaksiLain.push({id:uid(),event_id:eid(),jumlah,tanggal,keterangan:ket,nota}); }
       saveDB(); closeModal(); renderContent(); renderTopbarSaldo(); toast('Disimpan');
       notifyTelegram(actionMsg, `Jumlah: ${fmtRp(jumlah)}\nTanggal: ${fmtDate(tanggal)}\nKeterangan: ${ket || '-'}`, 'transaksi');
     }}
@@ -222,7 +226,7 @@ function renderOperasional(){
   const total = list.reduce((s,o)=>s+Number(o.jumlah||0),0);
   const isLoggedIn = !!getCurrentUser();
   const rows = list.map((o,idx)=>`<tr${isLoggedIn ? ` class="row-clickable" onclick="openOperasionalModal('${o.id}')"` : ''}><td data-label="No">${idx+1}</td><td data-label="Tgl">${dateResponsive(o.tanggal)}</td><td data-label="Keterangan">${esc(o.keterangan)}</td><td data-label="Harga" class="num">${fmtRp(o.satuan||0)}</td><td data-label="QTY" class="num">${o.qty||1}</td><td data-label="Jumlah" class="num">${fmtRp(o.jumlah)}</td>${isLoggedIn ? `<td class="operasional-actions" data-label="" style="text-align:right;">
-    <button class="icon-btn" onclick="event.stopPropagation();hapusOperasional('${o.id}')">🗑</button>
+    ${notaViewBtnHTML('operasional', o.id, o.nota)}<button class="icon-btn" onclick="event.stopPropagation();hapusOperasional('${o.id}')">🗑</button>
   </td>` : ''}</tr>`).join('');
   return `<div class="stat-grid"><div class="stat-card pengeluaran"><div class="lbl">Total Operasional</div><div class="val">${fmtRp(total)}</div></div></div>
   <div class="panel"><div class="panel-head"><h3>Biaya Operasional</h3>${isLoggedIn ? `<button class="btn" onclick="openOperasionalModal()">+ Tambah</button>` : ''}</div>
@@ -247,6 +251,7 @@ function openOperasionalModal(id){
     <div class="field-row"><div class="field"><label>Harga Satuan (Rp)</label><input id="f-satuan" class="currency-input" type="text" oninput="hitungJumlahOperasionalModal()" value="${editing?formatCurrency(editing.satuan||0):''}"></div>
     <div class="field"><label>QTY</label><input id="f-qty" type="number" min="1" step="1" oninput="hitungJumlahOperasionalModal()" value="${editing?(editing.qty||1):1}"></div></div>
     <div class="field"><label>Jumlah</label><div id="f-jumlah-preview" style="font-weight:700; font-size:16px; padding:6px 0;">${fmtRp((editing?Number(editing.satuan||0):0)*(editing?(editing.qty||1):1))}</div><div class="hint">Otomatis: Harga Satuan × QTY</div></div>
+    ${notaFieldHTML(editing?editing.nota:'')}
   `, [
     {label:'Batal', cls:'secondary', onclick:closeModal},
     {label:editing?'Simpan':'Tambah', cls:'', onclick:()=>{
@@ -256,9 +261,10 @@ function openOperasionalModal(id){
       const jumlah = satuan * qty;
       const tanggal = document.getElementById('f-tanggal').value||todayISO();
       if(!ket||jumlah<=0){ toast('Keterangan & harga satuan wajib'); return; }
+      const nota = resolveNotaValue(editing?editing.nota:'');
       let actionMsg = '';
-      if(editing){ actionMsg = `✏️ Edit biaya operasional: ${editing.keterangan} → ${ket}`; Object.assign(editing,{keterangan:ket,satuan,qty,jumlah,tanggal}); }
-      else{ actionMsg = `➕ Biaya operasional baru: ${ket}`; db.operasional.push({id:uid(),event_id:eid(),keterangan:ket,satuan,qty,jumlah,tanggal,created_at:new Date().toISOString()}); }
+      if(editing){ actionMsg = `✏️ Edit biaya operasional: ${editing.keterangan} → ${ket}`; Object.assign(editing,{keterangan:ket,satuan,qty,jumlah,tanggal,nota}); }
+      else{ actionMsg = `➕ Biaya operasional baru: ${ket}`; db.operasional.push({id:uid(),event_id:eid(),keterangan:ket,satuan,qty,jumlah,tanggal,nota,created_at:new Date().toISOString()}); }
       saveDB(); closeModal(); renderContent(); renderTopbarSaldo(); toast('Disimpan');
       notifyTelegram(actionMsg, `Keterangan: ${ket}\nHarga Satuan: ${fmtRp(satuan)}\nQTY: ${qty}\nJumlah: ${fmtRp(jumlah)}\nTanggal: ${fmtDate(tanggal)}`, 'operasional');
     }}

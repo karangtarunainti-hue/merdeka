@@ -36,14 +36,19 @@ function applyTemaWarna(key){
 
 function eid(){ return db.activeEventId; }
 function getSettings(){
-  if(!eid()) return {tarif:{sekolah:0,bekerja:0,perantauan:0,khusus:0}, hadiahBudget:{}, dokumen:{}, kategoriToko:{customCategories:[],keywords:{}}, kuponJalanSantai:{harga:0}};
-  if(!db.settings[eid()]) db.settings[eid()] = {tarif:{sekolah:0,bekerja:0,perantauan:0,khusus:0}, hadiahBudget:{}, dokumen:{}, kategoriToko:{customCategories:[],keywords:{}}, kuponJalanSantai:{harga:0}};
+  if(!eid()) return {tarif:{sekolah:0,bekerja:0,perantauan:0,khusus:0}, hadiahBudget:{}, dokumen:{}, kategoriToko:{customCategories:[],keywords:{}}, kuponJalanSantai:{harga:0,stok:0}};
+  if(!db.settings[eid()]) db.settings[eid()] = {tarif:{sekolah:0,bekerja:0,perantauan:0,khusus:0}, hadiahBudget:{}, dokumen:{}, kategoriToko:{customCategories:[],keywords:{}}, kuponJalanSantai:{harga:0,stok:0}};
   if(!db.settings[eid()].hadiahBudget) db.settings[eid()].hadiahBudget = {};
   if(!db.settings[eid()].dokumen) db.settings[eid()].dokumen = {};
-  // Harga Kupon Jalan Santai — dipakai menu "Jual Kupon Jalan Santai" di Pemasukan
-  // Lain (js/09-donatur-transaksi-operasional.js) supaya user tinggal input jumlah
-  // kupon terjual, nominal dihitung otomatis dari harga yg diatur admin di sini.
-  if(!db.settings[eid()].kuponJalanSantai) db.settings[eid()].kuponJalanSantai = {harga:0};
+  // Harga & Stok Kupon Jalan Santai — dipakai menu "Jual Kupon Jalan Santai" di
+  // Pemasukan Lain (js/09-donatur-transaksi-operasional.js) supaya user tinggal
+  // input jumlah kupon terjual, nominal dihitung otomatis dari harga yg diatur
+  // admin di sini. stok = total lembar kupon yang dicetak/tersedia untuk event
+  // ini; sisa stok dihitung on-the-fly (stok - total kuponQty terjual di
+  // db.transaksiLain), bukan disimpan terpisah, supaya tidak pernah "nyleneh"/
+  // meleset walau ada transaksi kupon yang diedit atau dihapus manual.
+  if(!db.settings[eid()].kuponJalanSantai) db.settings[eid()].kuponJalanSantai = {harga:0,stok:0};
+  if(db.settings[eid()].kuponJalanSantai.stok===undefined) db.settings[eid()].kuponJalanSantai.stok = 0;
   // kategoriToko: kategori toko kustom + kata kunci tambahan untuk pengelompokan
   // checklist Belanja Hadiah/Perlengkapan (lihat KATEGORI_TOKO_LIST di 11-belanja.js).
   // Per-event karena kebutuhan lomba beda tiap tahun (mis. alat olahraga, dekorasi).

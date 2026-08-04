@@ -61,13 +61,18 @@ function renderPengaturan(){
     </div>
   </div>
 
-  <!-- HARGA KUPON JALAN SANTAI: dipakai menu "Jual Kupon Jalan Santai" di Pemasukan
-       Lain supaya nominal terhitung otomatis dari jumlah kupon terjual x harga ini. -->
+  <!-- HARGA & STOK KUPON JALAN SANTAI: dipakai menu "Jual Kupon Jalan Santai" di
+       Pemasukan Lain supaya nominal terhitung otomatis dari jumlah kupon terjual
+       x harga ini, dan penjualan dibatasi sesuai stok yang tersedia. -->
   <div class="panel">
-    <div class="panel-head"><div><h3>🎟️ Harga Kupon Jalan Santai</h3><div class="desc">Dipakai di menu Pemasukan Lain → Jual Kupon Jalan Santai, supaya nominal terhitung otomatis dari jumlah kupon terjual.</div></div></div>
+    <div class="panel-head"><div><h3>🎟️ Kupon Jalan Santai</h3><div class="desc">Dipakai di menu Pemasukan Lain → Jual Kupon Jalan Santai, supaya nominal terhitung otomatis dari jumlah kupon terjual dan penjualan tidak melebihi stok.</div></div></div>
     <div class="panel-body">
-      <div class="field"><label>Harga per Kupon (Rp)</label><input id="kupon-harga" class="currency-input" type="text" value="${formatCurrency(s.kuponJalanSantai.harga)}"></div>
-      <button class="btn" onclick="simpanHargaKupon()">Simpan Harga Kupon</button>
+      <div class="field-row">
+        <div class="field"><label>Harga per Kupon (Rp)</label><input id="kupon-harga" class="currency-input" type="text" value="${formatCurrency(s.kuponJalanSantai.harga)}"></div>
+        <div class="field"><label>Stok Kupon (lembar)</label><input id="kupon-stok" type="number" min="0" step="1" value="${s.kuponJalanSantai.stok||0}"></div>
+      </div>
+      <div class="hint">Terjual sejauh ini: <b>${totalKuponTerjual()}</b> lembar &middot; Sisa stok: <b>${Math.max(0, (s.kuponJalanSantai.stok||0) - totalKuponTerjual())}</b> lembar</div>
+      <button class="btn" onclick="simpanHargaKupon()">Simpan Harga &amp; Stok Kupon</button>
     </div>
   </div>
 
@@ -273,8 +278,9 @@ function simpanHargaKupon(){
   if (!isAdmin()) { toast('⛔ Hanya Admin'); return; }
   const s = getSettings();
   s.kuponJalanSantai.harga = getCurrencyValue(document.getElementById('kupon-harga'));
-  saveDB(); toast('Harga kupon disimpan');
-  notifyTelegram(`⚙️ Update harga kupon jalan santai`, `Harga per kupon: ${fmtRp(s.kuponJalanSantai.harga)}`, 'sistem');
+  s.kuponJalanSantai.stok = Math.max(0, Math.floor(Number(document.getElementById('kupon-stok').value||0)));
+  saveDB(); toast('Harga & stok kupon disimpan'); renderContent();
+  notifyTelegram(`⚙️ Update harga & stok kupon jalan santai`, `Harga per kupon: ${fmtRp(s.kuponJalanSantai.harga)}\nStok: ${s.kuponJalanSantai.stok} lembar`, 'sistem');
 }
 
 // Dipegang sementara (belum disimpan ke db.orgProfile) begitu admin memilih
@@ -504,7 +510,7 @@ function exportDataEvent(){
     _version: 1,
     exported_at: new Date().toISOString(),
     event: { nama: ev.nama, tahun: ev.tahun, fitur: ev.fitur || null },
-    settings: db.settings[id] ? { tarif: db.settings[id].tarif, hadiahBudget: db.settings[id].hadiahBudget || {}, kategoriToko: db.settings[id].kategoriToko || {customCategories:[],keywords:{}}, kuponJalanSantai: db.settings[id].kuponJalanSantai || {harga:0} } : { tarif:{sekolah:0,bekerja:0,perantauan:0,khusus:0}, hadiahBudget:{}, kategoriToko:{customCategories:[],keywords:{}}, kuponJalanSantai:{harga:0} },
+    settings: db.settings[id] ? { tarif: db.settings[id].tarif, hadiahBudget: db.settings[id].hadiahBudget || {}, kategoriToko: db.settings[id].kategoriToko || {customCategories:[],keywords:{}}, kuponJalanSantai: db.settings[id].kuponJalanSantai || {harga:0,stok:0} } : { tarif:{sekolah:0,bekerja:0,perantauan:0,khusus:0}, hadiahBudget:{}, kategoriToko:{customCategories:[],keywords:{}}, kuponJalanSantai:{harga:0,stok:0} },
     anggota: db.anggota.filter(x=>x.event_id===id),
     donatur: db.donatur.filter(x=>x.event_id===id),
     transaksiLain: db.transaksiLain.filter(x=>x.event_id===id),
@@ -550,7 +556,7 @@ function importDataEvent(evt){
         tarif: (parsed.settings && parsed.settings.tarif) ? {...parsed.settings.tarif} : {sekolah:0,bekerja:0,perantauan:0,khusus:0},
         hadiahBudget: (parsed.settings && parsed.settings.hadiahBudget) ? JSON.parse(JSON.stringify(parsed.settings.hadiahBudget)) : {},
         kategoriToko: (parsed.settings && parsed.settings.kategoriToko) ? JSON.parse(JSON.stringify(parsed.settings.kategoriToko)) : {customCategories:[],keywords:{}},
-        kuponJalanSantai: (parsed.settings && parsed.settings.kuponJalanSantai) ? JSON.parse(JSON.stringify(parsed.settings.kuponJalanSantai)) : {harga:0}
+        kuponJalanSantai: (parsed.settings && parsed.settings.kuponJalanSantai) ? JSON.parse(JSON.stringify(parsed.settings.kuponJalanSantai)) : {harga:0,stok:0}
       };
 
       (parsed.anggota||[]).forEach(x=>{ db.anggota.push({...x, id:uid(), event_id:newEventId}); });

@@ -509,7 +509,7 @@ function renderKas(){
       <td data-label="Kredit" class="num">${Number(k.kredit||0)>0 ? fmtRp(k.kredit) : '-'}</td>
       <td data-label="Saldo" class="num">${fmtRp(k._saldo)}</td>
       ${canKelola ? `<td class="kas-actions" style="text-align:right;white-space:nowrap;">
-        ${k._autoDanaSosial ? `<span class="icon-btn" style="opacity:.5; cursor:default;" title="Kelola lewat menu Dana Sosial">🔒</span>` : `${notaViewBtnHTML('kas', k.id, k.nota)}<button class="icon-btn" onclick="openKasModal('${k.id}')" title="Edit">✎</button>
+        ${k._autoDanaSosial ? `<span class="icon-btn" style="opacity:.5; cursor:default;" title="Kelola lewat menu Dana Sosial">🔒</span>` : `<button class="icon-btn" onclick="openKasModal('${k.id}')" title="Edit">✎</button>
         <button class="icon-btn" onclick="hapusKas('${k.id}')" title="Hapus">🗑</button>`}
       </td>` : ''}
     </tr>`).join('');
@@ -524,7 +524,7 @@ function renderKas(){
   const mobileRows = displayList.map((k, idx) => `
     <tr${(canKelola && !k._autoDanaSosial) ? ` class="row-clickable" onclick="openKasModal('${k.id}')"` : ''}>
       <td data-label="No">${idx + 1}</td>
-      <td data-label="Keterangan">${esc(k.keterangan||'-')}${k._autoDanaSosial ? ' 🔒' : ''}${k.nota ? ` <button type="button" class="icon-btn" style="padding:0 2px;" onclick="event.stopPropagation();lihatNotaTransaksi('kas','${k.id}')" title="Lihat Nota">🧾</button>` : ''}</td>
+      <td data-label="Keterangan">${esc(k.keterangan||'-')}${k._autoDanaSosial ? ' 🔒' : ''}</td>
       <td data-label="Debit" class="num">${Number(k.debit||0)>0 ? fmtRp(k.debit) : '-'}</td>
       <td data-label="Kredit" class="num">${Number(k.kredit||0)>0 ? fmtRp(k.kredit) : '-'}</td>
       <td data-label="Saldo" class="num">${fmtRp(k._saldo)}</td>
@@ -577,7 +577,6 @@ function openKasModal(id){
     <div class="field"><label>Tanggal</label><input id="f-kas-tanggal" type="date" value="${editing?editing.tanggal:todayISO()}"></div>
     <div class="field"><label>Keterangan</label><input id="f-kas-ket" value="${editing?esc(editing.keterangan||''):''}" placeholder="mis. Iuran bulanan anggota"></div>
     <div class="field"><label>Jumlah (Rp)</label><input id="f-kas-jumlah" class="currency-input" type="text" value="${editing?formatCurrency(editingJumlah||0):''}"></div>
-    ${notaFieldHTML(editing?editing.nota:'')}
   `, [
     {label:'Batal', cls:'secondary', onclick:closeModal},
     ...(editing ? [{label:'Hapus', cls:'danger', onclick:()=>{ closeModal(); hapusKas(editing.id); }}] : []),
@@ -590,14 +589,13 @@ function openKasModal(id){
       if(jumlah<=0){ toast('Jumlah wajib diisi'); return; }
       const debit = jenis === 'masuk' ? jumlah : 0;
       const kredit = jenis === 'keluar' ? jumlah : 0;
-      const nota = resolveNotaValue(editing?editing.nota:'');
       let actionMsg = '';
       if(editing){
         actionMsg = `✏️ Edit kas: ${keterangan}`;
-        Object.assign(editing, {keterangan, debit, kredit, tanggal, nota});
+        Object.assign(editing, {keterangan, debit, kredit, tanggal});
       } else {
         actionMsg = `➕ Kas baru: ${keterangan}`;
-        db.kas.push({id:uid(), keterangan, debit, kredit, tanggal, nota, created_at:new Date().toISOString()});
+        db.kas.push({id:uid(), keterangan, debit, kredit, tanggal, created_at:new Date().toISOString()});
       }
       saveDB(); closeModal(); renderContent(); toast('Disimpan');
       notifyTelegram(actionMsg, `${jenis==='masuk'?'Pemasukan':'Pengeluaran'}: ${fmtRp(jumlah)}\nTanggal: ${fmtDate(tanggal)}`, 'kas');
@@ -651,7 +649,6 @@ function kasImportJSON(input){
         tanggal: k.tanggal || todayISO(),
         keterangan: k.keterangan || '',
         debit, kredit,
-        nota: k.nota || '',
         created_at: k.created_at || new Date().toISOString(),
       }; });
       const ins = await sb.from('kt_kas').upsert(rows, {onConflict:'id'});

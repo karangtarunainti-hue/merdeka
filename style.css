@@ -2887,34 +2887,3 @@ table.ds-rekap-table td.num, table.ds-rekap-table th:not(:first-child){ text-ali
   #tour-fab{ right:14px; bottom:14px; width:48px; height:48px; font-size:20px; }
   .tour-tooltip{ padding:14px 16px; }
 }
-
-/* ============================================================
-   UPLOAD NOTA / BUKTI TRANSAKSI — thumbnail persegi kecil yang
-   dobel fungsi (jadi trigger upload sekaligus preview), lebih
-   hemat ruang di modal daripada preview besar + tombol teks
-   terpisah. Lihat notaFieldHTML() di js/16-ui-helpers.js.
-   ------------------------------------------------------------ */
-.nota-upload-compact{ display:flex; align-items:flex-start; gap:10px; }
-.nota-upload-thumb{ position:relative; flex-shrink:0; }
-.nota-upload-box{
-  position:relative; display:flex; align-items:center; justify-content:center;
-  width:64px; height:64px; flex-shrink:0; border-radius:10px; overflow:hidden;
-  border:1.5px dashed var(--garis); background:var(--surface-soft);
-  cursor:pointer; transition:border-color .15s, background .15s;
-}
-.nota-upload-box:hover{ border-color:var(--hijau); }
-.nota-upload-box.has-photo{ border-style:solid; border-color:var(--garis); }
-.nota-upload-box img{ width:100%; height:100%; object-fit:cover; display:block; }
-.nota-upload-box .nota-placeholder{
-  display:flex; flex-direction:column; align-items:center; gap:2px;
-  font-size:10px; line-height:1.2; color:var(--abu); text-align:center; padding:0 2px;
-}
-.nota-upload-box .nota-placeholder .ic{ font-size:16px; }
-.nota-remove-btn{
-  position:absolute; top:-6px; right:-6px; width:19px; height:19px; border-radius:50%;
-  background:var(--bahaya); color:#fff; border:2px solid var(--surface);
-  font-size:11px; line-height:1; display:flex; align-items:center; justify-content:center;
-  cursor:pointer; padding:0;
-}
-.nota-upload-meta{ display:flex; flex-direction:column; gap:4px; justify-content:center; }
-.nota-upload-meta .btn{ align-self:flex-start; }

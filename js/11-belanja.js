@@ -23,6 +23,23 @@
    pack/eceran per grup — HANYA ADA SATU implementasi rumus ini di
    seluruh app, supaya kelas bug ini tidak bisa terulang lagi.
    ============================================================ */
+/* ============================================================
+   CARD PROGRESS BELANJA — dipakai bersama oleh Belanja Hadiah,
+   Belanja Perlengkapan, dan Belanja Jalan Santai supaya progres
+   (persentase item yang sudah dibeli) kelihatan langsung di atas
+   daftar, konsisten dengan progress bar kelengkapan setup lomba
+   (lihat renderLombaCard di 10-lomba.js).
+   ============================================================ */
+function progressBelanjaCardHtml(totalItem, totalSudah){
+  if(!totalItem) return '';
+  const pct = Math.round((totalSudah/totalItem)*100);
+  const color = pct===100 ? 'var(--hijau)' : (pct===0 ? 'var(--merah)' : 'var(--orange)');
+  return `<div class="stat-card${pct===100?' saldo':' stok-lebih'}">
+    <div class="lbl">Progress Belanja</div>
+    <div class="val">${pct}% <span style="font-size:12px;font-weight:500;color:var(--ink-soft);">(${totalSudah}/${totalItem})</span></div>
+    <div class="stat-progress-bar"><div class="stat-progress-fill" style="width:${pct}%;background:${color};"></div></div>
+  </div>`;
+}
 function snapshotBelanjaHadiah(item){
   return { qty_snapshot:Number(item.qty_dibeli||0), harga_satuan_snapshot:Number(item.harga_satuan||0), harga_eceran_snapshot:Number(item.harga_eceran!=null?item.harga_eceran:item.harga_satuan||0), isi_per_pack_snapshot:Math.max(1,Number(item.isi_per_pack||1)) };
 }
@@ -453,7 +470,7 @@ function renderBelanjaHadiah(){
     </div>`;
   }).join('');
 
-  return `<div class="belanja-toko-page"><div class="stat-grid"><div class="stat-card belanja-hadiah"><div class="lbl">Total Item</div><div class="val">${totalItem}</div></div><div class="stat-card pemasukan"><div class="lbl">Belum Dibeli</div><div class="val">${totalBelum}</div></div><div class="stat-card saldo"><div class="lbl">Estimasi Total</div><div class="val">${fmtRp(totalEstimasi)}</div></div></div>
+  return `<div class="belanja-toko-page"><div class="stat-grid"><div class="stat-card belanja-hadiah"><div class="lbl">Total Item</div><div class="val">${totalItem}</div></div><div class="stat-card pemasukan"><div class="lbl">Belum Dibeli</div><div class="val">${totalBelum}</div></div><div class="stat-card saldo"><div class="lbl">Estimasi Total</div><div class="val">${fmtRp(totalEstimasi)}</div></div>${progressBelanjaCardHtml(totalItem, totalItem-totalBelum)}</div>
   <div class="panel"><div class="panel-head"><div><h3>🎁 Daftar Belanja Hadiah</h3><div class="desc">Belum dibeli: <strong>${fmtRp(totalBelumEstimasi)}</strong></div></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
       <button class="btn success small" onclick="tandaiSemuaBelanjaHadiah()" ${!isLoggedIn ? 'disabled' : ''}>✓ Semua Dibeli</button>
@@ -777,7 +794,7 @@ function renderBelanjaPerlengkapan(){
     </div>`;
   }).join('');
 
-  return `<div class="belanja-toko-page"><div class="stat-grid"><div class="stat-card belanja-perlengkapan"><div class="lbl">Total Item</div><div class="val">${totalItem}</div></div><div class="stat-card pemasukan"><div class="lbl">Belum Dibeli</div><div class="val">${totalBelum}</div></div><div class="stat-card saldo"><div class="lbl">Estimasi Total</div><div class="val">${fmtRp(totalEstimasi)}</div></div></div>
+  return `<div class="belanja-toko-page"><div class="stat-grid"><div class="stat-card belanja-perlengkapan"><div class="lbl">Total Item</div><div class="val">${totalItem}</div></div><div class="stat-card pemasukan"><div class="lbl">Belum Dibeli</div><div class="val">${totalBelum}</div></div><div class="stat-card saldo"><div class="lbl">Estimasi Total</div><div class="val">${fmtRp(totalEstimasi)}</div></div>${progressBelanjaCardHtml(totalItem, totalItem-totalBelum)}</div>
   <div class="panel"><div class="panel-head"><div><h3>📦 Daftar Belanja Perlengkapan</h3><div class="desc">Belum dibeli: <strong>${fmtRp(totalBelumEstimasi)}</strong></div></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
       <button class="btn success small" onclick="tandaiSemuaBelanjaPerlengkapan()" ${!isLoggedIn ? 'disabled' : ''}>✓ Semua Dibeli</button>
@@ -1112,6 +1129,7 @@ function renderBelanjaJalanSantai(){
     <div class="stat-card pemasukan"><div class="lbl">Belum Dibeli</div><div class="val">${totalBelum}</div></div>
     <div class="stat-card pengeluaran"><div class="lbl">Sudah Dibeli</div><div class="val">${totalSudah}</div></div>
     <div class="stat-card saldo"><div class="lbl">Estimasi Total</div><div class="val">${fmtRp(totalEstimasi)}</div></div>
+    ${progressBelanjaCardHtml(totalItem, totalSudah)}
   </div>
   <div class="panel">
     <div class="panel-head">

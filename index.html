@@ -128,16 +128,9 @@
      ensureHtml2Canvas() di js/16-ui-helpers.js, hanya saat fitur "Download
      Gambar/JPEG" benar-benar dipakai. -->
 <script src="js/app.bundle.min.js" defer></script>
-<script>
-  // Daftarkan service worker supaya aplikasi bisa di-"Add to Home Screen"
-  // dan tetap bisa dibuka walau koneksi sedang jelek/offline.
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js').catch((err) => {
-        console.error('Gagal mendaftarkan service worker:', err);
-      });
-    });
-  }
-</script>
+<!-- Pendaftaran service worker dipindah dari inline <script> ke file terpisah
+     supaya Content-Security-Policy (lihat _headers) tidak perlu membuka
+     'unsafe-inline' untuk script. -->
+<script src="js/sw-register.js" defer></script>
 </body>
 </html>

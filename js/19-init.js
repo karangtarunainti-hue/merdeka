@@ -120,6 +120,17 @@ initOfflineGuard();
     if(msgEl){ msgEl.textContent = '📶 Koneksi lambat, mohon tunggu sebentar...'; msgEl.classList.add('slow'); }
   }, 6000);
 
+  // VALIDASI SESI KE SERVER sebelum memuat data.
+  // Sebelumnya status login dipercaya begitu saja dari localStorage
+  // (kt_auth_user), jadi sesi yang sudah dicabut admin / kedaluwarsa masih
+  // terlihat "login" sampai user menekan logout sendiri — dan role di
+  // localStorage bahkan bisa diedit manual jadi "admin" lewat DevTools.
+  // Sekarang token diverifikasi ke server (rpc_session_user); yang menentukan
+  // role sebenarnya adalah baris kt_sessions di database, bukan localStorage.
+  // Catatan: ini hanya soal tampilan/UX — pengamanan sesungguhnya ada di RLS
+  // policy yang memeriksa session_is_logged_in()/session_is_admin() di server.
+  await validateSession();
+
   db = await loadDB();
   clearTimeout(slowTimer);
 

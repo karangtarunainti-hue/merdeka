@@ -137,6 +137,45 @@ async function touchLastSeen(id) {
   catch (e) { console.error('Gagal mencatat waktu terakhir dibuka:', e); }
 }
 
+// Verifikasi token sesi tersimpan ke server. Dipanggil sekali saat app dibuka
+// (lihat js/19-init.js). Kalau token sudah tidak berlaku (kedaluwarsa, dicabut
+// karena password diganti admin, atau memang palsu), sesi lokal dibersihkan
+// supaya app tidak menampilkan menu yang sebenarnya sudah tidak boleh diakses.
+async function validateSession() {
+  let token = null;
+  try { token = localStorage.getItem(SESSION_TOKEN_KEY); } catch(e) {}
+
+  if (!token) {
+    // Tidak ada token tapi ada sisa data user di localStorage -> sisa versi
+    // lama app (sebelum ada sesi server). Bersihkan, paksa login ulang.
+    if (getCurrentUser()) setCurrentUser(null);
+    return null;
+  }
+
+  try {
+    const { data, error } = await sb.rpc('rpc_session_user');
+    if (error) {
+      // Error jaringan: JANGAN paksa logout — user di sinyal jelek tidak
+      // seharusnya kehilangan sesinya. Biarkan apa adanya; kalau tokennya
+      // memang tidak valid, server akan menolak setiap operasi tulis.
+      console.error('Gagal memvalidasi sesi:', error);
+      return getCurrentUser();
+    }
+    const user = Array.isArray(data) ? data[0] : data;
+    if (!user) {
+      setSessionToken(null);
+      setCurrentUser(null);
+      return null;
+    }
+    // Server adalah sumber kebenaran untuk role & hak akses.
+    setCurrentUser(user);
+    return user;
+  } catch (e) {
+    console.error('Gagal memvalidasi sesi:', e);
+    return getCurrentUser();
+  }
+}
+
 async function logout() {
   // Matikan sesi di SERVER dulu (bukan cuma hapus token di localStorage) --
   // kalau token ini sempat bocor, logout beneran membuatnya tidak berlaku lagi.

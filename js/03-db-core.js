@@ -315,7 +315,12 @@ async function loadDB(){
     if(!telegramRes.error){
       if(telegramRes.data){
         result.telegram = {
-          botToken: telegramRes.data.bot_token || '',
+          // botToken SENGAJA tidak lagi dibaca dari server. Token hidup
+          // sebagai secret Cloudflare Worker (src/worker.js) dan tidak pernah
+          // dikirim ke browser -- lihat supabase-hardening-migration.sql
+          // Bagian 4. Field ini dipertahankan (selalu string kosong) supaya
+          // kode lama yang membacanya tidak error.
+          botToken: '',
           chatId: telegramRes.data.chat_id || '',
           enabled: !!telegramRes.data.enabled,
           // Digabung dengan default supaya kategori BARU yang ditambahkan di
@@ -646,7 +651,8 @@ let _lastKnownTelegramUpdatedAt = null;
 async function syncTelegram(){
   const r = await _syncSingletonRow('kt_telegram_settings', 'Pengaturan Telegram', {
     id: 'main',
-    bot_token: db.telegram.botToken,
+    // bot_token tidak pernah ditulis dari klien lagi (klien memang sudah tidak
+    // memilikinya). Kolomnya dibiarkan apa adanya di server.
     chat_id: db.telegram.chatId,
     enabled: db.telegram.enabled,
     categories: db.telegram.categories || defaultTelegramCategories(),

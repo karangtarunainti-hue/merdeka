@@ -8,7 +8,7 @@
    NAIKKAN CACHE_VERSION setiap kali index.html/style.css/js/*
    diupdate, supaya HP pengguna otomatis ambil versi baru.
    ============================================================ */
-const CACHE_VERSION = 'v46';
+const CACHE_VERSION = 'v47';
 const CACHE_NAME = `kt-shell-${CACHE_VERSION}`;
 
 // App awalnya 1 file besar (script.js, sudah dihapus dari repo), lalu
@@ -20,6 +20,7 @@ const APP_SHELL = [
   './index.html',
   './style.min.css',
   './js/app.bundle.min.js',
+  './js/sw-register.js',
   './vendor/supabase.js',
   './manifest.json',
   './icons/icon-192.png',

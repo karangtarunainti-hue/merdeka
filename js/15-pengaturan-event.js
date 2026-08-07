@@ -86,9 +86,11 @@ function renderPengaturan(){
       <div class="field-row">
         <div class="field field-icon">
           <label>Bot Token</label>
-          <span class="field-icon-glyph">🔑</span>
-          <input id="telegram-bot-token" type="text" value="${esc(telegram.botToken||'')}" placeholder="Token dari @BotFather">
-          <div class="hint">Contoh: 1234567890:ABCdefGHIjklMNOpqrsTUVwxyz</div>
+          <span class="field-icon-glyph">🔐</span>
+          <input type="text" value="Tersimpan aman di server" disabled>
+          <div class="hint">Bot token tidak lagi disimpan di aplikasi (dulu bisa dibaca
+            siapa pun lewat browser). Sekarang token dipasang sekali sebagai secret
+            Cloudflare: <code>npx wrangler secret put TELEGRAM_BOT_TOKEN</code></div>
         </div>
         <div class="field field-icon">
           <label>Chat ID</label>
@@ -334,7 +336,7 @@ function simpanOrgProfile(){
 
 function simpanTelegram(){
   if (!isAdmin()) { toast('⛔ Hanya Admin'); return; }
-  const botToken = document.getElementById('telegram-bot-token').value.trim();
+  // botToken tidak lagi diinput/disimpan dari sini — lihat catatan di form.
   const chatId = document.getElementById('telegram-chat-id').value.trim();
   const categories = {};
   document.querySelectorAll('.telegram-category-check').forEach(c => { categories[c.dataset.key] = c.checked; });
@@ -343,7 +345,7 @@ function simpanTelegram(){
     start: document.getElementById('telegram-quiet-start').value || '22:00',
     end: document.getElementById('telegram-quiet-end').value || '06:00',
   };
-  const settings = { botToken, chatId, enabled: db.telegram?.enabled || false, categories, quietHours };
+  const settings = { botToken: '', chatId, enabled: db.telegram?.enabled || false, categories, quietHours };
   saveTelegramSettings(settings);
   toast('✅ Pengaturan Telegram disimpan');
   renderContent();
@@ -378,8 +380,8 @@ function simpanGuestMenu(){
 function toggleTelegram(){
   if (!isAdmin()) { toast('⛔ Hanya Admin'); return; }
   const settings = getTelegramSettings();
-  if(!settings.botToken || !settings.chatId){
-    toast('⚠️ Isi Bot Token dan Chat ID terlebih dahulu');
+  if(!settings.chatId){
+    toast('⚠️ Isi Chat ID terlebih dahulu');
     return;
   }
   settings.enabled = !settings.enabled;
@@ -391,8 +393,8 @@ function toggleTelegram(){
 async function testTelegram(){
   if (!isAdmin()) { toast('⛔ Hanya Admin'); return; }
   const settings = getTelegramSettings();
-  if(!settings.botToken || !settings.chatId){
-    toast('⚠️ Isi Bot Token dan Chat ID terlebih dahulu');
+  if(!settings.chatId){
+    toast('⚠️ Isi Chat ID terlebih dahulu');
     return;
   }
   if(!settings.enabled){

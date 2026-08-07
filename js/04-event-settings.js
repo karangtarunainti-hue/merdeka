@@ -187,12 +187,26 @@ const TELEGRAM_QUEUE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // buang pesan lebih 
 
 function _sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
 
+// Pengiriman notifikasi TIDAK LAGI memanggil api.telegram.org langsung dari
+// browser. Dulu URL-nya mengandung `settings.botToken` yang dibaca dari tabel
+// kt_telegram_settings — dan tabel itu bisa dibaca siapa pun lewat anon key,
+// jadi bot token efektif publik dan bisa diambil alih orang lain.
+// Sekarang klien POST ke /api/telegram (same-origin). Bot token hidup sebagai
+// secret Cloudflare Worker (lihat src/worker.js) dan tidak pernah dikirim ke
+// browser sama sekali. Worker memverifikasi sesi login dulu, menerapkan rate
+// limit, lalu meneruskan respons Telegram apa adanya — termasuk error_code 429
+// + parameters.retry_after, supaya logika retry/backoff di bawah tetap jalan.
 async function _telegramApiCall(settings, message){
-  const url = `https://api.telegram.org/bot${settings.botToken}/sendMessage`;
-  const response = await fetch(url, {
+  const headers = { 'Content-Type': 'application/json' };
+  try{
+    const token = localStorage.getItem('kt_session_token');
+    if(token) headers['x-session-token'] = token;
+  }catch(e){}
+
+  const response = await fetch('/api/telegram', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chat_id: settings.chatId, text: message, parse_mode: 'HTML' })
+    headers,
+    body: JSON.stringify({ chat_id: settings.chatId, text: message })
   });
   const result = await response.json();
   return { ok: !!result.ok, result };
@@ -223,7 +237,10 @@ let _telegramFlushInProgress = false;
 async function flushTelegramQueue(){
   if(_telegramFlushInProgress) return;
   const settings = getTelegramSettings();
-  if(!settings.enabled || !settings.botToken || !settings.chatId) return;
+  // Dulu guard ini juga mengecek settings.botToken. Token sekarang ada di
+  // server (secret Worker) dan klien memang tidak memilikinya, jadi yang
+  // relevan diperiksa di sini tinggal chatId.
+  if(!settings.enabled || !settings.chatId) return;
   // Jangan kirim antrian selagi masih jam tenang — coba lagi otomatis lewat
   // interval berkala setelah jam tenang berakhir (lihat js/19-init.js).
   if(isWithinQuietHours(settings)) return;
@@ -253,7 +270,7 @@ async function flushTelegramQueue(){
 
 async function sendTelegramNotification(message, isTest = false){
   const settings = getTelegramSettings();
-  if(!settings.enabled || !settings.botToken || !settings.chatId){
+  if(!settings.enabled || !settings.chatId){
     if(isTest) toast('⚠️ Telegram belum dikonfigurasi. Atur di Pengaturan.');
     return false;
   }

@@ -21,7 +21,7 @@ function renderGudangPinjam(){
   <div class="panel">
     <div class="panel-head">
       <div><h3>Pengajuan Pinjam Aset</h3><div class="desc">Isi form untuk meminjam barang inventaris desa. Stok akan berkurang otomatis setelah pengajuan dikirim.</div></div>
-      <button class="btn" onclick="openGudangPinjamModal()">+ Ajukan Peminjaman</button>
+      <button class="btn" ${da('openGudangPinjamModal')}>+ Ajukan Peminjaman</button>
     </div>
   </div>`;
 }
@@ -123,7 +123,7 @@ function gudangComboPanelHtml(idx, selectedId){
         const nonAktif = habis || sudahDipilih;
         const selected = i.id===selectedId;
         return `<button type="button" class="combo-option${nonAktif?' disabled':''}${selected?' selected':''}"
-          ${nonAktif?'disabled':`onclick="selectGudangComboItem(${idx}, '${i.id}')"`}>
+          ${nonAktif?'disabled':da('selectGudangComboItem', idx, i.id)}>
           <span class="combo-option-main">
             <span class="combo-option-name">${esc(i.nama)}</span>
           </span>
@@ -164,7 +164,7 @@ function gudangComboPositionPanel(trigger, panel){
 function gudangRTComboPanelHtml(selectedValue){
   const optionsHtml = GUDANG_PINJAM_RT_LIST.map(r=>{
     const selected = r.v === selectedValue;
-    return `<button type="button" class="combo-option${selected?' selected':''}" onclick="selectGudangRT('${r.v}')">
+    return `<button type="button" class="combo-option${selected?' selected':''}" ${da('selectGudangRT', r.v)}>
       <span class="combo-option-main"><span class="combo-option-name">${esc(r.l)}</span></span>
       <span class="combo-option-side">${selected ? gudangComboIconCheck() : ''}</span>
     </button>`;
@@ -245,7 +245,7 @@ function renderGudangPinjamModalBody(){
     <div class="item-fields-row" style="display:flex; gap:8px; align-items:flex-end; margin-bottom:10px;">
       <div class="field combo" style="flex:2; margin-bottom:0; position:relative;">
         ${idx===0 ? `<label>Barang <span class="combo-hint">— ketuk untuk lihat daftar &amp; stok</span></label>` : ''}
-        <button type="button" id="gp-combo-trigger-${idx}" class="combo-trigger${selectedItem?'':' placeholder'}" onclick="toggleGudangCombo(${idx})">
+        <button type="button" id="gp-combo-trigger-${idx}" class="combo-trigger${selectedItem?'':' placeholder'}" ${da('toggleGudangCombo', idx)}>
           <span class="combo-trigger-label">${selectedItem ? esc(gudangComboItemLabel(selectedItem)) : '-- Pilih Barang --'}</span>
           ${gudangComboIconChevron()}
         </button>
@@ -254,7 +254,7 @@ function renderGudangPinjamModalBody(){
         ${idx===0 ? `<label>Jumlah</label>` : ''}
         <input type="number" min="1" value="${r.qty}" oninput="_gudangPinjamRows[${idx}].qty=parseInt(this.value,10)||1">
       </div>
-      <button type="button" class="icon-btn" title="Hapus baris" onclick="gudangPinjamRemoveRow(${idx})">🗑</button>
+      <button type="button" class="icon-btn" title="Hapus baris" ${da('gudangPinjamRemoveRow', idx)}>🗑</button>
     </div>`;
   }).join('');
 
@@ -265,7 +265,7 @@ function renderGudangPinjamModalBody(){
     <div class="field"><label>Nama Peminjam</label><input type="text" id="gp-nama" placeholder="Nama lengkap peminjam" value="${esc(_gudangPinjamHeader.nama)}" oninput="_gudangPinjamHeader.nama=this.value"></div>
     <div class="field combo" style="margin-bottom:0; position:relative;">
       <label>RT</label>
-      <button type="button" id="gp-rt-trigger" class="combo-trigger${rtSelected?'':' placeholder'}" onclick="toggleGudangRTCombo()">
+      <button type="button" id="gp-rt-trigger" class="combo-trigger${rtSelected?'':' placeholder'}" ${da('toggleGudangRTCombo')}>
         <span class="combo-trigger-label">${rtSelected ? esc(rtSelected.l) : '-- Pilih RT --'}</span>
         ${gudangComboIconChevron()}
       </button>
@@ -279,7 +279,7 @@ function renderGudangPinjamModalBody(){
     <div style="border-top:1px solid var(--garis); padding-top:14px; margin-top:6px;">
       <label style="display:block; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-soft); margin-bottom:10px;">Barang yang Dipinjam</label>
       <div id="gp-item-rows">${rowsHtml}</div>
-      <button type="button" class="btn secondary small" onclick="gudangPinjamAddRow()">+ Tambah Barang Lain</button>
+      <button type="button" class="btn secondary small" ${da('gudangPinjamAddRow')}>+ Tambah Barang Lain</button>
     </div>`;
 
   setModal('Ajukan Peminjaman Aset', body, [

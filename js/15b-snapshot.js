@@ -162,8 +162,8 @@ function renderSnapshotPanel(){
       <td>${labelTriggerSnapshot(s.trigger)}${s.label ? ` — ${esc(s.label)}` : ''}</td>
       <td>${s.size_kb ?? '-'} KB</td>
       <td style="text-align:right;white-space:nowrap;">
-        <button class="btn secondary small" onclick="pulihkanSnapshot('${s.id}')">↺ Pulihkan</button>
-        <button class="btn secondary small" onclick="hapusSnapshotManual('${s.id}')">🗑️</button>
+        <button class="btn secondary small" ${da('pulihkanSnapshot', s.id)}>↺ Pulihkan</button>
+        <button class="btn secondary small" ${da('hapusSnapshotManual', s.id)}>🗑️</button>
       </td>
     </tr>`).join('');
 
@@ -173,7 +173,7 @@ function renderSnapshotPanel(){
       <div><h3>🧷 Snapshot Otomatis</h3><div class="desc">Cadangan penuh seluruh data, tersimpan otomatis di server (bukan file manual) — retensi ${SNAPSHOT_RETAIN} snapshot terakhir. Dibuat otomatis 1×/hari dan tepat sebelum aksi yang berisiko menimpa data (mis. Impor "Timpa Semua").</div></div>
     </div>
     <div class="panel-body">
-      <button class="btn secondary small" onclick="buatSnapshotManualUI()">📸 Buat Snapshot Sekarang</button>
+      <button class="btn secondary small" ${da('buatSnapshotManualUI')}>📸 Buat Snapshot Sekarang</button>
       <div style="overflow-x:auto;margin-top:12px;">
         <table class="table">
           <thead><tr><th>Waktu</th><th>Jenis</th><th>Ukuran</th><th></th></tr></thead>

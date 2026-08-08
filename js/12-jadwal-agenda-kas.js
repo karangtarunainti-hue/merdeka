@@ -113,8 +113,8 @@ function renderJadwal(){
     // oleh sinkronisasi.
     const lombaLink = getLombaForJadwal(j.id);
     const lockBadge = lombaLink ? `<span class="lomba-badge" style="margin-left:6px;" title="Judul/tanggal/jam otomatis mengikuti data Lomba"><i data-lucide="link" class="inline-icon"></i> Otomatis</span>` : '';
-    const editAction = lombaLink ? `bukaLombaDariJadwal('${lombaLink.id}')` : `openJadwalModal('${j.id}')`;
-    const hapusAction = lombaLink ? `hapusJadwalLombaLocked('${lombaLink.id}')` : `hapusJadwal('${j.id}')`;
+    const editAction = lombaLink ? da('bukaLombaDariJadwal', lombaLink.id) : da('openJadwalModal', j.id);
+    const hapusAction = lombaLink ? da('hapusJadwalLombaLocked', lombaLink.id) : da('hapusJadwal', j.id);
     const editTitle = lombaLink ? 'Edit lewat menu Lomba' : 'Edit';
     const hapusTitle = lombaLink ? 'Kelola lewat menu Lomba' : 'Hapus';
 
@@ -129,9 +129,9 @@ function renderJadwal(){
       </div>
       <div class="jadwal-item-title">${esc(j.judul)}${lockBadge}</div>
       <div class="jadwal-item-actions">
-        <button class="btn secondary small" onclick="toggleJadwalStatus('${j.id}')" ${!isLoggedIn ? 'disabled' : ''}>${j.status === 'selesai' ? 'Buka' : 'Selesai'}</button>
-        <button class="icon-btn" onclick="${editAction}" ${!isLoggedIn ? 'disabled' : ''} title="${editTitle}">✎</button>
-        <button class="icon-btn" onclick="${hapusAction}" ${!isLoggedIn ? 'disabled' : ''} title="${hapusTitle}">🗑</button>
+        <button class="btn secondary small" ${da('toggleJadwalStatus', j.id)} ${!isLoggedIn ? 'disabled' : ''}>${j.status === 'selesai' ? 'Buka' : 'Selesai'}</button>
+        <button class="icon-btn" ${editAction} ${!isLoggedIn ? 'disabled' : ''} title="${editTitle}">✎</button>
+        <button class="icon-btn" ${hapusAction} ${!isLoggedIn ? 'disabled' : ''} title="${hapusTitle}">🗑</button>
       </div>
     </div>`;
   }).join('');
@@ -157,7 +157,7 @@ function renderJadwal(){
       <div><h3>📅 Jadwal Kegiatan</h3>
         <div class="desc">Kelola jadwal kegiatan dan pengingat</div>
       </div>
-      ${isLoggedIn ? `<button class="btn" onclick="openJadwalModal()">+ Tambah Jadwal</button>` : ''}
+      ${isLoggedIn ? `<button class="btn" ${da('openJadwalModal')}>+ Tambah Jadwal</button>` : ''}
     </div>
     <div class="panel-body">
       <div class="jadwal-item-list">${cards || `<div class="empty-row" style="padding:30px;text-align:center;">Belum ada jadwal. ${isLoggedIn ? 'Tambahkan jadwal untuk mendapatkan pengingat.' : 'Login untuk menambah jadwal.'}</div>`}</div>
@@ -297,9 +297,9 @@ function renderAgenda(){
       <td data-label="Judul">${esc(a.judul)}</td>
       <td data-label="Deskripsi">${esc(a.deskripsi||'-')}</td>
       <td data-label="Aksi" class="jadwal-actions" style="text-align:right; white-space:nowrap;">
-        <button class="btn secondary small" onclick="toggleAgendaStatus('${a.id}')" ${!isLoggedIn ? 'disabled' : ''}>${a.status === 'selesai' ? 'Buka' : 'Selesai'}</button>
-        <button class="icon-btn" onclick="openAgendaModal('${a.id}')" ${!isLoggedIn ? 'disabled' : ''} title="Edit">✎</button>
-        <button class="icon-btn" onclick="hapusAgenda('${a.id}')" ${!isLoggedIn ? 'disabled' : ''} title="Hapus">🗑</button>
+        <button class="btn secondary small" ${da('toggleAgendaStatus', a.id)} ${!isLoggedIn ? 'disabled' : ''}>${a.status === 'selesai' ? 'Buka' : 'Selesai'}</button>
+        <button class="icon-btn" ${da('openAgendaModal', a.id)} ${!isLoggedIn ? 'disabled' : ''} title="Edit">✎</button>
+        <button class="icon-btn" ${da('hapusAgenda', a.id)} ${!isLoggedIn ? 'disabled' : ''} title="Hapus">🗑</button>
       </td>
     </tr>`;
   }).join('');
@@ -323,9 +323,9 @@ function renderAgenda(){
       <div class="jadwal-item-title">${esc(a.judul)}</div>
       ${a.deskripsi?`<div class="jadwal-item-desc">${esc(a.deskripsi)}</div>`:''}
       <div class="jadwal-item-actions">
-        <button class="btn secondary small" onclick="toggleAgendaStatus('${a.id}')" ${!isLoggedIn ? 'disabled' : ''}>${a.status === 'selesai' ? 'Buka' : 'Selesai'}</button>
-        <button class="icon-btn" onclick="openAgendaModal('${a.id}')" ${!isLoggedIn ? 'disabled' : ''} title="Edit">✎</button>
-        <button class="icon-btn" onclick="hapusAgenda('${a.id}')" ${!isLoggedIn ? 'disabled' : ''} title="Hapus">🗑</button>
+        <button class="btn secondary small" ${da('toggleAgendaStatus', a.id)} ${!isLoggedIn ? 'disabled' : ''}>${a.status === 'selesai' ? 'Buka' : 'Selesai'}</button>
+        <button class="icon-btn" ${da('openAgendaModal', a.id)} ${!isLoggedIn ? 'disabled' : ''} title="Edit">✎</button>
+        <button class="icon-btn" ${da('hapusAgenda', a.id)} ${!isLoggedIn ? 'disabled' : ''} title="Hapus">🗑</button>
       </div>
     </div>`;
   }).join('');
@@ -349,7 +349,7 @@ function renderAgenda(){
     <div class="panel-head">
       <div><h3>📌 Agenda Kegiatan</h3>
       </div>
-      ${isLoggedIn ? `<button class="btn" onclick="openAgendaModal()">+ Tambah Agenda</button>` : ''}
+      ${isLoggedIn ? `<button class="btn" ${da('openAgendaModal')}>+ Tambah Agenda</button>` : ''}
     </div>
     <div class="panel-body flush agenda-table-wrap">
       <table class="general-table jadwal-table">
@@ -509,8 +509,8 @@ function renderKas(){
       <td data-label="Kredit" class="num">${Number(k.kredit||0)>0 ? fmtRp(k.kredit) : '-'}</td>
       <td data-label="Saldo" class="num">${fmtRp(k._saldo)}</td>
       ${canKelola ? `<td class="kas-actions" style="text-align:right;white-space:nowrap;">
-        ${k._autoDanaSosial ? `<span class="icon-btn" style="opacity:.5; cursor:default;" title="Kelola lewat menu Dana Sosial">🔒</span>` : `<button class="icon-btn" onclick="openKasModal('${k.id}')" title="Edit">✎</button>
-        <button class="icon-btn" onclick="hapusKas('${k.id}')" title="Hapus">🗑</button>`}
+        ${k._autoDanaSosial ? `<span class="icon-btn" style="opacity:.5; cursor:default;" title="Kelola lewat menu Dana Sosial">🔒</span>` : `<button class="icon-btn" ${da('openKasModal', k.id)} title="Edit">✎</button>
+        <button class="icon-btn" ${da('hapusKas', k.id)} title="Hapus">🗑</button>`}
       </td>` : ''}
     </tr>`).join('');
 
@@ -522,7 +522,7 @@ function renderKas(){
   // (lihat media query .kas-table-mobile di style.css) sehingga tampilan
   // jadi No, Keterangan, Debit, Kredit saja.
   const mobileRows = displayList.map((k, idx) => `
-    <tr${(canKelola && !k._autoDanaSosial) ? ` class="row-clickable" onclick="openKasModal('${k.id}')"` : ''}>
+    <tr${(canKelola && !k._autoDanaSosial) ? ` class="row-clickable" ${da('openKasModal', k.id)}` : ''}>
       <td data-label="No">${idx + 1}</td>
       <td data-label="Keterangan">${esc(k.keterangan||'-')}${k._autoDanaSosial ? ' 🔒' : ''}</td>
       <td data-label="Debit" class="num">${Number(k.debit||0)>0 ? fmtRp(k.debit) : '-'}</td>
@@ -539,7 +539,7 @@ function renderKas(){
   <div class="panel">
     <div class="panel-head">
       <div></div>
-      ${canKelola ? `<button class="btn" onclick="openKasModal()">+ Tambah Transaksi</button>` : ''}
+      ${canKelola ? `<button class="btn" ${da('openKasModal')}>+ Tambah Transaksi</button>` : ''}
     </div>
     <div class="panel-body flush kas-table-wrap">
       <table class="general-table kas-table">

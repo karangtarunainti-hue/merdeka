@@ -23,56 +23,56 @@ const TOUR_DEFS = {
   dashboard: [
     {sel:'.saldo-chip', title:'Proyeksi Saldo', text:'Chip ini di pojok kanan atas selalu nunjukin proyeksi saldo event yang lagi aktif — sudah termasuk kebutuhan/hadiah yang direncanakan, belum tentu sudah dibelanjakan beneran.'},
     {sel:'.stat-grid-ringkasan, .stat-grid', title:'Rekap Kegiatan', text:'Di sini kelihatan ringkasan pemasukan, pengeluaran, dan saldo event yang aktif secara real-time.'},
-    {sel:'[onclick^="toggleBukuCard"]', title:'Detail per Kategori', text:'Klik kartu ini buat buka/tutup rincian tiap kategori transaksi (iuran, donatur, operasional, dst).'},
+    {sel:'[data-action="toggleBukuCard"]', title:'Detail per Kategori', text:'Klik kartu ini buat buka/tutup rincian tiap kategori transaksi (iuran, donatur, operasional, dst).'},
   ],
   jadwal: [
-    {sel:'[onclick="openJadwalModal()"]', title:'Tambah Jadwal', text:'Klik tombol ini buat nyatet jadwal/pengingat baru — bisa diisi tanggal, jam, dan kategori (belanja, rapat, acara, dll).'},
+    {sel:'[data-action="openJadwalModal"]', title:'Tambah Jadwal', text:'Klik tombol ini buat nyatet jadwal/pengingat baru — bisa diisi tanggal, jam, dan kategori (belanja, rapat, acara, dll).'},
     {sel:'.panel-head', title:'Daftar Jadwal', text:'Semua jadwal yang sudah dibuat muncul di sini, biasanya diurutkan dari yang paling dekat tanggalnya.'},
   ],
   anggota: [
     {sel:'#search-input-anggota', title:'Cari Anggota', text:'Ketik nama di sini buat nyari anggota tertentu dengan cepat, tanpa perlu scroll manual.'},
-    {sel:'[onclick="openAnggotaModal()"]', title:'Tambah Anggota', text:'Klik tombol ini buat nambah anggota baru ke daftar iuran event ini.'},
+    {sel:'[data-action="openAnggotaModal"]', title:'Tambah Anggota', text:'Klik tombol ini buat nambah anggota baru ke daftar iuran event ini.'},
     {sel:'.panel-head', title:'Status Bayar', text:'Baris yang belum lunas biasanya ditandai warna beda, jadi gampang kelihatan siapa yang masih nunggak.'},
   ],
   donatur: [
-    {sel:'[onclick="openDonaturModal()"]', title:'Tambah Donatur', text:'Catat sumbangan dari donatur lewat tombol ini — bisa uang atau barang, di luar iuran anggota biasa.'},
+    {sel:'[data-action="openDonaturModal"]', title:'Tambah Donatur', text:'Catat sumbangan dari donatur lewat tombol ini — bisa uang atau barang, di luar iuran anggota biasa.'},
     {sel:'.panel-head', title:'Rekap Donasi', text:'Total donasi yang masuk kelihatan di bagian atas panel ini.'},
   ],
   transaksi: [
-    {sel:'[onclick="openTransaksiModal()"]', title:'Tambah Pemasukan Lain', text:'Buat pemasukan yang bukan iuran maupun donasi (mis. hasil jualan, sponsor) lewat tombol ini.'},
+    {sel:'[data-action="openTransaksiModal"]', title:'Tambah Pemasukan Lain', text:'Buat pemasukan yang bukan iuran maupun donasi (mis. hasil jualan, sponsor) lewat tombol ini.'},
     {sel:'.panel-head', title:'Daftar Pemasukan', text:'Semua pemasukan lain yang sudah dicatat muncul di daftar ini.'},
   ],
   operasional: [
-    {sel:'[onclick="openOperasionalModal()"]', title:'Tambah Biaya Operasional', text:'Catat biaya operasional umum acara (konsumsi, sewa, dekorasi, dll) lewat tombol ini.'},
+    {sel:'[data-action="openOperasionalModal"]', title:'Tambah Biaya Operasional', text:'Catat biaya operasional umum acara (konsumsi, sewa, dekorasi, dll) lewat tombol ini.'},
     {sel:'.panel-head', title:'Rekap Operasional', text:'Total biaya operasional yang sudah dicatat kelihatan di bagian atas.'},
   ],
   lomba: [
-    {sel:'[onclick="openLombaModal()"]', title:'Tambah Lomba', text:'Klik tombol ini buat nambah lomba baru — isi nama, kategori peserta, dan jumlah anggota per regu kalau lomba beregu.'},
+    {sel:'[data-action="openLombaModal"]', title:'Tambah Lomba', text:'Klik tombol ini buat nambah lomba baru — isi nama, kategori peserta, dan jumlah anggota per regu kalau lomba beregu.'},
     {sel:'.lomba-badge', title:'Status Hadiah', text:'Badge ini nunjukin apakah paket hadiah lomba ini sudah lengkap diatur atau belum — cek warnanya, kuning berarti belum lengkap.'},
-    {sel:'[onclick^="openKebutuhanModal"]', title:'Kebutuhan Perlengkapan', text:'Tiap lomba bisa dicatat perlengkapan yang dibutuhkan (mis. bendera, peluit) lewat tombol ini.'},
-    {sel:'[onclick^="toggleKoordinatorCombo"], [onclick^="pilihKoordinatorCombo"]', title:'Koordinator Lomba', text:'Pilih anggota dari Database Anggota buat jadi koordinator/penanggung jawab lomba ini — boleh lebih dari satu orang.'},
+    {sel:'[data-action="openKebutuhanModal"]', title:'Kebutuhan Perlengkapan', text:'Tiap lomba bisa dicatat perlengkapan yang dibutuhkan (mis. bendera, peluit) lewat tombol ini.'},
+    {sel:'[data-action="toggleKoordinatorCombo"], [data-action="pilihKoordinatorCombo"]', title:'Koordinator Lomba', text:'Pilih anggota dari Database Anggota buat jadi koordinator/penanggung jawab lomba ini — boleh lebih dari satu orang.'},
   ],
   hadiah: [
-    {sel:'[onclick="openHadiahBudgetModal()"]', title:'Atur Budget', text:'Tentukan dulu budget per paket hadiah untuk tiap kombinasi kategori peserta × juara lewat tombol ini, biar kelihatan kalau belanja kebablasan.'},
-    {sel:'[onclick="openHadiahModal()"]', title:'Tambah Paket Hadiah', text:'Bikin paket hadiah baru (isi item, harga, qty per paket) untuk kombinasi kategori peserta & juara yang belum ada paketnya.'},
+    {sel:'[data-action="openHadiahBudgetModal"]', title:'Atur Budget', text:'Tentukan dulu budget per paket hadiah untuk tiap kombinasi kategori peserta × juara lewat tombol ini, biar kelihatan kalau belanja kebablasan.'},
+    {sel:'[data-action="openHadiahModal"]', title:'Tambah Paket Hadiah', text:'Bikin paket hadiah baru (isi item, harga, qty per paket) untuk kombinasi kategori peserta & juara yang belum ada paketnya.'},
     {sel:'.hadiah-group-header', title:'Kartu Paket Hadiah', text:'Tiap kartu di sini mewakili 1 paket hadiah — sekarang otomatis diurutkan Juara 1 → 2 → 3 → Partisipasi. Klik kartunya buat buka rincian item.'},
-    {sel:'[onclick="sesuaikanSemuaKebutuhanHadiah()"]', title:'Sesuaikan Otomatis', text:'Kalau ada badge "Kurang" karena qty per paket baru diubah, klik tombol ini biar semua item disamakan otomatis ke kebutuhan terbaru — nggak perlu edit satu-satu.'},
+    {sel:'[data-action="sesuaikanSemuaKebutuhanHadiah"]', title:'Sesuaikan Otomatis', text:'Kalau ada badge "Kurang" karena qty per paket baru diubah, klik tombol ini biar semua item disamakan otomatis ke kebutuhan terbaru — nggak perlu edit satu-satu.'},
   ],
   'hadiah-jalan': [
-    {sel:'[onclick="openHadiahJalanModal()"]', title:'Tambah Hadiah Jalan Santai', text:'Susun daftar hadiah jalan santai (mis. hadiah utama, hiburan) lewat tombol ini.'},
+    {sel:'[data-action="openHadiahJalanModal"]', title:'Tambah Hadiah Jalan Santai', text:'Susun daftar hadiah jalan santai (mis. hadiah utama, hiburan) lewat tombol ini.'},
     {sel:'.panel-head', title:'Daftar Hadiah', text:'Semua hadiah jalan santai yang sudah diatur muncul di sini.'},
   ],
   'belanja-perlengkapan': [
-    {sel:'[onclick="tandaiSemuaBelanjaPerlengkapan()"]', title:'Tandai Semua Dibeli', text:'Kalau belanjaan sudah dibeli semua, klik tombol ini biar nggak perlu centang satu-satu.'},
+    {sel:'[data-action="tandaiSemuaBelanjaPerlengkapan"]', title:'Tandai Semua Dibeli', text:'Kalau belanjaan sudah dibeli semua, klik tombol ini biar nggak perlu centang satu-satu.'},
     {sel:'.panel-head', title:'Daftar Belanja Perlengkapan', text:'Ini daftar belanja aktual perlengkapan lomba — dibandingkan sama kebutuhan yang diatur di menu Lomba & Perlengkapan.'},
   ],
   'belanja-hadiah': [
-    {sel:'[onclick="bukaModalKelolaKategoriToko()"]', title:'Kategori Toko', text:'Atur kategori & kata kunci toko lewat tombol ini, biar pengelompokan belanja hadiah lebih rapi.'},
-    {sel:'[onclick="tandaiSemuaBelanjaHadiah()"]', title:'Tandai Semua Dibeli', text:'Kalau semua item hadiah di daftar ini sudah dibeli, klik tombol ini buat tandai sekaligus.'},
+    {sel:'[data-action="bukaModalKelolaKategoriToko"]', title:'Kategori Toko', text:'Atur kategori & kata kunci toko lewat tombol ini, biar pengelompokan belanja hadiah lebih rapi.'},
+    {sel:'[data-action="tandaiSemuaBelanjaHadiah"]', title:'Tandai Semua Dibeli', text:'Kalau semua item hadiah di daftar ini sudah dibeli, klik tombol ini buat tandai sekaligus.'},
     {sel:'.panel-head', title:'Daftar Belanja Hadiah', text:'Ini catatan belanja aktual hadiah lomba — dibandingkan sama target di menu Kebutuhan Hadiah.'},
   ],
   'belanja-jalan': [
-    {sel:'[onclick="tandaiSemuaBelanjaJalan()"]', title:'Tandai Semua Dibeli', text:'Klik tombol ini kalau semua belanja hadiah jalan santai sudah dibeli.'},
+    {sel:'[data-action="tandaiSemuaBelanjaJalan"]', title:'Tandai Semua Dibeli', text:'Klik tombol ini kalau semua belanja hadiah jalan santai sudah dibeli.'},
     {sel:'.panel-head', title:'Daftar Belanja', text:'Rincian belanja aktual hadiah jalan santai ada di sini.'},
   ],
   lpj: [
@@ -88,40 +88,40 @@ const TOUR_DEFS = {
     {sel:'.panel-head', title:'Filter & Urutkan', text:'Gunakan filter kategori, status, gender, atau RT di panel ini buat mempersempit tampilan data.'},
   ],
   pengaturan: [
-    {sel:'[onclick="openEventModal()"]', title:'Buat Event Baru', text:'Klik tombol ini buat bikin event/kegiatan tahunan baru, lengkap dengan fitur mana aja yang mau diaktifkan.'},
+    {sel:'[data-action="openEventModal"]', title:'Buat Event Baru', text:'Klik tombol ini buat bikin event/kegiatan tahunan baru, lengkap dengan fitur mana aja yang mau diaktifkan.'},
     {sel:'.panel-head', title:'Tarif & Daftar Event', text:'Atur tarif iuran dan kelola daftar event yang sudah pernah dibuat di halaman ini.'},
   ],
   users: [
-    {sel:'[onclick="openUserModal()"]', title:'Tambah User', text:'Klik tombol ini buat bikin akun pengguna baru beserta perannya (Admin/User/Petugas).'},
+    {sel:'[data-action="openUserModal"]', title:'Tambah User', text:'Klik tombol ini buat bikin akun pengguna baru beserta perannya (Admin/User/Petugas).'},
     {sel:'.panel-head', title:'Daftar User', text:'Semua akun yang terdaftar dan perannya masing-masing kelihatan di sini.'},
   ],
   agenda: [
-    {sel:'[onclick="openAgendaModal()"]', title:'Tambah Agenda', text:'Catat agenda organisasi yang tidak terikat ke satu event tertentu lewat tombol ini.'},
+    {sel:'[data-action="openAgendaModal"]', title:'Tambah Agenda', text:'Catat agenda organisasi yang tidak terikat ke satu event tertentu lewat tombol ini.'},
     {sel:'.panel-head', title:'Daftar Agenda', text:'Semua catatan agenda organisasi ada di sini, datanya tetap sama walau event aktif diganti.'},
   ],
   gudang: [
-    {sel:'[onclick="openGudangPinjamModal()"]', title:'Pinjam Barang', text:'Klik tombol ini buat catat peminjaman aset/barang milik desa atau organisasi.'},
-    {sel:'[onclick^="openGudangStokModal"]', title:'Tambah/Edit Stok', text:'Kelola daftar barang beserta jumlah stoknya lewat tombol ini.'},
+    {sel:'[data-action="openGudangPinjamModal"]', title:'Pinjam Barang', text:'Klik tombol ini buat catat peminjaman aset/barang milik desa atau organisasi.'},
+    {sel:'[data-action="openGudangStokModal"]', title:'Tambah/Edit Stok', text:'Kelola daftar barang beserta jumlah stoknya lewat tombol ini.'},
   ],
   dokumen: [
     {sel:'.dokumen-tabs', title:'Pilih Jenis Dokumen', text:'Pindah antar tab Surat Undangan, Proposal Kegiatan, atau Form Absensi lewat tombol-tombol ini.'},
     {sel:'.dokumen-layout, .panel', title:'Isi & Pratinjau', text:'Isi datanya di sisi form, pratinjau dokumen langsung kelihatan di sebelahnya — tinggal cetak kalau sudah pas.'},
   ],
   'jadwal-sinoman': [
-    {sel:'[onclick="jadwalAddExtraTable()"]', title:'Tambah Tabel', text:'Butuh tabel petugas tambahan selain Sinoman? Klik tombol ini buat nambah tabel baru.'},
+    {sel:'[data-action="jadwalAddExtraTable"]', title:'Tambah Tabel', text:'Butuh tabel petugas tambahan selain Sinoman? Klik tombol ini buat nambah tabel baru.'},
     {sel:'.panel, .dokumen-layout', title:'Isi Jadwal Piket', text:'Pilih nama petugas pagi/siang/sore dari Database Anggota, lalu bisa dicetak atau di-download sebagai gambar.'},
   ],
   kas: [
-    {sel:'[onclick="openKasModal()"]', title:'Tambah Transaksi Kas', text:'Catat pemasukan/pengeluaran buku kas umum organisasi (terpisah dari kas per event) lewat tombol ini.'},
+    {sel:'[data-action="openKasModal"]', title:'Tambah Transaksi Kas', text:'Catat pemasukan/pengeluaran buku kas umum organisasi (terpisah dari kas per event) lewat tombol ini.'},
     {sel:'.panel-head', title:'Rekap Kas', text:'Saldo dan riwayat transaksi kas umum organisasi kelihatan di halaman ini.'},
   ],
   'dana-sosial': [
-    {sel:'[onclick="openDanaSosialAnggotaModal()"]', title:'Tambah Anggota Dana Sosial', text:'Daftarkan anggota ke iuran bulanan Dana Sosial lewat tombol ini.'},
-    {sel:'[onclick="openImporDanaSosialModal()"]', title:'Impor dari Database', text:'Sudah ada di Database Anggota? Tinggal impor lewat tombol ini, nggak perlu input ulang manual.'},
+    {sel:'[data-action="openDanaSosialAnggotaModal"]', title:'Tambah Anggota Dana Sosial', text:'Daftarkan anggota ke iuran bulanan Dana Sosial lewat tombol ini.'},
+    {sel:'[data-action="openImporDanaSosialModal"]', title:'Impor dari Database', text:'Sudah ada di Database Anggota? Tinggal impor lewat tombol ini, nggak perlu input ulang manual.'},
     {sel:'.panel-head', title:'Rekap & Perantauan', text:'Anggota Perantauan biasanya bayar rapel setahun sekali — cek tabel khususnya di tab Rekap Bulanan.'},
   ],
   bookmark: [
-    {sel:'[onclick="openBookmarkModal()"]', title:'Tambah Tautan', text:'Simpan link penting organisasi (grup WA, form pendaftaran, rekening donasi, dll) lewat tombol ini.'},
+    {sel:'[data-action="openBookmarkModal"]', title:'Tambah Tautan', text:'Simpan link penting organisasi (grup WA, form pendaftaran, rekening donasi, dll) lewat tombol ini.'},
     {sel:'.panel-head', title:'Daftar Tautan', text:'Semua link yang sudah disimpan bisa diakses siapa aja dari sini, tanpa perlu login.'},
   ],
 };

@@ -9,8 +9,8 @@ function openLoginModal() {
       <div class="field"><label>Password</label><input id="login-password" type="password" placeholder="******"></div>
     </div>
     <div style="display:flex; gap:8px; margin-top:8px;">
-      <button class="btn" id="login-submit-btn" onclick="manualLogin()">Login</button>
-      <button class="btn secondary" onclick="closeModal()">Batal</button>
+      <button class="btn" id="login-submit-btn" ${da('manualLogin')}>Login</button>
+      <button class="btn secondary" ${da('closeModal')}>Batal</button>
     </div>
   `, []);
   setTimeout(()=>{
@@ -83,8 +83,8 @@ function renderUsers() {
       <td data-label="Terakhir Dibuka">${fmtWaktuTerakhir(u.last_seen_at)}</td>
       <td data-label="Password"><span class="password-pill">🔒 ••••••</span></td>
       <td data-label="Aksi" class="users-actions">
-        <button class="btn secondary small" onclick="openUserModal('${u.id}')">✎ Edit</button>
-        <button class="icon-btn" onclick="hapusUser('${u.id}')" ${users.length <= 1 ? 'disabled' : ''}>🗑</button>
+        <button class="btn secondary small" ${da('openUserModal', u.id)}>✎ Edit</button>
+        <button class="icon-btn" ${da('hapusUser', u.id)} ${users.length <= 1 ? 'disabled' : ''}>🗑</button>
       </td>
     </tr>
   `).join('');
@@ -103,8 +103,8 @@ function renderUsers() {
       <div class="lomba-detail-row"><span class="lbl">🛠️ Bidang</span><span class="val">${bidangHtml(u)}</span></div>
       <div class="lomba-detail-row"><span class="lbl">🕒 Terakhir Dibuka</span><span class="val">${fmtWaktuTerakhir(u.last_seen_at)}</span></div>
       <div class="jadwal-item-actions">
-        <button class="btn secondary small" onclick="openUserModal('${u.id}')">✎ Edit</button>
-        <button class="icon-btn" onclick="hapusUser('${u.id}')" ${users.length <= 1 ? 'disabled' : ''}>🗑</button>
+        <button class="btn secondary small" ${da('openUserModal', u.id)}>✎ Edit</button>
+        <button class="icon-btn" ${da('hapusUser', u.id)} ${users.length <= 1 ? 'disabled' : ''}>🗑</button>
       </div>
     </div>
   `).join('');
@@ -115,7 +115,7 @@ function renderUsers() {
       <div><h3>👥 Manajemen User</h3>
         <div class="desc">Kelola akun pengguna yang dapat mengakses sistem</div>
       </div>
-      <button class="btn" onclick="openUserModal()">+ Tambah User</button>
+      <button class="btn" ${da('openUserModal')}>+ Tambah User</button>
     </div>
     <div class="panel-body flush users-table-wrap">
       <table class="users-table">

@@ -43,6 +43,7 @@ const MODULE_ORDER = [
   '15-pengaturan-event.js',
   '15b-snapshot.js',
   '16-ui-helpers.js',
+  '16b-event-delegation.js',
   '17a-gudang-core.js',
   '17b-gudang-pinjam.js',
   '17c-gudang-histori-kelola.js',

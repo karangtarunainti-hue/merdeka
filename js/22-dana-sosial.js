@@ -210,7 +210,7 @@ function dsComboIconCheck(){
   return `<svg class="combo-check" width="15" height="15" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 }
 function dsTahunTriggerHtml(idSuffix){
-  return `<button type="button" id="ds-tahun-trigger-${idSuffix}" class="combo-trigger ds-tahun-trigger" onclick="toggleDsTahunCombo('${idSuffix}')">
+  return `<button type="button" id="ds-tahun-trigger-${idSuffix}" class="combo-trigger ds-tahun-trigger" ${da('toggleDsTahunCombo', idSuffix)}>
     <span class="combo-trigger-label">${danaSosialTahunAktif}</span>
     ${dsComboIconChevron()}
   </button>`;
@@ -219,7 +219,7 @@ function dsTahunComboPanelHtml(){
   const tahun = danaSosialTahunAktif;
   const optionsHtml = danaSosialTahunList().map(t=>{
     const selected = t === tahun;
-    return `<button type="button" class="combo-option${selected?' selected':''}" onclick="selectDsTahun(${t})">
+    return `<button type="button" class="combo-option${selected?' selected':''}" ${da('selectDsTahun', t)}>
       <span class="combo-option-main"><span class="combo-option-name">${t}</span></span>
       <span class="combo-option-side">${selected ? dsComboIconCheck() : ''}</span>
     </button>`;
@@ -328,7 +328,7 @@ function renderDanaSosial(){
         const rec = getDanaSosialBayar(a.id, tahun, bulan);
         const lunas = !!(rec && rec.lunas);
         const titleTxt = `${esc(a.nama)} · ${DANA_SOSIAL_BULAN_LABEL[i]} ${tahun} — ${lunas ? 'Lunas (klik untuk batalkan)' : 'Belum bayar (klik untuk tandai lunas)'}${lunas && rec && rec.diubah_oleh ? ` · ditandai oleh ${esc(rec.diubah_oleh)}` : ''}`;
-        return `<td class="ds-cell"><button type="button" class="ds-toggle ${lunas?'lunas':'belum'}" ${canEdit?`onclick="toggleDanaSosialBayar('${a.id}',${tahun},${bulan})"`:'disabled'} title="${titleTxt}"><span class="ds-toggle-mark">${lunas?'✓':''}</span><span class="ds-toggle-label">${lunas?'Sudah':'Belum'}</span></button></td>`;
+        return `<td class="ds-cell"><button type="button" class="ds-toggle ${lunas?'lunas':'belum'}" ${canEdit?da('toggleDanaSosialBayar', a.id, tahun, bulan):'disabled'} title="${titleTxt}"><span class="ds-toggle-mark">${lunas?'✓':''}</span><span class="ds-toggle-label">${lunas?'Sudah':'Belum'}</span></button></td>`;
       }).join('');
       const tunggakan = hitungTunggakanDanaSosial(a, tahun);
       const tunggakanTitle = !tunggakan.adaBulanJatuhTempo
@@ -370,7 +370,7 @@ function renderDanaSosial(){
         const rec = getDanaSosialBayar(a.id, tahun, bulan);
         const lunas = !!(rec && rec.lunas);
         const titleTxt = `${esc(a.nama)} · ${l} ${tahun} — ${lunas ? 'Lunas (ketuk untuk batalkan)' : 'Belum bayar (ketuk untuk tandai lunas)'}${lunas && rec && rec.diubah_oleh ? ` · ditandai oleh ${esc(rec.diubah_oleh)}` : ''}`;
-        return `<button type="button" class="ds-chip ${lunas?'lunas':'belum'}" ${canEdit?`onclick="toggleDanaSosialBayar('${a.id}',${tahun},${bulan})"`:'disabled'} title="${titleTxt}"><span class="ds-chip-mark">${lunas?'✓':''}</span>${l}</button>`;
+        return `<button type="button" class="ds-chip ${lunas?'lunas':'belum'}" ${canEdit?da('toggleDanaSosialBayar', a.id, tahun, bulan):'disabled'} title="${titleTxt}"><span class="ds-chip-mark">${lunas?'✓':''}</span>${l}</button>`;
       }).join('');
       const tunggakan = hitungTunggakanDanaSosial(a, tahun);
       const tunggakanCell = !tunggakan.adaBulanJatuhTempo
@@ -397,9 +397,9 @@ function renderDanaSosial(){
     <td class="ds-nama">${esc(a.nama)}${nonaktif?' <span class="kategori-pill">Nonaktif</span>':''}</td>
     <td style="text-align:left; padding-left:10px;">${fmtDate(a.tanggal_gabung)}</td>
     <td style="text-align:right; white-space:nowrap;">
-      ${canEdit?`<button class="icon-btn" onclick="toggleAktifDanaSosialAnggota('${a.id}')" title="${nonaktif?'Aktifkan kembali':'Nonaktifkan (tanpa hapus data)'}">${nonaktif?'↩️':'⏸'}</button>
-      <button class="icon-btn" onclick="openDanaSosialAnggotaModal('${a.id}')" title="Edit">✎</button>
-      <button class="icon-btn" onclick="hapusDanaSosialAnggota('${a.id}')" title="Hapus">🗑</button>`:''}
+      ${canEdit?`<button class="icon-btn" ${da('toggleAktifDanaSosialAnggota', a.id)} title="${nonaktif?'Aktifkan kembali':'Nonaktifkan (tanpa hapus data)'}">${nonaktif?'↩️':'⏸'}</button>
+      <button class="icon-btn" ${da('openDanaSosialAnggotaModal', a.id)} title="Edit">✎</button>
+      <button class="icon-btn" ${da('hapusDanaSosialAnggota', a.id)} title="Hapus">🗑</button>`:''}
     </td>
   </tr>`;
   }).join('');
@@ -436,9 +436,9 @@ function renderDanaSosial(){
   </div>
 
   <div class="lomba-tabs">
-    <button type="button" class="lomba-tabbtn ${danaSosialActiveTab==='daftar'?'active':''}" onclick="setDanaSosialTab('daftar')"><i data-lucide="wallet" class="inline-icon"></i> Daftar Bayar</button>
-    <button type="button" class="lomba-tabbtn ${danaSosialActiveTab==='rekap'?'active':''}" onclick="setDanaSosialTab('rekap')"><i data-lucide="bar-chart-3" class="inline-icon"></i> Rekap Bulanan</button>
-    <button type="button" class="lomba-tabbtn ${danaSosialActiveTab==='kelola'?'active':''}" onclick="setDanaSosialTab('kelola')"><i data-lucide="users" class="inline-icon"></i> Kelola Anggota</button>
+    <button type="button" class="lomba-tabbtn ${danaSosialActiveTab==='daftar'?'active':''}" ${da('setDanaSosialTab', 'daftar')}><i data-lucide="wallet" class="inline-icon"></i> Daftar Bayar</button>
+    <button type="button" class="lomba-tabbtn ${danaSosialActiveTab==='rekap'?'active':''}" ${da('setDanaSosialTab', 'rekap')}><i data-lucide="bar-chart-3" class="inline-icon"></i> Rekap Bulanan</button>
+    <button type="button" class="lomba-tabbtn ${danaSosialActiveTab==='kelola'?'active':''}" ${da('setDanaSosialTab', 'kelola')}><i data-lucide="users" class="inline-icon"></i> Kelola Anggota</button>
   </div>
 
   <div style="display:${danaSosialActiveTab==='daftar'?'block':'none'};">
@@ -495,10 +495,10 @@ function renderDanaSosial(){
         <div class="desc">Tambah, ubah, atau hapus anggota master Dana Sosial</div>
       </div>
       <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-        ${canEdit?`<button class="btn" onclick="openImporDanaSosialModal()">📥+ Tambah dari Database Anggota</button>`:''}
+        ${canEdit?`<button class="btn" ${da('openImporDanaSosialModal')}>📥+ Tambah dari Database Anggota</button>`:''}
       </div>
     </div>
-    <div class="field-hint" style="color:var(--ink-soft); font-size:12px; padding:10px 18px 0;">Nama anggota baru wajib ditambahkan lewat <a href="#" onclick="goSection('anggota'); return false;">Database Anggota</a> terlebih dahulu, lalu diambil ke sini — supaya hanya ada satu master data anggota.</div>
+    <div class="field-hint" style="color:var(--ink-soft); font-size:12px; padding:10px 18px 0;">Nama anggota baru wajib ditambahkan lewat <a href="#" ${da('goSection', 'anggota')}>Database Anggota</a> terlebih dahulu, lalu diambil ke sini — supaya hanya ada satu master data anggota.</div>
     <div class="panel-body flush" style="padding-top:12px;">
       <div style="overflow-x:auto; -webkit-overflow-scrolling:touch;">
         <table class="ds-table ds-has-no">
@@ -546,6 +546,14 @@ async function toggleDanaSosialBayar(anggotaId, tahun, bulan){
 // tetap jadi satu-satunya master nama anggota. Fungsi ini jadi khusus EDIT
 // (tanggal gabung) untuk anggota yang sudah ada di sini; kalau terpanggil
 // tanpa id (jalur lama), arahkan ke Database Anggota saja.
+// Dipakai lewat da() di link "Database Anggota" pada modal Edit Anggota —
+// dulu onclick multi-statement "closeModal(); goSection('anggota'); return
+// false;", dipecah jadi fungsi sendiri karena da() cuma bisa memanggil SATU
+// fungsi (lihat REFACTOR-EVENT-DELEGATION.md).
+function tutupModalDanGotoAnggota(){
+  closeModal();
+  goSection('anggota');
+}
 function openDanaSosialAnggotaModal(id){
   if (!canEditSection('dana-sosial')) { toast('⛔ Anda tidak memiliki akses untuk mengedit Dana Sosial'); return; }
   const editing = id ? db.danaSosialAnggota.find(a => a.id === id) : null;
@@ -556,7 +564,7 @@ function openDanaSosialAnggotaModal(id){
   }
   setModal('Edit Anggota Dana Sosial', `
     <div class="field"><label>Nama</label><input id="f-ds-nama" value="${esc(editing.nama)}" disabled style="opacity:.6; cursor:not-allowed;"></div>
-    <div class="field-hint" style="color:var(--ink-soft); font-size:12px; margin:-8px 0 10px;">Nama diambil dari Database Anggota dan tidak bisa diubah di sini. Kalau salah ketik, perbaiki dulu di <a href="#" onclick="closeModal(); goSection('anggota'); return false;">Database Anggota</a>, lalu hapus &amp; ambil ulang anggota ini.</div>
+    <div class="field-hint" style="color:var(--ink-soft); font-size:12px; margin:-8px 0 10px;">Nama diambil dari Database Anggota dan tidak bisa diubah di sini. Kalau salah ketik, perbaiki dulu di <a href="#" ${da('tutupModalDanGotoAnggota')}>Database Anggota</a>, lalu hapus &amp; ambil ulang anggota ini.</div>
     <div class="field"><label>Tanggal Gabung</label><input id="f-ds-gabung" type="date" value="${editing.tanggal_gabung}"></div>
     <div class="hint">Bulan sebelum tanggal gabung otomatis dikosongkan di tabel (dianggap belum wajib bayar).</div>
   `, [

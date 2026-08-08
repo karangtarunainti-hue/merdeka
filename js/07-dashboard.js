@@ -9,7 +9,7 @@ function toggleBukuCard(key){
 function bukuCardHtml(item){
   const isOpen = openBukuCards.has(item.key);
   const guestBlocked = !getCurrentUser() && !isGuestVisible(item.key);
-  return `<div class="stat-card buku-card ${isOpen?'open':''}" onclick="toggleBukuCard('${item.key}')" style="cursor:pointer;">
+  return `<div class="stat-card buku-card ${isOpen?'open':''}" ${da('toggleBukuCard', item.key)} style="cursor:pointer;">
     <div class="lbl" style="display:flex;justify-content:space-between;align-items:center;gap:6px;">
       <span>${item.label}</span><span style="font-size:10px;color:var(--ink-soft);">${isOpen?'▲':'▼'}</span>
     </div>
@@ -18,7 +18,7 @@ function bukuCardHtml(item){
       <div style="margin-bottom:8px;">${item.info}</div>
       ${guestBlocked
         ? `<button class="btn secondary small" disabled title="Hanya bisa dilihat setelah login">🔒 Lihat Selengkapnya</button>`
-        : `<button class="btn secondary small" onclick="goSection('${item.key}')">Lihat Selengkapnya →</button>`}
+        : `<button class="btn secondary small" ${da('goSection', item.key)}>Lihat Selengkapnya →</button>`}
     </div>` : ''}
   </div>`;
 }
@@ -290,7 +290,7 @@ function generateReminders(){
           <div class="reminder-empty">Tidak ada pengingat saat ini. Semua data dalam kondisi baik.</div>
         </div>
         <div class="card-footer">
-          ${isLoggedIn ? `<button class="btn secondary small" onclick="openJadwalModal()">+ Tambah Jadwal</button>` : ''}
+          ${isLoggedIn ? `<button class="btn secondary small" ${da('openJadwalModal')}>+ Tambah Jadwal</button>` : ''}
         </div>
       </div>
     </div>`;
@@ -317,7 +317,7 @@ function generateReminders(){
         <div class="card-footer">
           ${(!getCurrentUser() && !isGuestVisible(r.action.link))
             ? `<button class="btn secondary small" disabled title="Hanya bisa dilihat setelah login">🔒 ${r.action.label.replace(/\s*→\s*$/, '')}</button>`
-            : `<button class="btn ${r.type === 'danger' ? 'danger' : r.type === 'warning' ? 'orange' : r.type === 'success' ? 'success' : 'secondary'} small" onclick="goSection('${r.action.link}')">${r.action.label}</button>`}
+            : `<button class="btn ${r.type === 'danger' ? 'danger' : r.type === 'warning' ? 'orange' : r.type === 'success' ? 'success' : 'secondary'} small" ${da('goSection', r.action.link)}>${r.action.label}</button>`}
         </div>` : ''}
       </div>
     `).join('')}

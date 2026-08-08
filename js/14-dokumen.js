@@ -42,7 +42,7 @@ function renderDokumen(){
     {key:'proposal', label:'📋 Proposal Kegiatan'},
     {key:'absensi', label:'📝 Form Absensi'},
   ];
-  const tabNav = `<div class="dokumen-tabs no-print">${tabs.map(t=>`<button type="button" class="dokumen-tab ${_dokumenTab===t.key?'active':''}" onclick="gotoDokumenTab('${t.key}')">${t.label}</button>`).join('')}</div>`;
+  const tabNav = `<div class="dokumen-tabs no-print">${tabs.map(t=>`<button type="button" class="dokumen-tab ${_dokumenTab===t.key?'active':''}" ${da('gotoDokumenTab', t.key)}>${t.label}</button>`).join('')}</div>`;
   let body = '';
   if(_dokumenTab==='proposal') body = renderProposalKegiatan(ev);
   else if(_dokumenTab==='absensi') body = renderFormAbsensi(ev);
@@ -387,7 +387,7 @@ function renderFormAbsensi(ev){
           </select>
         </div>
       </div>
-      ${(filterKategori||filterRT) ? `<div class="field-hint" style="color:var(--orange); font-size:12.5px; margin-top:6px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">⚠️ Filter aktif (${[filterKategori?labelKategori(filterKategori):'', filterRT?labelRT(filterRT):''].filter(Boolean).join(' · ')}) — sebagian anggota sengaja disembunyikan dari daftar di bawah, dan filter ini tetap tersimpan sampai direset. <button class="btn secondary small" onclick="resetFilterAbsensi()">↺ Reset Filter</button></div>` : `<div class="field-hint" style="color:var(--ink-soft); font-size:12.5px; margin-top:6px;">✅ Tersimpan otomatis saat Anda mengetik. Tidak ada filter aktif — daftar di bawah menampilkan semua anggota.</div>`}
+      ${(filterKategori||filterRT) ? `<div class="field-hint" style="color:var(--orange); font-size:12.5px; margin-top:6px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">⚠️ Filter aktif (${[filterKategori?labelKategori(filterKategori):'', filterRT?labelRT(filterRT):''].filter(Boolean).join(' · ')}) — sebagian anggota sengaja disembunyikan dari daftar di bawah, dan filter ini tetap tersimpan sampai direset. <button class="btn secondary small" ${da('resetFilterAbsensi')}>↺ Reset Filter</button></div>` : `<div class="field-hint" style="color:var(--ink-soft); font-size:12.5px; margin-top:6px;">✅ Tersimpan otomatis saat Anda mengetik. Tidak ada filter aktif — daftar di bawah menampilkan semua anggota.</div>`}
     </div>
   </div>` : '';
 
@@ -580,7 +580,7 @@ function renderJadwalSinoman(ev){
     ${printInner}
   </div>
   </div>
-  ${isLoggedIn ? `<div class="lpj-toolbar no-print"><button class="btn small" onclick="jadwalExportImage()">🖼️ Download Gambar</button></div>` : ''}`);
+  ${isLoggedIn ? `<div class="lpj-toolbar no-print"><button class="btn small" ${da('jadwalExportImage')}>🖼️ Download Gambar</button></div>` : ''}`);
 }
 // Export lembar Jadwal Sinoman jadi file PNG lewat html2canvas, dengan
 // tampilan identik seperti pratinjau di layar (elemen di luar
@@ -633,7 +633,7 @@ function renderJadwalMergedEditForm(ev){
 
       <div class="field-hint" style="color:var(--ink-soft); font-size:12.5px; margin:16px 0 6px;">✅ Tersimpan otomatis saat Anda mengetik. Nama dipilih dari Database Anggota juga tersimpan otomatis.</div>
       ${tablesHtml}
-      <button class="btn secondary small" style="margin-top:18px;" onclick="jadwalAddExtraTable()">+ Tambah Tabel</button>
+      <button class="btn secondary small" style="margin-top:18px;" ${da('jadwalAddExtraTable')}>+ Tambah Tabel</button>
     </div>
   </div>`;
 }
@@ -653,7 +653,7 @@ function renderJadwalBlockTableEdit(blockKey){
     <tr>
       <td>${idx+1}</td>
       ${cells}
-      <td style="width:36px;"><button class="icon-btn" onclick="jadwalBlockRemoveRow('${blockKey}', ${idx})" title="Hapus baris">✕</button></td>
+      <td style="width:36px;"><button class="icon-btn" ${da('jadwalBlockRemoveRow', blockKey, idx)} title="Hapus baris">✕</button></td>
     </tr>`;
   }).join('');
 
@@ -665,8 +665,8 @@ function renderJadwalBlockTableEdit(blockKey){
   let hapusTabelBtn = '';
   if(!isFirstTable){
     hapusTabelBtn = isJadwalExtraKey(blockKey)
-      ? `<button class="icon-btn" onclick="jadwalRemoveExtraTable('${blockKey.slice(6)}')" title="Hapus tabel ini">🗑️</button>`
-      : `<button class="icon-btn" onclick="jadwalRemoveBuiltinBlock('${blockKey}')" title="Hapus tabel ini">🗑️</button>`;
+      ? `<button class="icon-btn" ${da('jadwalRemoveExtraTable', blockKey.slice(6))} title="Hapus tabel ini">🗑️</button>`
+      : `<button class="icon-btn" ${da('jadwalRemoveBuiltinBlock', blockKey)} title="Hapus tabel ini">🗑️</button>`;
   }
 
   return `
@@ -679,7 +679,7 @@ function renderJadwalBlockTableEdit(blockKey){
       <thead><tr><th></th>${theadCells}<th></th></tr></thead>
       <tbody>${rowsEdit}</tbody>
     </table>
-    <button class="btn secondary small" onclick="jadwalBlockAddRow('${blockKey}')">+ Tambah Baris</button>`;
+    <button class="btn secondary small" ${da('jadwalBlockAddRow', blockKey)}>+ Tambah Baris</button>`;
 }
 
 function renderJadwalMergedPrintInner(ev){
@@ -825,7 +825,7 @@ function blkComboIconCheck(){
 }
 function blkComboTriggerHtml(blockKey, idx, field, value){
   return `<div class="field combo" style="margin-bottom:0; position:relative;">
-    <button type="button" id="blk-combo-trigger-${blockKey}-${idx}-${field}" class="combo-trigger blk-combo-trigger${value?'':' placeholder'}" onclick="toggleBlkCombo('${blockKey}', ${idx}, '${field}')">
+    <button type="button" id="blk-combo-trigger-${blockKey}-${idx}-${field}" class="combo-trigger blk-combo-trigger${value?'':' placeholder'}" ${da('toggleBlkCombo', blockKey, idx, field)}>
       <span class="combo-trigger-label">${value ? esc(value) : '-- Pilih Nama --'}</span>
       ${blkComboIconChevron()}
     </button>
@@ -878,7 +878,7 @@ function blkComboSemuaAnggotaOptionHtml(blockKey, idx, field, selectedNama){
   const key = _blkComboSearch.trim().toLowerCase();
   if(key && !BLK_SEMUA_ANGGOTA.toLowerCase().includes(key)) return '';
   const isSelected = selectedNama === BLK_SEMUA_ANGGOTA;
-  return `<button type="button" class="combo-option combo-option-special${isSelected?' selected':''}" onclick="selectBlkComboNama('${blockKey}', ${idx}, '${field}', '${BLK_SEMUA_ANGGOTA}')">
+  return `<button type="button" class="combo-option combo-option-special${isSelected?' selected':''}" ${da('selectBlkComboNama', blockKey, idx, field, BLK_SEMUA_ANGGOTA)}>
       <span class="combo-option-main"><span class="combo-option-name">👥 ${BLK_SEMUA_ANGGOTA}</span></span>
       <span class="combo-option-side">${isSelected?blkComboIconCheck():''}</span>
     </button>`;
@@ -895,8 +895,7 @@ function blkComboManualOptionHtml(blockKey, idx, field){
   const names = dokumenDaftarNama();
   const sudahAdaPersis = names.some(n=>n.toLowerCase()===raw.toLowerCase());
   if(sudahAdaPersis) return '';
-  const rawEnc = encodeURIComponent(raw);
-  return `<button type="button" class="combo-option combo-option-manual" onclick="selectBlkComboNama('${blockKey}', ${idx}, '${field}', decodeURIComponent('${rawEnc}'))">
+  return `<button type="button" class="combo-option combo-option-manual" ${da('selectBlkComboNama', blockKey, idx, field, raw)}>
       <span class="combo-option-main"><span class="combo-option-name">✏️ Gunakan "${esc(raw)}" (nama manual, bukan anggota)</span></span>
     </button>`;
 }
@@ -910,16 +909,15 @@ function blkComboOptionsHtml(blockKey, idx, field){
   const optionsHtml = filtered.map(n=>{
     const isSelected = n===selectedNama;
     const nonAktif = dipakai.has(n) && !isSelected;
-    const namaEnc = encodeURIComponent(n);
     return `<button type="button" class="combo-option${nonAktif?' disabled':''}${isSelected?' selected':''}"
-      ${nonAktif?'disabled':`onclick="selectBlkComboNama('${blockKey}', ${idx}, '${field}', decodeURIComponent('${namaEnc}'))"`}>
+      ${nonAktif?'disabled':da('selectBlkComboNama', blockKey, idx, field, n)}>
       <span class="combo-option-main"><span class="combo-option-name">${esc(n)}</span></span>
       <span class="combo-option-side">${nonAktif?'<span class="badge stok-habis">Sudah dipilih</span>':''}${isSelected?blkComboIconCheck():''}</span>
     </button>`;
   }).join('');
   const manualHtml = blkComboManualOptionHtml(blockKey, idx, field);
   const semuaAnggotaHtml = blkComboSemuaAnggotaOptionHtml(blockKey, idx, field, selectedNama);
-  const clearHtml = selectedNama ? `<button type="button" class="combo-option" onclick="selectBlkComboNama('${blockKey}', ${idx}, '${field}', '')">
+  const clearHtml = selectedNama ? `<button type="button" class="combo-option" ${da('selectBlkComboNama', blockKey, idx, field, '')}>
       <span class="combo-option-main"><span class="combo-option-name" style="color:var(--ink-soft);">— Kosongkan pilihan —</span></span>
     </button>` : '';
   return clearHtml + semuaAnggotaHtml + manualHtml + (optionsHtml || `<div class="combo-empty">${key ? ((manualHtml||semuaAnggotaHtml) ? '' : 'Tidak ditemukan.') : 'Belum ada data di Database Anggota.'}</div>`);

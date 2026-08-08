@@ -33,9 +33,9 @@ function renderAnggota(){
       <td class="num">${fmtRp(a.nominal_wajib)}</td>
       <td>${a.status==='lunas'?`<span class="badge lunas">Lunas</span> <span style="font-size:11px;color:var(--ink-soft)">${fmtDate(a.tanggal_bayar)}</span>`:`<span class="badge belum">Belum</span>`}</td>
       <td style="text-align:right; white-space:nowrap;">
-        <button class="btn secondary small" onclick="toggleLunas('${a.id}')">${a.status==='lunas'?'Batalkan':'Tandai Lunas'}</button>
-        <button class="icon-btn" onclick="openAnggotaModal('${a.id}')" title="Edit">✎</button>
-        <button class="icon-btn" onclick="hapusAnggota('${a.id}')" title="Hapus">🗑</button>
+        <button class="btn secondary small" ${da('toggleLunas', a.id)}>${a.status==='lunas'?'Batalkan':'Tandai Lunas'}</button>
+        <button class="icon-btn" ${da('openAnggotaModal', a.id)} title="Edit">✎</button>
+        <button class="icon-btn" ${da('hapusAnggota', a.id)} title="Hapus">🗑</button>
       </td>
     </tr>` : `
     <tr>
@@ -49,15 +49,15 @@ function renderAnggota(){
       <select id="filter-kategori-anggota" onchange="applyFilterAnggota()"><option value="semua" ${filterKategoriAnggota==='semua'?'selected':''}>Semua</option>${KATEGORI_ANGGOTA.map(k=>`<option value="${k.v}" ${filterKategoriAnggota===k.v?'selected':''}>${k.l}</option>`).join('')}</select></div>
     <div class="field" style="margin-bottom:0;min-width:150px;"><label style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;">Status</label>
       <select id="filter-status-anggota" onchange="applyFilterAnggota()"><option value="semua" ${filterStatusAnggota==='semua'?'selected':''}>Semua</option><option value="lunas" ${filterStatusAnggota==='lunas'?'selected':''}>Lunas</option><option value="belum_lunas" ${filterStatusAnggota==='belum_lunas'?'selected':''}>Belum Lunas</option></select></div>
-    <div class="search-box" style="flex:1;min-width:200px;"><div class="search-input-wrap"><i data-lucide="search" class="inline-icon search-input-icon"></i><input type="text" id="search-input-anggota" placeholder="Cari nama..." value="${esc(searchQueryAnggota)}" oninput="applySearchAnggota()"></div>${searchQueryAnggota?`<button class="btn secondary small" onclick="clearSearchAnggota()">✕</button>`:''}</div>
-    ${isFiltering?`<button class="btn secondary small" onclick="resetFilterAnggota()">↺ Reset</button>`:''}
+    <div class="search-box" style="flex:1;min-width:200px;"><div class="search-input-wrap"><i data-lucide="search" class="inline-icon search-input-icon"></i><input type="text" id="search-input-anggota" placeholder="Cari nama..." value="${esc(searchQueryAnggota)}" oninput="applySearchAnggota()"></div>${searchQueryAnggota?`<button class="btn secondary small" ${da('clearSearchAnggota')}>✕</button>`:''}</div>
+    ${isFiltering?`<button class="btn secondary small" ${da('resetFilterAnggota')}>↺ Reset</button>`:''}
   </div>`;
 
   const tarifBelumDiisi = Number(s.tarif.sekolah||0)<=0 && Number(s.tarif.bekerja||0)<=0 && Number(s.tarif.perantauan||0)<=0;
   const tarifBanner = (tarifBelumDiisi && isLoggedIn) ? `
     <div class="panel" style="background:var(--orange-tint); border-left:3px solid var(--orange); display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; padding:14px 16px; margin-bottom:16px;">
       <div style="font-size:13.5px; color:var(--ink-soft);">⚠️ Tarif iuran (Sekolah/Bekerja/Perantauan) belum diisi — anggota yang ditambahkan sekarang akan tercatat <b>Rp 0</b>. Set tarif dulu di Pengaturan.</div>
-      <button class="btn small" onclick="goSection('pengaturan')" style="white-space:nowrap;">⚙️ Buka Pengaturan</button>
+      <button class="btn small" ${da('goSection', 'pengaturan')} style="white-space:nowrap;">⚙️ Buka Pengaturan</button>
     </div>` : '';
 
   return `
@@ -73,7 +73,7 @@ function renderAnggota(){
       <div><h3>Daftar Anggota</h3>
         <div class="desc">Tarif: Sekolah ${fmtRp(s.tarif.sekolah)} · Bekerja ${fmtRp(s.tarif.bekerja)} · Perantauan ${fmtRp(s.tarif.perantauan)} · Khusus (bebas)</div>
       </div>
-      ${isLoggedIn ? `<button class="btn" onclick="openAnggotaModal()">+ Tambah Anggota</button>` : ''}
+      ${isLoggedIn ? `<button class="btn" ${da('openAnggotaModal')}>+ Tambah Anggota</button>` : ''}
     </div>
     <div class="panel-body">
       ${filterHtml}
@@ -335,9 +335,9 @@ function renderDatabaseAnggota(){
     <td>${a.status==='lunas'?`<span class="badge lunas">Lunas</span>`:`<span class="badge belum">Belum Bayar</span>`}</td>
     <td style="font-size:12px;color:var(--ink-soft);">${a.status==='lunas'?fmtDate(a.tanggal_bayar):'-'}</td>
     <td style="text-align:right;white-space:nowrap;">
-      <button class="btn secondary small" onclick="toggleLunas('${a.id}')" ${!isLoggedIn ? 'disabled' : ''}>${a.status==='lunas'?'Batalkan':'Bayar'}</button>
-      <button class="icon-btn" onclick="openAnggotaModal('${a.id}')" ${!isLoggedIn ? 'disabled' : ''}>✎</button>
-      <button class="icon-btn" onclick="hapusAnggota('${a.id}')" ${!isLoggedIn ? 'disabled' : ''}>🗑</button>
+      <button class="btn secondary small" ${da('toggleLunas', a.id)} ${!isLoggedIn ? 'disabled' : ''}>${a.status==='lunas'?'Batalkan':'Bayar'}</button>
+      <button class="icon-btn" ${da('openAnggotaModal', a.id)} ${!isLoggedIn ? 'disabled' : ''}>✎</button>
+      <button class="icon-btn" ${da('hapusAnggota', a.id)} ${!isLoggedIn ? 'disabled' : ''}>🗑</button>
     </td>
   </tr>`).join('');
 
@@ -379,27 +379,27 @@ function renderDatabaseAnggota(){
       <select id="filter-gender" onchange="applyFilter()"><option value="semua" ${filterGender==='semua'?'selected':''}>Semua</option><option value="pria" ${filterGender==='pria'?'selected':''}>Laki-Laki</option><option value="wanita" ${filterGender==='wanita'?'selected':''}>Perempuan</option><option value="tidak_diketahui" ${filterGender==='tidak_diketahui'?'selected':''}>Tidak diketahui</option></select></div>
     <div class="field" style="margin-bottom:0;min-width:150px;"><label style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;">RT</label>
       <select id="filter-rt" onchange="applyFilter()"><option value="semua" ${filterRT==='semua'?'selected':''}>Semua</option>${RT_LIST.map(r=>`<option value="${r.v}" ${filterRT===r.v?'selected':''}>${r.l}</option>`).join('')}</select></div>
-    <div class="search-box" style="flex:1;min-width:200px;"><div class="search-input-wrap"><i data-lucide="search" class="inline-icon search-input-icon"></i><input type="text" id="search-input" placeholder="Cari nama..." value="${esc(searchQuery)}" oninput="applySearch()"></div>${searchQuery?`<button class="btn secondary small" onclick="clearSearch()">✕</button>`:''}</div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;"><button class="btn small" onclick="exportAnggotaCSV()">⬇ Ekspor CSV</button><button class="btn secondary small" onclick="resetFilter()">↺ Reset</button></div>
+    <div class="search-box" style="flex:1;min-width:200px;"><div class="search-input-wrap"><i data-lucide="search" class="inline-icon search-input-icon"></i><input type="text" id="search-input" placeholder="Cari nama..." value="${esc(searchQuery)}" oninput="applySearch()"></div>${searchQuery?`<button class="btn secondary small" ${da('clearSearch')}>✕</button>`:''}</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;"><button class="btn small" ${da('exportAnggotaCSV')}>⬇ Ekspor CSV</button><button class="btn secondary small" ${da('resetFilter')}>↺ Reset</button></div>
   </div>`;
 
   const sortIndicator = (field) => { if (sortBy !== field) return '↕'; return sortOrder === 'asc' ? '↑' : '↓'; };
 
   return `${statCards}<div class="panel"><div class="panel-head"><div><h3>📋 Database Anggota</h3><div class="desc">${totalBelum} anggota belum bayar · total tunggakan ${fmtRp(totalNominal - totalTerkumpul)}</div></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
-      <button class="btn success small" onclick="tandaiSemuaLunas()" ${!isLoggedIn ? 'disabled' : ''}>✓ Tandai Semua Lunas</button>
-      ${isLoggedIn ? `<button class="btn secondary small" onclick="openSalinAnggotaModal()">📥 Salin dari Event Lain</button>` : ''}
-      ${isLoggedIn ? `<button class="btn" onclick="openAnggotaModal()">+ Tambah</button>` : ''}
+      <button class="btn success small" ${da('tandaiSemuaLunas')} ${!isLoggedIn ? 'disabled' : ''}>✓ Tandai Semua Lunas</button>
+      ${isLoggedIn ? `<button class="btn secondary small" ${da('openSalinAnggotaModal')}>📥 Salin dari Event Lain</button>` : ''}
+      ${isLoggedIn ? `<button class="btn" ${da('openAnggotaModal')}>+ Tambah</button>` : ''}
     </div></div>
     <div class="panel-body">${filterHtml}${statKategoriHtml?`<div class="kategori-grid" style="margin-bottom:16px;">${statKategoriHtml}</div>`:''}
     ${(statRTHtml||statGenderHtml)?`<div class="stat-section-label">Jumlah Anggota per RT &amp; Jenis Kelamin</div><div class="kategori-grid" style="margin-bottom:16px;">${statRTHtml}${statGenderHtml}</div>`:''}
-    <div style="overflow-x:auto;"><table class="database-table"><thead><tr><th class="sortable" onclick="sortTable('nama')">Nama ${sortIndicator('nama')}</th>
-      <th class="sortable" onclick="sortTable('kategori')">Kategori ${sortIndicator('kategori')}</th>
-      <th class="sortable" onclick="sortTable('rt')">RT ${sortIndicator('rt')}</th>
-      <th class="sortable" onclick="sortTable('gender')">Jenis Kelamin ${sortIndicator('gender')}</th>
-      <th class="num sortable" onclick="sortTable('nominal')">Nominal ${sortIndicator('nominal')}</th>
-      <th class="sortable" onclick="sortTable('status')">Status ${sortIndicator('status')}</th>
-      <th class="sortable" onclick="sortTable('tanggal')">Tgl Bayar ${sortIndicator('tanggal')}</th><th></th></tr></thead>
+    <div style="overflow-x:auto;"><table class="database-table"><thead><tr><th class="sortable" ${da('sortTable', 'nama')}>Nama ${sortIndicator('nama')}</th>
+      <th class="sortable" ${da('sortTable', 'kategori')}>Kategori ${sortIndicator('kategori')}</th>
+      <th class="sortable" ${da('sortTable', 'rt')}>RT ${sortIndicator('rt')}</th>
+      <th class="sortable" ${da('sortTable', 'gender')}>Jenis Kelamin ${sortIndicator('gender')}</th>
+      <th class="num sortable" ${da('sortTable', 'nominal')}>Nominal ${sortIndicator('nominal')}</th>
+      <th class="sortable" ${da('sortTable', 'status')}>Status ${sortIndicator('status')}</th>
+      <th class="sortable" ${da('sortTable', 'tanggal')}>Tgl Bayar ${sortIndicator('tanggal')}</th><th></th></tr></thead>
       <tbody>${rows||`<tr class="empty-row"><td colspan="8">${searchQuery?'Tidak ditemukan':'Belum ada anggota'}</td></tr>`}</tbody>
       ${filtered.length>0?`<tfoot><tr><td colspan="4">Total ${filtered.length} anggota</td><td class="num">${fmtRp(totalNominal)}</td><td colspan="3"></td></tr></tfoot>`:''}</table></div></div></div>`;
 }
@@ -452,7 +452,7 @@ function openSalinAnggotaModal(){
           ${KATEGORI_ANGGOTA.map(k=>`<option value="${k.v}">${k.l}</option>`).join('')}
         </select>
       </div>
-      <button class="btn secondary small" type="button" style="margin-bottom:14px;" onclick="centangSalinSesuaiFilter()">Centang kategori ini saja</button>
+      <button class="btn secondary small" type="button" style="margin-bottom:14px;" ${da('centangSalinSesuaiFilter')}>Centang kategori ini saja</button>
     </div>
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
       <label style="font-size:12px; display:flex; align-items:center; gap:6px; cursor:pointer;"><input type="checkbox" id="salin-pilih-semua" onchange="toggleSalinPilihSemua(this.checked)"> Pilih Semua yang Tampil</label>

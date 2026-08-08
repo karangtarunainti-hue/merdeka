@@ -296,6 +296,25 @@ function bukaQuickAssignKategoriToko(gi){
     }}
   ]);
 }
+// Wrapper baca-input dipanggil lewat data-action dari modal Kelola Kategori Toko
+// (lihat bukaModalKelolaKategoriToko) — dipisah dari onclick inline lama supaya
+// bisa dimigrasi ke da() tanpa perlu kirim value input lewat data-args.
+function tambahKategoriTokoKustomDariInput(){
+  const lbl = document.getElementById('kk-cat-label').value;
+  const ic = document.getElementById('kk-cat-icon').value;
+  if (tambahKategoriTokoKustom(lbl, ic)) {
+    document.getElementById('kk-cat-label').value = '';
+    bukaModalKelolaKategoriToko();
+  }
+}
+function tambahKataKunciKategoriTokoDariInput(){
+  const kw = document.getElementById('kk-kw-text').value;
+  const kat = document.getElementById('kk-kw-cat').value;
+  if (!kw.trim()) { toast('Kata kunci wajib diisi'); return; }
+  tambahKataKunciKategoriToko(kw, kat);
+  document.getElementById('kk-kw-text').value = '';
+  bukaModalKelolaKategoriToko();
+}
 // Halaman kelola lengkap: lihat & hapus kategori kustom + kata kunci kustom,
 // dan tambah kata kunci baru bebas (tidak harus dari nama barang yang sudah ada).
 function bukaModalKelolaKategoriToko(){
@@ -306,12 +325,12 @@ function bukaModalKelolaKategoriToko(){
   const catRowsHtml = customCats.length ? customCats.map(c => `
     <div class="belanja-subitem">
       <div class="sub-info"><span>${icon(c.icon)} ${esc(c.label)}</span></div>
-      <button class="btn-small-icon danger-text" title="Hapus kategori" onclick="hapusKategoriTokoKustom('${c.key}')">✕</button>
+      <button class="btn-small-icon danger-text" title="Hapus kategori" ${da('hapusKategoriTokoKustom', c.key)}>✕</button>
     </div>`).join('') : `<div class="hint" style="padding:6px 0;">Belum ada kategori kustom.</div>`;
   const kwRowsHtml = Object.keys(keywords).length ? Object.keys(keywords).sort().map(kw => `
     <div class="belanja-subitem">
       <div class="sub-info"><span>"${esc(kw)}" → ${esc(infoKategoriToko(keywords[kw]).label)}</span></div>
-      <button class="btn-small-icon danger-text" title="Hapus kata kunci" onclick="hapusKataKunciKategoriToko('${esc(kw.replace(/\\/g,'\\\\').replace(/'/g,"\\'"))}')">✕</button>
+      <button class="btn-small-icon danger-text" title="Hapus kata kunci" ${da('hapusKataKunciKategoriToko', kw)}>✕</button>
     </div>`).join('') : `<div class="hint" style="padding:6px 0;">Belum ada kata kunci kustom.</div>`;
 
   setModal('⚙️ Kelola Kategori Toko', `
@@ -321,14 +340,14 @@ function bukaModalKelolaKategoriToko(){
     <div class="field" style="display:flex;gap:6px;align-items:flex-end;">
       <div style="flex:1;"><label>Kategori baru</label><input id="kk-cat-label" type="text" placeholder="mis. Alat Olahraga"></div>
       <div><label>Ikon</label><select id="kk-cat-icon">${optionsIkonKategoriTokoHtml('tag')}</select></div>
-      <button class="btn small" onclick="const lbl=document.getElementById('kk-cat-label').value; const ic=document.getElementById('kk-cat-icon').value; if(tambahKategoriTokoKustom(lbl,ic)){ document.getElementById('kk-cat-label').value=''; bukaModalKelolaKategoriToko(); }">+ Tambah</button>
+      <button class="btn small" ${da('tambahKategoriTokoKustomDariInput')}>+ Tambah</button>
     </div>
 
     <div class="field" style="margin-top:14px;"><label>Kata kunci kustom</label>${kwRowsHtml}</div>
     <div class="field" style="display:flex;gap:6px;align-items:flex-end;">
       <div style="flex:1;"><label>Kata kunci</label><input id="kk-kw-text" type="text" placeholder="mis. bola voli"></div>
       <div style="flex:1;"><label>Kategori</label><select id="kk-kw-cat">${optionsKategoriTokoHtml(null).replace('<option value="__baru__">+ Buat kategori baru...</option>','')}</select></div>
-      <button class="btn small" onclick="const kw=document.getElementById('kk-kw-text').value; const kat=document.getElementById('kk-kw-cat').value; if(!kw.trim()){toast('Kata kunci wajib diisi');return;} tambahKataKunciKategoriToko(kw,kat); document.getElementById('kk-kw-text').value=''; bukaModalKelolaKategoriToko();">+ Tambah</button>
+      <button class="btn small" ${da('tambahKataKunciKategoriTokoDariInput')}>+ Tambah</button>
     </div>
   `, [
     {label:'Tutup', cls:'', onclick:()=>{ closeModal(); renderContent(); }}
@@ -364,7 +383,7 @@ function renderBelanjaHadiah(){
 
   const isLoggedIn = !!getCurrentUser();
 
-  if(!items.length) return `<div class="belanja-toko-page"><div class="panel"><div class="panel-head"><h3>🎁 Belanja Hadiah</h3></div><div class="panel-body"><div class="empty-state"><h3>Belum ada hadiah</h3>${isLoggedIn ? `<button class="btn" onclick="goSection('hadiah')">+ Tambah Hadiah</button>` : ''}</div></div></div></div>`;
+  if(!items.length) return `<div class="belanja-toko-page"><div class="panel"><div class="panel-head"><h3>🎁 Belanja Hadiah</h3></div><div class="panel-body"><div class="empty-state"><h3>Belum ada hadiah</h3>${isLoggedIn ? `<button class="btn" ${da('goSection', 'hadiah')}>+ Tambah Hadiah</button>` : ''}</div></div></div></div>`;
 
   // Kelompokkan per NAMA barang (gabungan lintas kategori peserta & juara) menjadi SATU checklist
   const nameMap = {};
@@ -456,16 +475,16 @@ function renderBelanjaHadiah(){
 
     return `${headerHtml}<div class="belanja-item ${semuaDibeli?'dibeli':''}">
       <span class="nomor-urut">${totalItem}</span>
-      <div class="checkbox-wrapper ${semuaDibeli?'checked':''} ${!isLoggedIn ? 'disabled' : ''}" onclick="${isLoggedIn ? `toggleBelanjaHadiahGroup(${gi})` : 'toast(\'⛔ Login untuk mengedit\')'}"></div>
+      <div class="checkbox-wrapper ${semuaDibeli?'checked':''} ${!isLoggedIn ? 'disabled' : ''}" ${isLoggedIn ? da('toggleBelanjaHadiahGroup', gi) : da('toast', '⛔ Login untuk mengedit')}></div>
       <div class="info">
         <div class="nama"><span class="nama-text">${esc(g.nama)}</span><span class="qty-total">(Total: ${totalQty} pcs)</span></div>
         <div class="detail">${packTagHtml}${tagHtml}${semuaDibeli&&tglTerbaru?`<span>✓ Dibeli: ${fmtDate(tglTerbaru)}</span>`:(belum.length && belum.length<list.length ? `<span style="color:var(--orange);">Sebagian belum (${belum.length}/${list.length})</span>` : '')}</div>
       </div>
       <div class="harga" style="display:flex; align-items:center; gap:4px;">
         <span>${fmtRp(totalHarga)}</span>
-        ${g.kategoriToko==='lainnya' ? `<button class="btn-small-icon" title="Barang ini masuk 'Lainnya' — klik untuk pindahkan ke kategori toko lain" onclick="event.stopPropagation(); ${isLoggedIn ? `bukaQuickAssignKategoriToko(${gi})` : `toast('⛔ Login untuk mengedit')`}" ${!isLoggedIn ? 'disabled' : ''}>${icon('tag')}</button>` : ''}
-        ${list.some(i=>(i.riwayatHarga||[]).length) ? `<button class="btn-small-icon" title="Riwayat perubahan harga" onclick="event.stopPropagation(); bukaRiwayatHargaBarang(${gi})">${icon('report')}</button>` : ''}
-        <button class="btn-small-icon" title="Update harga & kemasan" onclick="event.stopPropagation(); ${isLoggedIn ? `editHargaBelanjaHadiahGroup(${gi})` : `toast('⛔ Login untuk mengedit')`}" ${!isLoggedIn ? 'disabled' : ''}>${icon('pen')}</button>
+        ${g.kategoriToko==='lainnya' ? `<button class="btn-small-icon" title="Barang ini masuk 'Lainnya' — klik untuk pindahkan ke kategori toko lain" ${isLoggedIn ? da('bukaQuickAssignKategoriToko', gi) : da('toast', '⛔ Login untuk mengedit')} ${!isLoggedIn ? 'disabled' : ''}>${icon('tag')}</button>` : ''}
+        ${list.some(i=>(i.riwayatHarga||[]).length) ? `<button class="btn-small-icon" title="Riwayat perubahan harga" ${da('bukaRiwayatHargaBarang', gi)}>${icon('report')}</button>` : ''}
+        <button class="btn-small-icon" title="Update harga & kemasan" ${isLoggedIn ? da('editHargaBelanjaHadiahGroup', gi) : da('toast', '⛔ Login untuk mengedit')} ${!isLoggedIn ? 'disabled' : ''}>${icon('pen')}</button>
       </div>
     </div>`;
   }).join('');
@@ -473,9 +492,9 @@ function renderBelanjaHadiah(){
   return `<div class="belanja-toko-page"><div class="stat-grid"><div class="stat-card belanja-hadiah"><div class="lbl">Total Item</div><div class="val">${totalItem}</div></div><div class="stat-card pemasukan"><div class="lbl">Belum Dibeli</div><div class="val">${totalBelum}</div></div><div class="stat-card saldo"><div class="lbl">Estimasi Total</div><div class="val">${fmtRp(totalEstimasi)}</div></div>${progressBelanjaCardHtml(totalItem, totalItem-totalBelum)}</div>
   <div class="panel"><div class="panel-head"><div><h3>🎁 Daftar Belanja Hadiah</h3><div class="desc">Belum dibeli: <strong>${fmtRp(totalBelumEstimasi)}</strong></div></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
-      <button class="btn success small" onclick="tandaiSemuaBelanjaHadiah()" ${!isLoggedIn ? 'disabled' : ''}>✓ Semua Dibeli</button>
-      <button class="btn secondary small" onclick="resetSemuaBelanjaHadiah()" ${!isLoggedIn ? 'disabled' : ''}>↺ Reset</button>
-      <button class="btn secondary small" onclick="bukaModalKelolaKategoriToko()" ${!isLoggedIn ? 'disabled' : ''}>⚙️ Kelola Kategori Toko</button>
+      <button class="btn success small" ${da('tandaiSemuaBelanjaHadiah')} ${!isLoggedIn ? 'disabled' : ''}>✓ Semua Dibeli</button>
+      <button class="btn secondary small" ${da('resetSemuaBelanjaHadiah')} ${!isLoggedIn ? 'disabled' : ''}>↺ Reset</button>
+      <button class="btn secondary small" ${da('bukaModalKelolaKategoriToko')} ${!isLoggedIn ? 'disabled' : ''}>⚙️ Kelola Kategori Toko</button>
     </div></div>
   <div class="panel-body">${groups}</div></div></div>`;
 }
@@ -735,7 +754,7 @@ function renderBelanjaPerlengkapan(){
   const totalItem = items.length, totalBelum = items.filter(i=>!i.sudahDibeli).length, totalEstimasi = items.reduce((s,i)=>s+i.hargaTotal,0), totalBelumEstimasi = items.filter(i=>!i.sudahDibeli).reduce((s,i)=>s+i.hargaTotal,0);
   const isLoggedIn = !!getCurrentUser();
   
-  if(!items.length) return `<div class="belanja-toko-page"><div class="panel"><div class="panel-head"><h3>📦 Belanja Perlengkapan</h3></div><div class="panel-body"><div class="empty-state"><h3>Belum ada perlengkapan</h3>${isLoggedIn ? `<button class="btn" onclick="goSection('lomba')">+ Tambah Kebutuhan</button>` : ''}</div></div></div></div>`;
+  if(!items.length) return `<div class="belanja-toko-page"><div class="panel"><div class="panel-head"><h3>📦 Belanja Perlengkapan</h3></div><div class="panel-body"><div class="empty-state"><h3>Belum ada perlengkapan</h3>${isLoggedIn ? `<button class="btn" ${da('goSection', 'lomba')}>+ Tambah Kebutuhan</button>` : ''}</div></div></div></div>`;
 
   // Kelompokkan per NAMA barang (gabungan lintas lomba), total kebutuhan digabung, detail per lomba tetap ada
   const nameMap = {};
@@ -771,25 +790,25 @@ function renderBelanjaPerlengkapan(){
 
     const subRows = !isExpanded ? '' : `<div class="belanja-subitem-list">${groupItems.map(item => `
       <div class="belanja-subitem ${item.sudahDibeli?'dibeli':''}">
-        <div class="checkbox-wrapper small ${item.sudahDibeli?'checked':''} ${!isLoggedIn ? 'disabled' : ''}" onclick="${isLoggedIn ? `event.stopPropagation(); toggleBelanjaPerlengkapan('${item.id}')` : 'toast(\'⛔ Login untuk mengedit\')'}"></div>
+        <div class="checkbox-wrapper small ${item.sudahDibeli?'checked':''} ${!isLoggedIn ? 'disabled' : ''}" ${isLoggedIn ? da('toggleBelanjaPerlengkapan', item.id) : da('toast', '⛔ Login untuk mengedit')}></div>
         <div class="sub-info">
           <span>📋 ${esc(item.lombaNama)} · ${labelPeserta(item.lombaKategori)}</span>
           <span class="sub-qty">${item.qty} · ${fmtRp(item.hargaTotal)}</span>
         </div>
-        <button class="btn-small-icon" title="Edit item" onclick="event.stopPropagation(); ${isLoggedIn ? `editBelanjaPerlengkapan('${item.id}')` : `toast('⛔ Login untuk mengedit')`}" ${!isLoggedIn ? 'disabled' : ''}>${icon('pen')}</button>
+        <button class="btn-small-icon" title="Edit item" ${isLoggedIn ? da('editBelanjaPerlengkapan', item.id) : da('toast', '⛔ Login untuk mengedit')} ${!isLoggedIn ? 'disabled' : ''}>${icon('pen')}</button>
       </div>`).join('')}</div>`;
 
     return `<div class="belanja-item ${semuaDibeli?'dibeli':''}">
       <span class="nomor-urut">${gi+1}</span>
-      <div class="checkbox-wrapper ${semuaDibeli?'checked':''} ${!isLoggedIn ? 'disabled' : ''}" onclick="${isLoggedIn ? `toggleBelanjaPerlengkapanGroup(${gi})` : 'toast(\'⛔ Login untuk mengedit\')'}"></div>
+      <div class="checkbox-wrapper ${semuaDibeli?'checked':''} ${!isLoggedIn ? 'disabled' : ''}" ${isLoggedIn ? da('toggleBelanjaPerlengkapanGroup', gi) : da('toast', '⛔ Login untuk mengedit')}></div>
       <div class="info">
-        <div class="nama"><span class="nama-text">${esc(g.nama)}</span><span class="qty-total">(Total: ${totalQty})</span>${isMulti ? `<button type="button" class="expand-toggle" title="${isExpanded?'Tutup rincian per lomba':'Buka rincian per lomba'}" onclick="event.stopPropagation(); toggleBelanjaPerlengkapanGroupExpand('${groupKey}')">${isExpanded?'▲ Tutup':'▼ Rincian'}</button>` : ''}</div>
+        <div class="nama"><span class="nama-text">${esc(g.nama)}</span><span class="qty-total">(Total: ${totalQty})</span>${isMulti ? `<button type="button" class="expand-toggle" title="${isExpanded?'Tutup rincian per lomba':'Buka rincian per lomba'}" ${da('toggleBelanjaPerlengkapanGroupExpand', groupKey)}>${isExpanded?'▲ Tutup':'▼ Rincian'}</button>` : ''}</div>
         <div class="detail">${!isExpanded ? tagHtml : ''}${semuaDibeli&&tglTerbaru?`<span>✓ Dibeli: ${fmtDate(tglTerbaru)}</span>`:(groupBelum.length && groupBelum.length<groupItems.length ? `<span style="color:var(--orange);">Sebagian belum (${groupBelum.length}/${groupItems.length})</span>` : '')}</div>
         ${subRows}
       </div>
       <div class="harga" style="display:flex; align-items:center; gap:4px;">
         <span>${fmtRp(totalHarga)}</span>
-        ${!isMulti ? `<button class="btn-small-icon" title="Edit item" onclick="event.stopPropagation(); ${isLoggedIn ? `editBelanjaPerlengkapan('${groupItems[0].id}')` : `toast('⛔ Login untuk mengedit')`}" ${!isLoggedIn ? 'disabled' : ''}>${icon('pen')}</button>` : ''}
+        ${!isMulti ? `<button class="btn-small-icon" title="Edit item" ${isLoggedIn ? da('editBelanjaPerlengkapan', groupItems[0].id) : da('toast', '⛔ Login untuk mengedit')} ${!isLoggedIn ? 'disabled' : ''}>${icon('pen')}</button>` : ''}
       </div>
     </div>`;
   }).join('');
@@ -797,8 +816,8 @@ function renderBelanjaPerlengkapan(){
   return `<div class="belanja-toko-page"><div class="stat-grid"><div class="stat-card belanja-perlengkapan"><div class="lbl">Total Item</div><div class="val">${totalItem}</div></div><div class="stat-card pemasukan"><div class="lbl">Belum Dibeli</div><div class="val">${totalBelum}</div></div><div class="stat-card saldo"><div class="lbl">Estimasi Total</div><div class="val">${fmtRp(totalEstimasi)}</div></div>${progressBelanjaCardHtml(totalItem, totalItem-totalBelum)}</div>
   <div class="panel"><div class="panel-head"><div><h3>📦 Daftar Belanja Perlengkapan</h3><div class="desc">Belum dibeli: <strong>${fmtRp(totalBelumEstimasi)}</strong></div></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
-      <button class="btn success small" onclick="tandaiSemuaBelanjaPerlengkapan()" ${!isLoggedIn ? 'disabled' : ''}>✓ Semua Dibeli</button>
-      <button class="btn secondary small" onclick="resetSemuaBelanjaPerlengkapan()" ${!isLoggedIn ? 'disabled' : ''}>↺ Reset</button>
+      <button class="btn success small" ${da('tandaiSemuaBelanjaPerlengkapan')} ${!isLoggedIn ? 'disabled' : ''}>✓ Semua Dibeli</button>
+      <button class="btn secondary small" ${da('resetSemuaBelanjaPerlengkapan')} ${!isLoggedIn ? 'disabled' : ''}>↺ Reset</button>
     </div></div>
   <div class="panel-body">${groupHtml}</div></div></div>`;
 }
@@ -904,8 +923,8 @@ function renderHadiahJalanSantai(){
       <td class="num">${h.qty}</td>
       <td class="num">${fmtRp(Number(h.harga_satuan||0) * Number(h.qty||0))}</td>
       <td style="text-align:right; white-space:nowrap;">
-        <button class="icon-btn" onclick="openHadiahJalanModal('${h.id}')" ${!isLoggedIn ? 'disabled' : ''} title="Edit">✎</button>
-        <button class="icon-btn" onclick="hapusHadiahJalan('${h.id}')" ${!isLoggedIn ? 'disabled' : ''} title="Hapus">🗑</button>
+        <button class="icon-btn" ${da('openHadiahJalanModal', h.id)} ${!isLoggedIn ? 'disabled' : ''} title="Edit">✎</button>
+        <button class="icon-btn" ${da('hapusHadiahJalan', h.id)} ${!isLoggedIn ? 'disabled' : ''} title="Hapus">🗑</button>
       </td>
     </tr>`;
   }).join('');
@@ -921,7 +940,7 @@ function renderHadiahJalanSantai(){
       <div><h3>🏃 Hadiah Jalan Santai</h3>
         <div class="desc">Kelola hadiah untuk acara jalan santai</div>
       </div>
-      ${isLoggedIn ? `<button class="btn pink" onclick="openHadiahJalanModal()">+ Tambah Hadiah</button>` : ''}
+      ${isLoggedIn ? `<button class="btn pink" ${da('openHadiahJalanModal')}>+ Tambah Hadiah</button>` : ''}
     </div>
     <div class="panel-body flush">
       <table class="jalan-table">
@@ -1076,7 +1095,7 @@ function renderBelanjaJalanSantai(){
       <div class="panel-head"><h3>🛍️ Belanja Jalan Santai</h3></div>
       <div class="panel-body">
         <div class="empty-state"><h3>Belum ada hadiah</h3><p>Tambahkan hadiah jalan santai dulu.</p>
-          ${isLoggedIn ? `<button class="btn pink" onclick="goSection('hadiah-jalan')">+ Tambah Hadiah</button>` : ''}
+          ${isLoggedIn ? `<button class="btn pink" ${da('goSection', 'hadiah-jalan')}>+ Tambah Hadiah</button>` : ''}
         </div>
       </div>
     </div>
@@ -1112,7 +1131,7 @@ function renderBelanjaJalanSantai(){
     return `<div class="belanja-item ${semuaDibeli ? 'dibeli' : ''}">
       <span class="nomor-urut">${gi+1}</span>
       <div class="checkbox-wrapper ${semuaDibeli ? 'checked' : ''} ${!isLoggedIn ? 'disabled' : ''}" 
-           onclick="${isLoggedIn ? `toggleBelanjaJalanGroup(${gi})` : 'toast(\'⛔ Login untuk mengedit\')'}">
+           ${isLoggedIn ? da('toggleBelanjaJalanGroup', gi) : da('toast', '⛔ Login untuk mengedit')}>
       </div>
       <div class="info">
         <div class="nama"><span class="nama-text">${esc(g.nama)}</span><span class="qty-total">(Total: ${totalQty})</span></div>
@@ -1137,8 +1156,8 @@ function renderBelanjaJalanSantai(){
         <div class="desc">Belum dibeli: <strong>${fmtRp(totalBelumEstimasi)}</strong></div>
       </div>
       <div style="display:flex; gap:8px; flex-wrap:wrap;">
-        <button class="btn success small" onclick="tandaiSemuaBelanjaJalan()" ${!isLoggedIn ? 'disabled' : ''}>✓ Semua Dibeli</button>
-        <button class="btn secondary small" onclick="resetSemuaBelanjaJalan()" ${!isLoggedIn ? 'disabled' : ''}>↺ Reset</button>
+        <button class="btn success small" ${da('tandaiSemuaBelanjaJalan')} ${!isLoggedIn ? 'disabled' : ''}>✓ Semua Dibeli</button>
+        <button class="btn secondary small" ${da('resetSemuaBelanjaJalan')} ${!isLoggedIn ? 'disabled' : ''}>↺ Reset</button>
       </div>
     </div>
     <div class="panel-body">

@@ -266,7 +266,7 @@ function renderContent(){
   // event 17-an yang dibuat/dipilih (lihat EVENTLESS_SECTIONS di atas).
   if(!activeEvent() && !EVENTLESS_SECTIONS.includes(currentSection)){
     el.innerHTML = `<div class="empty-state"><h3>Belum ada event aktif</h3><p>${isLoggedIn ? 'Buat event tahunan dulu.' : 'Login untuk membuat atau mengelola event.'}</p>
-      ${isLoggedIn ? `<button class="btn" onclick="openEventModal()">+ Buat Event Pertama</button>` : `<button class="btn" onclick="openLoginModal()">🔑 Login untuk Mengelola</button>`}
+      ${isLoggedIn ? `<button class="btn" ${da('openEventModal')}>+ Buat Event Pertama</button>` : `<button class="btn" ${da('openLoginModal')}>🔑 Login untuk Mengelola</button>`}
     </div>`;
     return;
   }
@@ -274,25 +274,25 @@ function renderContent(){
   // Check if current section is admin-only
   const section = SECTIONS.find(s=>s.key===currentSection);
   if (section && section.adminOnly && !isAdminUser) {
-    el.innerHTML = `<div class="empty-state"><h3>⛔ Akses Ditolak</h3><p>Halaman ini hanya untuk Admin.</p><button class="btn" onclick="goSection('dashboard')">Kembali ke Dashboard</button></div>`;
+    el.innerHTML = `<div class="empty-state"><h3>⛔ Akses Ditolak</h3><p>Halaman ini hanya untuk Admin.</p><button class="btn" ${da('goSection', 'dashboard')}>Kembali ke Dashboard</button></div>`;
     return;
   }
 
   // Check if current section's feature is turned off for this event
   if (section && !isMenuAktif(currentSection)) {
-    el.innerHTML = `<div class="empty-state"><h3>Fitur tidak aktif</h3><p>Fitur ini dimatikan untuk event "${esc(activeEvent().nama)}". Aktifkan lagi lewat tombol ✎ di daftar event pada halaman Pengaturan kalau dibutuhkan.</p><button class="btn" onclick="goSection('dashboard')">Kembali ke Dashboard</button></div>`;
+    el.innerHTML = `<div class="empty-state"><h3>Fitur tidak aktif</h3><p>Fitur ini dimatikan untuk event "${esc(activeEvent().nama)}". Aktifkan lagi lewat tombol ✎ di daftar event pada halaman Pengaturan kalau dibutuhkan.</p><button class="btn" ${da('goSection', 'dashboard')}>Kembali ke Dashboard</button></div>`;
     return;
   }
 
   // Check if current section is hidden for guest
   if (section && !isLoggedIn && !isGuestVisible(currentSection)) {
-    el.innerHTML = `<div class="empty-state"><h3>⛔ Akses Ditolak</h3><p>Halaman ini tidak tersedia untuk Guest.</p><button class="btn" onclick="openLoginModal()">🔑 Login untuk Mengakses</button></div>`;
+    el.innerHTML = `<div class="empty-state"><h3>⛔ Akses Ditolak</h3><p>Halaman ini tidak tersedia untuk Guest.</p><button class="btn" ${da('openLoginModal')}>🔑 Login untuk Mengakses</button></div>`;
     return;
   }
 
   // Check if current section is outside Petugas' assigned bidang
   if (section && isPetugas() && currentSection !== 'dashboard' && !userSections().includes(currentSection)) {
-    el.innerHTML = `<div class="empty-state"><h3>⛔ Akses Ditolak</h3><p>Anda tidak memiliki akses ke halaman ini.</p><button class="btn" onclick="goSection('dashboard')">Kembali ke Dashboard</button></div>`;
+    el.innerHTML = `<div class="empty-state"><h3>⛔ Akses Ditolak</h3><p>Anda tidak memiliki akses ke halaman ini.</p><button class="btn" ${da('goSection', 'dashboard')}>Kembali ke Dashboard</button></div>`;
     return;
   }
   

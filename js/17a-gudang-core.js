@@ -102,7 +102,7 @@ function renderGudang(){
   if(!tabs.find(t=>t.key===gudangSubTab)) gudangSubTab = 'stok';
 
   const tabsHtml = `<div class="gudang-tabs">
-    ${tabs.map(t=>`<button class="btn ${gudangSubTab===t.key?'':'secondary'} small" onclick="gudangSwitchTab('${t.key}')">${t.label}</button>`).join('')}
+    ${tabs.map(t=>`<button class="btn ${gudangSubTab===t.key?'':'secondary'} small" ${da('gudangSwitchTab', t.key)}>${t.label}</button>`).join('')}
   </div>`;
 
   let body = '';

@@ -15,11 +15,11 @@ function renderDonatur(){
   const barangList = list.filter(d=>d.jenis==='barang');
   const total = list.reduce((s,d)=>s + (d.jenis==='barang' ? 0 : Number(d.jumlah||0)), 0);
   const isLoggedIn = !!getCurrentUser();
-  const rows = list.map((d,idx)=>`<tr${isLoggedIn ? ` class="row-clickable" onclick="openDonaturModal('${d.id}')"` : ''}><td>${idx+1}</td><td>${dateResponsive(d.tanggal)}</td><td>${esc(d.nama_donatur)}</td><td class="num">${donasiValueText(d)}</td>${isLoggedIn ? `<td style="text-align:right;">
-    <button class="icon-btn" onclick="event.stopPropagation();hapusDonatur('${d.id}')">🗑</button>
+  const rows = list.map((d,idx)=>`<tr${isLoggedIn ? ` class="row-clickable" ${da('openDonaturModal', d.id)}` : ''}><td>${idx+1}</td><td>${dateResponsive(d.tanggal)}</td><td>${esc(d.nama_donatur)}</td><td class="num">${donasiValueText(d)}</td>${isLoggedIn ? `<td style="text-align:right;">
+    <button class="icon-btn" ${da('hapusDonatur', d.id)}>🗑</button>
   </td>` : ''}</tr>`).join('');
   return `<div class="stat-grid"><div class="stat-card pemasukan"><div class="lbl">Total Donasi (Uang)</div><div class="val">${fmtRp(total)}</div></div>${barangList.length ? `<div class="stat-card"><div class="lbl">Sumbangan Barang</div><div class="val">${barangList.length}</div></div>` : ''}</div>
-  <div class="panel"><div class="panel-head"><h3>Daftar Donatur</h3>${isLoggedIn ? `<button class="btn" onclick="openDonaturModal()">+ Tambah</button>` : ''}</div>
+  <div class="panel"><div class="panel-head"><h3>Daftar Donatur</h3>${isLoggedIn ? `<button class="btn" ${da('openDonaturModal')}>+ Tambah</button>` : ''}</div>
   <div class="panel-body flush"><table class="general-table tanggal-nominal-table donatur-table"><thead><tr><th>No</th><th>${thResponsive('Tanggal','Tgl')}</th><th>Nama</th><th class="num">Donasi</th>${isLoggedIn ? '<th></th>' : ''}</tr></thead>
   <tbody>${rows||`<tr class="empty-row"><td colspan="${isLoggedIn?5:4}">Belum ada donasi.</td></tr>`}</tbody></table></div></div>`;
 }
@@ -96,11 +96,11 @@ function renderTransaksi(){
   const list = gTransaksiLain().slice().sort((a,b)=>(b.tanggal||'').localeCompare(a.tanggal||''));
   const total = list.reduce((s,t)=>s+Number(t.jumlah||0),0);
   const isLoggedIn = !!getCurrentUser();
-  const rows = list.map((t,idx)=>`<tr${isLoggedIn ? ` class="row-clickable" onclick="openTransaksiModal('${t.id}')"` : ''}><td>${idx+1}</td><td>${dateResponsive(t.tanggal)}</td><td>${esc(t.keterangan||'-')}</td><td class="num">${fmtRp(t.jumlah)}</td>${isLoggedIn ? `<td style="text-align:right;">
-    <button class="icon-btn" onclick="event.stopPropagation();hapusTransaksi('${t.id}')">🗑</button>
+  const rows = list.map((t,idx)=>`<tr${isLoggedIn ? ` class="row-clickable" ${da('openTransaksiModal', t.id)}` : ''}><td>${idx+1}</td><td>${dateResponsive(t.tanggal)}</td><td>${esc(t.keterangan||'-')}</td><td class="num">${fmtRp(t.jumlah)}</td>${isLoggedIn ? `<td style="text-align:right;">
+    <button class="icon-btn" ${da('hapusTransaksi', t.id)}>🗑</button>
   </td>` : ''}</tr>`).join('');
   return `<div class="stat-grid"><div class="stat-card pemasukan"><div class="lbl">Total Pemasukan Lain</div><div class="val">${fmtRp(total)}</div></div></div>
-  <div class="panel"><div class="panel-head"><h3>Pemasukan Lain</h3>${isLoggedIn ? `<div style="display:flex;gap:8px;flex-wrap:wrap;"><button class="btn secondary" onclick="openKuponJalanModal()">Penjualan Kupon Harian</button><button class="btn" onclick="openTransaksiModal()">+ Tambah</button></div>` : ''}</div>
+  <div class="panel"><div class="panel-head"><h3>Pemasukan Lain</h3>${isLoggedIn ? `<div style="display:flex;gap:8px;flex-wrap:wrap;"><button class="btn secondary" ${da('openKuponJalanModal')}>Penjualan Kupon Harian</button><button class="btn" ${da('openTransaksiModal')}>+ Tambah</button></div>` : ''}</div>
   <div class="panel-body flush"><table class="general-table tanggal-nominal-table transaksi-lain-table"><thead><tr><th>No</th><th>${thResponsive('Tanggal','Tgl')}</th><th>Keterangan</th><th class="num">Jumlah</th>${isLoggedIn ? '<th></th>' : ''}</tr></thead>
   <tbody>${rows||`<tr class="empty-row"><td colspan="${isLoggedIn?5:4}">Belum ada transaksi.</td></tr>`}</tbody></table></div></div>`;
 }
@@ -221,11 +221,11 @@ function renderOperasional(){
   const list = gOperasional().slice().sort((a,b)=>(b.created_at||b.tanggal||'').localeCompare(a.created_at||a.tanggal||''));
   const total = list.reduce((s,o)=>s+Number(o.jumlah||0),0);
   const isLoggedIn = !!getCurrentUser();
-  const rows = list.map((o,idx)=>`<tr${isLoggedIn ? ` class="row-clickable" onclick="openOperasionalModal('${o.id}')"` : ''}><td data-label="No">${idx+1}</td><td data-label="Tgl">${dateResponsive(o.tanggal)}</td><td data-label="Keterangan">${esc(o.keterangan)}</td><td data-label="Harga" class="num">${fmtRp(o.satuan||0)}</td><td data-label="QTY" class="num">${o.qty||1}</td><td data-label="Jumlah" class="num">${fmtRp(o.jumlah)}</td>${isLoggedIn ? `<td class="operasional-actions" data-label="" style="text-align:right;">
-    <button class="icon-btn" onclick="event.stopPropagation();hapusOperasional('${o.id}')">🗑</button>
+  const rows = list.map((o,idx)=>`<tr${isLoggedIn ? ` class="row-clickable" ${da('openOperasionalModal', o.id)}` : ''}><td data-label="No">${idx+1}</td><td data-label="Tgl">${dateResponsive(o.tanggal)}</td><td data-label="Keterangan">${esc(o.keterangan)}</td><td data-label="Harga" class="num">${fmtRp(o.satuan||0)}</td><td data-label="QTY" class="num">${o.qty||1}</td><td data-label="Jumlah" class="num">${fmtRp(o.jumlah)}</td>${isLoggedIn ? `<td class="operasional-actions" data-label="" style="text-align:right;">
+    <button class="icon-btn" ${da('hapusOperasional', o.id)}>🗑</button>
   </td>` : ''}</tr>`).join('');
   return `<div class="stat-grid"><div class="stat-card pengeluaran"><div class="lbl">Total Operasional</div><div class="val">${fmtRp(total)}</div></div></div>
-  <div class="panel"><div class="panel-head"><h3>Biaya Operasional</h3>${isLoggedIn ? `<button class="btn" onclick="openOperasionalModal()">+ Tambah</button>` : ''}</div>
+  <div class="panel"><div class="panel-head"><h3>Biaya Operasional</h3>${isLoggedIn ? `<button class="btn" ${da('openOperasionalModal')}>+ Tambah</button>` : ''}</div>
   <div class="panel-body flush"><table class="general-table operasional-table"><thead><tr><th>No</th><th>${thResponsive('Tanggal','Tgl')}</th><th>Keterangan</th><th class="num">Harga</th><th class="num">QTY</th><th class="num">Jumlah</th>${isLoggedIn ? '<th></th>' : ''}</tr></thead>
   <tbody>${rows||`<tr class="empty-row"><td colspan="${isLoggedIn?7:6}">Belum ada biaya.</td></tr>`}</tbody></table></div></div>`;
 }

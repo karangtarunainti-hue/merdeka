@@ -173,11 +173,11 @@ function renderDbLombaCard(g){
   const subtotal = items.reduce((s,k)=>s+(Number(k.harga_realisasi ?? k.harga_estimasi ?? 0)*Number(k.qty||0)),0);
 
   const eventChips = g.versions.map((v,i)=>{
-    return `<span class="kategori-pill ${i===selIdx?'khusus':''}" style="cursor:pointer;" onclick="event.stopPropagation(); dbLombaPilihVersi('${g.key}',${i})" title="Lihat perlengkapan versi ini">${esc(v.eventLabel)}</span>`;
+    return `<span class="kategori-pill ${i===selIdx?'khusus':''}" style="cursor:pointer;" ${da('dbLombaPilihVersi', g.key, i)} title="Lihat perlengkapan versi ini">${esc(v.eventLabel)}</span>`;
   }).join('');
 
   return `<div class="lomba-card ${isOpen?'open':''}">
-    <div class="lomba-card-head" onclick="dbLombaToggleCard('${g.key}')" style="cursor:pointer;">
+    <div class="lomba-card-head" ${da('dbLombaToggleCard', g.key)} style="cursor:pointer;">
       <div class="lomba-head-title"><span class="name">${esc(g.nama)}</span><span class="lomba-head-tags"><span class="kategori-pill">${labelPeserta(versi.kategoriPeserta)}</span><span class="lomba-badge">${g.versions.length} tahun dipakai</span></span></div>
       <div class="lomba-head-meta">
         <span class="lomba-badge">${items.length} item</span>
@@ -190,7 +190,7 @@ function renderDbLombaCard(g){
       <div class="lomba-mini-list" style="margin-bottom:12px;display:flex;gap:6px;flex-wrap:wrap;">${eventChips}</div>
       ${versi.isArsip ? `<div class="hint" style="margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
         <span>🗄️ Versi ini sudah dihapus dari menu Lomba & Perlengkapan — datanya diarsipkan di sini sebagai riwayat.</span>
-        <button class="icon-btn" title="Hapus permanen riwayat arsip ini" onclick="event.stopPropagation(); hapusArsipLomba('${g.key}', '${versi.arsipId}')" ${!isLoggedIn ? 'disabled' : ''}>🗑</button>
+        <button class="icon-btn" title="Hapus permanen riwayat arsip ini" ${da('hapusArsipLomba', g.key, versi.arsipId)} ${!isLoggedIn ? 'disabled' : ''}>🗑</button>
       </div>` : ''}
       <div style="overflow-x:auto;">
       <table class="lomba-table"><thead><tr><th>Item Perlengkapan</th><th class="num">Harga Terakhir</th><th class="num">Qty</th><th class="num">Subtotal</th></tr></thead>
@@ -201,7 +201,7 @@ function renderDbLombaCard(g){
       ${items.length?`<tfoot><tr><td colspan="3">Subtotal</td><td class="num">${fmtRp(subtotal)}</td></tr></tfoot>`:''}
       </table></div>
       <div style="margin-top:14px;">
-        <button class="btn" onclick="openPakaiLombaModal('${g.key}', ${selIdx})">📥 Pakai Lomba Ini untuk Event Aktif</button>
+        <button class="btn" ${da('openPakaiLombaModal', g.key, selIdx)}>📥 Pakai Lomba Ini untuk Event Aktif</button>
       </div>
     </div>
   </div>`;

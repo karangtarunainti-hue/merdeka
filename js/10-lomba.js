@@ -61,7 +61,7 @@ function renderLomba(){
     const setupColor = setupPct===100 ? 'var(--hijau)' : (setupPct===0 ? 'var(--merah)' : 'var(--orange)');
     return `
     <div class="lomba-card ${isOpen?'open':''}">
-      <div class="lomba-card-head" onclick="toggleLombaCard('${l.id}')" style="cursor:pointer;">
+      <div class="lomba-card-head" ${da('toggleLombaCard', l.id)} style="cursor:pointer;">
         <div class="lomba-head-title"><span class="nomor-badge kategori-${l.kategori_peserta}">${idx}</span><span class="name">${esc(l.nama)}</span><span class="lomba-head-tags"><span class="kategori-pill">${labelPeserta(l.kategori_peserta)}</span>${l.jam?`<span class="jam-pill">🕐 ${esc(l.jam)}</span>`:''}${Number(l.jumlah_anggota_regu||1)>1?`<span class="kategori-pill khusus">👥 Beregu ×${l.jumlah_anggota_regu}${l.hadiah_per_regu?' · 1 hadiah/regu':''}</span>`:''}</span></div>
         <div class="lomba-head-meta">
           <span class="lomba-badge">${items.length} item</span>
@@ -72,17 +72,17 @@ function renderLomba(){
             <span class="lomba-progress-txt">${setupDone}/${setupChecks.length}</span>
           </span>
           <span class="lomba-head-actions">
-            <button class="icon-btn" onclick="event.stopPropagation(); openLombaModal('${l.id}')" ${!isLoggedIn ? 'disabled' : ''}>✎</button>
-            <button class="icon-btn" onclick="event.stopPropagation(); hapusLomba('${l.id}')" ${!isLoggedIn ? 'disabled' : ''}>🗑</button>
+            <button class="icon-btn" ${!isLoggedIn ? 'disabled' : da('openLombaModal', l.id)}>✎</button>
+            <button class="icon-btn" ${!isLoggedIn ? 'disabled' : da('hapusLomba', l.id)}>🗑</button>
             <svg class="chevron" width="16" height="16" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </span>
         </div>
       </div>
       <div class="lomba-card-body">
         <div class="lomba-tabs">
-          <button type="button" class="lomba-tabbtn ${activeTab==='kebutuhan'?'active':''}" onclick="setLombaTab('${l.id}','kebutuhan')">Kebutuhan Barang</button>
-          <button type="button" class="lomba-tabbtn ${activeTab==='hadiah'?'active':''}" onclick="setLombaTab('${l.id}','hadiah')">Hadiah${hadiahBadge?' •':''}</button>
-          <button type="button" class="lomba-tabbtn ${activeTab==='koordinator'?'active':''}" onclick="setLombaTab('${l.id}','koordinator')">Koordinator${getKoordinatorIds(l).length===0?' <span class="lomba-badge warn" style="margin-left:4px;">Belum ada</span>':''}</button>
+          <button type="button" class="lomba-tabbtn ${activeTab==='kebutuhan'?'active':''}" ${da('setLombaTab', l.id, 'kebutuhan')}>Kebutuhan Barang</button>
+          <button type="button" class="lomba-tabbtn ${activeTab==='hadiah'?'active':''}" ${da('setLombaTab', l.id, 'hadiah')}>Hadiah${hadiahBadge?' •':''}</button>
+          <button type="button" class="lomba-tabbtn ${activeTab==='koordinator'?'active':''}" ${da('setLombaTab', l.id, 'koordinator')}>Koordinator${getKoordinatorIds(l).length===0?' <span class="lomba-badge warn" style="margin-left:4px;">Belum ada</span>':''}</button>
         </div>
 
         <div style="display:${activeTab==='kebutuhan'?'block':'none'};">
@@ -94,8 +94,8 @@ function renderLomba(){
           const sudahDibeli = belanja && belanja.status === 'dibeli';
           const hargaCell = k.harga_realisasi!=null ? fmtRp(k.harga_realisasi) : `${fmtRp(k.harga_estimasi)}<span style="color:var(--abu); font-size:11px;"> (estimasi)</span>`;
           return `<tr class="${sudahDibeli?'dibeli':''}"><td>${esc(k.nama_item)} ${sudahDibeli?'<span class="status-dibeli-pill">✓ Dibeli</span>':''}</td><td class="num">${hargaCell}</td><td class="num"><span class="qty-pill">${k.qty}</span></td><td class="num">${fmtRp(harga*k.qty)}</td><td style="text-align:right;white-space:nowrap;">
-            <button class="icon-btn" onclick="openKebutuhanModal('${l.id}','${k.id}')" ${!isLoggedIn ? 'disabled' : ''}>✎</button>
-            <button class="icon-btn" onclick="hapusKebutuhan('${k.id}')" ${!isLoggedIn ? 'disabled' : ''}>🗑</button>
+            <button class="icon-btn" ${!isLoggedIn ? 'disabled' : da('openKebutuhanModal', l.id, k.id)}>✎</button>
+            <button class="icon-btn" ${!isLoggedIn ? 'disabled' : da('hapusKebutuhan', k.id)}>🗑</button>
           </td></tr>`;
         }).join('')||`<tr class="empty-row"><td colspan="5">Belum ada kebutuhan.</td></tr>`}</tbody>
         ${items.length?`<tfoot><tr><td colspan="3">Subtotal</td><td class="num">${fmtRp(subtotal)}</td><td></td></tr></tfoot>`:''}</table></div>
@@ -104,7 +104,7 @@ function renderLomba(){
           <input id="qa-nama-${l.id}" type="text" placeholder="Nama item baru" onkeydown="if(event.key==='Enter'){event.preventDefault(); tambahKebutuhanCepat('${l.id}');}">
           <input id="qa-harga-${l.id}" type="text" class="currency-input" placeholder="Harga" onkeydown="if(event.key==='Enter'){event.preventDefault(); tambahKebutuhanCepat('${l.id}');}">
           <input id="qa-qty-${l.id}" type="number" min="1" value="1" placeholder="Qty" onkeydown="if(event.key==='Enter'){event.preventDefault(); tambahKebutuhanCepat('${l.id}');}">
-          <button class="btn secondary small" onclick="tambahKebutuhanCepat('${l.id}')">+ Tambah</button>
+          <button class="btn secondary small" ${da('tambahKebutuhanCepat', l.id)}>+ Tambah</button>
         </div>` : ''}
         </div>
         <div style="display:${activeTab==='hadiah'?'block':'none'};">
@@ -140,7 +140,7 @@ function renderLomba(){
     ) : '');
 
   return `<div class="stat-grid"><div class="stat-card pengeluaran"><div class="lbl">Total Kebutuhan</div><div class="val">${fmtRp(totalKebutuhan)}</div></div>${list.length ? `<div class="stat-card${lombaLengkapCount<list.length ? ' stok-lebih' : ' saldo'}"><div class="lbl">Lomba Siap</div><div class="val">${lombaLengkapCount}/${list.length}</div><div style="font-size:11px; color:var(--abu); margin-top:4px;">Kebutuhan barang + hadiah + koordinator lengkap</div></div>` : ''}</div>
-  <div class="panel"><div class="panel-head"><div><h3>Daftar Lomba</h3><div class="desc">Dikelompokkan berdasarkan jadwal · klik kartu untuk buka rincian</div></div>${isLoggedIn ? `<button class="btn" onclick="openLombaModal()">+ Tambah Lomba</button>` : ''}</div>
+  <div class="panel"><div class="panel-head"><div><h3>Daftar Lomba</h3><div class="desc">Dikelompokkan berdasarkan jadwal · klik kartu untuk buka rincian</div></div>${isLoggedIn ? `<button class="btn" ${da('openLombaModal')}>+ Tambah Lomba</button>` : ''}</div>
   <div class="panel-body">${groupsHtml||`<div class="empty-row" style="padding:30px;text-align:center;">Belum ada lomba.</div>`}</div></div>`;
 }
 function labelPeserta(v){ return (KATEGORI_PESERTA.find(k=>k.v===v)||{}).l || v; }
@@ -181,7 +181,7 @@ function renderHadiahLombaBlock(lomba){
     return `<div class="juara-row"><div class="juara-tag juara-tag-${j.v}"><span class="juara-medal">${JUARA_MEDAL[j.v]||'🏅'}</span>${j.l}</div>${isiPaket}</div>`;
   }).join('');
   const noStok = gHadiahKategori().filter(h=>h.kategori_peserta===lomba.kategori_peserta).length === 0;
-  return `<div class="hint" style="margin-bottom:8px;">Paket hadiah berlaku otomatis untuk semua lomba kategori ${labelPeserta(lomba.kategori_peserta)}, bukan cuma lomba ini — kelola dari menu Hadiah.</div>${rows}${noStok?`<div class="hint" style="margin-top:8px;">Belum ada paket hadiah untuk kategori ini. <a style="color:var(--merah);font-weight:600;cursor:pointer;" onclick="goSection('hadiah')">Tambah di sini</a></div>`:''}`;
+  return `<div class="hint" style="margin-bottom:8px;">Paket hadiah berlaku otomatis untuk semua lomba kategori ${labelPeserta(lomba.kategori_peserta)}, bukan cuma lomba ini — kelola dari menu Hadiah.</div>${rows}${noStok?`<div class="hint" style="margin-top:8px;">Belum ada paket hadiah untuk kategori ini. <a style="color:var(--merah);font-weight:600;cursor:pointer;" ${da('goSection', 'hadiah')}>Tambah di sini</a></div>`:''}`;
 }
 
 // Koordinator lomba diambil dari Database Anggota (bukan input bebas), supaya
@@ -197,7 +197,7 @@ function getKoordinatorIds(lomba){
 function renderKoordinatorLombaBlock(lomba, isLoggedIn){
   const anggotaList = gAnggota().slice().sort((a,b)=>(a.nama||'').localeCompare(b.nama||'', 'id', {sensitivity:'base'}));
   if(anggotaList.length===0){
-    return `<div class="hint">Belum ada data di Database Anggota untuk event ini. <a style="color:var(--merah);font-weight:600;cursor:pointer;" onclick="goSection('database-anggota')">Tambah di sini</a></div>`;
+    return `<div class="hint">Belum ada data di Database Anggota untuk event ini. <a style="color:var(--merah);font-weight:600;cursor:pointer;" ${da('goSection', 'database-anggota')}>Tambah di sini</a></div>`;
   }
   const koordinatorIds = getKoordinatorIds(lomba);
   const koordinatorList = koordinatorIds.map(id=>db.anggota.find(a=>a.id===id)).filter(Boolean);
@@ -207,12 +207,12 @@ function renderKoordinatorLombaBlock(lomba, isLoggedIn){
     <div class="koordinator-chip">
       <span class="koordinator-avatar">${esc((k.nama||'?').trim().charAt(0).toUpperCase())}</span>
       <span class="koordinator-nama">${esc(k.nama)}</span>
-      <button class="icon-btn" onclick="hapusKoordinatorLomba('${lomba.id}','${k.id}')" ${!isLoggedIn?'disabled':''} title="Hapus koordinator">✕</button>
+      <button class="icon-btn" ${!isLoggedIn?'disabled':da('hapusKoordinatorLomba', lomba.id, k.id)} title="Hapus koordinator">✕</button>
     </div>`).join('')}</div>` : `<div class="hint">Belum ada koordinator dipilih untuk lomba ini.</div>`;
 
   const addRow = !isLoggedIn ? '' : (sisaAnggota.length ? `
   <div class="field combo" style="max-width:360px;margin-top:12px;margin-bottom:0;position:relative;">
-    <button type="button" id="koordinator-add-trigger-${lomba.id}" class="combo-trigger placeholder" onclick="toggleKoordinatorCombo('${lomba.id}')">
+    <button type="button" id="koordinator-add-trigger-${lomba.id}" class="combo-trigger placeholder" ${da('toggleKoordinatorCombo', lomba.id)}>
       <span class="combo-trigger-label">-- Pilih Anggota --</span>
       ${comboIconChevron()}
     </button>
@@ -256,7 +256,7 @@ function koordComboOptionsHtml(lombaId){
   const sisaAnggota = anggotaList.filter(a=>!koordinatorIds.includes(a.id));
   const key = _koordComboSearch.trim().toLowerCase();
   const filtered = key ? sisaAnggota.filter(a=>(a.nama||'').toLowerCase().includes(key)) : sisaAnggota;
-  const optionsHtml = filtered.map(a=>`<button type="button" class="combo-option" onclick="pilihKoordinatorCombo('${lombaId}','${a.id}')">
+  const optionsHtml = filtered.map(a=>`<button type="button" class="combo-option" ${da('pilihKoordinatorCombo', lombaId, a.id)}>
       <span class="combo-option-main"><span class="combo-option-name">${esc(a.nama)}</span></span>
       ${a.rt?`<span class="combo-option-side"><span class="combo-option-sisa">${esc(labelRT(getRT(a)))}</span></span>`:''}
     </button>`).join('');
@@ -779,7 +779,7 @@ function renderHadiah(){
           ? `<span class="lomba-badge warn" style="margin-left:8px;" title="Harga 1 paket: ${fmtRp(totalPerPaket)}">💸 Lebih ${fmtRp(Math.abs(selisih))} dari budget ${fmtRp(budget)}</span>`
           : `<span class="lomba-badge" style="margin-left:8px;" title="Harga 1 paket: ${fmtRp(totalPerPaket)}">🎯 Budget ${fmtRp(budget)} · Sisa ${fmtRp(selisih)}</span>`;
       }
-      return `<div class="hadiah-group"><div class="hadiah-group-header" onclick="toggleHadiahGroup('${h.id}')"><div><span class="title">🏆 ${labelJuara(h.juara_ke)}</span><span style="font-size:12px;color:var(--ink-soft);margin-left:8px;">${h.items.length} item</span>${kebutuhanBadge}${budgetBadge}</div><div style="display:flex;align-items:center;gap:4px;"><span class="total">${fmtRp(totalItem)}</span>${isLoggedIn ? `<button class="icon-btn" onclick="event.stopPropagation();openHadiahModal('${h.id}')" title="Edit paket">✎</button><button class="icon-btn" onclick="event.stopPropagation();hapusHadiah('${h.id}')" title="Hapus paket">🗑</button>` : ''}</div></div>
+      return `<div class="hadiah-group"><div class="hadiah-group-header" ${da('toggleHadiahGroup', h.id)}><div><span class="title">🏆 ${labelJuara(h.juara_ke)}</span><span style="font-size:12px;color:var(--ink-soft);margin-left:8px;">${h.items.length} item</span>${kebutuhanBadge}${budgetBadge}</div><div style="display:flex;align-items:center;gap:4px;"><span class="total">${fmtRp(totalItem)}</span>${isLoggedIn ? `<button class="icon-btn" ${da('openHadiahModal', h.id)} title="Edit paket">✎</button><button class="icon-btn" ${da('hapusHadiah', h.id)} title="Hapus paket">🗑</button>` : ''}</div></div>
         <div class="hadiah-group-body" id="hadiah-group-${h.id}" style="display:${openHadiahGroups.has(h.id)?'block':'none'};">
           ${kurangItems.length ? `<div class="hint" style="margin-bottom:10px;">${isPartisipasi ? `Sebagian item belum sesuai kebutuhan (estimasi total ${kebutuhan} peserta dari ${jumlahLomba} lomba kategori ${labelPeserta(kp.v)} × qty/paket masing-masing item).` : `Sebagian item belum sesuai kebutuhan (${jumlahLomba} lomba kategori ${labelPeserta(kp.v)}${adaBeregu?', termasuk lomba beregu':''} × qty/paket masing-masing item).`} Biasanya ini terjadi setelah "Qty per paket" sebuah item diubah manual${isPartisipasi?', atau estimasi peserta baru saja diubah':''}. Klik tombol "⚡ Sesuaikan Semua Otomatis" di atas untuk langsung menyamakan, atau edit qty item satu-satu di bawah.</div>` : (lebihItems.length ? `<div class="hint" style="margin-bottom:10px;">Sebagian item stoknya lebih dari kebutuhan (${isPartisipasi ? `estimasi ${kebutuhan} peserta` : `${jumlahLomba} lomba`} kategori ${labelPeserta(kp.v)}). Ini bisa normal (sengaja beli cadangan), atau sisa dari lomba yang sudah dihapus/dikurangi${isPartisipasi?'/estimasi peserta diturunkan':''} — qty tidak pernah diturunkan otomatis. Cek dan kurangi manual lewat tombol ✎ di item kalau memang kelebihan.</div>` : (partisipasiManualPerluCek ? `<div class="hint" style="margin-bottom:10px;">✋ Tidak ada satu pun lomba kategori ${labelPeserta(kp.v)} yang diisi "Estimasi Jumlah Peserta" saat ini, jadi qty di bawah nggak lagi dilacak otomatis dan nggak dibandingkan ke target mana pun. Kalau sebelumnya sempat diisi lalu dihapus/direset ke 0, qty ini bisa saja sudah kelebihan/kekurangan tanpa disadari — cek manual lewat tombol ✎ di tiap item, atau isi lagi Estimasi Jumlah Peserta di lomba terkait kalau mau dilacak otomatis lagi.</div>` : ''))}
           ${h.items.map((item, idx) => { const perPaket=Math.max(1,Number(item.qty_per_paket||1)); const target = hitungTargetQtyItem(item, kebutuhan); const kurang = target!=null && Number(item.qty_dibeli||0) < target; const lebih = target!=null && Number(item.qty_dibeli||0) > target;
@@ -791,10 +791,10 @@ function renderHadiah(){
             const hargaTampil = alokasiItem ? alokasiItem.hargaEfektif : Number(item.harga_satuan||0);
             const subtotalTampil = alokasiItem ? alokasiItem.subtotal : hargaTampil * Number(item.qty_dibeli||0);
             return `<div class="hadiah-item-row"><span class="item-name">${esc(item.nama)}${perPaket>1?` <span style="color:var(--ink-soft);font-size:11px;">${perPaket} buah per paket</span>`:''}${kurang?` <span style="color:var(--orange);font-size:11px;">(butuh ${target})</span>`:''}${lebih?` <span style="color:var(--biru);font-size:11px;">(kebutuhan ${target}, lebih ${Number(item.qty_dibeli)-target})</span>`:''}</span><span class="item-qty">Dibeli: ${item.qty_dibeli} <span class="item-harga-satuan" title="Harga efektif per pcs, termasuk harga eceran sisa satuan bila diatur">· ${fmtRp(hargaTampil)}/pcs</span></span><span class="item-price">${fmtRp(subtotalTampil)}</span>
-            <button class="icon-btn" onclick="editHadiahItem('${h.id}','${item.id}')" ${!isLoggedIn ? 'disabled' : ''}>✎</button>
-            <button class="icon-btn" onclick="hapusHadiahItem('${h.id}','${item.id}')" ${!isLoggedIn ? 'disabled' : ''}>🗑</button>
+            <button class="icon-btn" ${!isLoggedIn ? 'disabled' : da('editHadiahItem', h.id, item.id)}>✎</button>
+            <button class="icon-btn" ${!isLoggedIn ? 'disabled' : da('hapusHadiahItem', h.id, item.id)}>🗑</button>
           </div>`;}).join('')}
-          ${isLoggedIn ? `<div class="add-item-row"><input type="text" id="add-item-name-${h.id}" placeholder="Nama hadiah" style="flex:2;" onblur="autofillHargaHadiah(this)"><input type="text" id="add-item-price-${h.id}" class="currency-input" placeholder="Harga" style="flex:1;"><input type="number" id="add-item-perpaket-${h.id}" placeholder="Qty/paket" value="1" min="1" style="flex:0.7;" title="Berapa pcs item ini per 1 paket juara"><button class="btn secondary small" onclick="tambahItemHadiah('${h.id}', ${kebutuhan!=null?kebutuhan:'null'})">+ Tambah</button></div>` : `<div class="hint" style="padding:8px 0;">🔒 Login untuk menambah item</div>`}
+          ${isLoggedIn ? `<div class="add-item-row"><input type="text" id="add-item-name-${h.id}" placeholder="Nama hadiah" style="flex:2;" onblur="autofillHargaHadiah(this)"><input type="text" id="add-item-price-${h.id}" class="currency-input" placeholder="Harga" style="flex:1;"><input type="number" id="add-item-perpaket-${h.id}" placeholder="Qty/paket" value="1" min="1" style="flex:0.7;" title="Berapa pcs item ini per 1 paket juara"><button class="btn secondary small" ${da('tambahItemHadiah', h.id, kebutuhan!=null?kebutuhan:null)}>+ Tambah</button></div>` : `<div class="hint" style="padding:8px 0;">🔒 Login untuk menambah item</div>`}
         </div></div>`;
     }).join('');
     const bereguDetail = lombaKategoriList.filter(l => Number(l.jumlah_anggota_regu||1) > 1 && !l.hadiah_per_regu).map(l => `${esc(l.nama)} ${Number(l.jumlah_anggota_regu)} orang/regu`).join(', ');
@@ -872,7 +872,7 @@ function renderHadiah(){
         </div>
         <div class="harga" style="display:flex;align-items:center;gap:8px;">
           <span>${fmtRp(r.nilai)}</span>
-          ${isLoggedIn ? `<button class="btn secondary small" title="Turunkan qty_dibeli persis ke kebutuhan (${r.target})" onclick="turunkanStokHadiahKeKebutuhan('${r.hadiahId}','${r.itemId}')">↓ Sesuaikan</button>` : ''}
+          ${isLoggedIn ? `<button class="btn secondary small" title="Turunkan qty_dibeli persis ke kebutuhan (${r.target})" ${da('turunkanStokHadiahKeKebutuhan', r.hadiahId, r.itemId)}>↓ Sesuaikan</button>` : ''}
         </div>
       </div>`).join('')}
     </div>
@@ -888,9 +888,9 @@ function renderHadiah(){
   <div class="panel-body"><div class="kategori-grid">${budgetKategoriCards}</div></div></div>` : ''}
   <div class="panel"><div class="panel-head"><div><h3>Kebutuhan Hadiah</h3><div class="desc">Setiap paket bisa berisi multiple item · Kebutuhan Juara 1-3 mengikuti jumlah lomba per kategori · Partisipasi otomatis kalau "Estimasi Jumlah Peserta" diisi di lomba (kalau belum diisi, tetap manual)</div></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
-      ${isLoggedIn ? `<button class="btn secondary" onclick="openHadiahBudgetModal()">🎯 Atur Budget</button>` : ''}
-      ${isLoggedIn ? `<button class="btn secondary" onclick="sesuaikanSemuaKebutuhanHadiah()">⚡ Sesuaikan Semua Otomatis</button>` : ''}
-      ${isLoggedIn ? `<button class="btn" onclick="openHadiahModal()">+ Tambah Paket</button>` : ''}
+      ${isLoggedIn ? `<button class="btn secondary" ${da('openHadiahBudgetModal')}>🎯 Atur Budget</button>` : ''}
+      ${isLoggedIn ? `<button class="btn secondary" ${da('sesuaikanSemuaKebutuhanHadiah')}>⚡ Sesuaikan Semua Otomatis</button>` : ''}
+      ${isLoggedIn ? `<button class="btn" ${da('openHadiahModal')}>+ Tambah Paket</button>` : ''}
     </div></div>
   <div class="panel-body">${groups.trim()||`<div style="padding:30px;text-align:center;color:var(--abu);">Belum ada kebutuhan hadiah.</div>`}</div></div>`;
 }
@@ -1022,7 +1022,7 @@ function simpanHadiahBudget(){
 // modal pertama dibuka (mode Edit) DAN saat checkDuplikatPaketHadiah mengembalikan
 // form ke kombinasi asal paket yang sedang diedit (lihat komentar di sana).
 function hadiahItemRowsHtml(items){
-  return (items||[]).map((item, idx) => { if(!item.id) item.id = uid(); return `<div class="item-fields-row" data-item-id="${item.id}" style="border-bottom:1px solid var(--garis);padding-bottom:10px;margin-bottom:10px;"><div class="field"><label>Nama</label><input type="text" id="edit-item-name-${idx}" value="${esc(item.nama)}" placeholder="Nama hadiah" onblur="autofillHargaHadiah(this)"></div><div class="field"><label>Harga</label><input type="text" id="edit-item-price-${idx}" class="currency-input" value="${formatCurrency(item.harga_satuan)}" placeholder="Harga"></div><div class="field"><label>Qty/paket</label><input type="number" id="edit-item-perpaket-${idx}" value="${item.qty_per_paket||1}" min="1" placeholder="Qty/paket" title="Berapa pcs per 1 paket juara"></div><button class="btn danger-text small" onclick="removeItemRow(this.closest('.item-fields-row'))">✕</button></div>`; }).join('');
+  return (items||[]).map((item, idx) => { if(!item.id) item.id = uid(); return `<div class="item-fields-row" data-item-id="${item.id}" style="border-bottom:1px solid var(--garis);padding-bottom:10px;margin-bottom:10px;"><div class="field"><label>Nama</label><input type="text" id="edit-item-name-${idx}" value="${esc(item.nama)}" placeholder="Nama hadiah" onblur="autofillHargaHadiah(this)"></div><div class="field"><label>Harga</label><input type="text" id="edit-item-price-${idx}" class="currency-input" value="${formatCurrency(item.harga_satuan)}" placeholder="Harga"></div><div class="field"><label>Qty/paket</label><input type="number" id="edit-item-perpaket-${idx}" value="${item.qty_per_paket||1}" min="1" placeholder="Qty/paket" title="Berapa pcs per 1 paket juara"></div><button class="btn danger-text small" ${da('removeItemRow')}>✕</button></div>`; }).join('');
 }
 function openHadiahModal(id){
   if (!canEditSection('hadiah')) { toast('⛔ Login untuk mengedit data'); return; }
@@ -1122,7 +1122,7 @@ function openHadiahModal(id){
         toast(totalSama>0?`${baseMsg}, harga disamakan ke ${totalSama} item lain — lanjut tambah item`:`${baseMsg} — lanjut tambah item`);
       }
   };
-  setModal(editing?'Edit Paket':'Tambah Paket', `<div class="field-row"><div class="field"><label>Kategori</label><select id="f-kp" onchange="checkDuplikatPaketHadiah('${editing?editing.id:''}','${origKPArg}','${origJuaraArg}')">${KATEGORI_PESERTA.map(k=>`<option value="${k.v}" ${(editing?editing.kategori_peserta===k.v:defaultKP===k.v)?'selected':''}>${k.l}</option>`).join('')}</select></div><div class="field"><label>Juara</label><select id="f-juara" onchange="checkDuplikatPaketHadiah('${editing?editing.id:''}','${origKPArg}','${origJuaraArg}')">${JUARA_LIST.map(j=>`<option value="${j.v}" ${(editing?editing.juara_ke===j.v:defaultJuara===j.v)?'selected':''}>${j.l}</option>`).join('')}</select></div></div><div class="field"><label>Item Hadiah</label><div id="items-container">${itemsHtml}</div><button class="btn secondary small" onclick="addItemRow()" type="button">+ Tambah Item</button></div>`, [
+  setModal(editing?'Edit Paket':'Tambah Paket', `<div class="field-row"><div class="field"><label>Kategori</label><select id="f-kp" onchange="checkDuplikatPaketHadiah('${editing?editing.id:''}','${origKPArg}','${origJuaraArg}')">${KATEGORI_PESERTA.map(k=>`<option value="${k.v}" ${(editing?editing.kategori_peserta===k.v:defaultKP===k.v)?'selected':''}>${k.l}</option>`).join('')}</select></div><div class="field"><label>Juara</label><select id="f-juara" onchange="checkDuplikatPaketHadiah('${editing?editing.id:''}','${origKPArg}','${origJuaraArg}')">${JUARA_LIST.map(j=>`<option value="${j.v}" ${(editing?editing.juara_ke===j.v:defaultJuara===j.v)?'selected':''}>${j.l}</option>`).join('')}</select></div></div><div class="field"><label>Item Hadiah</label><div id="items-container">${itemsHtml}</div><button class="btn secondary small" ${da('addItemRow')} type="button">+ Tambah Item</button></div>`, [
     {label:'Batal', cls:'secondary', onclick:closeModal},
     {label:'💾 Simpan', id:'btn-hadiah-save-stay', cls:'secondary', onclick:()=>doSaveHadiah(false)},
     {label:'💾 Simpan & Tutup', id:'btn-hadiah-save-close', cls:'', onclick:()=>doSaveHadiah(true)}
@@ -1180,13 +1180,17 @@ function checkDuplikatPaketHadiah(editingId, originalKP, originalJuara){
     }
   }
 }
-function addItemRow(){ const container=document.getElementById('items-container'); if(!container) return; const idx=Math.floor(Math.random()*10000); const row=document.createElement('div'); row.className='item-fields-row'; /* sengaja TIDAK diberi data-item-id: baris baru = item baru, id di-generate saat submit */ row.style.cssText='border-bottom:1px solid var(--garis);padding-bottom:10px;margin-bottom:10px;'; row.innerHTML=`<div class="field"><label>Nama</label><input type="text" id="edit-item-name-${idx}" placeholder="Nama hadiah" onblur="autofillHargaHadiah(this)"></div><div class="field"><label>Harga</label><input type="text" id="edit-item-price-${idx}" class="currency-input" placeholder="Harga"></div><div class="field"><label>Qty/paket</label><input type="number" id="edit-item-perpaket-${idx}" placeholder="Qty/paket" value="1" min="1" title="Berapa pcs per 1 paket juara"></div><button class="btn danger-text small" onclick="removeItemRow(this.closest('.item-fields-row'))">✕</button>`; container.appendChild(row);
+function addItemRow(){ const container=document.getElementById('items-container'); if(!container) return; const idx=Math.floor(Math.random()*10000); const row=document.createElement('div'); row.className='item-fields-row'; /* sengaja TIDAK diberi data-item-id: baris baru = item baru, id di-generate saat submit */ row.style.cssText='border-bottom:1px solid var(--garis);padding-bottom:10px;margin-bottom:10px;'; row.innerHTML=`<div class="field"><label>Nama</label><input type="text" id="edit-item-name-${idx}" placeholder="Nama hadiah" onblur="autofillHargaHadiah(this)"></div><div class="field"><label>Harga</label><input type="text" id="edit-item-price-${idx}" class="currency-input" placeholder="Harga"></div><div class="field"><label>Qty/paket</label><input type="number" id="edit-item-perpaket-${idx}" placeholder="Qty/paket" value="1" min="1" title="Berapa pcs per 1 paket juara"></div><button class="btn danger-text small" ${da('removeItemRow')}>✕</button>`; container.appendChild(row);
   // Hanya setup input currency milik baris BARU ini — jangan panggil setupAllCurrencyInputs()
   // karena itu akan menempelkan listener kedua/ketiga/dst ke input yang sudah ada sebelumnya
   // (setiap listener dibuat sebagai fungsi anonim baru sehingga browser tidak men-dedupe-nya).
   row.querySelectorAll('.currency-input').forEach(setupCurrencyInput);
 }
-function removeItemRow(element){ if(!element) return; element.remove(); const container=document.getElementById('items-container'); if(container && container.querySelectorAll('.item-fields-row').length===0){ container.innerHTML='<div class="hint" style="padding:8px 0;">Belum ada item. Klik "+ Tambah Item", atau langsung Simpan untuk menghapus paket ini.</div>'; } }
+// Dipanggil lewat data-action tanpa argumen — elemen barisnya didapat dari `this`,
+// yaitu tombol yang diklik sendiri (listener delegasi di 16b-event-delegation.js
+// memanggil fn.apply(el, args), jadi `this` di sini = elemen ber-data-action).
+// Sengaja begini karena elemen DOM tidak bisa dikirim lewat data-args (JSON.stringify).
+function removeItemRow(){ const element=this.closest('.item-fields-row'); if(!element) return; element.remove(); const container=document.getElementById('items-container'); if(container && container.querySelectorAll('.item-fields-row').length===0){ container.innerHTML='<div class="hint" style="padding:8px 0;">Belum ada item. Klik "+ Tambah Item", atau langsung Simpan untuk menghapus paket ini.</div>'; } }
 // Menyamakan harga_satuan semua item hadiah (lintas semua paket kategori+juara,
 // dalam event yang sama) yang namanya SAMA (dibandingkan tanpa peduli besar/kecil
 // huruf & spasi berlebih) dengan harga yang baru saja diisi/diedit user di satu

@@ -3,7 +3,7 @@
    ============================================================ */
 function renderPengaturan(){
   if (!isAdmin()) {
-    return `<div class="empty-state"><h3>⛔ Akses Ditolak</h3><p>Halaman Pengaturan hanya untuk Admin.</p><button class="btn" onclick="goSection('dashboard')">Kembali ke Dashboard</button></div>`;
+    return `<div class="empty-state"><h3>⛔ Akses Ditolak</h3><p>Halaman Pengaturan hanya untuk Admin.</p><button class="btn" ${da('goSection', 'dashboard')}>Kembali ke Dashboard</button></div>`;
   }
   if (!errorLogCloudLoaded && !errorLogCloudLoading) {
     loadErrorLogFromCloud().then(() => { if (currentSection === 'pengaturan') renderContent(); });
@@ -35,11 +35,11 @@ function renderPengaturan(){
         <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
           <img id="org-logo-preview" src="${esc(getOrgLogo())}" alt="Preview logo" style="width:64px;height:64px;object-fit:contain;border:1px solid var(--garis);border-radius:8px;background:#fff;">
           <label class="btn secondary small">📷 Pilih Gambar<input type="file" accept="image/*" style="display:none;" onchange="pilihOrgLogo(event)"></label>
-          <button type="button" class="btn secondary small" onclick="hapusOrgLogo()">↺ Pakai Logo Bawaan</button>
+          <button type="button" class="btn secondary small" ${da('hapusOrgLogo')}>↺ Pakai Logo Bawaan</button>
         </div>
         <div class="hint">Format gambar bebas (PNG/JPG disarankan), disimpan langsung di database — tidak perlu upload ke server terpisah.</div>
       </div>
-      <button class="btn" onclick="simpanOrgProfile()">💾 Simpan Profil Organisasi</button>
+      <button class="btn" ${da('simpanOrgProfile')}>💾 Simpan Profil Organisasi</button>
     </div>
   </div>
 
@@ -57,7 +57,7 @@ function renderPengaturan(){
           <div class="hint">Kategori khusus tidak punya tarif tetap, nominal iurannya diisi langsung saat menambah/mengedit anggota</div>
         </div>
       </div>
-      <button class="btn" onclick="simpanTarif()">Simpan Tarif</button>
+      <button class="btn" ${da('simpanTarif')}>Simpan Tarif</button>
     </div>
   </div>
 
@@ -72,7 +72,7 @@ function renderPengaturan(){
         <div class="field"><label>Stok Kupon (lembar)</label><input id="kupon-stok" type="number" min="0" step="1" value="${s.kuponJalanSantai.stok||0}"></div>
       </div>
       <div class="hint">Terjual sejauh ini: <b>${totalKuponTerjual()}</b> lembar &middot; Sisa stok: <b>${Math.max(0, (s.kuponJalanSantai.stok||0) - totalKuponTerjual())}</b> lembar</div>
-      <button class="btn" onclick="simpanHargaKupon()">Simpan Harga &amp; Stok Kupon</button>
+      <button class="btn" ${da('simpanHargaKupon')}>Simpan Harga &amp; Stok Kupon</button>
     </div>
   </div>
 
@@ -100,12 +100,12 @@ function renderPengaturan(){
         </div>
       </div>
       <div class="settings-actions">
-        <button class="btn ${telegram.enabled ? 'danger' : 'success'} small" onclick="toggleTelegram()">
+        <button class="btn ${telegram.enabled ? 'danger' : 'success'} small" ${da('toggleTelegram')}>
           ${telegram.enabled ? '⛔ Nonaktifkan' : '✅ Aktifkan'}
         </button>
-        <button class="btn telegram small" onclick="testTelegram()">📨 Test Kirim</button>
+        <button class="btn telegram small" ${da('testTelegram')}>📨 Test Kirim</button>
         <span class="spacer"></span>
-        <button class="btn telegram" onclick="simpanTelegram()">💾 Simpan</button>
+        <button class="btn telegram" ${da('simpanTelegram')}>💾 Simpan</button>
       </div>
 
       <!-- KATEGORI NOTIFIKASI -->
@@ -140,7 +140,7 @@ function renderPengaturan(){
       <div class="field" style="margin-top:18px;">
         <div style="padding:10px 12px;background:var(--cream);border:1px solid var(--garis);border-radius:8px;font-size:13px;color:var(--ink-soft);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
           <span>🔔 ${getTelegramQueueCount()} notifikasi menunggu dikirim (gagal terkirim / kena Jam Tenang).</span>
-          <button class="btn secondary small" onclick="retryTelegramQueue()">🔄 Kirim Ulang Sekarang</button>
+          <button class="btn secondary small" ${da('retryTelegramQueue')}>🔄 Kirim Ulang Sekarang</button>
         </div>
       </div>` : ``}
     </div>
@@ -161,18 +161,18 @@ function renderPengaturan(){
             <span class="toggle-text">${esc(sectionLabel(s))}</span>
           </label>`).join('')}
       </div>
-      <button class="btn" style="margin-top:14px;" onclick="simpanGuestMenu()">💾 Simpan Akses Guest</button>
+      <button class="btn" style="margin-top:14px;" ${da('simpanGuestMenu')}>💾 Simpan Akses Guest</button>
     </div>
   </div>
 
   <div class="panel">
     <div class="panel-head">
       <div><h3>Manajemen Event</h3><div class="desc">Kelola event, aktifkan, atau buat event baru</div></div>
-      <button class="btn gold small" onclick="openEventModal()">+ Buat Event</button>
+      <button class="btn gold small" ${da('openEventModal')}>+ Buat Event</button>
     </div>
     <div class="panel-body flush events-table-wrap">
       <table class="general-table"><thead><tr><th>Nama</th><th>Tahun</th><th></th></tr></thead>
-      <tbody>${db.events.map(e=>`<tr><td>${esc(e.nama)}${e.id===db.activeEventId?' <span class="badge lunas">Aktif</span>':''}</td><td>${esc(e.tahun)}</td><td style="text-align:right;white-space:nowrap;">${e.id===db.activeEventId?'':`<button class="btn secondary small" onclick="setActiveEvent('${e.id}')">Aktifkan</button>`}<button class="icon-btn" onclick="openEventModal('${e.id}')" title="Ubah nama/tahun">✎</button><button class="icon-btn" onclick="hapusEvent('${e.id}')" title="Hapus event">🗑</button></td></tr>`).join('')||`<tr class="empty-row"><td colspan="3">Belum ada event.</td></tr>`}</tbody></table>
+      <tbody>${db.events.map(e=>`<tr><td>${esc(e.nama)}${e.id===db.activeEventId?' <span class="badge lunas">Aktif</span>':''}</td><td>${esc(e.tahun)}</td><td style="text-align:right;white-space:nowrap;">${e.id===db.activeEventId?'':`<button class="btn secondary small" ${da('setActiveEvent', e.id)}>Aktifkan</button>`}<button class="icon-btn" ${da('openEventModal', e.id)} title="Ubah nama/tahun">✎</button><button class="icon-btn" ${da('hapusEvent', e.id)} title="Hapus event">🗑</button></td></tr>`).join('')||`<tr class="empty-row"><td colspan="3">Belum ada event.</td></tr>`}</tbody></table>
     </div>
     <div class="panel-body events-mobile-wrap">
       <div class="jadwal-item-list">${db.events.map(e=>`
@@ -183,9 +183,9 @@ function renderPengaturan(){
           </div>
           <div class="lomba-detail-row"><span class="lbl">📅 Tahun</span><span class="val">${esc(e.tahun)}</span></div>
           <div class="jadwal-item-actions event-card-actions">
-            ${e.id===db.activeEventId?'':`<button class="btn secondary small" onclick="setActiveEvent('${e.id}')">Aktifkan</button>`}
-            <button class="icon-btn" onclick="openEventModal('${e.id}')" title="Ubah nama/tahun">✎</button>
-            <button class="icon-btn" onclick="hapusEvent('${e.id}')" title="Hapus event">🗑</button>
+            ${e.id===db.activeEventId?'':`<button class="btn secondary small" ${da('setActiveEvent', e.id)}>Aktifkan</button>`}
+            <button class="icon-btn" ${da('openEventModal', e.id)} title="Ubah nama/tahun">✎</button>
+            <button class="icon-btn" ${da('hapusEvent', e.id)} title="Hapus event">🗑</button>
           </div>
         </div>`).join('') || `<div class="empty-row" style="padding:30px;text-align:center;">Belum ada event.</div>`}</div>
     </div>
@@ -198,7 +198,7 @@ function renderPengaturan(){
         <div class="backup-desc">Berisi SEMUA event sekaligus. Impor akan <b>MENIMPA</b> seluruh data.</div>
       </div>
       <div class="backup-actions">
-        <button class="btn secondary" onclick="exportData()">⬇ Ekspor</button>
+        <button class="btn secondary" ${da('exportData')}>⬇ Ekspor</button>
         <label class="btn secondary">⬆ Impor (Timpa Semua)<input type="file" accept=".json" style="display:none;" onchange="importData(event)"></label>
       </div>
     </div>
@@ -208,7 +208,7 @@ function renderPengaturan(){
         <div class="backup-desc">Aman untuk disimpan per-kegiatan; saat diimpor akan dibuat sebagai <b>event baru</b>, tidak menimpa data lain.</div>
       </div>
       <div class="backup-actions">
-        <button class="btn secondary" onclick="exportDataEvent()" ${!activeEvent()?'disabled':''}>⬇ Ekspor</button>
+        <button class="btn secondary" ${da('exportDataEvent')} ${!activeEvent()?'disabled':''}>⬇ Ekspor</button>
         <label class="btn secondary" ${!activeEvent()?'style="opacity:.5;pointer-events:none;"':''}>⬆ Impor sebagai Event Baru<input type="file" accept=".json" style="display:none;" onchange="importDataEvent(event)"></label>
       </div>
     </div>
@@ -218,7 +218,7 @@ function renderPengaturan(){
         <div class="backup-desc">Inventaris + riwayat peminjaman. Data ini eventless, tidak ikut Backup Per-Event — tapi IKUT ke Backup Semua Data. Impor lewat sini akan <b>MENAMBAH</b> data, tidak menimpa (beda dari Impor Backup Semua Data yang MENIMPA).</div>
       </div>
       <div class="backup-actions">
-        <button class="btn secondary" onclick="gudangExportJSON()">⬇ Ekspor</button>
+        <button class="btn secondary" ${da('gudangExportJSON')}>⬇ Ekspor</button>
         <label class="btn secondary">⬆ Impor<input type="file" accept=".json" style="display:none;" onchange="gudangImportJSON(this)"></label>
       </div>
     </div>
@@ -228,7 +228,7 @@ function renderPengaturan(){
         <div class="backup-desc">Transaksi debit/kredit. Eventless, tidak ikut Backup Per-Event — tapi IKUT ke Backup Semua Data. Impor akan <b>MENAMBAH</b> data, tidak menimpa.</div>
       </div>
       <div class="backup-actions">
-        <button class="btn secondary" onclick="kasExportJSON()">⬇ Ekspor</button>
+        <button class="btn secondary" ${da('kasExportJSON')}>⬇ Ekspor</button>
         <label class="btn secondary">⬆ Impor<input type="file" accept=".json" style="display:none;" onchange="kasImportJSON(this)"></label>
       </div>
     </div>
@@ -238,7 +238,7 @@ function renderPengaturan(){
         <div class="backup-desc">Daftar anggota + rekap bayar bulanan. Eventless, tidak ikut Backup Per-Event — tapi IKUT ke Backup Semua Data. Impor akan <b>MENAMBAH</b> data, tidak menimpa.</div>
       </div>
       <div class="backup-actions">
-        <button class="btn secondary" onclick="danaSosialExportJSON()">⬇ Ekspor</button>
+        <button class="btn secondary" ${da('danaSosialExportJSON')}>⬇ Ekspor</button>
         <label class="btn secondary">⬆ Impor<input type="file" accept=".json" style="display:none;" onchange="danaSosialImportJSON(this)"></label>
       </div>
     </div>
@@ -248,7 +248,7 @@ function renderPengaturan(){
         <div class="backup-desc">Kumpulan link penting organisasi. Eventless, tidak ikut Backup Per-Event — tapi IKUT ke Backup Semua Data. Impor akan <b>MENAMBAH</b> data, tidak menimpa.</div>
       </div>
       <div class="backup-actions">
-        <button class="btn secondary" onclick="bookmarkExportJSON()">⬇ Ekspor</button>
+        <button class="btn secondary" ${da('bookmarkExportJSON')}>⬇ Ekspor</button>
         <label class="btn secondary">⬆ Impor<input type="file" accept=".json" style="display:none;" onchange="bookmarkImportJSON(this)"></label>
       </div>
     </div>
@@ -258,8 +258,8 @@ function renderPengaturan(){
         <div class="backup-desc">Riwayat semua toast merah/peringatan (⛔❌⚠) dari SEMUA perangkat/pengurus, disimpan di server — ${errorLogCloudLoaded ? errorLogCloud.length : '...'} tercatat${getErrorLogPendingCount() > 0 ? `, ${getErrorLogPendingCount()} lagi menunggu sinkron dari perangkat ini` : ''}. Bukan bagian dari data organisasi, murni bantuan diagnosis kalau ada masalah teknis; tidak ikut Backup Semua Data.</div>
       </div>
       <div class="backup-actions">
-        <button class="btn secondary" onclick="toastErrorLogExportJSON()">⬇ Ekspor</button>
-        <button class="btn secondary" onclick="toastErrorLogClear()">🗑 Hapus Log</button>
+        <button class="btn secondary" ${da('toastErrorLogExportJSON')}>⬇ Ekspor</button>
+        <button class="btn secondary" ${da('toastErrorLogClear')}>🗑 Hapus Log</button>
       </div>
     </div>
   </div>
@@ -634,7 +634,7 @@ function openEventModal(id){
       <div id="tema-swatch-list" style="display:flex; flex-wrap:wrap; gap:10px; margin-top:2px;">
         ${PRESET_TEMA.map(t=>{
           const active = eventTema(editing).key===t.key;
-          return `<div class="tema-swatch" data-key="${t.key}" onclick="selectTemaModal('${t.key}')" title="${esc(t.label)}"
+          return `<div class="tema-swatch" data-key="${t.key}" ${da('selectTemaModal', t.key)} title="${esc(t.label)}"
             style="width:32px; height:32px; border-radius:50%; background:${t.main}; cursor:pointer; display:flex; align-items:center; justify-content:center; border:3px solid ${active?'var(--ink)':'transparent'}; transition:border-color .15s ease;">
             ${active?'<span style="color:#fff; font-size:13px; font-weight:700;">✓</span>':''}
           </div>`;
@@ -659,8 +659,8 @@ function openEventModal(id){
       <label>Fitur yang Dipakai</label>
       <div class="field-hint" style="margin:-2px 0 8px; color:var(--ink-soft); font-size:12.5px;">Nonaktifkan modul yang tidak dipakai supaya menu lebih ringkas. Iuran, Buku Kegiatan & LPJ selalu aktif.</div>
       <div style="display:flex; gap:8px; margin-bottom:10px;">
-        <button type="button" class="btn secondary small" onclick="setFiturModalPreset('lengkap')">Pilih Semua (Lengkap)</button>
-        <button type="button" class="btn secondary small" onclick="setFiturModalPreset('sederhana')">Hanya Iuran & LPJ</button>
+        <button type="button" class="btn secondary small" ${da('setFiturModalPreset', 'lengkap')}>Pilih Semua (Lengkap)</button>
+        <button type="button" class="btn secondary small" ${da('setFiturModalPreset', 'sederhana')}>Hanya Iuran & LPJ</button>
       </div>
       <div id="fitur-opsional-list" style="display:flex; flex-direction:column; gap:6px;">
         ${FITUR_OPSIONAL.map(f=>`

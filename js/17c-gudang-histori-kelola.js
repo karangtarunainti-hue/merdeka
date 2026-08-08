@@ -28,7 +28,7 @@ function renderGudangHistori(){
       <td>${itemsText}</td>
       <td>${fmtGudangTanggal(t.tglPinjam)} → ${fmtGudangTanggal(t.tglKembali)}</td>
       <td>${statusCell}</td>
-      <td><button type="button" class="btn secondary small" onclick="gudangShowNota('${t.id}')">🧾 Lihat Nota</button></td>
+      <td><button type="button" class="btn secondary small" ${da('gudangShowNota', t.id)}>🧾 Lihat Nota</button></td>
     </tr>`;
   }).join('');
 
@@ -39,7 +39,7 @@ function renderGudangHistori(){
   <div class="panel">
     <div class="panel-head">
       <div><h3>Log Peminjaman</h3><div class="desc">${canKelola?'Ubah status transaksi lewat dropdown.':'Hanya admin yang dapat mengubah status transaksi.'}</div></div>
-      ${canKelola?`<button class="btn secondary small" style="border-color:var(--merah); color:var(--merah);" onclick="gudangDeleteAllHistory()">🗑️ Hapus Riwayat Selesai</button>`:''}
+      ${canKelola?`<button class="btn secondary small" style="border-color:var(--merah); color:var(--merah);" ${da('gudangDeleteAllHistory')}>🗑️ Hapus Riwayat Selesai</button>`:''}
     </div>
     <div class="panel-body">
       <div class="filter-row">
@@ -186,14 +186,14 @@ function renderGudangKelola(){
   const rows = filtered.map(i=>{
     const namaLabel = i.isActive ? esc(i.nama) : `${esc(i.nama)} <span class="badge readonly">Nonaktif</span>`;
     const actionBtn = i.isActive
-      ? `<button class="icon-btn" title="Nonaktifkan" onclick="gudangDeleteStok('${i.id}')">🗑</button>`
-      : `<button class="icon-btn" title="Aktifkan kembali" onclick="gudangAktifkanStok('${i.id}')">↺</button>`;
+      ? `<button class="icon-btn" title="Nonaktifkan" ${da('gudangDeleteStok', i.id)}>🗑</button>`
+      : `<button class="icon-btn" title="Aktifkan kembali" ${da('gudangAktifkanStok', i.id)}>↺</button>`;
     return `<tr>
       <td>${namaLabel}</td>
       <td><span class="badge">${esc(i.gudang)}</span></td>
       <td class="num ${gudangStokBadgeClass(i.tersedia,i.total)}">${i.tersedia}</td>
       <td class="num">${i.total}</td>
-      <td style="white-space:nowrap;"><button class="icon-btn" title="Edit" onclick="openGudangStokModal('${i.id}')">✎</button>${actionBtn}</td>
+      <td style="white-space:nowrap;"><button class="icon-btn" title="Edit" ${da('openGudangStokModal', i.id)}>✎</button>${actionBtn}</td>
     </tr>`;
   }).join('');
 
@@ -206,7 +206,7 @@ function renderGudangKelola(){
   <div class="panel">
     <div class="panel-head">
       <div><h3>Inventory Terkini</h3><div class="desc">Export/import cadangan data Gudang kini terpusat di menu Pengaturan &gt; Cadangan Data.</div></div>
-      <button class="btn" onclick="openGudangStokModal()">+ Tambah Aset</button>
+      <button class="btn" ${da('openGudangStokModal')}>+ Tambah Aset</button>
     </div>
     <div class="panel-body">
       <div class="filter-row">

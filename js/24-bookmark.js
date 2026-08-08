@@ -39,8 +39,8 @@ function renderBookmark(){
       <div class="bookmark-card-top">
         <div class="bookmark-badge">${esc(monogram)}</div>
         <div class="bookmark-card-actions">
-          <button class="icon-btn" onclick="openBookmarkModal('${b.id}')" ${!canEdit ? 'disabled' : ''} title="Edit">✎</button>
-          <button class="icon-btn" onclick="hapusBookmark('${b.id}')" ${!canEdit ? 'disabled' : ''} title="Hapus">🗑</button>
+          <button class="icon-btn" ${da('openBookmarkModal', b.id)} ${!canEdit ? 'disabled' : ''} title="Edit">✎</button>
+          <button class="icon-btn" ${da('hapusBookmark', b.id)} ${!canEdit ? 'disabled' : ''} title="Hapus">🗑</button>
         </div>
       </div>
       <div class="bookmark-card-title">${esc(b.judul)}</div>
@@ -57,7 +57,7 @@ function renderBookmark(){
     <div class="panel-head">
       <div><h3>🔗 Tautan Penting</h3>
       <div class="desc">Link penting organisasi — grup WA, form, rekening, dsb</div></div>
-      ${canEdit ? `<button class="btn" onclick="openBookmarkModal()">+ Tambah Tautan</button>` : ''}
+      ${canEdit ? `<button class="btn" ${da('openBookmarkModal')}>+ Tambah Tautan</button>` : ''}
     </div>
     <div class="panel-body">
       ${list.length ? `<div class="bookmark-grid">${cards}</div>` : `<div class="empty-row" style="padding:30px;text-align:center;">Belum ada tautan. ${isLoggedIn ? 'Tambahkan tautan penting supaya mudah diakses semua orang.' : 'Login untuk menambah tautan.'}</div>`}

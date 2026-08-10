@@ -55,10 +55,78 @@ function renderDashboard(){
       <div class="stat-grid" style="margin-bottom:0;">${pemasukanItems.map(bukuCardHtml).join('')}</div>
     </div>
   </div>
+  ${kuponJalanPanelHtml()}
   <div class="panel">
     <div class="panel-head"><div><h3>Rincian Pengeluaran</h3><div class="desc">Klik card untuk lihat rincian</div></div></div>
     <div class="panel-body">
       <div class="stat-grid" style="margin-bottom:0;">${pengeluaranItems.map(bukuCardHtml).join('')}</div>
+    </div>
+  </div>`;
+}
+
+// Panel "Kupon Jalan Santai" di Buku Kegiatan — nunjukin sisa stok kupon
+// (dari kt_settings.kuponJalanSantai.stok) & laporan ringkas kupon yang sudah
+// terjual (dihitung dari kolom kuponqty di db.transaksiLain, lihat
+// totalKuponTerjual() di js/09-donatur-transaksi-operasional.js). Hanya
+// tampil kalau menu Pemasukan Lain aktif & fitur kupon sudah diatur admin
+// (harga atau stok > 0), supaya tidak numpuk buat event yang tidak pakai
+// kupon jalan santai.
+function kuponJalanPanelHtml(){
+  if (!isMenuAktif('transaksi')) return '';
+  const s = getSettings();
+  const kj = s.kuponJalanSantai || {harga:0, stok:0};
+  const harga = Number(kj.harga||0);
+  const stok = Number(kj.stok||0);
+  if (harga<=0 && stok<=0) return ''; // fitur belum diatur, jangan tampilkan panel kosong
+
+  const terjual = totalKuponTerjual();
+  const sisa = stok>0 ? Math.max(0, stok - terjual) : null;
+  const pendapatan = terjual * harga;
+  const isLowStock = stok>0 && sisa!==null && sisa <= Math.ceil(stok*0.1);
+
+  const sisaCard = stok>0 ? `
+    <div class="stat-card${isLowStock ? ' stok-lebih' : ''}">
+      <div class="lbl">Sisa Stok Kupon</div>
+      <div class="val">${sisa} lembar</div>
+      <div style="font-size:11px;color:var(--ink-soft);margin-top:4px;">dari ${stok} lembar dicetak${isLowStock ? ' · ⚠️ hampir habis' : ''}</div>
+    </div>` : `
+    <div class="stat-card">
+      <div class="lbl">Sisa Stok Kupon</div>
+      <div class="val">Tak terbatas</div>
+      <div style="font-size:11px;color:var(--ink-soft);margin-top:4px;">stok belum diatur di Pengaturan</div>
+    </div>`;
+
+  const rows = gTransaksiLain()
+    .filter(t => Number(t.kuponqty||0) > 0)
+    .sort((a,b) => new Date(b.tanggal) - new Date(a.tanggal));
+  const recentRows = rows.slice(0, 5);
+  const isOpen = openBukuCards.has('kupon-laporan');
+  const laporanCard = `<div class="stat-card buku-card ${isOpen?'open':''}" ${da('toggleBukuCard','kupon-laporan')} style="cursor:pointer;">
+    <div class="lbl" style="display:flex;justify-content:space-between;align-items:center;gap:6px;">
+      <span>Kupon Terjual</span><span style="font-size:10px;color:var(--ink-soft);">${isOpen?'▲':'▼'}</span>
+    </div>
+    <div class="val">${terjual} lembar</div>
+    <div style="font-size:11px;color:var(--ink-soft);margin-top:4px;">${fmtRp(pendapatan)} pendapatan</div>
+    ${isOpen ? `<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--garis);font-size:12.5px;color:var(--ink-soft);" onclick="event.stopPropagation();">
+      ${recentRows.length ? recentRows.map(t => `
+        <div style="display:flex;justify-content:space-between;gap:8px;padding:3px 0;">
+          <span>${fmtDateShort(t.tanggal)} · ${t.kuponqty} lembar</span>
+          <span>${fmtRp(t.jumlah)}</span>
+        </div>`).join('') : '<div>Belum ada penjualan kupon tercatat.</div>'}
+      ${rows.length > recentRows.length ? `<div style="margin-top:4px;">+${rows.length - recentRows.length} transaksi lainnya</div>` : ''}
+      <div style="margin-top:8px;">
+        ${(!getCurrentUser() && !isGuestVisible('transaksi'))
+          ? `<button class="btn secondary small" disabled title="Hanya bisa dilihat setelah login">🔒 Lihat Selengkapnya</button>`
+          : `<button class="btn secondary small" ${da('goSection','transaksi')}>Lihat Selengkapnya →</button>`}
+      </div>
+    </div>` : ''}
+  </div>`;
+
+  return `
+  <div class="panel">
+    <div class="panel-head"><div><h3>🎟️ Kupon Jalan Santai</h3><div class="desc">Sisa stok & laporan penjualan kupon</div></div></div>
+    <div class="panel-body">
+      <div class="stat-grid" style="margin-bottom:0;">${sisaCard}${laporanCard}</div>
     </div>
   </div>`;
 }
@@ -207,6 +275,31 @@ function generateReminders(){
       items: [{label: 'Item:', value: stokKurang.length > 3 ? `${labels} +${stokKurang.length-3} lagi` : labels}],
       action: {label: 'Cek Stok →', link: 'hadiah'}
     });
+  }
+
+  // Kupon Jalan Santai hampir/sudah habis — cuma dicek kalau fiturnya
+  // memang dipakai (stok diatur admin di Pengaturan, lihat kuponJalanPanelHtml
+  // di bawah untuk panel lengkapnya di Buku Kegiatan).
+  if (isMenuAktif('transaksi')) {
+    const sKupon = getSettings().kuponJalanSantai || {harga:0, stok:0};
+    const stokKupon = Number(sKupon.stok||0);
+    if (stokKupon > 0) {
+      const terjualKupon = totalKuponTerjual();
+      const sisaKupon = Math.max(0, stokKupon - terjualKupon);
+      if (sisaKupon <= Math.ceil(stokKupon*0.1)) {
+        reminders.push({
+          type: sisaKupon <= 0 ? 'danger' : 'warning',
+          icon: '🎟️',
+          title: sisaKupon <= 0 ? 'Stok Kupon Jalan Santai Habis' : 'Stok Kupon Jalan Santai Menipis',
+          count: sisaKupon,
+          items: [
+            {label: 'Sisa Stok:', value: `${sisaKupon} dari ${stokKupon} lembar`, valueClass: sisaKupon<=0?'danger':'warning'},
+            {label: 'Terjual:', value: `${terjualKupon} lembar`}
+          ],
+          action: {label: 'Kelola Kupon →', link: 'transaksi'}
+        });
+      }
+    }
   }
 
   const belumBayar = gAnggota().filter(a => a.status === 'belum_lunas');

@@ -14,7 +14,7 @@ function bukuCardHtml(item){
       <span>${item.label}</span><span style="font-size:10px;color:var(--ink-soft);">${isOpen?'▲':'▼'}</span>
     </div>
     <div class="val">${fmtRp(item.value)}</div>
-    ${isOpen ? `<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--garis);font-size:12.5px;color:var(--ink-soft);" onclick="event.stopPropagation();">
+    ${isOpen ? `<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--garis);font-size:12.5px;color:var(--ink-soft);">
       <div style="margin-bottom:8px;">${item.info}</div>
       ${guestBlocked
         ? `<button class="btn secondary small" disabled title="Hanya bisa dilihat setelah login">🔒 Lihat Selengkapnya</button>`
@@ -107,7 +107,7 @@ function kuponJalanPanelHtml(){
     </div>
     <div class="val">${terjual} lembar</div>
     <div style="font-size:11px;color:var(--ink-soft);margin-top:4px;">${fmtRp(pendapatan)} pendapatan</div>
-    ${isOpen ? `<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--garis);font-size:12.5px;color:var(--ink-soft);" onclick="event.stopPropagation();">
+    ${isOpen ? `<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--garis);font-size:12.5px;color:var(--ink-soft);">
       ${recentRows.length ? recentRows.map(t => `
         <div style="display:flex;justify-content:space-between;gap:8px;padding:3px 0;">
           <span>${fmtDateShort(t.tanggal)} · ${t.kuponqty} lembar</span>

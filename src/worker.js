@@ -166,8 +166,9 @@ async function handleTelegram(request, env) {
 const WA_HELP_TEXT =
   'Halo! Ketik salah satu perintah ini:\n\n' +
   '📅 *agenda* — jadwal 14 hari ke depan\n' +
-  '💰 *keuangan* — ringkasan kas kegiatan\n\n' +
-  'Ketik salah satu kata di atas untuk mulai.';
+  '💰 *keuangan* — ringkasan kas kegiatan\n' +
+  '🏆 *hadiah juara <1/2/3/partisipasi> lomba <kategori>* — cek isi paket hadiah\n\n' +
+  'Contoh: "hadiah juara 1 lomba anak-anak"';
 
 function waFmtRp(n) {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(
@@ -221,6 +222,56 @@ async function waBuildKeuanganReply(env) {
   );
 }
 
+// Kata kunci -> nilai persis KATEGORI_PESERTA/JUARA_LIST (lihat js/00-config.js).
+// Pencocokan sengaja bebas urutan & permisif (banyak alias) supaya pertanyaan
+// natural seperti "hadiah juara pertama lomba anak-anak" tetap kena, tanpa
+// perlu AI/NLP — murni keyword matching, jadi tetap gratis.
+const WA_KATEGORI_ALIAS = [
+  { v: 'anak', keys: ['anak-anak', 'anak', 'balita'] },
+  { v: 'remaja', keys: ['remaja', 'pemuda', 'pemudi'] },
+  { v: 'bapak-ibu', keys: ['bapak-ibu', 'bapak ibu', 'keluarga'] },
+  { v: 'bapak-bapak', keys: ['bapak-bapak', 'bapak bapak', 'bapak'] },
+  { v: 'ibu', keys: ['ibu-ibu', 'ibu'] },
+  { v: 'umum', keys: ['umum'] },
+];
+const WA_JUARA_ALIAS = [
+  { v: '1', keys: ['juara 1', 'juara pertama', 'juara i', 'pertama'] },
+  { v: '2', keys: ['juara 2', 'juara kedua', 'juara ii', 'kedua'] },
+  { v: '3', keys: ['juara 3', 'juara ketiga', 'juara iii', 'ketiga'] },
+  { v: 'partisipasi', keys: ['partisipasi', 'peserta'] },
+];
+
+function waExtractKategoriJuara(text) {
+  const t = (text || '').toLowerCase();
+  const kategori = WA_KATEGORI_ALIAS.find((k) => k.keys.some((kw) => t.includes(kw)));
+  const juara = WA_JUARA_ALIAS.find((j) => j.keys.some((kw) => t.includes(kw)));
+  return { kategori: kategori ? kategori.v : null, juara: juara ? juara.v : null };
+}
+
+function waLabelKategori(v) {
+  return { anak: 'Anak-Anak', remaja: 'Remaja', ibu: 'Ibu', 'bapak-ibu': 'Bapak-Ibu', 'bapak-bapak': 'Bapak-Bapak', umum: 'Umum' }[v] || v;
+}
+function waLabelJuara(v) {
+  return { '1': 'Juara 1', '2': 'Juara 2', '3': 'Juara 3', partisipasi: 'Partisipasi' }[v] || v;
+}
+
+async function waBuildHadiahLombaReply(env, text) {
+  const { kategori, juara } = waExtractKategoriJuara(text);
+  if (!kategori || !juara) {
+    return (
+      '🏆 Mau cek hadiah lomba kategori & juara berapa?\n\n' +
+      'Contoh: "hadiah juara 1 lomba anak-anak" atau "hadiah juara 2 remaja"\n\n' +
+      'Kategori: anak-anak, remaja, ibu, bapak-bapak, bapak-ibu, umum\n' +
+      'Juara: 1/pertama, 2/kedua, 3/ketiga, partisipasi'
+    );
+  }
+  const rows = await waCallRpc(env, 'rpc_wa_hadiah_lomba', { p_kategori: kategori, p_juara: juara });
+  const judul = `🏆 *Hadiah ${waLabelJuara(juara)} — ${waLabelKategori(kategori)}*`;
+  if (!rows.length) return `${judul}\n\nBelum ada paket hadiah untuk kombinasi ini.`;
+  const lines = rows.map((r) => `• ${r.nama_item} (${r.qty_dibeli}/${r.qty_per_paket} sudah dibeli)`);
+  return `${judul}\n\n${lines.join('\n')}`;
+}
+
 async function waSendMessage(env, to, body) {
   await fetch(`https://graph.facebook.com/v20.0/${env.WHATSAPP_PHONE_NUMBER_ID}/messages`, {
     method: 'POST',
@@ -239,6 +290,7 @@ async function waSendMessage(env, to, body) {
 
 function waRouteCommand(text) {
   const t = (text || '').trim().toLowerCase();
+  if (['hadiah', 'lomba'].some((k) => t.includes(k))) return 'hadiah';
   if (['agenda', 'jadwal'].some((k) => t.includes(k))) return 'agenda';
   if (['keuangan', 'kas', 'saldo', 'laporan'].some((k) => t.includes(k))) return 'keuangan';
   return 'help';
@@ -281,6 +333,7 @@ async function handleWhatsAppMessage(request, env, ctx) {
       let body;
       if (command === 'agenda') body = await waBuildAgendaReply(env);
       else if (command === 'keuangan') body = await waBuildKeuanganReply(env);
+      else if (command === 'hadiah') body = await waBuildHadiahLombaReply(env, text);
       else body = WA_HELP_TEXT;
       await waSendMessage(env, from, body);
     } catch (e) {

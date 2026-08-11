@@ -144,12 +144,171 @@ async function handleTelegram(request, env) {
   }
 }
 
+/* ============================================================
+   BOT WHATSAPP — command-based, memanfaatkan Service Window
+   ============================================================
+   Anggota chat duluan ke nomor bot -> Meta buka jendela servis
+   24 jam -> balasan bot di dalam jendela itu gratis (tidak kena
+   biaya per-pesan template Meta).
+
+   SETUP SEKALI (selain TELEGRAM_BOT_TOKEN yang sudah ada):
+     npx wrangler secret put WHATSAPP_TOKEN
+     npx wrangler secret put WHATSAPP_PHONE_NUMBER_ID
+     npx wrangler secret put WHATSAPP_VERIFY_TOKEN
+   Lalu di Meta for Developers > WhatsApp > Configuration, isi
+   Callback URL = https://<domain-kalian>/api/whatsapp/webhook
+   dan Verify Token = nilai yang sama dengan WHATSAPP_VERIFY_TOKEN.
+
+   Sebelum ini jalan, jalankan dulu sql/whatsapp_wa_rpc.sql di
+   Supabase SQL Editor.
+   ============================================================ */
+
+const WA_HELP_TEXT =
+  'Halo! Ketik salah satu perintah ini:\n\n' +
+  '📅 *agenda* — jadwal 14 hari ke depan\n' +
+  '💰 *keuangan* — ringkasan kas kegiatan\n\n' +
+  'Ketik salah satu kata di atas untuk mulai.';
+
+function waFmtRp(n) {
+  return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(
+    Number(n) || 0
+  );
+}
+
+function waFmtTanggal(iso) {
+  if (!iso) return '-';
+  return new Date(iso + 'T00:00:00').toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short' });
+}
+
+// Panggil RPC Supabase pakai anon key — sama seperti klien, tanpa
+// perlu sesi login (RPC ini SECURITY DEFINER, read-only, agregat saja).
+async function waCallRpc(env, fn, args = {}) {
+  const res = await fetch(`${env.SUPABASE_URL}/rest/v1/rpc/${fn}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      apikey: env.SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${env.SUPABASE_ANON_KEY}`,
+    },
+    body: JSON.stringify(args),
+  });
+  if (!res.ok) throw new Error(`RPC ${fn} gagal: ${res.status}`);
+  return res.json();
+}
+
+async function waBuildAgendaReply(env) {
+  const rows = await waCallRpc(env, 'rpc_wa_agenda');
+  if (!rows.length) return '📅 Tidak ada agenda dalam 14 hari ke depan.';
+  const lines = rows.map(
+    (j) => `• ${waFmtTanggal(j.tanggal)}${j.jam ? ' ' + j.jam : ''} — ${j.judul}`
+  );
+  return `📅 *Agenda 14 Hari ke Depan*\n\n${lines.join('\n')}`;
+}
+
+async function waBuildKeuanganReply(env) {
+  const rows = await waCallRpc(env, 'rpc_wa_laporan_keuangan');
+  if (!rows.length) return '💰 Belum ada data event.';
+  const r = rows[0];
+  return (
+    `💰 *Ringkasan Kas — ${r.nama_event}*\n\n` +
+    `Iuran (lunas): ${waFmtRp(r.total_iuran)}\n` +
+    `Donasi: ${waFmtRp(r.total_donasi)}\n` +
+    `Transaksi lain: ${waFmtRp(r.total_transaksi_lain)}\n` +
+    `*Total Pemasukan: ${waFmtRp(r.total_pemasukan)}*\n\n` +
+    `Operasional: ${waFmtRp(r.total_operasional)}\n\n` +
+    `*Saldo: ${waFmtRp(r.saldo)}*\n\n` +
+    `_Belum termasuk belanja hadiah/lomba — cek dashboard untuk rincian lengkap._`
+  );
+}
+
+async function waSendMessage(env, to, body) {
+  await fetch(`https://graph.facebook.com/v20.0/${env.WHATSAPP_PHONE_NUMBER_ID}/messages`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${env.WHATSAPP_TOKEN}`,
+    },
+    body: JSON.stringify({
+      messaging_product: 'whatsapp',
+      to,
+      type: 'text',
+      text: { body },
+    }),
+  });
+}
+
+function waRouteCommand(text) {
+  const t = (text || '').trim().toLowerCase();
+  if (['agenda', 'jadwal'].some((k) => t.includes(k))) return 'agenda';
+  if (['keuangan', 'kas', 'saldo', 'laporan'].some((k) => t.includes(k))) return 'keuangan';
+  return 'help';
+}
+
+function handleWhatsAppVerify(request, env) {
+  const url = new URL(request.url);
+  const mode = url.searchParams.get('hub.mode');
+  const token = url.searchParams.get('hub.verify_token');
+  const challenge = url.searchParams.get('hub.challenge');
+  if (mode === 'subscribe' && token === env.WHATSAPP_VERIFY_TOKEN) {
+    return new Response(challenge, { status: 200 });
+  }
+  return new Response('Verifikasi gagal', { status: 403 });
+}
+
+async function handleWhatsAppMessage(request, env, ctx) {
+  let payload;
+  try {
+    payload = await request.json();
+  } catch {
+    return new Response('Bad Request', { status: 400 });
+  }
+
+  // Meta mengirim status delivery/read juga lewat webhook yang sama —
+  // itu tidak punya field "messages", jadi cukup di-ack tanpa diproses.
+  const message = payload?.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
+  if (!message || message.type !== 'text') {
+    return json({ ok: true });
+  }
+
+  const from = message.from; // nomor pengirim, sudah termasuk kode negara
+  const text = message.text?.body || '';
+  const command = waRouteCommand(text);
+
+  // Balas di background (waitUntil) supaya webhook langsung ack ke Meta
+  // (Meta akan retry & bisa nge-flag endpoint kalau responnya lambat).
+  const reply = (async () => {
+    try {
+      let body;
+      if (command === 'agenda') body = await waBuildAgendaReply(env);
+      else if (command === 'keuangan') body = await waBuildKeuanganReply(env);
+      else body = WA_HELP_TEXT;
+      await waSendMessage(env, from, body);
+    } catch (e) {
+      console.error('Gagal proses pesan WA:', e);
+      try {
+        await waSendMessage(env, from, 'Maaf, terjadi kesalahan saat mengambil data. Coba lagi nanti.');
+      } catch {}
+    }
+  })();
+
+  if (ctx?.waitUntil) ctx.waitUntil(reply);
+  else await reply;
+
+  return json({ ok: true });
+}
+
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
 
     if (url.pathname === '/api/telegram') {
       return handleTelegram(request, env);
+    }
+
+    if (url.pathname === '/api/whatsapp/webhook') {
+      if (request.method === 'GET') return handleWhatsAppVerify(request, env);
+      if (request.method === 'POST') return handleWhatsAppMessage(request, env, ctx);
+      return new Response('Method not allowed', { status: 405 });
     }
 
     // Endpoint kesehatan untuk uptime monitor (lihat §13 audit).

@@ -163,7 +163,12 @@ function defaultDB(){
     dokumenGlobal: { undangan:{}, proposal:{}, absensi:{} },
     // Profil Organisasi (nama, logo, nama buku kas) — satu baris global, sama
     // seperti telegram/guestMenu (id='main'). Lihat DEFAULT_ORG_PROFILE & getOrgProfil().
-    orgProfile: { ...DEFAULT_ORG_PROFILE }
+    orgProfile: { ...DEFAULT_ORG_PROFILE },
+    // Pengaturan Bot WhatsApp — satu baris global (id='main'), sama seperti
+    // telegram/orgProfile. Hanya toggle enabled + nomor yang DITAMPILKAN ke
+    // anggota (bukan token — token tetap secret Cloudflare, lihat
+    // supabase-whatsapp-settings-migration.sql).
+    whatsapp: { enabled: false, nomorTampilan: '' }
   };
 }
 
@@ -272,7 +277,7 @@ async function loadDB(){
     // ada 403 percuma di console tiap kali app dibuka — halaman Manajemen
     // User sendiri sudah fetch ulang datanya sendiri saat dibuka/diubah.
     const usersCall = isAdmin() ? sb.rpc('rpc_list_users') : Promise.resolve({data:null, error:null});
-    const [arrayResults, settingsRes, telegramRes, usersRes, guestMenuRes, dokumenGlobalRes, orgProfileRes] = await Promise.all([
+    const [arrayResults, settingsRes, telegramRes, usersRes, guestMenuRes, dokumenGlobalRes, orgProfileRes, whatsappRes] = await Promise.all([
       Promise.all(entries.map(([, table]) => sb.from(table).select('*'))),
       sb.from('kt_settings').select('*'),
       sb.from('kt_telegram_settings').select('*').eq('id', 'main').maybeSingle(),
@@ -280,6 +285,7 @@ async function loadDB(){
       sb.from('kt_guest_menu_settings').select('*').eq('id', 'main').maybeSingle(),
       sb.from('kt_dokumen_global').select('*').eq('id', 'main').maybeSingle(),
       sb.from('kt_organisasi_profil').select('*').eq('id', 'main').maybeSingle(),
+      sb.from('kt_whatsapp_settings').select('*').eq('id', 'main').maybeSingle(),
     ]);
 
     const failedTables = [];
@@ -391,6 +397,17 @@ async function loadDB(){
       // sama sekali) — dipakai syncOrgProfile() untuk deteksi konflik singleton row,
       // sama seperti _lastKnownTelegramUpdatedAt dkk.
       _lastKnownOrgProfileUpdatedAt = orgProfileRes.data ? (orgProfileRes.data.updated_at || null) : null;
+    }
+
+    if(whatsappRes.error){ console.error('Gagal memuat kt_whatsapp_settings:', whatsappRes.error); }
+    else{
+      if(whatsappRes.data){
+        result.whatsapp = {
+          enabled: !!whatsappRes.data.enabled,
+          nomorTampilan: whatsappRes.data.nomor_tampilan || '',
+        };
+      }
+      _lastKnownWhatsappUpdatedAt = whatsappRes.data ? (whatsappRes.data.updated_at || null) : null;
     }
 
     result.activeEventId = localStorage.getItem('kt_active_event') || (result.events[0] ? result.events[0].id : null);
@@ -695,6 +712,20 @@ async function syncOrgProfile(){
   return r.conflict ? [r.conflict] : [];
 }
 
+// Pengaturan Bot WhatsApp (toggle + nomor tampilan) — satu baris global,
+// sama seperti kt_telegram_settings/kt_organisasi_profil (id='main').
+// Token WA TIDAK ada di sini (tetap secret Cloudflare) — lihat
+// supabase-whatsapp-settings-migration.sql.
+let _lastKnownWhatsappUpdatedAt = null;
+async function syncWhatsappSettings(){
+  const r = await _syncSingletonRow('kt_whatsapp_settings', 'Pengaturan WhatsApp', {
+    id: 'main',
+    enabled: db.whatsapp ? !!db.whatsapp.enabled : false,
+    nomor_tampilan: (db.whatsapp && db.whatsapp.nomorTampilan) || '',
+  }, _lastKnownWhatsappUpdatedAt, v => { _lastKnownWhatsappUpdatedAt = v; });
+  return r.conflict ? [r.conflict] : [];
+}
+
 // saveDB() dipanggil di puluhan tempat setiap ada perubahan kecil. Sebelumnya setiap panggilan
 // langsung melakukan sync PENUH (select+upsert+delete-diff) ke 15+ tabel sekaligus, dan bisa
 // berjalan paralel tanpa lock kalau dipanggil beruntun cepat (race condition antar sync).
@@ -775,15 +806,17 @@ async function _flushSaveDB(){
       syncGuestMenu(),
       syncDokumenGlobal(),
       syncOrgProfile(),
+      syncWhatsappSettings(),
     ]);
     const level2Results = await Promise.all(level2Entries.map(([key, table]) => syncArrayTable(table, db[key], key)));
     const level3Results = await Promise.all(level3Entries.map(([key, table]) => syncArrayTable(table, db[key], key)));
 
     // Hasil konflik dari 'events' (disimpan terpisah di atas) digabung dengan hasil
     // dari semua level lainnya. syncSettings/syncTelegram/syncGuestMenu/syncDokumenGlobal/
-    // syncOrgProfile sekarang juga mengembalikan daftar konflik (array kosong kalau tidak ada) seperti
-    // syncArrayTable, jadi seluruh isi level1Results (termasuk 4 fungsi settings di akhir
-    // array Promise.all di atas) ikut dipakai langsung tanpa perlu di-slice lagi.
+    // syncOrgProfile/syncWhatsappSettings sekarang juga mengembalikan daftar konflik (array
+    // kosong kalau tidak ada) seperti syncArrayTable, jadi seluruh isi level1Results (termasuk
+    // 5 fungsi settings di akhir array Promise.all di atas) ikut dipakai langsung tanpa perlu
+    // di-slice lagi.
     const arrayConflictResults = [
       ...level1Results,
       ...level2Results,

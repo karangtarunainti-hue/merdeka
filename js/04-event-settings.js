@@ -170,6 +170,31 @@ function saveTelegramSettings(settings){
   saveDB();
 }
 
+/* ============================================================
+   PENGATURAN BOT WHATSAPP (UI-only: toggle + nomor tampilan)
+   ============================================================
+   Beda dari Telegram, bot ini TIDAK punya token/chat-id yang
+   disimpan lewat app — token WhatsApp hidup sepenuhnya sebagai
+   secret Cloudflare (WHATSAPP_TOKEN dkk, lihat src/worker.js).
+   Yang diatur di sini cuma dua hal ringan: aktif/nonaktif (murni
+   penanda visual buat pengurus, tidak benar-benar mematikan
+   webhook — matikan sungguhan tetap lewat Meta dashboard/secret)
+   dan nomor yang ditampilkan ke anggota (dipakai di link wa.me
+   pada pengumuman, dsb).
+   ============================================================ */
+function getWhatsappSettings(){
+  const w = db.whatsapp || {};
+  return {
+    enabled: !!w.enabled,
+    nomorTampilan: w.nomorTampilan || '',
+  };
+}
+
+function saveWhatsappSettings(settings){
+  db.whatsapp = settings;
+  saveDB();
+}
+
 /* ------------------------------------------------------------
    KEANDALAN: retry otomatis + antrian offline
    ------------------------------------------------------------

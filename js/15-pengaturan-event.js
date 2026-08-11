@@ -11,6 +11,7 @@ function renderPengaturan(){
   
   const s = getSettings();
   const telegram = getTelegramSettings();
+  const whatsapp = getWhatsappSettings();
   const org = getOrgProfil();
   
   return `
@@ -143,6 +144,39 @@ function renderPengaturan(){
           <button class="btn secondary small" ${da('retryTelegramQueue')}>🔄 Kirim Ulang Sekarang</button>
         </div>
       </div>` : ``}
+    </div>
+  </div>
+
+  <!-- WHATSAPP BOT SETTINGS -->
+  <div class="panel">
+    <div class="panel-head">
+      <div><h3>💬 WhatsApp Bot</h3><div class="desc">Anggota chat ke nomor bot untuk cek agenda &amp; keuangan otomatis (lewat Service Window WhatsApp, gratis)</div></div>
+      <span class="status-pill ${whatsapp.enabled ? 'on' : 'off'}"><span class="status-dot"></span>${whatsapp.enabled ? 'Aktif' : 'Nonaktif'}</span>
+    </div>
+    <div class="panel-body">
+      <div class="field-row">
+        <div class="field field-icon">
+          <label>Token &amp; Webhook</label>
+          <span class="field-icon-glyph">🔐</span>
+          <input type="text" value="Tersimpan aman di server" disabled>
+          <div class="hint">Token WhatsApp diatur sekali sebagai secret Cloudflare, tidak lewat app:
+            <code>npx wrangler secret put WHATSAPP_TOKEN</code></div>
+        </div>
+        <div class="field field-icon">
+          <label>Nomor WA yang Ditampilkan</label>
+          <span class="field-icon-glyph">📱</span>
+          <input id="whatsapp-nomor" type="text" value="${esc(whatsapp.nomorTampilan||'')}" placeholder="Contoh: 6281234567890">
+          <div class="hint">Dipakai untuk link wa.me di pengumuman — pakai kode negara, tanpa spasi/tanda plus</div>
+        </div>
+      </div>
+      <div class="settings-actions">
+        <button class="btn ${whatsapp.enabled ? 'danger' : 'success'} small" ${da('toggleWhatsapp')}>
+          ${whatsapp.enabled ? '⛔ Tandai Nonaktif' : '✅ Tandai Aktif'}
+        </button>
+        <span class="spacer"></span>
+        <button class="btn telegram" ${da('simpanWhatsapp')}>💾 Simpan</button>
+      </div>
+      <div class="hint" style="margin-top:10px;">Tombol aktif/nonaktif di sini cuma penanda buat pengurus — untuk benar-benar mematikan bot, atur lewat Meta dashboard atau hapus secret Cloudflare.</div>
     </div>
   </div>
   
@@ -387,6 +421,28 @@ function toggleTelegram(){
   settings.enabled = !settings.enabled;
   saveTelegramSettings(settings);
   toast(settings.enabled ? '✅ Notifikasi Telegram diaktifkan' : '⛔ Notifikasi Telegram dinonaktifkan');
+  renderContent();
+}
+
+function simpanWhatsapp(){
+  if (!isAdmin()) { toast('⛔ Hanya Admin'); return; }
+  const nomorTampilan = document.getElementById('whatsapp-nomor').value.trim();
+  const settings = { enabled: db.whatsapp?.enabled || false, nomorTampilan };
+  saveWhatsappSettings(settings);
+  toast('✅ Pengaturan WhatsApp disimpan');
+  renderContent();
+}
+
+function toggleWhatsapp(){
+  if (!isAdmin()) { toast('⛔ Hanya Admin'); return; }
+  const settings = getWhatsappSettings();
+  if(!settings.nomorTampilan){
+    toast('⚠️ Isi nomor WA terlebih dahulu');
+    return;
+  }
+  settings.enabled = !settings.enabled;
+  saveWhatsappSettings(settings);
+  toast(settings.enabled ? '✅ Bot WhatsApp ditandai aktif' : '⛔ Bot WhatsApp ditandai nonaktif');
   renderContent();
 }
 

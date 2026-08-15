@@ -2347,6 +2347,7 @@ table.absensi-table th:nth-child(1), table.absensi-table td:nth-child(1){text-al
 .ai-insight-badge .inline-icon{width:13px; height:13px;}
 .ai-insight-body{padding-left:1px;}
 .ai-insight-text{font-size:13.5px; line-height:1.6; color:var(--ink);}
+.ai-insight-text strong{font-weight:700; color:var(--ungu);}
 .ai-insight-text.ai-insight-muted{color:var(--ink-soft); font-style:italic;}
 .ai-insight-text.ai-insight-warn{color:var(--bahaya-dark);}
 .ai-insight-meta{

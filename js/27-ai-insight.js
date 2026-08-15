@@ -229,24 +229,18 @@ function boldNominalRp(escapedText){
   return escapedText.replace(/Rp\s?[\d.,]+/g, (match) => `<strong>${match}</strong>`);
 }
 
-// HTML panel — dipanggil dari renderDashboard(), ditaruh sebelum
-// stat-grid-ringkasan (Total Pemasukan/Pengeluaran).
-function renderBukuKegiatanInsightPanel(){
-  const eventId = db.activeEventId;
-  if(!eventId) return '';
-
-  const cache = getAiInsightCache();
-  const sedangProses = _aiInsightGenerating.has(eventId);
-  const gagal = _aiInsightFailed.has(eventId);
-  const loggedIn = !!getCurrentUser();
-
+// HTML panel generik — dipakai baik oleh panel Dashboard maupun Lomba,
+// supaya tampilan & perilaku (skeleton/gagal/guest) konsisten di semua
+// insight tanpa duplikasi markup. retryFnName = nama fungsi global yang
+// dipanggil tombol "Coba lagi"/refresh (lihat da()).
+function renderInsightPanelHtml({ cache, sedangProses, gagal, loggedIn, retryFnName, badgeLabel, badgeIcon, pesanKosong }){
   let isi;
   if(cache && cache.ringkasan){
     isi = `<div class="ai-insight-text">${boldNominalRp(esc(cache.ringkasan))}</div>
       <div class="ai-insight-meta">
         <span>${sedangProses ? 'Memperbarui…' : `Diperbarui otomatis · ${fmtWaktuTerakhir(cache.generatedAt)}`}</span>
         ${gagal ? '<span class="ai-insight-warn">⚠️ Gagal memperbarui, menampilkan versi terakhir</span>' : ''}
-        ${loggedIn && !sedangProses ? `<button class="icon-btn" ${da('retryBukuKegiatanInsight')} title="Buat ulang ringkasan"><i data-lucide="refresh-cw" class="inline-icon"></i></button>` : ''}
+        ${loggedIn && !sedangProses ? `<button class="icon-btn" ${da(retryFnName)} title="Buat ulang ringkasan"><i data-lucide="refresh-cw" class="inline-icon"></i></button>` : ''}
       </div>`;
   } else if(sedangProses){
     isi = `<div class="ai-insight-skeleton">
@@ -256,20 +250,204 @@ function renderBukuKegiatanInsightPanel(){
     </div>`;
   } else if(gagal){
     isi = `<div class="ai-insight-text ai-insight-warn">Ringkasan belum berhasil dibuat.</div>
-      ${loggedIn ? `<div class="ai-insight-meta"><button class="btn secondary small" ${da('retryBukuKegiatanInsight')}>Coba lagi</button></div>` : ''}`;
+      ${loggedIn ? `<div class="ai-insight-meta"><button class="btn secondary small" ${da(retryFnName)}>Coba lagi</button></div>` : ''}`;
   } else if(!loggedIn){
-    isi = `<div class="ai-insight-text ai-insight-muted">Ringkasan otomatis akan muncul di sini setelah admin/pengurus membuka halaman ini.</div>`;
+    isi = `<div class="ai-insight-text ai-insight-muted">${pesanKosong}</div>`;
   } else {
-    // Login tapi belum ada cache & belum sedangProses — jarang kejadian
-    // (ensureBukuKegiatanInsight() harusnya sudah trigger generate barusan),
-    // tapi tetap disiapkan fallback-nya.
     isi = `<div class="ai-insight-text ai-insight-muted">Menyiapkan ringkasan…</div>`;
   }
 
   return `<div class="panel ai-insight-panel">
     <div class="panel-body">
-      <div class="ai-insight-badge"><i data-lucide="megaphone" class="inline-icon"></i><span>Haloo Inti!</span></div>
+      <div class="ai-insight-badge"><i data-lucide="${badgeIcon}" class="inline-icon"></i><span>${badgeLabel}</span></div>
       <div class="ai-insight-body">${isi}</div>
     </div>
   </div>`;
 }
+
+// HTML panel — dipanggil dari renderDashboard(), ditaruh sebelum
+// stat-grid-ringkasan (Total Pemasukan/Pengeluaran).
+function renderBukuKegiatanInsightPanel(){
+  const eventId = db.activeEventId;
+  if(!eventId) return '';
+
+  return renderInsightPanelHtml({
+    cache: getAiInsightCache(),
+    sedangProses: _aiInsightGenerating.has(eventId),
+    gagal: _aiInsightFailed.has(eventId),
+    loggedIn: !!getCurrentUser(),
+    retryFnName: 'retryBukuKegiatanInsight',
+    badgeLabel: 'Haloo Inti!',
+    badgeIcon: 'megaphone',
+    pesanKosong: 'Ringkasan otomatis akan muncul di sini setelah admin/pengurus membuka halaman ini.',
+  });
+}
+
+/* ============================================================
+   INSIGHT AI — LOMBA
+   Panel narasi otomatis di atas daftar lomba (js/10-lomba.js,
+   renderLomba()), fokus ke kesiapan lomba (kebutuhan, hadiah,
+   koordinator) & jadwal mendekat — BUKAN kondisi kas (itu sudah
+   dicover panel Dashboard di atas).
+
+   Pola & alasan caching/guard SAMA PERSIS seperti Insight Dashboard
+   di atas (lihat komentar panjang di kepala file) — cuma state
+   (_aiInsightLomba*) dan tabel Supabase (kt_ai_insight_lomba)-nya
+   dipisah sendiri, supaya generate ulang salah satu insight tidak
+   ikut men-invalidasi cache insight yang lain.
+   ============================================================ */
+const _aiInsightLombaGenerating = new Set();
+const _aiInsightLombaFailed = new Set();
+const _aiInsightLombaFailedHash = new Map();
+const AI_INSIGHT_LOMBA_PROMPT_VERSION = 1; // naikkan tiap ganti system prompt di bawah
+
+function getAiInsightLombaCache(){
+  const eventId = db.activeEventId;
+  if(!eventId) return null;
+  return db.aiInsightLomba[eventId] || null;
+}
+
+// Ringkasan angka kesiapan semua lomba untuk event aktif — dipakai untuk
+// hash maupun isi prompt. Sengaja hitung ulang di sini (bukan pakai ulang
+// variabel dari renderLomba()) supaya modul ini tidak bergantung urutan
+// render seperti hitungAiInsightDataHash() di atas.
+function dataKesiapanLomba(){
+  const list = gLomba();
+  const juaraUtama = JUARA_LIST.filter(j => j.v !== 'partisipasi');
+  const detail = list.map(l => {
+    const punyaKebutuhan = gKebutuhan(l.id).length > 0;
+    const juaraTersedia = juaraUtama.filter(j => gHadiahKategori().some(h => h.kategori_peserta===l.kategori_peserta && h.juara_ke===j.v));
+    const punyaKoordinator = getKoordinatorIds(l).length > 0;
+    const lengkap = punyaKebutuhan && juaraTersedia.length===juaraUtama.length && punyaKoordinator;
+    return { l, lengkap, punyaKebutuhan, hadiahLengkap: juaraTersedia.length===juaraUtama.length, punyaKoordinator };
+  });
+  const belumLengkap = detail.filter(d => !d.lengkap);
+  const totalKebutuhan = db.lombaKebutuhan.filter(k => list.some(l=>l.id===k.lomba_id))
+    .reduce((s,k) => s + (Number(k.harga_realisasi ?? k.harga_estimasi ?? 0)*Number(k.qty||0)), 0);
+  const today = new Date();
+  const lombaMendekat = list.filter(l => l.tanggal).filter(l => {
+    const d = new Date(l.tanggal + 'T00:00:00');
+    const diffDays = Math.ceil((d - today) / (1000*60*60*24));
+    return diffDays >= 0 && diffDays <= 7;
+  }).sort((a,b) => new Date(a.tanggal) - new Date(b.tanggal));
+  return { total: list.length, lengkapCount: list.length - belumLengkap.length, belumLengkap, totalKebutuhan, lombaMendekat };
+}
+
+function hitungAiInsightLombaHash(){
+  const k = dataKesiapanLomba();
+  const bagian = [
+    AI_INSIGHT_LOMBA_PROMPT_VERSION,
+    k.total, k.lengkapCount, k.totalKebutuhan,
+    k.belumLengkap.map(d => `${d.l.id}:${d.punyaKebutuhan?1:0}${d.hadiahLengkap?1:0}${d.punyaKoordinator?1:0}`).join(','),
+    k.lombaMendekat.map(l => `${l.id}:${l.tanggal}`).join(','),
+  ];
+  return bagian.join('|');
+}
+
+// Dipanggil dari renderLomba(). Pola sama seperti ensureBukuKegiatanInsight().
+function ensureLombaInsight(){
+  const eventId = db.activeEventId;
+  if(!eventId) return;
+
+  const hash = hitungAiInsightLombaHash();
+  const cache = getAiInsightLombaCache();
+  const sudahUpToDate = cache && cache.dataHash === hash;
+  const sedangProses = _aiInsightLombaGenerating.has(eventId);
+  const baruSajaGagal = _aiInsightLombaFailed.has(eventId) && _aiInsightLombaFailedHash.get(eventId) === hash;
+
+  if(sudahUpToDate || sedangProses || baruSajaGagal) return;
+  if(!getCurrentUser()) return;
+
+  generateLombaInsight(eventId, hash);
+}
+
+async function generateLombaInsight(eventId, hash){
+  _aiInsightLombaGenerating.add(eventId);
+  _aiInsightLombaFailed.delete(eventId);
+  _aiInsightLombaFailedHash.delete(eventId);
+  if(currentSection === 'lomba') renderContent();
+
+  try{
+    const teks = await aiTanya(buatPromptInsightLomba(), {
+      system: 'Kamu asisten kepanitiaan untuk aplikasi lomba 17-an Karang Taruna. Tulis ringkasan kesiapan lomba dalam Bahasa Indonesia formal bergaya laporan pertanggungjawaban (LPJ) resmi — bahasa baku, lugas, objektif, sudut pandang orang ketiga/institusional. Fokus ke KESIAPAN (berapa lomba yang sudah lengkap kebutuhan/hadiah/koordinator, berapa yang belum, dan lomba mana yang jadwalnya paling dekat tapi belum lengkap — sebut nama lombanya, TANPA menyebut nama koordinator/anggota). 3-5 kalimat, boleh diakhiri 1 kalimat rekomendasi/tindak lanjut jika relevan (tidak wajib dipaksakan tiap kali). Jangan mengulang semua angka yang sudah tampil di layar — pilih yang paling penting untuk diberi konteks/makna. Jangan pakai heading, bullet, atau markdown, cukup paragraf biasa.',
+    });
+
+    const ringkasan = String(teks || '').trim();
+    if(!ringkasan) throw new Error('AI tidak memberi ringkasan');
+
+    db.aiInsightLomba[eventId] = { ringkasan, dataHash: hash, generatedAt: new Date().toISOString() };
+    const { error } = await sb.from('kt_ai_insight_lomba').upsert({
+      event_id: eventId,
+      ringkasan,
+      data_hash: hash,
+      generated_at: db.aiInsightLomba[eventId].generatedAt,
+    }, { onConflict: 'event_id' });
+    if(error) console.error('Gagal menyimpan kt_ai_insight_lomba (tetap tampil dari memori):', error);
+  }catch(e){
+    console.error('Gagal membuat Insight AI Lomba:', e);
+    _aiInsightLombaFailed.add(eventId);
+    _aiInsightLombaFailedHash.set(eventId, hash);
+  }finally{
+    _aiInsightLombaGenerating.delete(eventId);
+    if(currentSection === 'lomba') renderContent();
+  }
+}
+
+function buatPromptInsightLomba(){
+  const org = getOrgProfil();
+  const ev = activeEvent();
+  const k = dataKesiapanLomba();
+  const baris = [];
+  baris.push(`Organisasi: ${org.nama}${ev ? ` — event aktif: ${ev.nama} ${ev.tahun||''}`.trim() : ''}`);
+  baris.push('');
+  baris.push(`TOTAL LOMBA: ${k.total}`);
+  baris.push(`LOMBA SIAP (kebutuhan barang + hadiah semua juara + koordinator lengkap): ${k.lengkapCount}/${k.total}`);
+  baris.push(`TOTAL BIAYA KEBUTUHAN LOMBA TERCATAT: ${fmtRp(k.totalKebutuhan)}`);
+  baris.push('');
+
+  if(k.belumLengkap.length > 0){
+    baris.push('LOMBA BELUM LENGKAP:');
+    k.belumLengkap.forEach(d => {
+      const kurang = [];
+      if(!d.punyaKebutuhan) kurang.push('kebutuhan barang belum diisi');
+      if(!d.hadiahLengkap) kurang.push('hadiah belum lengkap semua juara');
+      if(!d.punyaKoordinator) kurang.push('koordinator belum ditunjuk');
+      baris.push(`- ${d.l.nama}${d.l.tanggal ? ` (jadwal ${fmtDateHari(d.l.tanggal)})` : ' (belum dijadwalkan)'}: ${kurang.join(', ')}`);
+    });
+    baris.push('');
+  }
+
+  if(k.lombaMendekat.length > 0){
+    const daftar = k.lombaMendekat.map(l => `${l.nama} (${fmtDateHari(l.tanggal)})`).join('; ');
+    baris.push(`LOMBA DENGAN JADWAL 7 HARI KE DEPAN: ${daftar}`);
+    baris.push('');
+  }
+
+  baris.push('Tulis ringkasan kesiapan lomba di atas untuk ditampilkan di halaman Lomba aplikasi.');
+  return baris.join('\n');
+}
+
+function retryLombaInsight(){
+  const eventId = db.activeEventId;
+  if(!eventId) return;
+  const hash = hitungAiInsightLombaHash();
+  generateLombaInsight(eventId, hash);
+}
+
+// HTML panel — dipanggil dari renderLomba(), ditaruh sebelum stat-grid.
+function renderLombaInsightPanel(){
+  const eventId = db.activeEventId;
+  if(!eventId) return '';
+
+  return renderInsightPanelHtml({
+    cache: getAiInsightLombaCache(),
+    sedangProses: _aiInsightLombaGenerating.has(eventId),
+    gagal: _aiInsightLombaFailed.has(eventId),
+    loggedIn: !!getCurrentUser(),
+    retryFnName: 'retryLombaInsight',
+    badgeLabel: 'Haloo Inti!',
+    badgeIcon: 'megaphone',
+    pesanKosong: 'Ringkasan kesiapan lomba akan muncul di sini setelah admin/pengurus membuka halaman ini.',
+  });
+}
+

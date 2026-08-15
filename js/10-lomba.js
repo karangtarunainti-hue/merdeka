@@ -139,7 +139,12 @@ function renderLomba(){
       'jadwal-group-none'
     ) : '');
 
-  return `<div class="stat-grid"><div class="stat-card pengeluaran"><div class="lbl">Total Kebutuhan</div><div class="val">${fmtRp(totalKebutuhan)}</div></div>${list.length ? `<div class="stat-card${lombaLengkapCount<list.length ? ' stok-lebih' : ' saldo'}"><div class="lbl">Lomba Siap</div><div class="val">${lombaLengkapCount}/${list.length}</div><div style="font-size:11px; color:var(--abu); margin-top:4px;">Kebutuhan barang + hadiah + koordinator lengkap</div></div>` : ''}</div>
+  // Trigger cek/generate Insight AI Lomba di background (js/27-ai-insight.js)
+  // — sama seperti pola di renderDashboard(), tidak blocking render.
+  ensureLombaInsight();
+
+  return `${renderLombaInsightPanel()}
+  <div class="stat-grid"><div class="stat-card pengeluaran"><div class="lbl">Total Kebutuhan</div><div class="val">${fmtRp(totalKebutuhan)}</div></div>${list.length ? `<div class="stat-card${lombaLengkapCount<list.length ? ' stok-lebih' : ' saldo'}"><div class="lbl">Lomba Siap</div><div class="val">${lombaLengkapCount}/${list.length}</div><div style="font-size:11px; color:var(--abu); margin-top:4px;">Kebutuhan barang + hadiah + koordinator lengkap</div></div>` : ''}</div>
   <div class="panel"><div class="panel-head"><div><h3>Daftar Lomba</h3><div class="desc">Dikelompokkan berdasarkan jadwal · klik kartu untuk buka rincian</div></div>${isLoggedIn ? `<button class="btn" ${da('openLombaModal')}>+ Tambah Lomba</button>` : ''}</div>
   <div class="panel-body">${groupsHtml||`<div class="empty-row" style="padding:30px;text-align:center;">Belum ada lomba.</div>`}</div></div>`;
 }

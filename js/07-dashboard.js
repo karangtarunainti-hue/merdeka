@@ -143,10 +143,6 @@ function generateReminders(){
   const today = new Date();
   const isLoggedIn = !!getCurrentUser();
 
-  // Pengingat kalender (js/28-kalender-peringatan.js) sudah dipindah ke
-  // menu Jadwal Kegiatan (lihat renderJadwal() di js/12-jadwal-agenda-kas.js),
-  // jadi tidak lagi dipanggil di sini.
-
   // Agenda Kegiatan — tidak terikat event, jadi selalu dicek terlepas
   // dari ada/tidaknya event aktif.
   const agendaList = gAgenda().filter(a => a.status !== 'selesai');
@@ -402,7 +398,29 @@ function generateReminders(){
 
   return `
   <div class="reminder-grid">
-    ${reminders.map(reminderCardHtml).join('')}
+    ${reminders.map(r => `
+      <div class="reminder-card ${r.type}">
+        <div class="card-header">
+          <div class="icon">${r.icon}</div>
+          <div class="title">${r.title}</div>
+          <div class="count">${r.count}</div>
+        </div>
+        <div class="card-body">
+          ${r.itemsHtml ? r.itemsHtml : r.items.map(item => `
+            <div class="item">
+              <span class="label">${item.label}</span>
+              <span class="value ${item.valueClass || ''}">${esc(item.value)}</span>
+            </div>
+          `).join('')}
+        </div>
+        ${r.action ? `
+        <div class="card-footer">
+          ${(!getCurrentUser() && !isGuestVisible(r.action.link))
+            ? `<button class="btn secondary small" disabled title="Hanya bisa dilihat setelah login">🔒 ${r.action.label.replace(/\s*→\s*$/, '')}</button>`
+            : `<button class="btn ${r.type === 'danger' ? 'danger' : r.type === 'warning' ? 'orange' : r.type === 'success' ? 'success' : 'secondary'} small" ${da('goSection', r.action.link)}>${r.action.label}</button>`}
+        </div>` : ''}
+      </div>
+    `).join('')}
   </div>`;
 }
 

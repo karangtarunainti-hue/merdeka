@@ -338,17 +338,7 @@ function renderAgenda(){
     return aDate.toDateString() === today.toDateString() && a.status !== 'selesai';
   }).length;
 
-  // Pengingat (js/28-kalender-peringatan.js) — hari libur nasional & hari
-  // besar Islam yang mendekat, beserta panel narasi AI-nya. Ditaruh di
-  // Agenda Kegiatan (bukan Jadwal Kegiatan) karena sama-sama tidak terikat
-  // event, sama seperti isi Agenda Kegiatan lainnya. Sama pola trigger
-  // background-nya seperti insight lain.
-  ensureKalenderKesadaranInsight();
-  const kalenderCard = generatePeringatanReminderCard();
-
   return `
-  ${renderKalenderKesadaranPanel()}
-  ${kalenderCard ? `<div class="reminder-grid">${reminderCardHtml(kalenderCard)}</div>` : ''}
   <div class="stat-grid">
     <div class="stat-card info"><div class="lbl">Total Agenda</div><div class="val">${total}</div></div>
     <div class="stat-card pemasukan"><div class="lbl">Aktif</div><div class="val">${totalActive}</div></div>

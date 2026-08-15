@@ -50,7 +50,6 @@ const MODULE_ORDER = [
   '18-getters-refresh.js',
   '26-ai.js',
   '27-ai-insight.js',
-  '28-kalender-peringatan.js',
   '24-bookmark.js',
   '22-dana-sosial.js',
   '20-panduan.js',

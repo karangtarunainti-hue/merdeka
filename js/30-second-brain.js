@@ -181,13 +181,32 @@ function renderSecondBrain(){
     </div>`;
   }).join('');
 
-  const emptyMsg = modePencarianMakna
-    ? 'Tidak ada catatan yang maknanya cukup dekat dengan pencarian ini.'
-    : (secondBrainSearchQuery || secondBrainFilterKategori ? 'Tidak ada catatan yang cocok dengan filter ini.' : 'Belum ada catatan. Tambahkan catatan/ide/dokumen pertama supaya Asisten AI juga bisa memakainya.');
-
-  const infoBaris = modePencarianMakna
-    ? `<div class="second-brain-info-bar">🎯 Hasil pencarian makna untuk "${esc(secondBrainSearchQuery)}" — diurutkan dari yang paling relevan (${daftarUntukDitampilkan.length}).</div>`
-    : (totalSemua > 0 ? `<div class="second-brain-info-bar">Menampilkan ${daftarUntukDitampilkan.length} dari ${totalSemua} catatan.</div>` : '');
+  let kosongHtml;
+  if (modePencarianMakna) {
+    kosongHtml = `
+    <div class="second-brain-empty">
+      <div class="second-brain-empty-icon">🔍</div>
+      <div class="second-brain-empty-title">Tidak ketemu</div>
+      <div class="second-brain-empty-desc">Tidak ada catatan yang maknanya cukup dekat dengan "${esc(secondBrainSearchQuery)}".</div>
+      <button class="btn secondary" ${da('resetSecondBrainSearch')}>Kembali ke semua catatan</button>
+    </div>`;
+  } else if (secondBrainSearchQuery || secondBrainFilterKategori) {
+    kosongHtml = `
+    <div class="second-brain-empty">
+      <div class="second-brain-empty-icon">🗂️</div>
+      <div class="second-brain-empty-title">Tidak ada yang cocok</div>
+      <div class="second-brain-empty-desc">Tidak ada catatan yang cocok dengan filter/kata kunci ini.</div>
+      <button class="btn secondary" ${da('secondBrainResetSemuaFilter')}>Bersihkan filter & pencarian</button>
+    </div>`;
+  } else {
+    kosongHtml = `
+    <div class="second-brain-empty">
+      <div class="second-brain-empty-icon">🧠</div>
+      <div class="second-brain-empty-title">Belum ada catatan</div>
+      <div class="second-brain-empty-desc">Simpan catatan, ide, ringkasan dokumen, atau konteks apa pun di sini — Asisten AI (🤖) ikut memakainya saat menjawab pertanyaan yang relevan.</div>
+      <button class="btn" ${da('openSecondBrainModal')}>+ Tambah Catatan Pertama</button>
+    </div>`;
+  }
 
   return `
   <div class="panel second-brain-panel">
@@ -213,9 +232,18 @@ function renderSecondBrain(){
         </div>
       </div>
       ${infoBaris}
-      ${daftarUntukDitampilkan.length ? `<div class="second-brain-grid">${cards}</div>` : `<div class="empty-row" style="padding:30px;text-align:center;">${emptyMsg}</div>`}
+      ${daftarUntukDitampilkan.length ? `<div class="second-brain-grid">${cards}</div>` : kosongHtml}
     </div>
   </div>`;
+}
+
+// Dipakai tombol "Bersihkan filter & pencarian" di empty state — beda dari
+// resetSecondBrainSearch() yang cuma bersihkan kolom cari (kategori aktif
+// dibiarkan), di sini SEMUA disetel ulang sekaligus supaya user langsung
+// balik lihat seluruh catatan tanpa perlu klik chip "Semua" secara terpisah.
+function secondBrainResetSemuaFilter(){
+  secondBrainSearchQuery = ''; secondBrainSearchResults = null; secondBrainFilterKategori = '';
+  renderContent();
 }
 
 // Ngetik di kolom cari = filter LOKAL instan berdasar judul/isi (tanpa

@@ -203,12 +203,14 @@ function renderSecondBrain(){
             value="${esc(secondBrainSearchQuery)}" oninput="secondBrainOnInputCari()" onkeydown="if(event.key==='Enter'){cariSecondBrainSemantik();}">
           ${(secondBrainSearchQuery || modePencarianMakna) ? `<button class="icon-btn" ${da('resetSecondBrainSearch')} title="Bersihkan pencarian">✕</button>` : ''}
         </div>
-        <button class="btn secondary" ${da('cariSecondBrainSemantik')} ${secondBrainSearching?'disabled':''}>${secondBrainSearching?'⏳ Mencari…':'🧠 Cari Makna'}</button>
-        ${!modePencarianMakna ? `
-        <select id="second-brain-sort" onchange="secondBrainSetSort(this.value)">
-          <option value="terbaru" ${secondBrainSortBy==='terbaru'?'selected':''}>Terbaru diubah</option>
-          <option value="judul" ${secondBrainSortBy==='judul'?'selected':''}>Judul (A-Z)</option>
-        </select>` : ''}
+        <div class="second-brain-toolbar-actions">
+          <button class="btn secondary" ${da('cariSecondBrainSemantik')} ${secondBrainSearching?'disabled':''}>${secondBrainSearching?'⏳ Mencari…':'🧠 Cari Makna'}</button>
+          ${!modePencarianMakna ? `
+          <select id="second-brain-sort" onchange="secondBrainSetSort(this.value)">
+            <option value="terbaru" ${secondBrainSortBy==='terbaru'?'selected':''}>Terbaru diubah</option>
+            <option value="judul" ${secondBrainSortBy==='judul'?'selected':''}>Judul (A-Z)</option>
+          </select>` : ''}
+        </div>
       </div>
       ${infoBaris}
       ${daftarUntukDitampilkan.length ? `<div class="second-brain-grid">${cards}</div>` : `<div class="empty-row" style="padding:30px;text-align:center;">${emptyMsg}</div>`}

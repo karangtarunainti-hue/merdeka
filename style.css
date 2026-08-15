@@ -2986,20 +2986,31 @@ table.ds-rekap-table td.num, table.ds-rekap-table th:not(:first-child){ text-ali
    Lihat js/30-second-brain.js. Kartu pakai pola accent-* yang sama
    seperti .bookmark-card (var(--card-accent)) supaya konsisten.
 
-   Layout: chip kategori (navigasi cepat + hitungan per kategori) di
-   atas, lalu toolbar cari+urutkan, lalu grid kartu. Chip row bisa
-   scroll horizontal 1 baris di layar sempit (scrollbar disembunyikan
-   lewat aturan global *{scrollbar-width:none} di atas) supaya tidak
-   makan tempat vertikal, tapi wrap bebas di layar lebar karena
-   ruangnya cukup. Grid kartu dibatasi lebar maksimum di layar sangat
-   lebar (>=1200px) supaya kartu tidak melar jadi terlalu lebar untuk
-   dibaca nyaman.
+   ROMBAK (lihat CHANGELOG git untuk versi lama): dulu grid kartu
+   pakai minmax(280px,1fr) & toolbar pakai flex-wrap bebas — di lebar
+   layar tanggung (antara breakpoint mobile & lebar penuh) itu bikin
+   elemen jatuh ke baris sendiri-sendiri dengan lebar yang tidak
+   sinkron ("berantakan"), dan teks isi/tag/judul yang panjang tanpa
+   spasi (URL, ID, dsb) bisa mendorong kartu melebar sampai keluar
+   layar karena tidak ada aturan pemutus kata. Perbaikan di bawah:
+   1) grid pakai minmax(min(100%,280px),1fr) — kolom TIDAK PERNAH
+      bisa lebih lebar dari kontainer, di layar seberapa pun sempit.
+   2) toolbar disusun mobile-first (cari di baris sendiri, aksi di
+      baris sendiri) lalu baru disusun sejajar di layar >=640px —
+      bukan flex-wrap yang urutannya tidak terprediksi.
+   3) overflow-wrap/word-break ditambah ke judul, isi, dan tag supaya
+      teks panjang tanpa spasi dipaksa pindah baris, bukan meluber.
+   4) chip kategori jadi 1 baris scroll-geser di SEMUA lebar layar
+      (bukan cuma di hape) supaya tidak pernah wrap acak jadi 2-3
+      baris tak rata.
    ============================================================ */
 .second-brain-kategori-row{
-  display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;
+  display:flex; flex-wrap:nowrap; gap:8px; margin:0 -2px 14px; padding:2px 2px 4px;
+  overflow-x:auto; scroll-snap-type:x proximity; -webkit-overflow-scrolling:touch;
 }
 .sb-kat-chip{
   display:inline-flex; align-items:center; gap:6px; flex:none;
+  scroll-snap-align:start;
   padding:7px 13px; border-radius:20px; border:1px solid var(--garis);
   background:var(--surface); color:var(--ink-soft); font:inherit;
   font-size:12.5px; font-weight:600; white-space:nowrap; cursor:pointer;
@@ -3020,29 +3031,41 @@ table.ds-rekap-table td.num, table.ds-rekap-table th:not(:first-child){ text-ali
 }
 .sb-kat-chip.active .sb-kat-count{ background:var(--chip-accent, var(--gold)); color:#fff; }
 
+/* Mobile-first: cari di baris sendiri (lebar penuh), lalu baris aksi
+   (tombol Cari Makna + sortir) di bawahnya — baru digabung sejajar
+   lewat media query >=640px di bawah kalau ruangnya cukup. */
 .second-brain-toolbar{
-  display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-bottom:4px;
+  display:flex; flex-direction:column; gap:8px; margin-bottom:4px;
 }
 .second-brain-search-wrap{
-  flex:1 1 260px; min-width:180px; position:relative; display:flex; align-items:center;
+  position:relative; display:flex; align-items:center; width:100%; min-width:0;
 }
 .second-brain-search-wrap input[type="text"]{
-  width:100%; border:1px solid var(--garis); border-radius:var(--radius);
-  padding:9px 34px 9px 12px; font-size:13.5px; background:var(--cream-card); color:var(--ink);
+  width:100%; box-sizing:border-box; border:1px solid var(--garis); border-radius:var(--radius);
+  padding:10px 36px 10px 12px; font-size:13.5px; background:var(--cream-card); color:var(--ink);
 }
-.second-brain-search-wrap .icon-btn{ position:absolute; right:3px; top:50%; transform:translateY(-50%); }
-.second-brain-toolbar select{
-  flex:none; border:1px solid var(--garis); border-radius:var(--radius); padding:9px 10px;
+.second-brain-search-wrap .icon-btn{ position:absolute; right:4px; top:50%; transform:translateY(-50%); }
+.second-brain-toolbar-actions{
+  display:flex; flex-wrap:wrap; align-items:center; gap:8px;
+}
+.second-brain-toolbar-actions .btn{ flex:none; }
+.second-brain-toolbar-actions select{
+  flex:1 1 150px; min-width:0; max-width:220px; margin-left:auto;
+  border:1px solid var(--garis); border-radius:var(--radius); padding:9px 10px;
   font-size:13px; background:var(--cream-card); color:var(--ink);
 }
-.second-brain-toolbar .btn{ flex:none; }
 
-.second-brain-info-bar{ font-size:12px; color:var(--ink-soft); margin:8px 2px 12px; }
+.second-brain-info-bar{ font-size:12px; color:var(--ink-soft); margin:10px 2px 12px; }
 
+/* min(100%,280px) = kolom kartu tidak akan PERNAH lebih lebar dari
+   kontainernya sendiri, jadi grid tidak bisa memicu scroll horizontal
+   di lebar layar berapa pun — beda dari minmax(280px,1fr) polos yang
+   mematok lantai 280px kaku walau kontainernya lebih sempit. */
 .second-brain-grid{
-  display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:12px;
+  display:grid; grid-template-columns:repeat(auto-fill, minmax(min(100%, 280px), 1fr)); gap:12px;
 }
 .second-brain-card{
+  min-width:0; /* grid item default-nya auto, bisa memaksa kartu melebar demi konten yang tidak bisa dipotong (mis. kata panjang tanpa spasi) — dikunci 0 di sini, pemutusan katanya diatur lewat overflow-wrap di elemen teks-nya */
   background:var(--cream-card); border:1px solid var(--garis); border-radius:var(--radius);
   border-top:3px solid var(--card-accent, var(--biru)); padding:13px 15px;
   display:flex; flex-direction:column; gap:7px;
@@ -3054,38 +3077,46 @@ table.ds-rekap-table td.num, table.ds-rekap-table th:not(:first-child){ text-ali
 .second-brain-card.accent-gold{--card-accent:var(--gold);}
 .second-brain-card.accent-hijau{--card-accent:var(--hijau);}
 
-.second-brain-card-top{ display:flex; align-items:center; gap:8px; }
+.second-brain-card-top{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
 .second-brain-kategori-badge{
   font-size:11px; font-weight:700; padding:2px 8px; border-radius:20px;
   background:var(--card-accent, var(--biru)); color:#fff; opacity:.92; white-space:nowrap;
 }
 .second-brain-score{
   font-size:11px; font-weight:600; color:var(--ink-soft); background:var(--table-head);
-  padding:2px 7px; border-radius:20px;
+  padding:2px 7px; border-radius:20px; white-space:nowrap;
 }
-.second-brain-card-actions{ margin-left:auto; display:flex; gap:2px; }
-.second-brain-card-title{ font-weight:700; font-size:14px; line-height:1.35; }
+.second-brain-card-actions{ margin-left:auto; display:flex; gap:2px; flex:none; }
+.second-brain-card-title{
+  font-weight:700; font-size:14px; line-height:1.35;
+  overflow-wrap:anywhere; word-break:break-word;
+}
 .second-brain-card-body{
   font-size:12.5px; color:var(--ink-soft); line-height:1.5; white-space:pre-wrap;
+  overflow-wrap:anywhere; word-break:break-word;
   overflow:hidden; display:-webkit-box; -webkit-line-clamp:5; -webkit-box-orient:vertical;
 }
-.second-brain-tags{ display:flex; flex-wrap:wrap; gap:5px; margin-top:1px; }
-.second-brain-tag{ font-size:11px; color:var(--ink-soft); background:var(--table-head); padding:2px 7px; border-radius:20px; }
+.second-brain-tags{ display:flex; flex-wrap:wrap; gap:5px; margin-top:1px; min-width:0; }
+.second-brain-tag{
+  font-size:11px; color:var(--ink-soft); background:var(--table-head); padding:2px 7px; border-radius:20px;
+  max-width:100%; overflow-wrap:anywhere;
+}
 .second-brain-card-meta{
   margin-top:auto; padding-top:7px; border-top:1px dashed var(--garis);
   font-size:11px; color:var(--abu);
 }
 
+@media (min-width:640px){
+  /* Ruang sudah cukup lebar: cari & aksi digabung sejajar sebaris. */
+  .second-brain-toolbar{ flex-direction:row; align-items:center; }
+  .second-brain-search-wrap{ flex:1 1 280px; }
+  .second-brain-toolbar-actions{ flex:none; }
+}
 @media (min-width:1200px){
   /* Layar sangat lebar: batasi kartu supaya tidak melar jadi terlalu
      lebar (dan teksnya tidak jadi susah dipindai baca). */
-  .second-brain-grid{ grid-template-columns:repeat(auto-fill, minmax(300px, 340px)); }
+  .second-brain-grid{ grid-template-columns:repeat(auto-fill, minmax(min(100%, 300px), 340px)); }
 }
 @media (max-width:480px){
-  .second-brain-kategori-row{
-    flex-wrap:nowrap; overflow-x:auto; margin:0 -2px 12px; padding:0 2px 2px;
-  }
-  .second-brain-toolbar{ flex-direction:column; align-items:stretch; }
-  .second-brain-toolbar select{ width:100%; }
   .second-brain-grid{ grid-template-columns:1fr; }
 }

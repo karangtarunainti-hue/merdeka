@@ -47,8 +47,8 @@ function renderDashboard(){
   ensureBukuKegiatanInsight(b);
 
   return `
-  ${reminderCards}
   ${renderBukuKegiatanInsightPanel()}
+  ${reminderCards}
   <div class="stat-grid-ringkasan">
     <div class="stat-card pemasukan"><div class="lbl">Total Pemasukan</div><div class="val">${fmtRp(b.pemasukan)}</div></div>
     <div class="stat-card pengeluaran"><div class="lbl">Total Pengeluaran</div><div class="val">${fmtRp(b.pengeluaran)}</div></div>

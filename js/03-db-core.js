@@ -183,7 +183,15 @@ function defaultDB(){
     aiInsightLomba: {},
     // Sama seperti aiInsightLomba, tapi untuk panel Insight di halaman
     // Belanja Hadiah (kt_ai_insight_belanja_hadiah).
-    aiInsightBelanjaHadiah: {}
+    aiInsightBelanjaHadiah: {},
+    // Cache ringkasan naratif AI untuk panel "Kesadaran Kalender" di Dashboard
+    // (lihat js/28-kalender-peringatan.js) — pengingat hari libur nasional &
+    // hari besar Islam yang mendekat, plus persiapan yang biasanya perlu
+    // disiapkan sebelumnya. BEDA dari aiInsight/aiInsightLomba/dst di atas:
+    // ini TIDAK per-event (kalender berlaku organisasi, bukan per kegiatan),
+    // jadi cuma 1 objek {ringkasan, dataHash, generatedAt} langsung (bukan
+    // keyed per event_id), disimpan di kt_kalender_insight baris id='global'.
+    aiInsightKalender: null
   };
 }
 
@@ -292,7 +300,7 @@ async function loadDB(){
     // ada 403 percuma di console tiap kali app dibuka — halaman Manajemen
     // User sendiri sudah fetch ulang datanya sendiri saat dibuka/diubah.
     const usersCall = isAdmin() ? sb.rpc('rpc_list_users') : Promise.resolve({data:null, error:null});
-    const [arrayResults, settingsRes, telegramRes, usersRes, guestMenuRes, dokumenGlobalRes, orgProfileRes, whatsappRes, aiInsightRes, aiInsightLombaRes, aiInsightBelanjaHadiahRes] = await Promise.all([
+    const [arrayResults, settingsRes, telegramRes, usersRes, guestMenuRes, dokumenGlobalRes, orgProfileRes, whatsappRes, aiInsightRes, aiInsightLombaRes, aiInsightBelanjaHadiahRes, aiInsightKalenderRes] = await Promise.all([
       Promise.all(entries.map(([, table]) => sb.from(table).select('*'))),
       sb.from('kt_settings').select('*'),
       sb.from('kt_telegram_settings').select('*').eq('id', 'main').maybeSingle(),
@@ -304,6 +312,7 @@ async function loadDB(){
       sb.from('kt_ai_insight').select('*'),
       sb.from('kt_ai_insight_lomba').select('*'),
       sb.from('kt_ai_insight_belanja_hadiah').select('*'),
+      sb.from('kt_kalender_insight').select('*').eq('id', 'global').maybeSingle(),
     ]);
 
     const failedTables = [];
@@ -447,6 +456,15 @@ async function loadDB(){
       (aiInsightBelanjaHadiahRes.data || []).forEach(r => {
         result.aiInsightBelanjaHadiah[r.event_id] = { ringkasan: r.ringkasan || '', dataHash: r.data_hash || '', generatedAt: r.generated_at || null };
       });
+    }
+
+    // kt_kalender_insight baru ada setelah supabase-kalender-peringatan-migration.sql
+    // dijalankan — kalau tabelnya belum ada, error-nya cuma di-log (bukan
+    // failedTables) supaya app tetap jalan normal & fitur lain tidak ikut error.
+    if(aiInsightKalenderRes.error){ console.error('Gagal memuat kt_kalender_insight (mungkin migrasi belum dijalankan):', aiInsightKalenderRes.error); }
+    else if(aiInsightKalenderRes.data){
+      const r = aiInsightKalenderRes.data;
+      result.aiInsightKalender = { ringkasan: r.ringkasan || '', dataHash: r.data_hash || '', generatedAt: r.generated_at || null };
     }
 
     result.activeEventId = localStorage.getItem('kt_active_event') || (result.events[0] ? result.events[0].id : null);

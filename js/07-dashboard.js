@@ -46,8 +46,14 @@ function renderDashboard(){
   // ulang sendiri saat selesai; render pertama tetap pakai cache lama kalau ada.
   ensureBukuKegiatanInsight(b);
 
+  // Kesadaran Kalender (js/28-kalender-peringatan.js) — pengingat hari
+  // libur nasional & hari besar Islam yang mendekat, sama pola trigger
+  // background-nya seperti ensureBukuKegiatanInsight() di atas.
+  ensureKalenderKesadaranInsight();
+
   return `
   ${renderBukuKegiatanInsightPanel()}
+  ${renderKalenderKesadaranPanel()}
   ${reminderCards}
   <div class="stat-grid-ringkasan">
     <div class="stat-card pemasukan"><div class="lbl">Total Pemasukan</div><div class="val">${fmtRp(b.pemasukan)}</div></div>
@@ -142,6 +148,13 @@ function generateReminders(){
   const reminders = [];
   const today = new Date();
   const isLoggedIn = !!getCurrentUser();
+
+  // Kesadaran Kalender (js/28-kalender-peringatan.js) — hari libur nasional
+  // & hari besar Islam yang mendekat, ditaruh PALING ATAS supaya rentetan
+  // persiapan (mis. HUT RI) kelihatan dari jauh-jauh hari, bukan ketimbun
+  // pengingat operasional lain yang biasanya lebih mendesak jangka pendek.
+  const kalenderCard = generatePeringatanReminderCard();
+  if(kalenderCard) reminders.push(kalenderCard);
 
   // Agenda Kegiatan — tidak terikat event, jadi selalu dicek terlepas
   // dari ada/tidaknya event aktif.

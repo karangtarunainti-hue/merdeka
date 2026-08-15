@@ -7,10 +7,12 @@
    1. renderDashboard() panggil ensureBukuKegiatanInsight(b) tiap render,
       dikasih hasil hitungBukuUtama() yang sudah dihitung di sana (supaya
       tidak hitung 2x).
-   2. Fungsi ini bikin "data_hash" dari angka-angka yang menyusun 3 card —
-      kalau hash-nya SAMA dengan cache tersimpan (db.aiInsight[eventId]),
-      berarti tidak ada perubahan kas sejak ringkasan terakhir dibuat →
-      tidak perlu panggil AI lagi, langsung pakai cache.
+   2. Fungsi ini bikin "data_hash" dari angka-angka yang menyusun 3 card,
+      DITAMBAH jumlah anggota belum bayar iuran & agenda kegiatan 7 hari ke
+      depan (lihat dataAnggotaBelumBayar()/dataAgendaMendatang()) — kalau
+      hash-nya SAMA dengan cache tersimpan (db.aiInsight[eventId]), berarti
+      tidak ada perubahan sejak ringkasan terakhir dibuat → tidak perlu
+      panggil AI lagi, langsung pakai cache.
    3. Kalau hash beda (atau belum pernah ada sama sekali) → generate baru
       di background (tidak blocking render pertama), simpan ke Supabase
       (kt_ai_insight, keyed per event_id) + db.aiInsight di memori, lalu
@@ -31,12 +33,21 @@ const _aiInsightGenerating = new Set();
 // Event_id yang generate-nya baru saja GAGAL — dipakai supaya panel bisa
 // menampilkan tombol "Coba lagi" alih-alih diam-diam retry terus setiap render.
 const _aiInsightFailed = new Set();
+// Hash data yang gagal terakhir kali, per event_id — kalau data BERUBAH lagi
+// setelah gagal (mis. ada transaksi baru), tetap boleh auto-retry karena ini
+// percobaan baru untuk data baru, bukan retry buta untuk data yang sama.
+const _aiInsightFailedHash = new Map();
 
 // Hash sederhana (bukan kriptografis, cuma penanda "data sumbernya sama atau
 // tidak") dari angka-angka yang menyusun 3 card ringkasan + rincian di
-// baliknya. String short & deterministik: cukup sensitif kalau salah satu
-// komponen berubah, tanpa perlu hash library tambahan.
+// baliknya, DITAMBAH anggota belum bayar & agenda kegiatan mendatang (lihat
+// dataAnggotaBelumBayar()/dataAgendaMendatang() di bawah) — supaya cache
+// ikut invalid kalau salah satu dari itu berubah, bukan cuma angka kas.
+// String short & deterministik: cukup sensitif kalau salah satu komponen
+// berubah, tanpa perlu hash library tambahan.
 function hitungAiInsightDataHash(b){
+  const anggotaBelum = dataAnggotaBelumBayar();
+  const agenda = dataAgendaMendatang();
   const bagian = [
     b.iuran, b.jumlahIuranLunas,
     b.donasi, b.jumlahDonatur, b.jumlahDonaturBarang,
@@ -46,8 +57,35 @@ function hitungAiInsightDataHash(b){
     b.hadiahLomba, b.jumlahItemHadiahLomba,
     b.hadiahJalan, b.jumlahHadiahJalan,
     b.saldo,
+    anggotaBelum.jumlah, anggotaBelum.totalNominal,
+    agenda.map(a => `${a.id}:${a.tanggal}:${a.status}`).join(','),
   ];
   return bagian.join('|');
+}
+
+// Anggota yang belum lunas iuran untuk event aktif — dipakai baik untuk
+// hash (deteksi perubahan) maupun isi prompt AI. Cuma jumlah & total
+// nominal yang belum masuk yang dikirim ke AI (bukan daftar nama satu-satu)
+// supaya prompt tetap ringkas dan tidak menyebut individu di ringkasan
+// dashboard yang bisa dilihat siapa saja yang login.
+function dataAnggotaBelumBayar(){
+  const list = gAnggota().filter(a => a.status !== 'lunas');
+  const totalNominal = list.reduce((s,a) => s + Number(a.nominal_wajib||0), 0);
+  return { jumlah: list.length, totalNominal };
+}
+
+// Agenda kegiatan (global, tidak terikat event — lihat gAgenda()) dalam 7
+// hari ke depan, status belum selesai. Polanya sama seperti upcomingAgenda
+// di generateReminders() (js/07-dashboard.js), sengaja dihitung ulang di sini
+// (bukan pakai ulang variabel dari generateReminders) supaya modul ini tidak
+// bergantung urutan pemanggilan renderDashboard().
+function dataAgendaMendatang(){
+  const today = new Date();
+  return gAgenda().filter(a => a.status !== 'selesai').filter(a => {
+    const aDate = new Date(a.tanggal + 'T00:00:00');
+    const diffDays = Math.ceil((aDate - today) / (1000 * 60 * 60 * 24));
+    return diffDays >= 0 && diffDays <= 7;
+  }).sort((a,b) => new Date(a.tanggal) - new Date(b.tanggal));
 }
 
 function getAiInsightCache(){
@@ -69,8 +107,18 @@ function ensureBukuKegiatanInsight(b){
   const cache = getAiInsightCache();
   const sudahUpToDate = cache && cache.dataHash === hash;
   const sedangProses = _aiInsightGenerating.has(eventId);
+  // Baru saja gagal UNTUK DATA YANG SAMA → JANGAN auto-retry tiap render
+  // (renderContent() yang dipanggil generateBukuKegiatanInsight() sendiri
+  // saat selesai/gagal akan memicu ensureBukuKegiatanInsight() lagi lewat
+  // renderDashboard() — tanpa guard ini jadi loop generate-gagal-render-
+  // generate tanpa henti, apalagi kalau penyebab gagalnya persisten seperti
+  // error CORS/config server, bukan sekadar timeout sesaat). Tunggu user
+  // klik tombol "Coba lagi" (retryBukuKegiatanInsight) — KECUALI datanya
+  // sudah berubah lagi sejak percobaan gagal terakhir, itu dianggap
+  // percobaan baru dan tetap boleh auto-retry.
+  const baruSajaGagal = _aiInsightFailed.has(eventId) && _aiInsightFailedHash.get(eventId) === hash;
 
-  if(sudahUpToDate || sedangProses) return;
+  if(sudahUpToDate || sedangProses || baruSajaGagal) return;
 
   // Guest/belum login tidak memicu generate — cukup baca cache yang ada
   // (lihat catatan di atas file). Kalau belum ada cache sama sekali,
@@ -83,13 +131,14 @@ function ensureBukuKegiatanInsight(b){
 async function generateBukuKegiatanInsight(eventId, b, hash){
   _aiInsightGenerating.add(eventId);
   _aiInsightFailed.delete(eventId);
+  _aiInsightFailedHash.delete(eventId);
   // Render supaya skeleton loading langsung muncul (kalau belum ada cache
   // sebelumnya) tanpa nunggu AI selesai.
   if(currentSection === 'dashboard') renderContent();
 
   try{
     const teks = await aiTanya(buatPromptInsightBukuKegiatan(b), {
-      system: 'Kamu asisten keuangan untuk aplikasi kas Karang Taruna. Tulis ringkasan kondisi kas dalam Bahasa Indonesia sehari-hari yang hangat dan mudah dibaca warga biasa — BUKAN bahasa laporan resmi/LPJ. 3-5 kalimat, boleh pakai 1 kalimat penutup berupa saran praktis kalau memang relevan (tidak wajib dipaksakan tiap kali). Jangan mengulang semua angka yang sudah tampil di layar — pilih yang paling penting untuk diberi konteks/makna. Jangan pakai heading, bullet, atau markdown, cukup paragraf biasa.',
+      system: 'Kamu asisten keuangan untuk aplikasi kas Karang Taruna. Tulis ringkasan kondisi kas dalam Bahasa Indonesia sehari-hari yang hangat dan mudah dibaca warga biasa — BUKAN bahasa laporan resmi/LPJ. 3-5 kalimat, boleh pakai 1 kalimat penutup berupa saran praktis kalau memang relevan (tidak wajib dipaksakan tiap kali). Kalau datanya ada anggota belum bayar iuran atau agenda kegiatan dalam 7 hari ke depan, boleh disinggung singkat kalau relevan dengan kondisi kas (jangan sebut nama anggota, cukup jumlah). Jangan mengulang semua angka yang sudah tampil di layar — pilih yang paling penting untuk diberi konteks/makna. Jangan pakai heading, bullet, atau markdown, cukup paragraf biasa.',
     });
 
     const ringkasan = String(teks || '').trim();
@@ -109,6 +158,7 @@ async function generateBukuKegiatanInsight(eventId, b, hash){
   }catch(e){
     console.error('Gagal membuat Insight AI Buku Kegiatan:', e);
     _aiInsightFailed.add(eventId);
+    _aiInsightFailedHash.set(eventId, hash);
   }finally{
     _aiInsightGenerating.delete(eventId);
     if(currentSection === 'dashboard') renderContent();
@@ -136,6 +186,20 @@ function buatPromptInsightBukuKegiatan(b){
   baris.push('');
   baris.push(`SALDO AKHIR: ${fmtRp(b.saldo)} (proyeksi anggaran, sudah termasuk kebutuhan & hadiah yang direncanakan meski belum tentu semuanya sudah dibelanjakan)`);
   baris.push('');
+
+  const anggotaBelum = dataAnggotaBelumBayar();
+  if(anggotaBelum.jumlah > 0){
+    baris.push(`ANGGOTA BELUM BAYAR IURAN: ${anggotaBelum.jumlah} anggota, estimasi ${fmtRp(anggotaBelum.totalNominal)} belum masuk kas kalau semua lunas. (Jangan sebut nama, cukup jumlah/nominal.)`);
+    baris.push('');
+  }
+
+  const agenda = dataAgendaMendatang();
+  if(agenda.length > 0){
+    const daftarAgenda = agenda.map(a => `${a.judul} (${labelKategoriJadwal(a.kategori)}, ${fmtDateHari(a.tanggal)})`).join('; ');
+    baris.push(`AGENDA KEGIATAN 7 HARI KE DEPAN: ${daftarAgenda}`);
+    baris.push('');
+  }
+
   baris.push('Tulis ringkasan kondisi kas di atas untuk ditampilkan di dashboard aplikasi.');
   return baris.join('\n');
 }

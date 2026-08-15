@@ -46,7 +46,7 @@ const CORS_HEADERS: Record<string, string> = {
   // jadi CORS wajib ada di sini — beda dengan versi Cloudflare Worker
   // yang same-origin dan tidak perlu CORS sama sekali.
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-session-token',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-session-token, cache-control',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 

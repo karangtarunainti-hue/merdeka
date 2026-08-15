@@ -4,6 +4,8 @@
 -- (Dashboard) — lihat js/27-ai-insight.js.
 --
 -- Event-scoped (1 baris per event_id), sama seperti kt_settings.
+-- event_id bertipe TEXT (bukan uuid) karena mengikuti tipe kolom
+-- kt_events.id (id event di app ini string custom, bukan UUID).
 -- Isinya HASIL AI yang sudah jadi (teks + hash data sumber), bukan
 -- data yang diedit user lewat form — makanya TIDAK pakai mekanisme
 -- deteksi konflik updated_at seperti kt_settings/kt_organisasi_profil.
@@ -14,7 +16,7 @@
 -- Aman dijalankan berkali-kali (idempotent).
 -- ============================================================
 create table if not exists kt_ai_insight (
-  event_id uuid primary key references kt_events(id) on delete cascade,
+  event_id text primary key references kt_events(id) on delete cascade,
   ringkasan text not null default '',
   data_hash text not null default '',
   generated_at timestamptz default now(),

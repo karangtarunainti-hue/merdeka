@@ -1721,7 +1721,9 @@
        dimaksimalkan mengisi lebar layar (bukan cuma selebar teksnya)
        supaya proporsional & mudah diketuk di HP. --- */
     .pemasukan-lain-actions{width:100%;}
-    .pemasukan-lain-actions .btn{flex:1 1 0; min-width:0; justify-content:center; text-align:center; white-space:normal; line-height:1.3;}
+    .pemasukan-lain-actions .btn{min-width:0; justify-content:center; text-align:center; white-space:normal; line-height:1.3;}
+    .pemasukan-lain-actions .btn.secondary{flex:0 0 calc(70% - 4px);}
+    .pemasukan-lain-actions .btn:not(.secondary){flex:0 0 calc(30% - 4px);}
 
     /* --- Donatur & Transaksi Lain: format lebih ringkas agar fit tanpa scroll
        (Operasional Kegiatan sudah punya tabel/kartu sendiri, lihat

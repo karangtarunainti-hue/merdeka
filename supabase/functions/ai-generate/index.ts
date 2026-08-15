@@ -24,6 +24,19 @@
 //   (SUPABASE_URL & SUPABASE_ANON_KEY otomatis tersedia di env Edge
 //   Function, tidak perlu di-set manual.)
 //
+// FALLBACK MULTI-KEY (opsional, jaga-jaga kalau kuota free tier habis):
+//   supabase secrets set GEMINI_API_KEY_2=yyyyy
+//   supabase secrets set GEMINI_API_KEY_3=zzzzz
+//   Buat masing-masing dari akun Google berbeda (satu akun = satu kuota
+//   free tier sendiri-sendiri, jadi key dari akun yang sama TIDAK
+//   menambah kuota). Function ini coba GEMINI_API_KEY dulu; kalau key itu
+//   kena limit kuota (HTTP 429) atau Gemini lagi bermasalah (500/503),
+//   otomatis lanjut ke GEMINI_API_KEY_2, dst — bukan pengganti permanen,
+//   cuma jaring pengaman saat key utama lagi mentok/gangguan. Kalau
+//   error-nya BUKAN soal kuota (mis. prompt ditolak/400), tidak ada
+//   gunanya coba key lain (errornya akan sama persis), jadi langsung
+//   dikembalikan ke klien tanpa buang-buang percobaan.
+//
 // Ambil API key di https://aistudio.google.com/apikey — tier gratis
 // cukup untuk pemakaian ringan komunitas.
 // ============================================================
@@ -42,6 +55,10 @@ const AI_RATE_LIMIT_WINDOW_MS = 60_000; // per 1 menit, per sesi (best-effort, l
 const AI_MAX_PROMPT_CHARS = 8000; // batas panjang prompt (jaga biaya & abuse)
 const AI_MAX_OUTPUT_TOKENS = 2048;
 const AI_DEFAULT_MODEL = 'gemini-2.5-flash';
+// Status HTTP yang layak dicoba ulang dengan key lain: 429 = kuota/rate
+// limit habis untuk key itu, 500/503 = Gemini lagi gangguan sementara
+// (bukan salah key-nya, tapi tidak ada ruginya coba key lain juga).
+const RETRYABLE_STATUS = new Set([429, 500, 503]);
 
 // Best-effort, hidup selama isolate ini hangat saja — lihat catatan CORS di atas.
 const rateBuckets = new Map<string, number[]>();
@@ -94,6 +111,48 @@ async function verifySession(supabaseUrl: string, anonKey: string, token: string
   }
 }
 
+// Coba beberapa API key Gemini berurutan. Berhenti di percobaan pertama
+// yang sukses, atau di percobaan pertama yang gagal karena alasan BUKAN
+// kuota/gangguan sementara (mis. 400 prompt ditolak — key lain juga akan
+// gagal dengan cara sama, jadi tidak ada gunanya lanjut coba).
+async function callGeminiWithFallback(
+  apiKeys: string[],
+  model: string,
+  geminiBody: Record<string, unknown>
+): Promise<{ ok: boolean; status: number; data: any }> {
+  let lastResult: { ok: boolean; status: number; data: any } | null = null;
+
+  for (let i = 0; i < apiKeys.length; i++) {
+    const isLastKey = i === apiKeys.length - 1;
+    try {
+      const gm = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKeys[i] },
+          body: JSON.stringify(geminiBody),
+        }
+      );
+      const data = await gm.json();
+
+      if (gm.ok) return { ok: true, status: gm.status, data };
+
+      lastResult = { ok: false, status: gm.status, data };
+      const bisaDicobaLagi = RETRYABLE_STATUS.has(gm.status);
+      if (!bisaDicobaLagi || isLastKey) return lastResult;
+
+      console.warn(`Gemini key #${i + 1} gagal (status ${gm.status}), coba key cadangan berikutnya...`);
+    } catch (e) {
+      lastResult = { ok: false, status: 502, data: { error: { message: (e as Error).message } } };
+      if (isLastKey) return lastResult;
+      console.warn(`Gemini key #${i + 1} gagal koneksi, coba key cadangan berikutnya...`, e);
+    }
+  }
+
+  // Tidak akan sampai sini kalau apiKeys tidak kosong, tapi jaga-jaga.
+  return lastResult || { ok: false, status: 503, data: { error: { message: 'Tidak ada API key yang tersedia' } } };
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: CORS_HEADERS });
@@ -102,10 +161,16 @@ Deno.serve(async (req: Request) => {
     return json({ ok: false, error: 'Method not allowed' }, 405);
   }
 
-  const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
+  // Kumpulkan semua key yang di-set (utama + cadangan), buang yang kosong.
+  // Urutan dicoba = urutan di array ini: GEMINI_API_KEY dulu, baru _2, _3.
+  const apiKeys = [
+    Deno.env.get('GEMINI_API_KEY'),
+    Deno.env.get('GEMINI_API_KEY_2'),
+    Deno.env.get('GEMINI_API_KEY_3'),
+  ].filter((k): k is string => !!k && k.trim().length > 0);
   const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
   const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY');
-  if (!GEMINI_API_KEY) {
+  if (apiKeys.length === 0) {
     return json({ ok: false, error: 'GEMINI_API_KEY belum dikonfigurasi di server' }, 503);
   }
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
@@ -143,19 +208,15 @@ Deno.serve(async (req: Request) => {
   if (system) geminiBody.systemInstruction = { parts: [{ text: system }] };
 
   try {
-    const gm = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${AI_DEFAULT_MODEL}:generateContent`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_API_KEY },
-        body: JSON.stringify(geminiBody),
-      }
-    );
-    const data = await gm.json();
+    const { ok, status, data } = await callGeminiWithFallback(apiKeys, AI_DEFAULT_MODEL, geminiBody);
 
-    if (!gm.ok) {
-      console.error('Gemini API error:', data);
-      return json({ ok: false, error: data?.error?.message || 'Gemini API error' }, gm.status);
+    if (!ok) {
+      console.error('Gemini API error (semua key sudah dicoba):', data);
+      const pesan =
+        status === 429
+          ? 'Semua kuota AI sedang habis, coba lagi nanti'
+          : data?.error?.message || 'Gemini API error';
+      return json({ ok: false, error: pesan }, status);
     }
 
     // Gemini bisa menolak jawab (safety filter dll) tanpa error HTTP — di

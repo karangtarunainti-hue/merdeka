@@ -168,7 +168,14 @@ function defaultDB(){
     // telegram/orgProfile. Hanya toggle enabled + nomor yang DITAMPILKAN ke
     // anggota (bukan token — token tetap secret Cloudflare, lihat
     // supabase-whatsapp-settings-migration.sql).
-    whatsapp: { enabled: false, nomorTampilan: '' }
+    whatsapp: { enabled: false, nomorTampilan: '' },
+    // Cache ringkasan naratif AI per event_id untuk panel Insight di Buku
+    // Kegiatan (Dashboard) — lihat js/27-ai-insight.js & getSettings()-nya
+    // event_id-nya sendiri di kt_ai_insight. Key = event_id, value =
+    // {ringkasan, dataHash, generatedAt}. Ditulis LANGSUNG oleh
+    // generateBukuKegiatanInsight() (bukan lewat siklus saveDB() biasa)
+    // karena ini hasil AI yang di-generate otomatis, bukan input user.
+    aiInsight: {}
   };
 }
 
@@ -277,7 +284,7 @@ async function loadDB(){
     // ada 403 percuma di console tiap kali app dibuka — halaman Manajemen
     // User sendiri sudah fetch ulang datanya sendiri saat dibuka/diubah.
     const usersCall = isAdmin() ? sb.rpc('rpc_list_users') : Promise.resolve({data:null, error:null});
-    const [arrayResults, settingsRes, telegramRes, usersRes, guestMenuRes, dokumenGlobalRes, orgProfileRes, whatsappRes] = await Promise.all([
+    const [arrayResults, settingsRes, telegramRes, usersRes, guestMenuRes, dokumenGlobalRes, orgProfileRes, whatsappRes, aiInsightRes] = await Promise.all([
       Promise.all(entries.map(([, table]) => sb.from(table).select('*'))),
       sb.from('kt_settings').select('*'),
       sb.from('kt_telegram_settings').select('*').eq('id', 'main').maybeSingle(),
@@ -286,6 +293,7 @@ async function loadDB(){
       sb.from('kt_dokumen_global').select('*').eq('id', 'main').maybeSingle(),
       sb.from('kt_organisasi_profil').select('*').eq('id', 'main').maybeSingle(),
       sb.from('kt_whatsapp_settings').select('*').eq('id', 'main').maybeSingle(),
+      sb.from('kt_ai_insight').select('*'),
     ]);
 
     const failedTables = [];
@@ -408,6 +416,13 @@ async function loadDB(){
         };
       }
       _lastKnownWhatsappUpdatedAt = whatsappRes.data ? (whatsappRes.data.updated_at || null) : null;
+    }
+
+    if(aiInsightRes.error){ console.error('Gagal memuat kt_ai_insight:', aiInsightRes.error); }
+    else{
+      (aiInsightRes.data || []).forEach(r => {
+        result.aiInsight[r.event_id] = { ringkasan: r.ringkasan || '', dataHash: r.data_hash || '', generatedAt: r.generated_at || null };
+      });
     }
 
     result.activeEventId = localStorage.getItem('kt_active_event') || (result.events[0] ? result.events[0].id : null);

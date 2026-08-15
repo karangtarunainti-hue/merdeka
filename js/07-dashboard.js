@@ -40,8 +40,15 @@ function renderDashboard(){
   const reminderCards = generateReminders();
   const isLoggedIn = !!getCurrentUser();
 
+  // Trigger cek/generate Insight AI di background (lihat js/27-ai-insight.js) —
+  // dikasih `b` yang sudah dihitung di atas supaya tidak hitung 2x. Fungsi ini
+  // tidak blocking: kalau perlu generate baru, jalan async & renderContent()
+  // ulang sendiri saat selesai; render pertama tetap pakai cache lama kalau ada.
+  ensureBukuKegiatanInsight(b);
+
   return `
   ${reminderCards}
+  ${renderBukuKegiatanInsightPanel()}
   <div class="stat-grid-ringkasan">
     <div class="stat-card pemasukan"><div class="lbl">Total Pemasukan</div><div class="val">${fmtRp(b.pemasukan)}</div></div>
     <div class="stat-card pengeluaran"><div class="lbl">Total Pengeluaran</div><div class="val">${fmtRp(b.pengeluaran)}</div></div>

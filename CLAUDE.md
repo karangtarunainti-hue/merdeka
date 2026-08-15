@@ -95,6 +95,14 @@ dideploy ke **Cloudflare Workers (assets)** dengan backend **Supabase**.
   Function). Rate limit di dalamnya cuma best-effort (in-memory per
   isolate) — Edge Function bisa jalan di banyak isolate paralel, jadi
   ini BUKAN jaminan limit global yang ketat.
+  **Fallback multi-key**: bisa set `GEMINI_API_KEY_2`/`GEMINI_API_KEY_3`
+  (secret opsional, idealnya dari akun Google terpisah supaya kuota
+  free tier-nya juga terpisah) — `callGeminiWithFallback()` di
+  `index.ts` coba key utama dulu, baru lanjut ke cadangan HANYA kalau
+  gagalnya karena kuota/rate limit (429) atau gangguan sementara Gemini
+  (500/503). Error lain (mis. 400 prompt ditolak) langsung dikembalikan
+  ke klien tanpa dicoba ulang, karena key lain juga akan gagal dengan
+  cara yang sama.
 
 ## Perintah
 

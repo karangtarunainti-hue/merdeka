@@ -2314,6 +2314,37 @@ table.absensi-table th:nth-child(1), table.absensi-table td:nth-child(1){text-al
 @keyframes kt-spin{ to{ transform:rotate(360deg); } }
 
 /* ============================================================
+   INSIGHT AI — panel ringkasan naratif di Buku Kegiatan (Dashboard).
+   Lihat js/27-ai-insight.js.
+   ============================================================ */
+.ai-insight-panel{
+  background:var(--ungu-tint);
+  border:1px solid color-mix(in srgb, var(--ungu) 25%, transparent);
+  margin-bottom:14px;
+}
+.ai-insight-panel .panel-body{padding:14px 16px;}
+.ai-insight-text{font-size:13.5px; line-height:1.6; color:var(--ink);}
+.ai-insight-text.ai-insight-muted{color:var(--ink-soft); font-style:italic;}
+.ai-insight-text.ai-insight-warn{color:var(--bahaya-dark);}
+.ai-insight-meta{
+  display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+  margin-top:8px; font-size:11px; color:var(--ink-soft);
+}
+.ai-insight-meta .icon-btn{padding:3px 5px;}
+.ai-insight-warn{color:var(--bahaya-dark);}
+.ai-insight-skeleton{display:flex; flex-direction:column; gap:8px; padding:2px 0;}
+.ai-insight-skeleton-line{
+  height:11px; border-radius:6px;
+  background:linear-gradient(90deg, color-mix(in srgb, var(--ungu) 18%, transparent) 25%, color-mix(in srgb, var(--ungu) 32%, transparent) 50%, color-mix(in srgb, var(--ungu) 18%, transparent) 75%);
+  background-size:200% 100%;
+  animation:kt-insight-shimmer 1.4s ease-in-out infinite;
+}
+@keyframes kt-insight-shimmer{
+  0%{background-position:200% 0;}
+  100%{background-position:-200% 0;}
+}
+
+/* ============================================================
    OFFLINE OVERLAY — layar buram + peringatan saat perangkat
    kehilangan koneksi internet. Menutup seluruh aplikasi (blur +
    blokir klik/keyboard) supaya user tidak bisa input data selama

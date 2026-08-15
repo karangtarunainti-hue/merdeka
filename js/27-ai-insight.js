@@ -38,6 +38,13 @@ const _aiInsightFailed = new Set();
 // percobaan baru untuk data baru, bukan retry buta untuk data yang sama.
 const _aiInsightFailedHash = new Map();
 
+// Naikkan angka ini SETIAP KALI system prompt (gaya bahasa/instruksi AI di
+// bawah) diubah — supaya cache lama (kt_ai_insight) otomatis dianggap usang
+// dan AI generate ulang dengan gaya baru, walau angka kas belum berubah.
+// Tanpa ini, ganti prompt saja tidak akan terlihat efeknya sampai ada
+// transaksi baru yang mengubah data_hash.
+const AI_INSIGHT_PROMPT_VERSION = 3;
+
 // Hash sederhana (bukan kriptografis, cuma penanda "data sumbernya sama atau
 // tidak") dari angka-angka yang menyusun 3 card ringkasan + rincian di
 // baliknya, DITAMBAH anggota belum bayar & agenda kegiatan mendatang (lihat
@@ -49,6 +56,7 @@ function hitungAiInsightDataHash(b){
   const anggotaBelum = dataAnggotaBelumBayar();
   const agenda = dataAgendaMendatang();
   const bagian = [
+    AI_INSIGHT_PROMPT_VERSION,
     b.iuran, b.jumlahIuranLunas,
     b.donasi, b.jumlahDonatur, b.jumlahDonaturBarang,
     b.transaksiLain, b.jumlahTransaksiLain,

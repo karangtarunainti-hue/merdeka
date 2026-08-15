@@ -35,6 +35,10 @@ let secondBrainNotes = []; // {id, judul, konten, kategori, tags, event_id, crea
 let secondBrainLoaded = false;
 let secondBrainSearchQuery = '';
 let secondBrainFilterKategori = '';
+// Urutan daftar biasa (BUKAN mode pencarian makna, yang selalu diurutkan
+// berdasar skor relevansi) — 'terbaru' (default, sama seperti urutan dari
+// server) atau 'judul' (A-Z).
+let secondBrainSortBy = 'terbaru';
 // Hasil pencarian semantik terakhir: null = belum pernah cari (tampilkan
 // daftar biasa), array = hasil pencarian (tampilkan diurutkan skor makna).
 let secondBrainSearchResults = null;
@@ -48,6 +52,29 @@ const SECOND_BRAIN_KATEGORI = [
 ];
 function secondBrainKategoriInfo(v){
   return SECOND_BRAIN_KATEGORI.find(k => k.v === v) || SECOND_BRAIN_KATEGORI[0];
+}
+
+// Jumlah catatan per kategori (dari SELURUH catatan yang sudah dimuat, TIDAK
+// ikut terpengaruh filter kategori yang sedang aktif) — dipakai buat angka
+// di tiap chip filter supaya orang bisa lihat sebaran tanpa klik satu-satu.
+function secondBrainKategoriCounts(){
+  const counts = {};
+  secondBrainNotes.forEach(n => { counts[n.kategori] = (counts[n.kategori]||0) + 1; });
+  return counts;
+}
+
+// Urutkan daftar biasa (bukan hasil pencarian makna, yang urutannya sudah
+// ditentukan skor relevansi dari server). Immutable — kembalikan array baru
+// supaya tidak mengubah urutan asli secondBrainNotes (yang urutan defaultnya
+// dipakai fallback kalau load ulang).
+function secondBrainSortList(list){
+  const arr = list.slice();
+  if (secondBrainSortBy === 'judul') {
+    arr.sort((a,b) => (a.judul||'').localeCompare(b.judul||'', 'id', {sensitivity:'base'}));
+  } else {
+    arr.sort((a,b) => new Date(b.updated_at||0) - new Date(a.updated_at||0));
+  }
+  return arr;
 }
 
 function secondBrainBolehKelola(){
@@ -100,16 +127,34 @@ function renderSecondBrain(){
     </div>`;
   }
 
-  const daftarUntukDitampilkan = secondBrainSearchResults !== null
-    ? secondBrainSearchResults
-    : secondBrainNotes.filter(n => {
-        if (secondBrainFilterKategori && n.kategori !== secondBrainFilterKategori) return false;
-        if (!secondBrainSearchQuery) return true;
-        const q = secondBrainSearchQuery.toLowerCase();
-        return (n.judul||'').toLowerCase().includes(q) || (n.konten||'').toLowerCase().includes(q);
-      });
+  const modePencarianMakna = secondBrainSearchResults !== null;
+  const totalSemua = secondBrainNotes.length;
+  const counts = secondBrainKategoriCounts();
 
-  const kategoriOptions = SECOND_BRAIN_KATEGORI.map(k => `<option value="${k.v}" ${secondBrainFilterKategori===k.v?'selected':''}>${k.l}</option>`).join('');
+  let daftarUntukDitampilkan;
+  if (modePencarianMakna) {
+    daftarUntukDitampilkan = secondBrainSearchResults;
+  } else {
+    daftarUntukDitampilkan = secondBrainSortList(secondBrainNotes.filter(n => {
+      if (secondBrainFilterKategori && n.kategori !== secondBrainFilterKategori) return false;
+      if (!secondBrainSearchQuery) return true;
+      const q = secondBrainSearchQuery.toLowerCase();
+      return (n.judul||'').toLowerCase().includes(q) || (n.konten||'').toLowerCase().includes(q);
+    }));
+  }
+
+  // Chip "Semua" + 1 chip per kategori, tiap chip kasih tahu jumlah
+  // catatannya — pengganti <select> lama supaya bisa 1-klik ganti filter
+  // (bukan buka dropdown dulu) & sekalian jadi ringkasan sebaran kategori.
+  const kategoriChips = `
+    <button class="sb-kat-chip ${!secondBrainFilterKategori?'active':''}" ${da('secondBrainSetKategoriFilter','')}>
+      Semua <span class="sb-kat-count">${totalSemua}</span>
+    </button>
+    ${SECOND_BRAIN_KATEGORI.map(k => `
+    <button class="sb-kat-chip accent-${k.warna} ${secondBrainFilterKategori===k.v?'active':''}" ${da('secondBrainSetKategoriFilter', k.v)}>
+      ${k.l} <span class="sb-kat-count">${counts[k.v]||0}</span>
+    </button>`).join('')}
+  `;
 
   const cards = daftarUntukDitampilkan.map(n => {
     const kat = secondBrainKategoriInfo(n.kategori);
@@ -117,6 +162,8 @@ function renderSecondBrain(){
     const skorHtml = (typeof n.similarity === 'number')
       ? `<span class="second-brain-score" title="Skor kemiripan makna">🎯 ${Math.round(n.similarity*100)}%</span>` : '';
     const tagsHtml = (n.tags||[]).length ? `<div class="second-brain-tags">${n.tags.map(t=>`<span class="second-brain-tag">#${esc(t)}</span>`).join('')}</div>` : '';
+    const metaBits = [`🕒 ${fmtWaktuTerakhir(n.updated_at)}`];
+    if (n.created_by) metaBits.push(`✍️ ${esc(n.created_by)}`);
     return `
     <div class="second-brain-card accent-${kat.warna}">
       <div class="second-brain-card-top">
@@ -130,34 +177,67 @@ function renderSecondBrain(){
       <div class="second-brain-card-title">${esc(n.judul)}</div>
       <div class="second-brain-card-body">${esc(cuplikan)}</div>
       ${tagsHtml}
+      <div class="second-brain-card-meta">${metaBits.join(' · ')}</div>
     </div>`;
   }).join('');
 
-  const emptyMsg = secondBrainSearchResults !== null
+  const emptyMsg = modePencarianMakna
     ? 'Tidak ada catatan yang maknanya cukup dekat dengan pencarian ini.'
     : (secondBrainSearchQuery || secondBrainFilterKategori ? 'Tidak ada catatan yang cocok dengan filter ini.' : 'Belum ada catatan. Tambahkan catatan/ide/dokumen pertama supaya Asisten AI juga bisa memakainya.');
 
+  const infoBaris = modePencarianMakna
+    ? `<div class="second-brain-info-bar">🎯 Hasil pencarian makna untuk "${esc(secondBrainSearchQuery)}" — diurutkan dari yang paling relevan (${daftarUntukDitampilkan.length}).</div>`
+    : (totalSemua > 0 ? `<div class="second-brain-info-bar">Menampilkan ${daftarUntukDitampilkan.length} dari ${totalSemua} catatan.</div>` : '');
+
   return `
-  <div class="panel">
+  <div class="panel second-brain-panel">
     <div class="panel-head">
       <div><h3>🧠 Second Brain</h3><div class="desc">Catatan/ide/dokumen/konteks — bisa dicari berdasarkan makna, ikut dipakai Asisten AI</div></div>
       <button class="btn" ${da('openSecondBrainModal')}>+ Tambah Catatan</button>
     </div>
     <div class="panel-body">
+      <div class="second-brain-kategori-row">${kategoriChips}</div>
       <div class="second-brain-toolbar">
-        <input type="text" id="second-brain-cari" placeholder="🔎 Cari berdasarkan makna… (mis. 'rencana kegiatan tahun depan')"
-          value="${esc(secondBrainSearchQuery)}" onkeydown="if(event.key==='Enter'){cariSecondBrainSemantik();}">
-        <button class="btn secondary" ${da('cariSecondBrainSemantik')} ${secondBrainSearching?'disabled':''}>${secondBrainSearching?'⏳ Mencari…':'Cari'}</button>
-        <select id="second-brain-filter-kategori" onchange="secondBrainFilterKategori=this.value; secondBrainSearchResults=null; renderContent();">
-          <option value="">Semua kategori</option>
-          ${kategoriOptions}
-        </select>
-        ${secondBrainSearchResults !== null ? `<button class="icon-btn" ${da('resetSecondBrainSearch')} title="Kembali ke daftar biasa">✕</button>` : ''}
+        <div class="second-brain-search-wrap">
+          <input type="text" id="second-brain-cari" placeholder="🔎 Cari judul/isi, atau tekan Enter untuk cari berdasarkan makna…"
+            value="${esc(secondBrainSearchQuery)}" oninput="secondBrainOnInputCari()" onkeydown="if(event.key==='Enter'){cariSecondBrainSemantik();}">
+          ${(secondBrainSearchQuery || modePencarianMakna) ? `<button class="icon-btn" ${da('resetSecondBrainSearch')} title="Bersihkan pencarian">✕</button>` : ''}
+        </div>
+        <button class="btn secondary" ${da('cariSecondBrainSemantik')} ${secondBrainSearching?'disabled':''}>${secondBrainSearching?'⏳ Mencari…':'🧠 Cari Makna'}</button>
+        ${!modePencarianMakna ? `
+        <select id="second-brain-sort" onchange="secondBrainSetSort(this.value)">
+          <option value="terbaru" ${secondBrainSortBy==='terbaru'?'selected':''}>Terbaru diubah</option>
+          <option value="judul" ${secondBrainSortBy==='judul'?'selected':''}>Judul (A-Z)</option>
+        </select>` : ''}
       </div>
-      ${secondBrainSearchResults !== null ? `<div class="desc" style="margin:8px 2px 0;">Hasil pencarian makna untuk "${esc(secondBrainSearchQuery)}" — diurutkan dari yang paling relevan.</div>` : ''}
-      ${daftarUntukDitampilkan.length ? `<div class="second-brain-grid" style="margin-top:14px;">${cards}</div>` : `<div class="empty-row" style="padding:30px;text-align:center;">${emptyMsg}</div>`}
+      ${infoBaris}
+      ${daftarUntukDitampilkan.length ? `<div class="second-brain-grid">${cards}</div>` : `<div class="empty-row" style="padding:30px;text-align:center;">${emptyMsg}</div>`}
     </div>
   </div>`;
+}
+
+// Ngetik di kolom cari = filter LOKAL instan berdasar judul/isi (tanpa
+// panggil AI sama sekali, lihat cabang non-modePencarianMakna di
+// renderSecondBrain di atas) — beda dari cariSecondBrainSemantik() yang baru
+// jalan kalau tombol "🧠 Cari Makna" diklik / Enter ditekan (baru itu yang
+// mahal, panggil AI.embed() + RPC). Ngetik baru otomatis keluar dari mode
+// pencarian makna (hasil lama sudah tidak relevan buat teks yang baru).
+function secondBrainOnInputCari(){
+  const input = document.getElementById('second-brain-cari');
+  secondBrainSearchQuery = input ? input.value : '';
+  secondBrainSearchResults = null;
+  renderContent();
+}
+function secondBrainSetKategoriFilter(v){
+  secondBrainFilterKategori = v;
+  // Sama alasannya seperti di atas: ganti kategori butuh filter ulang dari
+  // awal, bukan nyisa hasil pencarian makna yang sudah tidak sinkron.
+  secondBrainSearchResults = null;
+  renderContent();
+}
+function secondBrainSetSort(v){
+  secondBrainSortBy = v;
+  renderContent();
 }
 
 /* ------------------------------------------------------------

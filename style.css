@@ -2985,27 +2985,70 @@ table.ds-rekap-table td.num, table.ds-rekap-table th:not(:first-child){ text-ali
    SECOND BRAIN — menu catatan/ide/dokumen dgn pencarian semantik.
    Lihat js/30-second-brain.js. Kartu pakai pola accent-* yang sama
    seperti .bookmark-card (var(--card-accent)) supaya konsisten.
+
+   Layout: chip kategori (navigasi cepat + hitungan per kategori) di
+   atas, lalu toolbar cari+urutkan, lalu grid kartu. Chip row bisa
+   scroll horizontal 1 baris di layar sempit (scrollbar disembunyikan
+   lewat aturan global *{scrollbar-width:none} di atas) supaya tidak
+   makan tempat vertikal, tapi wrap bebas di layar lebar karena
+   ruangnya cukup. Grid kartu dibatasi lebar maksimum di layar sangat
+   lebar (>=1200px) supaya kartu tidak melar jadi terlalu lebar untuk
+   dibaca nyaman.
    ============================================================ */
+.second-brain-kategori-row{
+  display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;
+}
+.sb-kat-chip{
+  display:inline-flex; align-items:center; gap:6px; flex:none;
+  padding:7px 13px; border-radius:20px; border:1px solid var(--garis);
+  background:var(--surface); color:var(--ink-soft); font:inherit;
+  font-size:12.5px; font-weight:600; white-space:nowrap; cursor:pointer;
+  transition:border-color .15s ease, background .15s ease, color .15s ease;
+}
+.sb-kat-chip:hover{ border-color:var(--abu); }
+.sb-kat-chip.accent-biru{ --chip-accent:var(--biru); }
+.sb-kat-chip.accent-ungu{ --chip-accent:var(--ungu); }
+.sb-kat-chip.accent-gold{ --chip-accent:var(--gold); }
+.sb-kat-chip.accent-hijau{ --chip-accent:var(--hijau); }
+.sb-kat-chip.active{
+  background:color-mix(in srgb, var(--chip-accent, var(--gold)) 14%, var(--surface));
+  border-color:var(--chip-accent, var(--gold)); color:var(--ink);
+}
+.sb-kat-count{
+  font-size:10.5px; font-weight:700; padding:1px 7px; border-radius:10px;
+  background:var(--table-head); color:var(--ink-soft);
+}
+.sb-kat-chip.active .sb-kat-count{ background:var(--chip-accent, var(--gold)); color:#fff; }
+
 .second-brain-toolbar{
-  display:flex; flex-wrap:wrap; align-items:center; gap:8px;
+  display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-bottom:4px;
 }
-.second-brain-toolbar input[type="text"]{
-  flex:1 1 240px; border:1px solid var(--garis); border-radius:var(--radius);
-  padding:9px 12px; font-size:13.5px; background:var(--cream-card); color:var(--ink);
+.second-brain-search-wrap{
+  flex:1 1 260px; min-width:180px; position:relative; display:flex; align-items:center;
 }
+.second-brain-search-wrap input[type="text"]{
+  width:100%; border:1px solid var(--garis); border-radius:var(--radius);
+  padding:9px 34px 9px 12px; font-size:13.5px; background:var(--cream-card); color:var(--ink);
+}
+.second-brain-search-wrap .icon-btn{ position:absolute; right:3px; top:50%; transform:translateY(-50%); }
 .second-brain-toolbar select{
-  border:1px solid var(--garis); border-radius:var(--radius); padding:9px 10px;
+  flex:none; border:1px solid var(--garis); border-radius:var(--radius); padding:9px 10px;
   font-size:13px; background:var(--cream-card); color:var(--ink);
 }
+.second-brain-toolbar .btn{ flex:none; }
+
+.second-brain-info-bar{ font-size:12px; color:var(--ink-soft); margin:8px 2px 12px; }
 
 .second-brain-grid{
-  display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:12px;
+  display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:12px;
 }
 .second-brain-card{
   background:var(--cream-card); border:1px solid var(--garis); border-radius:var(--radius);
-  border-top:3px solid var(--card-accent, var(--biru)); padding:12px 14px;
-  display:flex; flex-direction:column; gap:6px;
+  border-top:3px solid var(--card-accent, var(--biru)); padding:13px 15px;
+  display:flex; flex-direction:column; gap:7px;
+  transition:box-shadow .15s ease, transform .15s ease;
 }
+.second-brain-card:hover{ box-shadow:var(--shadow); transform:translateY(-1px); }
 .second-brain-card.accent-biru{--card-accent:var(--biru);}
 .second-brain-card.accent-ungu{--card-accent:var(--ungu);}
 .second-brain-card.accent-gold{--card-accent:var(--gold);}
@@ -3021,12 +3064,28 @@ table.ds-rekap-table td.num, table.ds-rekap-table th:not(:first-child){ text-ali
   padding:2px 7px; border-radius:20px;
 }
 .second-brain-card-actions{ margin-left:auto; display:flex; gap:2px; }
-.second-brain-card-title{ font-weight:700; font-size:14px; }
-.second-brain-card-body{ font-size:12.5px; color:var(--ink-soft); line-height:1.5; white-space:pre-wrap; }
-.second-brain-tags{ display:flex; flex-wrap:wrap; gap:5px; margin-top:2px; }
+.second-brain-card-title{ font-weight:700; font-size:14px; line-height:1.35; }
+.second-brain-card-body{
+  font-size:12.5px; color:var(--ink-soft); line-height:1.5; white-space:pre-wrap;
+  overflow:hidden; display:-webkit-box; -webkit-line-clamp:5; -webkit-box-orient:vertical;
+}
+.second-brain-tags{ display:flex; flex-wrap:wrap; gap:5px; margin-top:1px; }
 .second-brain-tag{ font-size:11px; color:var(--ink-soft); background:var(--table-head); padding:2px 7px; border-radius:20px; }
+.second-brain-card-meta{
+  margin-top:auto; padding-top:7px; border-top:1px dashed var(--garis);
+  font-size:11px; color:var(--abu);
+}
 
+@media (min-width:1200px){
+  /* Layar sangat lebar: batasi kartu supaya tidak melar jadi terlalu
+     lebar (dan teksnya tidak jadi susah dipindai baca). */
+  .second-brain-grid{ grid-template-columns:repeat(auto-fill, minmax(300px, 340px)); }
+}
 @media (max-width:480px){
-  .second-brain-grid{ grid-template-columns:1fr; }
+  .second-brain-kategori-row{
+    flex-wrap:nowrap; overflow-x:auto; margin:0 -2px 12px; padding:0 2px 2px;
+  }
   .second-brain-toolbar{ flex-direction:column; align-items:stretch; }
+  .second-brain-toolbar select{ width:100%; }
+  .second-brain-grid{ grid-template-columns:1fr; }
 }

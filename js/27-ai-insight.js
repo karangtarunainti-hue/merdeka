@@ -258,9 +258,9 @@ function renderBukuKegiatanInsightPanel(){
   }
 
   return `<div class="panel ai-insight-panel">
-    <div class="panel-body" style="display:flex;gap:10px;align-items:flex-start;">
-      <i data-lucide="sparkles" class="inline-icon" style="flex-shrink:0;margin-top:2px;color:var(--ungu);"></i>
-      <div style="flex:1;min-width:0;">${isi}</div>
+    <div class="panel-body">
+      <div class="ai-insight-badge"><i data-lucide="sparkles" class="inline-icon"></i><span>Insight AI</span></div>
+      <div class="ai-insight-body">${isi}</div>
     </div>
   </div>`;
 }

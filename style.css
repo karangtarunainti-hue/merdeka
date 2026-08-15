@@ -2318,17 +2318,41 @@ table.absensi-table th:nth-child(1), table.absensi-table td:nth-child(1){text-al
    Lihat js/27-ai-insight.js.
    ============================================================ */
 .ai-insight-panel{
-  background:var(--ungu-tint);
-  border:1px solid color-mix(in srgb, var(--ungu) 25%, transparent);
+  position:relative;
+  background:
+    linear-gradient(155deg, color-mix(in srgb, var(--ungu) 10%, var(--cream-card)) 0%, var(--cream-card) 55%);
+  border:1px solid color-mix(in srgb, var(--ungu) 22%, transparent);
+  border-radius:14px;
+  box-shadow:0 1px 2px rgba(43,35,32,.04), 0 10px 24px -12px color-mix(in srgb, var(--ungu) 35%, transparent);
   margin-bottom:14px;
+  overflow:hidden;
 }
-.ai-insight-panel .panel-body{padding:14px 16px;}
+.ai-insight-panel::before{
+  content:'';
+  position:absolute; inset:0 0 auto 0; height:2.5px;
+  background:linear-gradient(90deg, var(--ungu), color-mix(in srgb, var(--ungu) 40%, #e8b7d4), var(--ungu));
+  background-size:200% 100%;
+  animation:kt-insight-sheen 6s ease-in-out infinite;
+}
+@keyframes kt-insight-sheen{
+  0%,100%{background-position:0% 0;}
+  50%{background-position:100% 0;}
+}
+.ai-insight-panel .panel-body{padding:16px 18px;}
+.ai-insight-badge{
+  display:inline-flex; align-items:center; gap:6px;
+  font-size:11px; font-weight:700; letter-spacing:.04em; text-transform:uppercase;
+  color:var(--ungu); margin-bottom:8px;
+}
+.ai-insight-badge .inline-icon{width:13px; height:13px;}
+.ai-insight-body{padding-left:1px;}
 .ai-insight-text{font-size:13.5px; line-height:1.6; color:var(--ink);}
 .ai-insight-text.ai-insight-muted{color:var(--ink-soft); font-style:italic;}
 .ai-insight-text.ai-insight-warn{color:var(--bahaya-dark);}
 .ai-insight-meta{
   display:flex; align-items:center; gap:8px; flex-wrap:wrap;
-  margin-top:8px; font-size:11px; color:var(--ink-soft);
+  margin-top:10px; padding-top:8px; border-top:1px dashed color-mix(in srgb, var(--ungu) 20%, transparent);
+  font-size:11px; color:var(--ink-soft);
 }
 .ai-insight-meta .icon-btn{padding:3px 5px;}
 .ai-insight-warn{color:var(--bahaya-dark);}

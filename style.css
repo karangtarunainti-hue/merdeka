@@ -2185,7 +2185,11 @@ table.absensi-table th:nth-child(1), table.absensi-table td:nth-child(1){text-al
    mempengaruhi tampilan layar lebar/komputer.
    ============================================================ */
 @media (max-width:820px){
-  .belanja-toko-page .panel-body{
+  /* :not(.ai-insight-panel) — supaya panel Insight AI di halaman Belanja
+     Hadiah TIDAK ikut kena styling monospace/background daftar belanja ini,
+     dan tetap tampil konsisten sama seperti panel Insight di Dashboard &
+     Lomba (lihat .ai-insight-panel di bagian INSIGHT AI). */
+  .belanja-toko-page .panel:not(.ai-insight-panel) .panel-body{
     background:var(--cream-card, #faf7ec);
     font-family:'JetBrains Mono', monospace;
     padding-top:6px;

@@ -233,7 +233,7 @@ function boldNominalRp(escapedText){
 // supaya tampilan & perilaku (skeleton/gagal/guest) konsisten di semua
 // insight tanpa duplikasi markup. retryFnName = nama fungsi global yang
 // dipanggil tombol "Coba lagi"/refresh (lihat da()).
-function renderInsightPanelHtml({ cache, sedangProses, gagal, loggedIn, retryFnName, badgeLabel, badgeIcon, pesanKosong }){
+function renderInsightPanelHtml({ cache, sedangProses, gagal, loggedIn, retryFnName, badgeLabel, badgeIcon, pesanKosong, disclaimer }){
   let isi;
   if(cache && cache.ringkasan){
     isi = `<div class="ai-insight-text">${boldNominalRp(esc(cache.ringkasan))}</div>
@@ -261,6 +261,7 @@ function renderInsightPanelHtml({ cache, sedangProses, gagal, loggedIn, retryFnN
     <div class="panel-body">
       <div class="ai-insight-badge"><i data-lucide="${badgeIcon}" class="inline-icon"></i><span>${badgeLabel}</span></div>
       <div class="ai-insight-body">${isi}</div>
+      ${disclaimer ? `<div class="ai-insight-disclaimer">${disclaimer}</div>` : ''}
     </div>
   </div>`;
 }
@@ -280,6 +281,7 @@ function renderBukuKegiatanInsightPanel(){
     badgeLabel: 'Haloo Inti!',
     badgeIcon: 'megaphone',
     pesanKosong: 'Ringkasan otomatis akan muncul di sini setelah admin/pengurus membuka halaman ini.',
+    disclaimer: 'Catatan: ringkasan ini hanya proyeksi otomatis dari data yang sudah diinput ke sistem, dan bisa saja meleset. Untuk data keuangan yang pasti/valid, silakan tanyakan langsung ke bendahara.',
   });
 }
 

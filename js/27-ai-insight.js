@@ -43,7 +43,7 @@ const _aiInsightFailedHash = new Map();
 // dan AI generate ulang dengan gaya baru, walau angka kas belum berubah.
 // Tanpa ini, ganti prompt saja tidak akan terlihat efeknya sampai ada
 // transaksi baru yang mengubah data_hash.
-const AI_INSIGHT_PROMPT_VERSION = 7;
+const AI_INSIGHT_PROMPT_VERSION = 8;
 
 // Hash sederhana (bukan kriptografis, cuma penanda "data sumbernya sama atau
 // tidak") dari angka-angka yang menyusun 3 card ringkasan + rincian di
@@ -57,6 +57,7 @@ function hitungAiInsightDataHash(b){
   const agenda = dataAgendaMendatang();
   const belum = dataEstimasiBelumDibeli();
   const kupon = dataKuponJalanSantai();
+  const catatan = dataCatatanKontekAiInsight();
   const bagian = [
     AI_INSIGHT_PROMPT_VERSION,
     b.iuran, b.jumlahIuranLunas,
@@ -73,8 +74,44 @@ function hitungAiInsightDataHash(b){
     belum.hadiahEstimasiBelum,
     belum.jalanItemBelum, belum.jalanEstimasiBelum,
     kupon ? `${kupon.harga}:${kupon.stok}:${kupon.terjual}` : '',
+    // id+updated_at tiap catatan cukup untuk deteksi tambah/ubah/hapus,
+    // tanpa perlu ikut hash isi konten lengkap (yang bisa panjang).
+    catatan.map(c => `${c.id}:${c.updated_at}`).join(','),
   ];
   return bagian.join('|');
+}
+
+// Catatan Second Brain yang relevan untuk INSIGHT (bukan Asisten AI/chat) —
+// dipakai supaya ringkasan otomatis di dashboard juga bisa "tahu" konteks
+// yang dicatat manual oleh pengurus (mis. "tahun ini anggota bawa tikar
+// sendiri pas tirakatan"), bukan cuma angka transaksi.
+//
+// BEDA dari secondBrainCariUntukAsisten() (js/30-second-brain.js): generate
+// insight TIDAK punya "pertanyaan" untuk di-embed & dicari maknanya lewat
+// RPC kt_second_brain_search — jadi di sini cukup ambil langsung dari
+// secondBrainNotes yang sudah dimuat di memori (loadSecondBrainData()
+// dipanggil di background saat init, lihat js/19-init.js; guest/belum
+// login otomatis dapat array kosong, lihat secondBrainBolehKelola()).
+//
+// Filter: catatan milik event aktif ATAU catatan lintas-event (event_id
+// null) — semantik sama seperti p_event_id di kt_second_brain_search
+// (lihat supabase-second-brain-migration.sql). Diurutkan terbaru dahulu &
+// dibatasi 8 catatan + 300 karakter/catatan supaya prompt tetap ringkas
+// dan tidak didominasi 1 catatan panjang.
+function dataCatatanKontekAiInsight(){
+  const eventId = db.activeEventId;
+  if (typeof secondBrainNotes === 'undefined' || !secondBrainNotes.length) return [];
+  return secondBrainNotes
+    .filter(n => !n.event_id || n.event_id === eventId)
+    .sort((a,b) => new Date(b.updated_at) - new Date(a.updated_at))
+    .slice(0, 8)
+    .map(n => ({
+      id: n.id,
+      judul: n.judul,
+      kategori: n.kategori,
+      konten: (n.konten||'').length > 300 ? n.konten.slice(0,300) + '…' : (n.konten||''),
+      updated_at: n.updated_at,
+    }));
 }
 
 // Anggota yang belum lunas iuran untuk event aktif — dipakai baik untuk
@@ -238,7 +275,7 @@ async function generateBukuKegiatanInsight(eventId, b, hash){
 
   try{
     const teks = await aiTanya(buatPromptInsightBukuKegiatan(b), {
-      system: 'Kamu asisten keuangan untuk aplikasi kas Karang Taruna. Tulis ringkasan kondisi kas dalam Bahasa Indonesia yang SINGKAT dan TIDAK BERTELE-TELE — kalimat pendek, langsung ke inti, tanpa basa-basi atau pengulangan. Tetap baku dan objektif (sudut pandang orang ketiga/institusional, mis. "Kas saat ini...", "Iuran lunas dari..."), tapi hindari gaya laporan resmi yang panjang; anggap ini ringkasan cepat untuk dibaca sekilas, bukan narasi LPJ. Hindari juga sapaan akrab ("teman-teman", "kita", "yuk") dan bahasa santai. Maksimal 3-4 kalimat pendek total (boleh dipecah jadi 2 paragraf pendek kalau lebih mudah dibaca), 1 kalimat penutup berupa rekomendasi/tindak lanjut kalau memang relevan (tidak wajib dipaksakan). Kalau datanya ada anggota belum bayar iuran atau agenda kegiatan dalam 7 hari ke depan, boleh disinggung singkat kalau relevan dengan kondisi kas (jangan sebut nama anggota, cukup jumlah). Kalau menyebut agenda, WAJIB pakai label jarak (HARI INI/BESOK/LUSA/"N hari lagi") yang sudah disediakan persis apa adanya — JANGAN pernah menulis frasa generik seperti "dalam tujuh hari ke depan" untuk agenda yang sebenarnya lebih dekat dari itu (mis. besok atau lusa); "7 hari ke depan" di data cuma batas atas rentang pencarian, bukan jarak agenda sesungguhnya. Kalau ada RENCANA BELANJA YANG BELUM DIREALISASIKAN dengan nominal cukup besar dibanding saldo akhir, WAJIB disinggung singkat — ini penting supaya pembaca tidak salah kira saldo sekarang itu "aman" padahal sebagian akan terpakai untuk belanja yang sudah direncanakan tapi belum jalan; kalau nominalnya kecil/tidak ada, tidak perlu dipaksakan disebut. Kalau ada data KUPON JALAN SANTAI dan stoknya HAMPIR HABIS, boleh disinggung singkat sebagai catatan potensi pemasukan tambahan yang mulai terbatas; kalau stok masih banyak/tidak relevan dengan kas, tidak perlu disebut. Jangan mengulang semua angka yang sudah tampil di layar — pilih yang paling penting untuk diberi konteks/makna. Jangan pakai heading, bullet, atau markdown, cukup paragraf biasa pendek.',
+      system: 'Kamu asisten keuangan untuk aplikasi kas Karang Taruna. Tulis ringkasan kondisi kas dalam Bahasa Indonesia yang SINGKAT dan TIDAK BERTELE-TELE — kalimat pendek, langsung ke inti, tanpa basa-basi atau pengulangan. Tetap baku dan objektif (sudut pandang orang ketiga/institusional, mis. "Kas saat ini...", "Iuran lunas dari..."), tapi hindari gaya laporan resmi yang panjang; anggap ini ringkasan cepat untuk dibaca sekilas, bukan narasi LPJ. Hindari juga sapaan akrab ("teman-teman", "kita", "yuk") dan bahasa santai. Maksimal 3-4 kalimat pendek total (boleh dipecah jadi 2 paragraf pendek kalau lebih mudah dibaca), 1 kalimat penutup berupa rekomendasi/tindak lanjut kalau memang relevan (tidak wajib dipaksakan). Kalau datanya ada anggota belum bayar iuran atau agenda kegiatan dalam 7 hari ke depan, boleh disinggung singkat kalau relevan dengan kondisi kas (jangan sebut nama anggota, cukup jumlah). Kalau menyebut agenda, WAJIB pakai label jarak (HARI INI/BESOK/LUSA/"N hari lagi") yang sudah disediakan persis apa adanya — JANGAN pernah menulis frasa generik seperti "dalam tujuh hari ke depan" untuk agenda yang sebenarnya lebih dekat dari itu (mis. besok atau lusa); "7 hari ke depan" di data cuma batas atas rentang pencarian, bukan jarak agenda sesungguhnya. Kalau ada RENCANA BELANJA YANG BELUM DIREALISASIKAN dengan nominal cukup besar dibanding saldo akhir, WAJIB disinggung singkat — ini penting supaya pembaca tidak salah kira saldo sekarang itu "aman" padahal sebagian akan terpakai untuk belanja yang sudah direncanakan tapi belum jalan; kalau nominalnya kecil/tidak ada, tidak perlu dipaksakan disebut. Kalau ada data KUPON JALAN SANTAI dan stoknya HAMPIR HABIS, boleh disinggung singkat sebagai catatan potensi pemasukan tambahan yang mulai terbatas; kalau stok masih banyak/tidak relevan dengan kas, tidak perlu disebut. Kalau ada CATATAN KONTEKS TAMBAHAN DARI SECOND BRAIN, pakai isinya HANYA kalau benar-benar menambah makna pada kondisi kas/persiapan kegiatan (mis. mengubah perkiraan pengeluaran, atau relevan dengan agenda yang disinggung) — jangan didaftar ulang satu-satu, jangan dipaksakan kalau tidak nyambung dengan angka kas. Jangan mengulang semua angka yang sudah tampil di layar — pilih yang paling penting untuk diberi konteks/makna. Jangan pakai heading, bullet, atau markdown, cukup paragraf biasa pendek.',
     });
 
     const ringkasan = String(teks || '').trim();
@@ -319,6 +356,13 @@ function buatPromptInsightBukuKegiatan(b){
     // menandai batas atas rentang, bukan jarak agenda yang sebenarnya).
     const daftarAgenda = agenda.map(a => `${a.judul} (${labelKategoriJadwal(a.kategori)}, ${fmtDateHari(a.tanggal)} — ${labelJarakHari(a.diffDays)})`).join('; ');
     baris.push(`AGENDA KEGIATAN DALAM 7 HARI KE DEPAN (label jarak tiap item SUDAH dihitung pasti, JANGAN dihitung ulang/ditebak): ${daftarAgenda}`);
+    baris.push('');
+  }
+
+  const catatan = dataCatatanKontekAiInsight();
+  if(catatan.length){
+    baris.push('CATATAN KONTEKS TAMBAHAN DARI SECOND BRAIN (dicatat manual oleh pengurus — pakai HANYA kalau relevan dengan kondisi kas/persiapan kegiatan di atas, jangan dipaksakan disebut kalau tidak nyambung, dan jangan sekadar menyalin ulang semua catatan satu-satu):');
+    catatan.forEach(c => baris.push(`- [${secondBrainKategoriInfo(c.kategori).l}] ${c.judul}: ${c.konten}`));
     baris.push('');
   }
 

@@ -184,8 +184,8 @@ function defaultDB(){
     // Sama seperti aiInsightLomba, tapi untuk panel Insight di halaman
     // Belanja Hadiah (kt_ai_insight_belanja_hadiah).
     aiInsightBelanjaHadiah: {},
-    // Cache ringkasan naratif AI untuk panel "Kesadaran Kalender" di Dashboard
-    // (lihat js/28-kalender-peringatan.js) — pengingat hari libur nasional &
+    // Cache ringkasan naratif AI untuk panel "Pengingat" di menu Agenda
+    // Kegiatan (lihat js/28-kalender-peringatan.js) — pengingat hari libur nasional &
     // hari besar Islam yang mendekat, plus persiapan yang biasanya perlu
     // disiapkan sebelumnya. BEDA dari aiInsight/aiInsightLomba/dst di atas:
     // ini TIDAK per-event (kalender berlaku organisasi, bukan per kegiatan),

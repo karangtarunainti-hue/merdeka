@@ -1,5 +1,5 @@
 /* ============================================================
-   KESADARAN KALENDER — hari libur nasional & hari besar Islam
+   PENGINGAT — hari libur nasional & hari besar Islam
    ============================================================
    Latar belakang: menjelang Agustus biasanya ada rentetan persiapan HUT RI
    (bentuk panitia → proposal/RAB → buka lomba → belanja hadiah → gladi
@@ -8,9 +8,10 @@
    mengenali hari besar (nasional & Islam) yang sedang mendekat, dan kalau
    ada template persiapannya, kasih tahu fase persiapan mana yang harusnya
    sedang berjalan SEKARANG — baik lewat kartu pengingat biasa (lihat
-   generatePeringatanReminderCard(), dipanggil dari generateReminders() di
-   07-dashboard.js) maupun lewat panel narasi AI (renderKalenderKesadaranPanel(),
-   pola sama seperti Insight AI lain di js/27-ai-insight.js).
+   generatePeringatanReminderCard(), dipanggil dari renderAgenda() di
+   12-jadwal-agenda-kas.js) maupun lewat panel narasi AI (renderKalenderKesadaranPanel(),
+   pola sama seperti Insight AI lain di js/27-ai-insight.js). Ditampilkan di
+   menu Agenda Kegiatan dengan label "Pengingat".
 
    DATA KALENDER PERLU DIPERBARUI TIAP TAHUN (lihat KALENDER_PERINGATAN di
    bawah) — tanggal hari besar Islam mengikuti hisab-rukyat Kemenag (SKB 3
@@ -138,10 +139,10 @@ function _pilihPeringatanUtama(){
   return punyaFaseAktif.length ? punyaFaseAktif[0] : adaFase[0];
 }
 
-// Kartu pengingat "Kesadaran Kalender" — dipanggil dari generateReminders()
-// di js/07-dashboard.js, format objeknya sama persis dengan kartu
-// pengingat lain di sana (type/icon/title/count/items/action) supaya
-// otomatis kepakai grid & styling reminder yang sudah ada, tidak perlu
+// Kartu pengingat "Pengingat" — dipanggil dari renderAgenda() di
+// js/12-jadwal-agenda-kas.js, format objeknya sama persis dengan kartu
+// reminder lain di aplikasi (type/icon/title/count/items/action) supaya
+// bisa dirender pakai reminderCardHtml() (js/16-ui-helpers.js) tanpa perlu
 // CSS baru.
 function generatePeringatanReminderCard(){
   const p = _pilihPeringatanUtama();
@@ -173,7 +174,7 @@ function generatePeringatanReminderCard(){
 }
 
 /* ============================================================
-   PANEL NARASI AI — "Kesadaran Kalender"
+   PANEL NARASI AI — "Pengingat"
    Pola cache/generate sama persis seperti js/27-ai-insight.js, tapi
    GLOBAL (tidak per event_id) karena kalender ini milik organisasi,
    bukan milik 1 kegiatan. Cache di db.aiInsightKalender (objek langsung,
@@ -219,7 +220,7 @@ async function generateKalenderKesadaranInsight(hash){
   _aiInsightKalenderGenerating.add(_KALENDER_INSIGHT_KEY);
   _aiInsightKalenderFailed.delete(_KALENDER_INSIGHT_KEY);
   _aiInsightKalenderFailedHash.delete(_KALENDER_INSIGHT_KEY);
-  if(currentSection === 'dashboard') renderContent();
+  if(currentSection === 'agenda') renderContent();
 
   try{
     const teks = await aiTanya(buatPromptInsightKalender(), {
@@ -238,12 +239,12 @@ async function generateKalenderKesadaranInsight(hash){
     }, { onConflict: 'id' });
     if(error) console.error('Gagal menyimpan kt_kalender_insight (tetap tampil dari memori):', error);
   }catch(e){
-    console.error('Gagal membuat Insight AI Kesadaran Kalender:', e);
+    console.error('Gagal membuat Insight AI Pengingat:', e);
     _aiInsightKalenderFailed.add(_KALENDER_INSIGHT_KEY);
     _aiInsightKalenderFailedHash.set(_KALENDER_INSIGHT_KEY, hash);
   }finally{
     _aiInsightKalenderGenerating.delete(_KALENDER_INSIGHT_KEY);
-    if(currentSection === 'dashboard') renderContent();
+    if(currentSection === 'agenda') renderContent();
   }
 }
 
@@ -261,7 +262,7 @@ function buatPromptInsightKalender(){
     if(!p.prep) baris.push('  (tidak ada checklist persiapan khusus untuk hari ini)');
     baris.push('');
   });
-  baris.push('Tulis ringkasan "Kesadaran Kalender" di atas untuk ditampilkan di dashboard aplikasi. Fokus ke hari besar yang FASE PERSIAPANnya sedang berjalan kalau ada; kalau tidak ada yang sedang berjalan, cukup info hari besar terdekat.');
+  baris.push('Tulis ringkasan "Pengingat" di atas untuk ditampilkan di menu Agenda Kegiatan. Fokus ke hari besar yang FASE PERSIAPANnya sedang berjalan kalau ada; kalau tidak ada yang sedang berjalan, cukup info hari besar terdekat.');
   return baris.join('\n');
 }
 
@@ -270,11 +271,12 @@ function retryKalenderKesadaranInsight(){
   generateKalenderKesadaranInsight(hash);
 }
 
-// Panel HTML — dipanggil dari renderDashboard(), reuse renderInsightPanelHtml()
-// yang sudah ada di js/27-ai-insight.js supaya styling identik dengan panel
-// Insight lain. Return '' (tidak render apa-apa) kalau tidak ada hari besar
-// dalam rentang KALENDER_RENTANG_HARI — dashboard tidak perlu numpuk panel
-// kosong kalau memang tidak ada yang perlu "disadari" saat ini.
+// Panel HTML — dipanggil dari renderAgenda() di js/12-jadwal-agenda-kas.js
+// (menu Agenda Kegiatan), reuse renderInsightPanelHtml() yang sudah ada di
+// js/27-ai-insight.js supaya styling identik dengan panel Insight lain.
+// Return '' (tidak render apa-apa) kalau tidak ada hari besar dalam rentang
+// KALENDER_RENTANG_HARI — halaman tidak perlu numpuk panel kosong kalau
+// memang tidak ada yang perlu diingatkan saat ini.
 function renderKalenderKesadaranPanel(){
   if(!hariPeringatanMendatang().length) return '';
 
@@ -284,8 +286,8 @@ function renderKalenderKesadaranPanel(){
     gagal: _aiInsightKalenderFailed.has(_KALENDER_INSIGHT_KEY),
     loggedIn: !!getCurrentUser(),
     retryFnName: 'retryKalenderKesadaranInsight',
-    badgeLabel: 'Kesadaran Kalender',
+    badgeLabel: 'Pengingat',
     badgeIcon: 'calendar-days', // dipilih dari set lokal yang sudah pasti ter-bundle (lihat icons/lucide-icons.local.js) — 'calendar-clock' TIDAK ada di sana
-    pesanKosong: 'Ringkasan kalender akan muncul di sini setelah admin/pengurus membuka halaman ini.',
+    pesanKosong: 'Ringkasan pengingat akan muncul di sini setelah admin/pengurus membuka halaman ini.',
   });
 }

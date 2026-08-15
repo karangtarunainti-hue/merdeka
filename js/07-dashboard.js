@@ -46,14 +46,8 @@ function renderDashboard(){
   // ulang sendiri saat selesai; render pertama tetap pakai cache lama kalau ada.
   ensureBukuKegiatanInsight(b);
 
-  // Kesadaran Kalender (js/28-kalender-peringatan.js) — pengingat hari
-  // libur nasional & hari besar Islam yang mendekat, sama pola trigger
-  // background-nya seperti ensureBukuKegiatanInsight() di atas.
-  ensureKalenderKesadaranInsight();
-
   return `
   ${renderBukuKegiatanInsightPanel()}
-  ${renderKalenderKesadaranPanel()}
   ${reminderCards}
   <div class="stat-grid-ringkasan">
     <div class="stat-card pemasukan"><div class="lbl">Total Pemasukan</div><div class="val">${fmtRp(b.pemasukan)}</div></div>
@@ -149,12 +143,9 @@ function generateReminders(){
   const today = new Date();
   const isLoggedIn = !!getCurrentUser();
 
-  // Kesadaran Kalender (js/28-kalender-peringatan.js) — hari libur nasional
-  // & hari besar Islam yang mendekat, ditaruh PALING ATAS supaya rentetan
-  // persiapan (mis. HUT RI) kelihatan dari jauh-jauh hari, bukan ketimbun
-  // pengingat operasional lain yang biasanya lebih mendesak jangka pendek.
-  const kalenderCard = generatePeringatanReminderCard();
-  if(kalenderCard) reminders.push(kalenderCard);
+  // Pengingat kalender (js/28-kalender-peringatan.js) sudah dipindah ke
+  // menu Jadwal Kegiatan (lihat renderJadwal() di js/12-jadwal-agenda-kas.js),
+  // jadi tidak lagi dipanggil di sini.
 
   // Agenda Kegiatan — tidak terikat event, jadi selalu dicek terlepas
   // dari ada/tidaknya event aktif.
@@ -411,29 +402,7 @@ function generateReminders(){
 
   return `
   <div class="reminder-grid">
-    ${reminders.map(r => `
-      <div class="reminder-card ${r.type}">
-        <div class="card-header">
-          <div class="icon">${r.icon}</div>
-          <div class="title">${r.title}</div>
-          <div class="count">${r.count}</div>
-        </div>
-        <div class="card-body">
-          ${r.itemsHtml ? r.itemsHtml : r.items.map(item => `
-            <div class="item">
-              <span class="label">${item.label}</span>
-              <span class="value ${item.valueClass || ''}">${esc(item.value)}</span>
-            </div>
-          `).join('')}
-        </div>
-        ${r.action ? `
-        <div class="card-footer">
-          ${(!getCurrentUser() && !isGuestVisible(r.action.link))
-            ? `<button class="btn secondary small" disabled title="Hanya bisa dilihat setelah login">🔒 ${r.action.label.replace(/\s*→\s*$/, '')}</button>`
-            : `<button class="btn ${r.type === 'danger' ? 'danger' : r.type === 'warning' ? 'orange' : r.type === 'success' ? 'success' : 'secondary'} small" ${da('goSection', r.action.link)}>${r.action.label}</button>`}
-        </div>` : ''}
-      </div>
-    `).join('')}
+    ${reminders.map(reminderCardHtml).join('')}
   </div>`;
 }
 

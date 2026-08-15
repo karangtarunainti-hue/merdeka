@@ -291,6 +291,36 @@ function confirmModal(message, {title='Konfirmasi', okLabel='OK', cancelLabel='B
 /* ============================================================
    FUNGSI HITUNG BUKU UTAMA
    ============================================================ */
+// Render 1 objek reminder (format {type,icon,title,count,items/itemsHtml,action})
+// jadi HTML kartu "reminder-card" tunggal. Dipakai baik oleh generateReminders()
+// di js/07-dashboard.js (render banyak sekaligus dalam 1 .reminder-grid) maupun
+// oleh renderJadwal() di js/12-jadwal-agenda-kas.js untuk kartu Pengingat kalender
+// (js/28-kalender-peringatan.js) yang dirender satu-satu di luar generateReminders().
+function reminderCardHtml(r){
+  return `
+      <div class="reminder-card ${r.type}">
+        <div class="card-header">
+          <div class="icon">${r.icon}</div>
+          <div class="title">${r.title}</div>
+          <div class="count">${r.count}</div>
+        </div>
+        <div class="card-body">
+          ${r.itemsHtml ? r.itemsHtml : r.items.map(item => `
+            <div class="item">
+              <span class="label">${item.label}</span>
+              <span class="value ${item.valueClass || ''}">${esc(item.value)}</span>
+            </div>
+          `).join('')}
+        </div>
+        ${r.action ? `
+        <div class="card-footer">
+          ${(!getCurrentUser() && !isGuestVisible(r.action.link))
+            ? `<button class="btn secondary small" disabled title="Hanya bisa dilihat setelah login">🔒 ${r.action.label.replace(/\s*→\s*$/, '')}</button>`
+            : `<button class="btn ${r.type === 'danger' ? 'danger' : r.type === 'warning' ? 'orange' : r.type === 'success' ? 'success' : 'secondary'} small" ${da('goSection', r.action.link)}>${r.action.label}</button>`}
+        </div>` : ''}
+      </div>`;
+}
+
 function hitungBukuUtama(){
   const anggotaLunas = gAnggota().filter(a=>a.status==='lunas');
   const iuran = anggotaLunas.reduce((s,a)=>s+Number(a.nominal_wajib||0),0);

@@ -69,20 +69,32 @@ dideploy ke **Cloudflare Workers (assets)** dengan backend **Supabase**.
 - **Service worker**: `sw.js` — hati-hati dengan cache-busting saat ubah
   file yang di-cache (riwayat bug: deadlock `ERR_FAILED` di Cloudflare
   Workers).
-- **Mesin AI (`/api/ai`, `src/worker.js` + `js/26-ai.js`)**: infrastruktur
-  umum untuk fitur AI, mengikuti pola persis `/api/telegram` (verifikasi
-  sesi via `verifySession()`, rate limit per-sesi, same-origin only).
-  `GEMINI_API_KEY` hidup sebagai secret Worker, tidak pernah ke browser.
+- **Mesin AI (Supabase Edge Function `ai-generate` + `js/26-ai.js`)**:
+  infrastruktur umum untuk fitur AI, BUKAN di Cloudflare Worker (beda
+  dengan `/api/telegram`) — dia hidup sebagai Supabase Edge Function
+  di `supabase/functions/ai-generate/index.ts`, proxy ke Gemini API.
+  `GEMINI_API_KEY` hidup sebagai secret Supabase (`supabase secrets set`),
+  tidak pernah ke browser. Verifikasi sesi login app tetap dilakukan
+  manual di dalam function itu lewat `rpc_session_user` (app ini TIDAK
+  pakai Supabase Auth, jadi verify_jwt bawaan Supabase — yang cuma
+  mengecek anon-key JWT — tidak cukup, harus dicek sendiri pakai
+  header `x-session-token` sama seperti pola Supabase lain di app ini).
   Klien panggil `AI.tanya(prompt, { system })` (global object `AI`,
-  `js/26-ai.js`) — mengembalikan Promise<string>, melempar Error kalau
-  gagal (pemanggil wajib try/catch dan tampilkan pesan sesuai konteks
-  fiturnya sendiri, jangan generik). Endpoint ini SENGAJA generik
-  (kirim prompt teks, terima teks) — belum terikat fitur konkret apa pun;
-  fitur nyata (draf dokumen, ringkasan kas, dst.) tinggal panggil
-  `AI.tanya()` dari modul manapun tanpa perlu ubah Worker lagi, selama
-  masih pola teks-masuk/teks-keluar. Kalau nanti butuh multi-turn
-  (riwayat percakapan) atau output terstruktur (JSON), itu perlu
-  perubahan di `handleAi()`, bukan cuma di klien.
+  `js/26-ai.js`, pakai `sb.functions.invoke('ai-generate', ...)`) —
+  mengembalikan Promise<string>, melempar Error kalau gagal (pemanggil
+  wajib try/catch dan tampilkan pesan sesuai konteks fiturnya sendiri,
+  jangan generik). Function ini SENGAJA generik (kirim prompt teks,
+  terima teks) — belum terikat fitur konkret apa pun; fitur nyata (draf
+  dokumen, ringkasan kas, dst.) tinggal panggil `AI.tanya()` dari modul
+  manapun tanpa perlu ubah function lagi, selama masih pola
+  teks-masuk/teks-keluar. Kalau nanti butuh multi-turn (riwayat
+  percakapan) atau output terstruktur (JSON), itu perlu perubahan di
+  `index.ts`, bukan cuma di klien. Setup: `supabase functions deploy
+  ai-generate` lalu `supabase secrets set GEMINI_API_KEY=...`
+  (`SUPABASE_URL`/`SUPABASE_ANON_KEY` otomatis tersedia di env Edge
+  Function). Rate limit di dalamnya cuma best-effort (in-memory per
+  isolate) — Edge Function bisa jalan di banyak isolate paralel, jadi
+  ini BUKAN jaminan limit global yang ketat.
 
 ## Perintah
 

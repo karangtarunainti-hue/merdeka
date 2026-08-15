@@ -149,115 +149,6 @@ async function handleTelegram(request, env) {
 }
 
 /* ============================================================
-   MESIN AI — proxy ke Gemini API, mirip pola /api/telegram di atas.
-   ============================================================
-   Ini INFRASTRUKTUR umum, belum terikat fitur tertentu — fitur konkret
-   (mis. draf proposal, ringkasan kas, dsb) tinggal panggil `AI.tanya()`
-   di js/26-ai.js dari modul manapun nanti, tanpa perlu sentuh Worker ini
-   lagi selama masih berupa "kirim prompt teks, terima teks balasan".
-
-   Kenapa lewat Worker (bukan langsung dari browser ke Gemini)?
-   - GEMINI_API_KEY dipegang sebagai secret Cloudflare, tidak pernah
-     dikirim ke klien (kalau API key ada di JS klien, siapa pun yang buka
-     DevTools bisa mencurinya dan memakai kuota kalian sendiri).
-   - Worker verifikasi sesi login dulu (session_is_logged_in di Supabase)
-     sebelum meneruskan ke Gemini, jadi orang luar tidak bisa numpang
-     pakai endpoint ini buat menghabiskan kuota/biaya kalian.
-   - Rate limit per sesi supaya satu user/bug tidak memborong kuota.
-
-   SETUP SEKALI (selain secret yang sudah ada):
-     npx wrangler secret put GEMINI_API_KEY
-   Ambil API key di https://aistudio.google.com/apikey — tier gratis
-   cukup untuk pemakaian ringan komunitas.
-   ============================================================ */
-const AI_RATE_LIMIT_MAX = 12;         // maksimum panggilan AI
-const AI_RATE_LIMIT_WINDOW_MS = 60_000; // per 1 menit, per sesi
-const AI_MAX_PROMPT_CHARS = 8000;     // batas panjang prompt (jaga biaya & abuse)
-const AI_MAX_OUTPUT_TOKENS = 2048;
-const AI_DEFAULT_MODEL = 'gemini-2.5-flash';
-
-async function handleAi(request, env) {
-  if (request.method !== 'POST') {
-    return json({ ok: false, error: 'Method not allowed' }, 405);
-  }
-
-  // Same-origin saja, sama seperti /api/telegram — situs lain tidak boleh
-  // memakai endpoint ini sebagai relay gratis ke Gemini pakai kuota kita.
-  const origin = request.headers.get('Origin');
-  if (origin && new URL(origin).host !== new URL(request.url).host) {
-    return json({ ok: false, error: 'Origin tidak diizinkan' }, 403);
-  }
-
-  if (!env.GEMINI_API_KEY) {
-    return json({ ok: false, error: 'GEMINI_API_KEY belum dikonfigurasi di server' }, 503);
-  }
-
-  const token = request.headers.get('x-session-token');
-  const user = await verifySession(env, token);
-  if (!user) {
-    return json({ ok: false, error: 'Sesi tidak valid, silakan login ulang' }, 401);
-  }
-
-  if (rateLimited(`ai:${token}`, AI_RATE_LIMIT_MAX, AI_RATE_LIMIT_WINDOW_MS)) {
-    return json({ ok: false, error: 'Terlalu banyak permintaan AI, coba sebentar lagi' }, 429);
-  }
-
-  let payload;
-  try {
-    payload = await request.json();
-  } catch {
-    return json({ ok: false, error: 'Body bukan JSON yang valid' }, 400);
-  }
-
-  const prompt = String(payload.prompt || '').trim();
-  const system = payload.system ? String(payload.system).trim() : '';
-  if (!prompt) return json({ ok: false, error: 'prompt wajib diisi' }, 400);
-  if (prompt.length > AI_MAX_PROMPT_CHARS) {
-    return json({ ok: false, error: `prompt terlalu panjang (maks ${AI_MAX_PROMPT_CHARS} karakter)` }, 400);
-  }
-
-  const model = AI_DEFAULT_MODEL; // fitur belum boleh pilih model sendiri dulu di tahap infra ini
-  const geminiBody = {
-    contents: [{ role: 'user', parts: [{ text: prompt }] }],
-    generationConfig: { temperature: 0.7, maxOutputTokens: AI_MAX_OUTPUT_TOKENS },
-  };
-  if (system) geminiBody.systemInstruction = { parts: [{ text: system }] };
-
-  try {
-    const gm = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': env.GEMINI_API_KEY },
-        body: JSON.stringify(geminiBody),
-      }
-    );
-    const data = await gm.json();
-
-    if (!gm.ok) {
-      console.error('Gemini API error:', data);
-      return json({ ok: false, error: data?.error?.message || 'Gemini API error' }, gm.status);
-    }
-
-    // Gemini bisa menolak jawab (safety filter dll) tanpa error HTTP — di
-    // situ candidates ada tapi content/parts kosong, atau finishReason bukan
-    // "STOP". Tangani eksplisit supaya klien tidak dapat text kosong tanpa
-    // penjelasan.
-    const candidate = data?.candidates?.[0];
-    const text = candidate?.content?.parts?.map((p) => p.text || '').join('') || '';
-    if (!text) {
-      const reason = candidate?.finishReason || 'UNKNOWN';
-      return json({ ok: false, error: `AI tidak menghasilkan jawaban (${reason})` }, 502);
-    }
-
-    return json({ ok: true, text });
-  } catch (e) {
-    console.error('Gagal menghubungi Gemini:', e);
-    return json({ ok: false, error: 'Gagal menghubungi layanan AI', message: e.message }, 502);
-  }
-}
-
-/* ============================================================
    BOT WHATSAPP — command-based, memanfaatkan Service Window
    ============================================================
    Anggota chat duluan ke nomor bot -> Meta buka jendela servis
@@ -469,10 +360,6 @@ export default {
 
     if (url.pathname === '/api/telegram') {
       return handleTelegram(request, env);
-    }
-
-    if (url.pathname === '/api/ai') {
-      return handleAi(request, env);
     }
 
     if (url.pathname === '/api/whatsapp/webhook') {

@@ -24,6 +24,8 @@
   //   npx wrangler secret put TELEGRAM_BOT_TOKEN
   //   npx wrangler secret put SUPABASE_URL
   //   npx wrangler secret put SUPABASE_ANON_KEY
-  //   npx wrangler secret put GEMINI_API_KEY   (untuk /api/ai, lihat src/worker.js)
+  //   (Mesin AI TIDAK pakai secret Cloudflare — dia jalan sebagai Supabase
+  //   Edge Function terpisah, lihat supabase/functions/ai-generate/. Setup-nya
+  //   pakai `supabase secrets set GEMINI_API_KEY=...`, bukan wrangler.)
   "observability": { "enabled": true }
 }

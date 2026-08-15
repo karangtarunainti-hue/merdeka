@@ -1,6 +1,7 @@
 /* ============================================================
-   MESIN AI — klien generik untuk /api/ai (proxy Gemini di
-   src/worker.js). Ini INFRASTRUKTUR, belum terikat fitur tertentu.
+   MESIN AI — klien generik untuk Edge Function `ai-generate`
+   (supabase/functions/ai-generate/index.ts, proxy ke Gemini).
+   Ini INFRASTRUKTUR, belum terikat fitur tertentu.
 
    Cara pakai dari modul manapun (nanti):
      const jawaban = await AI.tanya('Ringkas data ini: ...');
@@ -13,11 +14,11 @@
    bukan generik.
    ============================================================ */
 
-const AI_ENDPOINT = '/api/ai';
 const AI_TIMEOUT_MS = 30_000; // Gemini kadang lambat; jangan biarkan nge-hang selamanya
 
 /**
- * Kirim prompt ke mesin AI (Gemini, lewat Worker) dan tunggu jawaban teks.
+ * Kirim prompt ke mesin AI (Gemini, lewat Edge Function ai-generate) dan
+ * tunggu jawaban teks.
  * @param {string} prompt - pertanyaan/instruksi utama.
  * @param {{system?: string, timeoutMs?: number}} [opsi]
  *   system: instruksi peran/gaya (opsional, mis. "Kamu asisten LPJ Karang Taruna").
@@ -27,7 +28,11 @@ async function aiTanya(prompt, opsi = {}) {
   const teks = String(prompt || '').trim();
   if (!teks) throw new Error('Prompt tidak boleh kosong');
 
-  const headers = { 'Content-Type': 'application/json' };
+  // Header x-session-token dipakai Edge Function untuk verifikasi sesi
+  // login app (bukan Supabase Auth — lihat rpc_session_user, sama seperti
+  // pola header Supabase lain di js/00-config.js). Header apikey/Authorization
+  // (anon key) sudah otomatis ditambahkan oleh sb.functions.invoke().
+  const headers = {};
   try {
     const token = localStorage.getItem('kt_session_token');
     if (token) headers['x-session-token'] = token;
@@ -36,12 +41,11 @@ async function aiTanya(prompt, opsi = {}) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), opsi.timeoutMs || AI_TIMEOUT_MS);
 
-  let response;
+  let res;
   try {
-    response = await fetch(AI_ENDPOINT, {
-      method: 'POST',
+    res = await sb.functions.invoke('ai-generate', {
+      body: { prompt: teks, system: opsi.system || undefined },
       headers,
-      body: JSON.stringify({ prompt: teks, system: opsi.system || undefined }),
       signal: controller.signal,
     });
   } catch (e) {
@@ -51,18 +55,24 @@ async function aiTanya(prompt, opsi = {}) {
     clearTimeout(timeoutId);
   }
 
-  let result;
-  try {
-    result = await response.json();
-  } catch (e) {
-    throw new Error('Respons server tidak valid');
+  const { data, error } = res;
+  if (error) {
+    // FunctionsHttpError dari supabase-js membawa body error di error.context
+    // (Response), tapi paling gampang & konsisten: coba baca dulu, fallback
+    // ke error.message bawaan supabase-js kalau body-nya tidak bisa dibaca.
+    let pesan = error.message || 'Gagal memanggil AI';
+    try {
+      const body = await error.context.json();
+      if (body && body.error) pesan = body.error;
+    } catch (e) {}
+    throw new Error(pesan);
   }
 
-  if (!response.ok || !result.ok) {
-    throw new Error(result.error || `Gagal memanggil AI (status ${response.status})`);
+  if (!data || !data.ok) {
+    throw new Error((data && data.error) || 'AI tidak memberi jawaban');
   }
 
-  return result.text || '';
+  return data.text || '';
 }
 
 // Diekspos sebagai satu object global `AI` (bukan fungsi lepas) supaya jelas

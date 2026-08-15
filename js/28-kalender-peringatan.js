@@ -169,7 +169,11 @@ function generatePeringatanReminderCard(){
     title: `Mendekati: ${p.nama}`,
     count: p.diffDays,
     items,
-    action: { label: 'Lihat Agenda →', link: 'agenda' },
+    // Tidak ada tombol `action` — kartu ini sekarang dirender langsung di
+    // dalam halaman Agenda Kegiatan (lihat renderAgenda() di
+    // js/12-jadwal-agenda-kas.js), jadi tombol "Lihat Agenda →" yang dulu
+    // ada di sini jadi tidak berguna (cuma mengarah ke halaman yang sedang
+    // dibuka).
   };
 }
 

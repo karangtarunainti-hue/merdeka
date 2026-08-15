@@ -383,6 +383,12 @@ function renderBelanjaHadiah(){
 
   const isLoggedIn = !!getCurrentUser();
 
+  // Trigger cek/generate Insight AI Belanja Hadiah di background — sama
+  // seperti pola di renderDashboard()/renderLomba(), tidak blocking render.
+  // Dipanggil sebelum early-return "belum ada hadiah" supaya tetap konsisten
+  // walau item.length 0 (hash-nya juga akan 0, insight-nya idle secara alami).
+  ensureBelanjaHadiahInsight();
+
   if(!items.length) return `<div class="belanja-toko-page"><div class="panel"><div class="panel-head"><h3>🎁 Belanja Hadiah</h3></div><div class="panel-body"><div class="empty-state"><h3>Belum ada hadiah</h3>${isLoggedIn ? `<button class="btn" ${da('goSection', 'hadiah')}>+ Tambah Hadiah</button>` : ''}</div></div></div></div>`;
 
   // Kelompokkan per NAMA barang (gabungan lintas kategori peserta & juara) menjadi SATU checklist
@@ -489,7 +495,7 @@ function renderBelanjaHadiah(){
     </div>`;
   }).join('');
 
-  return `<div class="belanja-toko-page"><div class="stat-grid"><div class="stat-card belanja-hadiah"><div class="lbl">Total Item</div><div class="val">${totalItem}</div></div><div class="stat-card pemasukan"><div class="lbl">Belum Dibeli</div><div class="val">${totalBelum}</div></div><div class="stat-card saldo"><div class="lbl">Estimasi Total</div><div class="val">${fmtRp(totalEstimasi)}</div></div>${progressBelanjaCardHtml(totalItem, totalItem-totalBelum)}</div>
+  return `<div class="belanja-toko-page">${renderBelanjaHadiahInsightPanel()}<div class="stat-grid"><div class="stat-card belanja-hadiah"><div class="lbl">Total Item</div><div class="val">${totalItem}</div></div><div class="stat-card pemasukan"><div class="lbl">Belum Dibeli</div><div class="val">${totalBelum}</div></div><div class="stat-card saldo"><div class="lbl">Estimasi Total</div><div class="val">${fmtRp(totalEstimasi)}</div></div>${progressBelanjaCardHtml(totalItem, totalItem-totalBelum)}</div>
   <div class="panel"><div class="panel-head"><div><h3>🎁 Daftar Belanja Hadiah</h3><div class="desc">Belum dibeli: <strong>${fmtRp(totalBelumEstimasi)}</strong></div></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
       <button class="btn success small" ${da('tandaiSemuaBelanjaHadiah')} ${!isLoggedIn ? 'disabled' : ''}>✓ Semua Dibeli</button>

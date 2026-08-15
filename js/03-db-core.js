@@ -180,7 +180,10 @@ function defaultDB(){
     // Lomba (kt_ai_insight_lomba) — lihat js/27-ai-insight.js. Dipisah
     // tabel/key sendiri (bukan digabung ke aiInsight) supaya masing-masing
     // insight punya cache & hash sendiri, tidak saling invalidasi.
-    aiInsightLomba: {}
+    aiInsightLomba: {},
+    // Sama seperti aiInsightLomba, tapi untuk panel Insight di halaman
+    // Belanja Hadiah (kt_ai_insight_belanja_hadiah).
+    aiInsightBelanjaHadiah: {}
   };
 }
 
@@ -289,7 +292,7 @@ async function loadDB(){
     // ada 403 percuma di console tiap kali app dibuka — halaman Manajemen
     // User sendiri sudah fetch ulang datanya sendiri saat dibuka/diubah.
     const usersCall = isAdmin() ? sb.rpc('rpc_list_users') : Promise.resolve({data:null, error:null});
-    const [arrayResults, settingsRes, telegramRes, usersRes, guestMenuRes, dokumenGlobalRes, orgProfileRes, whatsappRes, aiInsightRes, aiInsightLombaRes] = await Promise.all([
+    const [arrayResults, settingsRes, telegramRes, usersRes, guestMenuRes, dokumenGlobalRes, orgProfileRes, whatsappRes, aiInsightRes, aiInsightLombaRes, aiInsightBelanjaHadiahRes] = await Promise.all([
       Promise.all(entries.map(([, table]) => sb.from(table).select('*'))),
       sb.from('kt_settings').select('*'),
       sb.from('kt_telegram_settings').select('*').eq('id', 'main').maybeSingle(),
@@ -300,6 +303,7 @@ async function loadDB(){
       sb.from('kt_whatsapp_settings').select('*').eq('id', 'main').maybeSingle(),
       sb.from('kt_ai_insight').select('*'),
       sb.from('kt_ai_insight_lomba').select('*'),
+      sb.from('kt_ai_insight_belanja_hadiah').select('*'),
     ]);
 
     const failedTables = [];
@@ -435,6 +439,13 @@ async function loadDB(){
     else{
       (aiInsightLombaRes.data || []).forEach(r => {
         result.aiInsightLomba[r.event_id] = { ringkasan: r.ringkasan || '', dataHash: r.data_hash || '', generatedAt: r.generated_at || null };
+      });
+    }
+
+    if(aiInsightBelanjaHadiahRes.error){ console.error('Gagal memuat kt_ai_insight_belanja_hadiah:', aiInsightBelanjaHadiahRes.error); }
+    else{
+      (aiInsightBelanjaHadiahRes.data || []).forEach(r => {
+        result.aiInsightBelanjaHadiah[r.event_id] = { ringkasan: r.ringkasan || '', dataHash: r.data_hash || '', generatedAt: r.generated_at || null };
       });
     }
 

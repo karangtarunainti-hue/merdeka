@@ -451,3 +451,173 @@ function renderLombaInsightPanel(){
   });
 }
 
+/* ============================================================
+   INSIGHT AI — BELANJA HADIAH
+   Panel narasi otomatis di atas stat-grid di halaman Belanja Hadiah
+   (js/11-belanja.js, renderBelanjaHadiah()), fokus ke PROGRESS belanja
+   (berapa barang sudah/belum dibeli, sisa estimasi biaya) — bukan kas
+   atau kesiapan lomba (itu sudah dicover 2 panel Insight di atas).
+
+   Pola caching/guard SAMA seperti Insight Dashboard & Lomba di atas.
+   State (_aiInsightBelanjaHadiah*) & tabel Supabase
+   (kt_ai_insight_belanja_hadiah) dipisah sendiri.
+   ============================================================ */
+const _aiInsightBelanjaHadiahGenerating = new Set();
+const _aiInsightBelanjaHadiahFailed = new Set();
+const _aiInsightBelanjaHadiahFailedHash = new Map();
+const AI_INSIGHT_BELANJA_HADIAH_PROMPT_VERSION = 1; // naikkan tiap ganti system prompt di bawah
+
+function getAiInsightBelanjaHadiahCache(){
+  const eventId = db.activeEventId;
+  if(!eventId) return null;
+  return db.aiInsightBelanjaHadiah[eventId] || null;
+}
+
+// Ringkasan progress belanja hadiah untuk event aktif — dihitung ulang di
+// sini (bukan pakai ulang variabel dari renderBelanjaHadiah()) dengan
+// logika grouping-per-nama-barang yang SAMA (lihat renderBelanjaHadiah,
+// js/11-belanja.js) supaya angka yang masuk ke prompt konsisten dengan
+// yang tampil di layar, tanpa modul ini bergantung urutan render.
+function dataBelanjaHadiahRingkas(){
+  const semuaHadiah = gHadiahKategori();
+  const daftar = gDaftarBelanjaHadiah();
+  const statusMap = {};
+  daftar.forEach(b => { const key = `${b.hadiah_kategori_id}_${b.item_id}`; statusMap[key] = b; });
+
+  const items = [];
+  semuaHadiah.forEach(h => {
+    h.items.forEach(item => {
+      if(Number(item.qty_dibeli||0) <= 0) return;
+      const key = `${h.id}_${item.id}`;
+      const belanja = statusMap[key] || null;
+      const status = belanja ? belanja.status : 'belum_dibeli';
+      items.push({ nama: item.nama, sudahDibeli: status==='dibeli' });
+    });
+  });
+
+  const nameMap = {};
+  items.forEach(item => {
+    const key = normNamaBarang(item.nama);
+    if(!nameMap[key]) nameMap[key] = { nama: item.nama, key, list: [] };
+    nameMap[key].list.push(item);
+  });
+  const groups = Object.values(nameMap);
+  const belumGroups = groups.filter(g => g.list.some(i => !i.sudahDibeli));
+
+  const hadiahAktual = hitungHargaAktualHadiahLomba();
+  const totalEstimasi = hadiahAktual.total;
+  // Sisa estimasi = jumlah totalHarga grup yang BELUM lengkap dibeli semua —
+  // pendekatan per-grup (bukan per-item alokasi) supaya cukup untuk konteks
+  // AI tanpa perlu presisi rupiah seperti di renderBelanjaHadiah().
+  const belumEstimasi = belumGroups.reduce((s,g) => s + (hadiahAktual.perGroup[g.key]?.totalHarga || 0), 0);
+
+  return {
+    totalGroup: groups.length,
+    belumGroup: belumGroups.length,
+    totalEstimasi,
+    belumEstimasi,
+    namaBelum: belumGroups.map(g => g.nama).sort(),
+  };
+}
+
+function hitungAiInsightBelanjaHadiahHash(){
+  const d = dataBelanjaHadiahRingkas();
+  const bagian = [
+    AI_INSIGHT_BELANJA_HADIAH_PROMPT_VERSION,
+    d.totalGroup, d.belumGroup, d.totalEstimasi, d.belumEstimasi,
+    d.namaBelum.join(','),
+  ];
+  return bagian.join('|');
+}
+
+function ensureBelanjaHadiahInsight(){
+  const eventId = db.activeEventId;
+  if(!eventId) return;
+
+  const hash = hitungAiInsightBelanjaHadiahHash();
+  const cache = getAiInsightBelanjaHadiahCache();
+  const sudahUpToDate = cache && cache.dataHash === hash;
+  const sedangProses = _aiInsightBelanjaHadiahGenerating.has(eventId);
+  const baruSajaGagal = _aiInsightBelanjaHadiahFailed.has(eventId) && _aiInsightBelanjaHadiahFailedHash.get(eventId) === hash;
+
+  if(sudahUpToDate || sedangProses || baruSajaGagal) return;
+  if(!getCurrentUser()) return;
+
+  generateBelanjaHadiahInsight(eventId, hash);
+}
+
+async function generateBelanjaHadiahInsight(eventId, hash){
+  _aiInsightBelanjaHadiahGenerating.add(eventId);
+  _aiInsightBelanjaHadiahFailed.delete(eventId);
+  _aiInsightBelanjaHadiahFailedHash.delete(eventId);
+  if(currentSection === 'belanja-hadiah') renderContent();
+
+  try{
+    const teks = await aiTanya(buatPromptInsightBelanjaHadiah(), {
+      system: 'Kamu asisten kepanitiaan untuk aplikasi lomba 17-an Karang Taruna. Tulis ringkasan progress belanja hadiah dalam Bahasa Indonesia formal bergaya laporan pertanggungjawaban (LPJ) resmi — bahasa baku, lugas, objektif, sudut pandang orang ketiga/institusional. Fokus ke PROGRESS BELANJA (berapa jenis barang sudah/belum dibeli, sisa estimasi biaya yang perlu dikeluarkan, sebutkan singkat beberapa nama barang yang masih perlu dibeli kalau relevan — cukup 2-3 contoh, jangan daftar semua). 3-5 kalimat, boleh diakhiri 1 kalimat rekomendasi/tindak lanjut jika relevan (tidak wajib dipaksakan tiap kali). Jangan mengulang semua angka yang sudah tampil di layar — pilih yang paling penting untuk diberi konteks/makna. Jangan pakai heading, bullet, atau markdown, cukup paragraf biasa.',
+    });
+
+    const ringkasan = String(teks || '').trim();
+    if(!ringkasan) throw new Error('AI tidak memberi ringkasan');
+
+    db.aiInsightBelanjaHadiah[eventId] = { ringkasan, dataHash: hash, generatedAt: new Date().toISOString() };
+    const { error } = await sb.from('kt_ai_insight_belanja_hadiah').upsert({
+      event_id: eventId,
+      ringkasan,
+      data_hash: hash,
+      generated_at: db.aiInsightBelanjaHadiah[eventId].generatedAt,
+    }, { onConflict: 'event_id' });
+    if(error) console.error('Gagal menyimpan kt_ai_insight_belanja_hadiah (tetap tampil dari memori):', error);
+  }catch(e){
+    console.error('Gagal membuat Insight AI Belanja Hadiah:', e);
+    _aiInsightBelanjaHadiahFailed.add(eventId);
+    _aiInsightBelanjaHadiahFailedHash.set(eventId, hash);
+  }finally{
+    _aiInsightBelanjaHadiahGenerating.delete(eventId);
+    if(currentSection === 'belanja-hadiah') renderContent();
+  }
+}
+
+function buatPromptInsightBelanjaHadiah(){
+  const org = getOrgProfil();
+  const ev = activeEvent();
+  const d = dataBelanjaHadiahRingkas();
+  const baris = [];
+  baris.push(`Organisasi: ${org.nama}${ev ? ` — event aktif: ${ev.nama} ${ev.tahun||''}`.trim() : ''}`);
+  baris.push('');
+  baris.push(`TOTAL JENIS BARANG HADIAH: ${d.totalGroup}`);
+  baris.push(`SUDAH DIBELI LENGKAP: ${d.totalGroup - d.belumGroup}/${d.totalGroup}`);
+  baris.push(`ESTIMASI TOTAL BIAYA HADIAH: ${fmtRp(d.totalEstimasi)}`);
+  baris.push(`SISA ESTIMASI (barang yang belum dibeli lengkap): ${fmtRp(d.belumEstimasi)}`);
+  baris.push('');
+  if(d.namaBelum.length > 0){
+    baris.push(`BARANG YANG MASIH PERLU DIBELI: ${d.namaBelum.join(', ')}`);
+    baris.push('');
+  }
+  baris.push('Tulis ringkasan progress belanja hadiah di atas untuk ditampilkan di halaman Belanja Hadiah aplikasi.');
+  return baris.join('\n');
+}
+
+function retryBelanjaHadiahInsight(){
+  const eventId = db.activeEventId;
+  if(!eventId) return;
+  const hash = hitungAiInsightBelanjaHadiahHash();
+  generateBelanjaHadiahInsight(eventId, hash);
+}
+
+// HTML panel — dipanggil dari renderBelanjaHadiah(), ditaruh sebelum stat-grid.
+function renderBelanjaHadiahInsightPanel(){
+  const eventId = db.activeEventId;
+  if(!eventId) return '';
+
+  return renderInsightPanelHtml({
+    cache: getAiInsightBelanjaHadiahCache(),
+    sedangProses: _aiInsightBelanjaHadiahGenerating.has(eventId),
+    gagal: _aiInsightBelanjaHadiahFailed.has(eventId),
+    loggedIn: !!getCurrentUser(),
+    retryFnName: 'retryBelanjaHadiahInsight',
+    badgeLabel: 'Haloo Inti!',
+    badgeIcon: 'megaphone',
+    pesanKosong: 'Ringkasan progress belanja akan muncul di sini setelah admin/pengurus membuka halaman ini.',
+  });
+}

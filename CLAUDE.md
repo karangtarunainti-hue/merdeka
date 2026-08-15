@@ -54,8 +54,8 @@ dideploy ke **Cloudflare Workers (assets)** dengan backend **Supabase**.
   ikut ter-backup) tidak punya field `_gudang` — saat direstore, ini
   ditangani sebagai "data Gudang saat ini dibiarkan", bukan dikosongkan.
 - **File yang di-deploy vs file source**:
-  - Source: `js/00-config.js` ... `js/25-tour.js`, `style.css`,
-    `icons/lucide-icons.local.js`
+  - Source: `js/00-config.js` ... `js/19-init.js` (lihat urutan lengkap di
+    komentar `index.html`), `style.css`, `icons/lucide-icons.local.js`
   - Hasil build (JANGAN diedit manual, hasil `npm run build`):
     `js/app.bundle.min.js`, `style.min.css`, `icons/lucide-icons.local.min.js`
   - Kedua versi (source & bundle) ikut di-commit — bundle di-generate lokal
@@ -176,7 +176,6 @@ runner — situs 100% statis, testing manual di browser.
 | 22 | dana-sosial.js | dana sosial (iuran bulanan) |
 | 23 | install-prompt.js | prompt install PWA |
 | 24 | bookmark.js | bookmark |
-| 25 | tour.js | tur onboarding |
 
 ## Konvensi Kode
 

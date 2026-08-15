@@ -53,7 +53,6 @@ const MODULE_ORDER = [
   '24-bookmark.js',
   '22-dana-sosial.js',
   '20-panduan.js',
-  '25-tour.js',
   '21-icons-lucide.js',
   '23-install-prompt.js',
   '30-second-brain.js',

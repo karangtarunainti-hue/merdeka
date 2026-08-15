@@ -54,7 +54,7 @@ const AI_RATE_LIMIT_MAX = 12; // maksimum panggilan AI
 const AI_RATE_LIMIT_WINDOW_MS = 60_000; // per 1 menit, per sesi (best-effort, lihat catatan di atas)
 const AI_MAX_PROMPT_CHARS = 8000; // batas panjang prompt (jaga biaya & abuse)
 const AI_MAX_OUTPUT_TOKENS = 2048;
-const AI_DEFAULT_MODEL = 'gemini-2.5-flash';
+const AI_DEFAULT_MODEL = 'gemini-3.5-flash';
 // Status HTTP yang layak dicoba ulang dengan key lain: 429 = kuota/rate
 // limit habis untuk key itu, 500/503 = Gemini lagi gangguan sementara
 // (bukan salah key-nya, tapi tidak ada ruginya coba key lain juga).

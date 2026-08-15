@@ -238,15 +238,15 @@ function renderBukuKegiatanInsightPanel(){
       <div class="ai-insight-skeleton-line" style="width:58%;"></div>
     </div>`;
   } else if(gagal){
-    isi = `<div class="ai-insight-text ai-insight-warn">Ringkasan AI belum berhasil dibuat.</div>
+    isi = `<div class="ai-insight-text ai-insight-warn">Ringkasan belum berhasil dibuat.</div>
       ${loggedIn ? `<div class="ai-insight-meta"><button class="btn secondary small" ${da('retryBukuKegiatanInsight')}>Coba lagi</button></div>` : ''}`;
   } else if(!loggedIn){
-    isi = `<div class="ai-insight-text ai-insight-muted">Ringkasan AI akan muncul di sini setelah admin/pengurus membuka halaman ini.</div>`;
+    isi = `<div class="ai-insight-text ai-insight-muted">Ringkasan otomatis akan muncul di sini setelah admin/pengurus membuka halaman ini.</div>`;
   } else {
     // Login tapi belum ada cache & belum sedangProses — jarang kejadian
     // (ensureBukuKegiatanInsight() harusnya sudah trigger generate barusan),
     // tapi tetap disiapkan fallback-nya.
-    isi = `<div class="ai-insight-text ai-insight-muted">Menyiapkan ringkasan AI…</div>`;
+    isi = `<div class="ai-insight-text ai-insight-muted">Menyiapkan ringkasan…</div>`;
   }
 
   return `<div class="panel ai-insight-panel">

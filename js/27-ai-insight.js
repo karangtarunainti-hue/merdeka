@@ -259,7 +259,7 @@ function renderBukuKegiatanInsightPanel(){
 
   return `<div class="panel ai-insight-panel">
     <div class="panel-body">
-      <div class="ai-insight-badge"><i data-lucide="sparkles" class="inline-icon"></i><span>Insight AI</span></div>
+      <div class="ai-insight-badge"><i data-lucide="megaphone" class="inline-icon"></i><span>Haloo Inti!</span></div>
       <div class="ai-insight-body">${isi}</div>
     </div>
   </div>`;

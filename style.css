@@ -1717,6 +1717,12 @@
     .th-full, .dt-full { display:none; }
     .th-short, .dt-short { display:inline; }
 
+    /* --- Pemasukan Lain: tombol "Penjualan Kupon Harian" & "+ Tambah"
+       dimaksimalkan mengisi lebar layar (bukan cuma selebar teksnya)
+       supaya proporsional & mudah diketuk di HP. --- */
+    .pemasukan-lain-actions{width:100%;}
+    .pemasukan-lain-actions .btn{flex:1 1 0; min-width:0; justify-content:center; text-align:center; white-space:normal; line-height:1.3;}
+
     /* --- Donatur & Transaksi Lain: format lebih ringkas agar fit tanpa scroll
        (Operasional Kegiatan sudah punya tabel/kartu sendiri, lihat
        table.operasional-table di bawah) --- */
@@ -1735,6 +1741,10 @@
        kolom 1 & 2 perlu lebar sendiri di atas aturan tanggal-nominal-table umum. */
     table.transaksi-lain-table th:nth-child(1), table.transaksi-lain-table td:nth-child(1){ width:36px; min-width:0; white-space:nowrap; padding:8px 4px 8px 8px; text-align:left; }
     table.transaksi-lain-table th:nth-child(2), table.transaksi-lain-table td:nth-child(2){ width:68px; min-width:0; white-space:nowrap; padding:8px 4px; text-align:left; font-size:11.5px; }
+    /* Baris "Belum ada transaksi." pakai colspan jadi ikut kena aturan
+       nth-child(1) di atas (rata kiri) — kembalikan ke tengah khusus untuk
+       baris kosong ini. */
+    table.tanggal-nominal-table tr.empty-row td, table.transaksi-lain-table tr.empty-row td{ text-align:center; white-space:normal; }
 
     /* Daftar Donatur di HP: No/Tanggal/Nama diringkas seketat mungkin supaya
        kolom Donasi (termasuk rincian donasi barang) kebagian lebar maksimal. */

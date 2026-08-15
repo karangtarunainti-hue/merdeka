@@ -100,7 +100,7 @@ function renderTransaksi(){
     <button class="icon-btn" ${da('hapusTransaksi', t.id)}>🗑</button>
   </td>` : ''}</tr>`).join('');
   return `<div class="stat-grid"><div class="stat-card pemasukan"><div class="lbl">Total Pemasukan Lain</div><div class="val">${fmtRp(total)}</div></div></div>
-  <div class="panel"><div class="panel-head"><h3>Pemasukan Lain</h3>${isLoggedIn ? `<div style="display:flex;gap:8px;flex-wrap:wrap;"><button class="btn secondary" ${da('openKuponJalanModal')}>Penjualan Kupon Harian</button><button class="btn" ${da('openTransaksiModal')}>+ Tambah</button></div>` : ''}</div>
+  <div class="panel"><div class="panel-head"><h3>Pemasukan Lain</h3>${isLoggedIn ? `<div class="pemasukan-lain-actions" style="display:flex;gap:8px;flex-wrap:wrap;"><button class="btn secondary" ${da('openKuponJalanModal')}>Penjualan Kupon Harian</button><button class="btn" ${da('openTransaksiModal')}>+ Tambah</button></div>` : ''}</div>
   <div class="panel-body flush"><table class="general-table tanggal-nominal-table transaksi-lain-table"><thead><tr><th>No</th><th>${thResponsive('Tanggal','Tgl')}</th><th>Keterangan</th><th class="num">Jumlah</th>${isLoggedIn ? '<th></th>' : ''}</tr></thead>
   <tbody>${rows||`<tr class="empty-row"><td colspan="${isLoggedIn?5:4}">Belum ada transaksi.</td></tr>`}</tbody></table></div></div>`;
 }

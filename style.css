@@ -3050,7 +3050,12 @@ table.ds-rekap-table td.num, table.ds-rekap-table th:not(:first-child){ text-ali
 }
 .second-brain-toolbar-actions .btn{ flex:none; }
 .second-brain-toolbar-actions select{
-  flex:1 1 150px; min-width:0; max-width:220px; margin-left:auto;
+  /* LEBAR PASTI (bukan flex-grow) — sebelumnya select ini flex-grow:1 +
+     margin-left:auto di dalam grup yang lebarnya sendiri ditentukan oleh
+     ukuran kontennya (flex:none di toolbar) → keduanya saling berebut
+     ruang secara sirkular dan browser malah membungkus select ke baris
+     baru. Dikunci ke lebar tetap supaya perhitungan lebarnya pasti. */
+  flex:none; width:168px; max-width:100%;
   border:1px solid var(--garis); border-radius:var(--radius); padding:9px 10px;
   font-size:13px; background:var(--cream-card); color:var(--ink);
 }
@@ -3107,10 +3112,15 @@ table.ds-rekap-table td.num, table.ds-rekap-table th:not(:first-child){ text-ali
 }
 
 @media (min-width:640px){
-  /* Ruang sudah cukup lebar: cari & aksi digabung sejajar sebaris. */
-  .second-brain-toolbar{ flex-direction:row; align-items:center; }
-  .second-brain-search-wrap{ flex:1 1 280px; }
-  .second-brain-toolbar-actions{ flex:none; }
+  /* Ruang sudah cukup lebar: cari & aksi digabung sejajar SATU baris.
+     flex-wrap:nowrap di kedua level (toolbar & grup aksi) itu kuncinya —
+     tanpa itu, begitu ruang mepet, salah satu anak bisa dibungkus ke
+     baris baru walau lebar totalnya sebenarnya masih cukup. Kolom cari
+     dikunci min-width:0 supaya dia yang menyusut duluan (bukan tombol/
+     select) kalau layar makin sempit. */
+  .second-brain-toolbar{ flex-direction:row; align-items:center; flex-wrap:nowrap; }
+  .second-brain-search-wrap{ flex:1 1 auto; min-width:0; }
+  .second-brain-toolbar-actions{ flex:0 0 auto; flex-wrap:nowrap; }
 }
 @media (min-width:1200px){
   /* Layar sangat lebar: batasi kartu supaya tidak melar jadi terlalu

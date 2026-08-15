@@ -43,6 +43,8 @@ async function manualLogin() {
       renderSidebar();
       renderTopbarSaldo();
       renderContent();
+      if (typeof renderAsistenWidget === 'function') renderAsistenWidget();
+      if (typeof loadSecondBrainData === 'function') loadSecondBrainData();
       const roleLabel = {admin:'Admin', user:'User', petugas:'Petugas'}[user.role] || user.role;
       toast(`✅ Login sebagai ${user.name} (${roleLabel})`);
       notifyTelegram(`🔑 User login: ${user.name}`, `Role: ${roleLabel}`, 'login');

@@ -188,6 +188,11 @@ async function logout() {
   renderSidebar();
   renderTopbarSaldo();
   renderContent();
+  if (typeof renderAsistenWidget === 'function') renderAsistenWidget();
+  // Kosongkan cache Second Brain di memori saat logout — isinya digate
+  // untuk user login saja (lihat js/30-second-brain.js), jangan sampai
+  // tersisa di memori tab kalau device dipakai bergantian.
+  if (typeof secondBrainNotes !== 'undefined') { secondBrainNotes = []; secondBrainLoaded = false; secondBrainSearchResults = null; }
   toast('Anda telah logout');
 }
 

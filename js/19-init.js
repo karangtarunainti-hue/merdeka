@@ -155,6 +155,7 @@ initOfflineGuard();
   applyOrgBranding();
   renderSidebar();
   renderTopbarSaldo();
+  if (typeof renderAsistenWidget === 'function') renderAsistenWidget();
   initTourButton();
   // Buka kembali halaman terakhir yang dikunjungi (tersimpan di localStorage)
   // supaya refresh (F5) tidak selalu melempar user balik ke Buku Kegiatan.
@@ -168,6 +169,9 @@ initOfflineGuard();
   // Muat data Gudang di belakang layar (tidak memblokir tampilan awal) supaya
   // saat pertama kali buka menu Gudang, datanya sudah siap tanpa jeda loading.
   loadGudangData();
+  // Sama polanya: muat Second Brain di belakang layar (kalau user login —
+  // loadSecondBrainData() sendiri yang cek & skip diam-diam kalau guest).
+  loadSecondBrainData();
 
   // Log Error (kt_error_log) — cuma di-preload utk Admin (yg satu-satunya
   // role yang bisa melihatnya, lihat card notifikasi Dashboard & Pengaturan

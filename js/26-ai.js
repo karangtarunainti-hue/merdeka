@@ -1,11 +1,12 @@
 /* ============================================================
-   MESIN AI — klien generik untuk Edge Function `ai-generate`
-   (supabase/functions/ai-generate/index.ts, proxy ke Gemini).
+   MESIN AI — klien generik untuk Edge Function `ai-generate` (chat/teks)
+   & `ai-embed` (embedding/vector), dua-duanya proxy ke Gemini.
    Ini INFRASTRUKTUR, belum terikat fitur tertentu.
 
    Cara pakai dari modul manapun (nanti):
      const jawaban = await AI.tanya('Ringkas data ini: ...');
      const jawaban2 = await AI.tanya('...', { system: 'Kamu asisten X' });
+     const vector = await AI.embed('Teks yang mau dicari maknanya');
 
    AI.tanya() melempar Error kalau gagal (network, sesi tidak valid,
    rate limit, dll) — pemanggil WAJIB bungkus try/catch dan tampilkan
@@ -75,10 +76,67 @@ async function aiTanya(prompt, opsi = {}) {
   return data.text || '';
 }
 
+/**
+ * Ubah teks jadi vector embedding (lewat Edge Function `ai-embed`, proxy
+ * ke Gemini embedContent) — dipakai buat fitur pencarian semantik
+ * (js/30-second-brain.js) & RAG di Asisten AI (js/29-asisten-ai.js).
+ * Beda dari aiTanya(): keluarannya array angka (vector), bukan teks.
+ * @param {string} text - teks yang mau diubah jadi embedding.
+ * @param {{taskType?: 'RETRIEVAL_DOCUMENT'|'RETRIEVAL_QUERY', timeoutMs?: number}} [opsi]
+ *   taskType: 'RETRIEVAL_DOCUMENT' saat menyimpan catatan (default),
+ *   'RETRIEVAL_QUERY' saat mencari — lihat komentar di ai-embed/index.ts
+ *   kenapa dua-duanya beda (dilatih asimetris oleh Google).
+ * @returns {Promise<number[]>} vector embedding.
+ */
+async function aiEmbed(text, opsi = {}) {
+  const teks = String(text || '').trim();
+  if (!teks) throw new Error('Teks tidak boleh kosong');
+
+  const headers = {};
+  try {
+    const token = localStorage.getItem('kt_session_token');
+    if (token) headers['x-session-token'] = token;
+  } catch (e) {}
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), opsi.timeoutMs || AI_TIMEOUT_MS);
+
+  let res;
+  try {
+    res = await sb.functions.invoke('ai-embed', {
+      body: { text: teks, taskType: opsi.taskType || undefined },
+      headers,
+      signal: controller.signal,
+    });
+  } catch (e) {
+    if (e.name === 'AbortError') throw new Error('AI tidak merespons (timeout), coba lagi');
+    throw new Error('Gagal menghubungi server: ' + (e.message || 'tidak diketahui'));
+  } finally {
+    clearTimeout(timeoutId);
+  }
+
+  const { data, error } = res;
+  if (error) {
+    let pesan = error.message || 'Gagal memanggil AI';
+    try {
+      const body = await error.context.json();
+      if (body && body.error) pesan = body.error;
+    } catch (e) {}
+    throw new Error(pesan);
+  }
+
+  if (!data || !data.ok || !Array.isArray(data.embedding)) {
+    throw new Error((data && data.error) || 'AI tidak menghasilkan embedding');
+  }
+
+  return data.embedding;
+}
+
 // Diekspos sebagai satu object global `AI` (bukan fungsi lepas) supaya jelas
 // namespace-nya dan gampang ditambah method lain nanti (mis. AI.ringkas(),
 // AI.buatDraf()) tanpa mengotori variabel global lain — konsisten dengan
 // pola modul lain di app ini yang pakai object namespace untuk fitur baru.
 const AI = {
   tanya: aiTanya,
+  embed: aiEmbed,
 };

@@ -103,6 +103,37 @@ dideploy ke **Cloudflare Workers (assets)** dengan backend **Supabase**.
   (500/503). Error lain (mis. 400 prompt ditolak) langsung dikembalikan
   ke klien tanpa dicoba ulang, karena key lain juga akan gagal dengan
   cara yang sama.
+- **Mesin Embedding (Supabase Edge Function `ai-embed` + `AI.embed()` di
+  `js/26-ai.js`)**: sepupu `ai-generate` — auth/rate-limit/fallback-key
+  polanya SAMA PERSIS, tapi keluarannya vector angka (proxy ke Gemini
+  `gemini-embedding-001:embedContent`, 768 dimensi — lihat catatan
+  dimensi di `supabase-second-brain-migration.sql`), bukan teks. Dipakai
+  fitur **Second Brain** (`js/30-second-brain.js`, menu "Second Brain")
+  — memori catatan/ide/dokumen/konteks bebas yang bisa dicari
+  BERDASARKAN MAKNA (semantic search lewat kolom `embedding` di tabel
+  `kt_second_brain` + RPC `kt_second_brain_search`, cosine similarity
+  via pgvector), bukan cuma cocok kata kunci. **PENGECUALIAN pola
+  data sama seperti Gudang** (lihat bagian atas dokumen ini): modul ini
+  fetch/tulis LANGSUNG ke `kt_second_brain`, TIDAK lewat `db`/`ARRAY_TABLE_MAP`/
+  `saveDB()` — alasan lengkap ada di kepala `js/30-second-brain.js`.
+  Konsekuensinya SAMA seperti Gudang: kode yang mengasumsikan "seluruh
+  data aplikasi" = `JSON.stringify(db)` akan MELEWATKAN Second Brain
+  juga — belum ada `secondBrainExportJSON()`/`ImportJSON()` sendiri di
+  versi ini (belum dibuat, beda dari Gudang yang sudah punya).
+  **Akses tabelnya DIKUNCI untuk user login saja** (RLS
+  `session_is_logged_in()`, beda dari kebanyakan tabel lain yang guest
+  boleh baca) — lihat alasan di kepala migrasi SQL-nya.
+  `js/29-asisten-ai.js` (Asisten AI, chat mengambang 🤖) melakukan RAG
+  (retrieval-augmented generation): tiap pertanyaan di-embed lalu dicocokkan
+  ke `kt_second_brain_search` (`secondBrainCariUntukAsisten()`) sebelum
+  dikirim ke `AI.tanya()`, supaya jawabannya juga bisa memakai catatan
+  bebas ini, bukan cuma ringkasan angka live dari `susunAsistenKonteks()`.
+  Setup tambahan (sekali saja, setelah setup `ai-generate` di atas):
+  `supabase functions deploy ai-embed` (pakai `GEMINI_API_KEY` yang
+  sama, tidak perlu secret baru) lalu jalankan
+  `supabase-second-brain-migration.sql` di SQL Editor (butuh
+  `supabase-hardening-migration.sql` sudah pernah jalan duluan, karena
+  RLS-nya bergantung fungsi `session_is_logged_in()` dari situ).
 
 ## Perintah
 

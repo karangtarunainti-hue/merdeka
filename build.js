@@ -56,6 +56,8 @@ const MODULE_ORDER = [
   '25-tour.js',
   '21-icons-lucide.js',
   '23-install-prompt.js',
+  '30-second-brain.js',
+  '29-asisten-ai.js',
   '19-init.js',
 ];
 

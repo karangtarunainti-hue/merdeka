@@ -2962,3 +2962,129 @@ table.ds-rekap-table td.num, table.ds-rekap-table th:not(:first-child){ text-ali
   #tour-fab{ right:14px; bottom:14px; width:48px; height:48px; font-size:20px; }
   .tour-tooltip{ padding:14px 16px; }
 }
+
+/* ============================================================
+   ASISTEN AI ("Second Brain") — chat mengambang, lihat js/29-asisten-ai.js.
+   FAB ditumpuk DI ATAS #tour-fab (bottom:18px) supaya tidak tabrakan,
+   bukan gantiin posisinya — dua-duanya sama-sama persistent.
+   ============================================================ */
+.asisten-fab{
+  position:fixed; right:18px; bottom:84px; z-index:180;
+  width:52px; height:52px; border-radius:50%; border:none;
+  background:var(--biru); color:#fff; font-size:22px;
+  display:flex; align-items:center; justify-content:center;
+  box-shadow:0 6px 18px rgba(0,0,0,.22); cursor:pointer;
+  transition:transform .15s ease;
+}
+.asisten-fab:hover{ transform:scale(1.06); }
+.asisten-fab:active{ transform:scale(.96); }
+
+.asisten-panel{
+  position:fixed; right:18px; bottom:146px; z-index:185;
+  width:min(360px, calc(100vw - 28px)); height:min(480px, calc(100vh - 180px));
+  background:var(--surface); border:1px solid var(--garis); border-radius:14px;
+  box-shadow:0 10px 32px rgba(0,0,0,.2);
+  display:flex; flex-direction:column; overflow:hidden;
+  opacity:0; transform:translateY(12px) scale(.98); pointer-events:none;
+  transition:opacity .18s ease, transform .18s ease;
+}
+.asisten-panel.show{ opacity:1; transform:translateY(0) scale(1); pointer-events:auto; }
+
+.asisten-panel-head{
+  display:flex; align-items:flex-start; justify-content:space-between; gap:8px;
+  padding:12px 14px; border-bottom:1px solid var(--garis); background:var(--surface-soft);
+}
+.asisten-panel-head .desc{ font-size:11.5px; color:var(--ink-soft); margin-top:1px; }
+
+.asisten-panel-body{
+  flex:1; overflow-y:auto; padding:12px 14px;
+  display:flex; flex-direction:column; gap:8px;
+}
+.asisten-empty{ font-size:12.5px; color:var(--ink-soft); line-height:1.5; padding:6px 2px; }
+
+.asisten-bubble{
+  max-width:85%; padding:8px 11px; border-radius:12px; font-size:13px; line-height:1.5;
+  white-space:pre-wrap; word-break:break-word;
+}
+.asisten-bubble-user{
+  align-self:flex-end; background:var(--biru); color:#fff; border-bottom-right-radius:3px;
+}
+.asisten-bubble-ai{
+  align-self:flex-start; background:var(--surface-soft); border:1px solid var(--garis);
+  color:var(--ink); border-bottom-left-radius:3px;
+}
+.asisten-bubble-thinking{ color:var(--ink-soft); font-style:italic; }
+
+.asisten-panel-input{
+  display:flex; align-items:center; gap:6px; padding:10px 12px;
+  border-top:1px solid var(--garis); background:var(--surface);
+}
+.asisten-panel-input input{
+  flex:1; border:1px solid var(--garis); border-radius:10px; padding:9px 11px;
+  font-size:13px; background:var(--cream-card); color:var(--ink);
+}
+.asisten-panel-input input:disabled{ opacity:.6; }
+.asisten-panel-input button{
+  flex:none; border:none; background:var(--biru); color:#fff; border-radius:9px;
+  width:36px; height:36px; display:flex; align-items:center; justify-content:center;
+  cursor:pointer; font-size:15px;
+}
+.asisten-panel-input button:disabled{ opacity:.5; cursor:default; }
+
+@media (max-width:480px){
+  .asisten-fab{ right:14px; bottom:74px; width:46px; height:46px; font-size:19px; }
+  .asisten-panel{
+    right:10px; left:10px; bottom:128px; width:auto;
+    height:min(60vh, calc(100vh - 160px));
+  }
+}
+
+/* ============================================================
+   SECOND BRAIN — menu catatan/ide/dokumen dgn pencarian semantik.
+   Lihat js/30-second-brain.js. Kartu pakai pola accent-* yang sama
+   seperti .bookmark-card (var(--card-accent)) supaya konsisten.
+   ============================================================ */
+.second-brain-toolbar{
+  display:flex; flex-wrap:wrap; align-items:center; gap:8px;
+}
+.second-brain-toolbar input[type="text"]{
+  flex:1 1 240px; border:1px solid var(--garis); border-radius:var(--radius);
+  padding:9px 12px; font-size:13.5px; background:var(--cream-card); color:var(--ink);
+}
+.second-brain-toolbar select{
+  border:1px solid var(--garis); border-radius:var(--radius); padding:9px 10px;
+  font-size:13px; background:var(--cream-card); color:var(--ink);
+}
+
+.second-brain-grid{
+  display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:12px;
+}
+.second-brain-card{
+  background:var(--cream-card); border:1px solid var(--garis); border-radius:var(--radius);
+  border-top:3px solid var(--card-accent, var(--biru)); padding:12px 14px;
+  display:flex; flex-direction:column; gap:6px;
+}
+.second-brain-card.accent-biru{--card-accent:var(--biru);}
+.second-brain-card.accent-ungu{--card-accent:var(--ungu);}
+.second-brain-card.accent-gold{--card-accent:var(--gold);}
+.second-brain-card.accent-hijau{--card-accent:var(--hijau);}
+
+.second-brain-card-top{ display:flex; align-items:center; gap:8px; }
+.second-brain-kategori-badge{
+  font-size:11px; font-weight:700; padding:2px 8px; border-radius:20px;
+  background:var(--card-accent, var(--biru)); color:#fff; opacity:.92; white-space:nowrap;
+}
+.second-brain-score{
+  font-size:11px; font-weight:600; color:var(--ink-soft); background:var(--table-head);
+  padding:2px 7px; border-radius:20px;
+}
+.second-brain-card-actions{ margin-left:auto; display:flex; gap:2px; }
+.second-brain-card-title{ font-weight:700; font-size:14px; }
+.second-brain-card-body{ font-size:12.5px; color:var(--ink-soft); line-height:1.5; white-space:pre-wrap; }
+.second-brain-tags{ display:flex; flex-wrap:wrap; gap:5px; margin-top:2px; }
+.second-brain-tag{ font-size:11px; color:var(--ink-soft); background:var(--table-head); padding:2px 7px; border-radius:20px; }
+
+@media (max-width:480px){
+  .second-brain-grid{ grid-template-columns:1fr; }
+  .second-brain-toolbar{ flex-direction:column; align-items:stretch; }
+}

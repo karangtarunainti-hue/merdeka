@@ -28,6 +28,7 @@ const SECTIONS = [
   {key:'kas', label:'Kas Karang Taruna', sub:'', icon:'wallet', adminOnly: false},
   {key:'dana-sosial', label:'Dana Sosial', sub:'Iuran bulanan Rp 5.000/anggota', icon:'coins', adminOnly: false},
   {key:'bookmark', label:'Tautan Penting', sub:'Kumpulan link penting organisasi', icon:'link', adminOnly: false},
+  {key:'second-brain', label:'Second Brain', sub:'Catatan/ide/dokumen, bisa dicari berdasarkan makna', icon:'brain', adminOnly: false},
 ];
 
 // `SECTIONS` di atas adalah const statis (dievaluasi sebelum data organisasi
@@ -46,7 +47,7 @@ function sectionLabelByKey(key){
 // Menu yang tidak terikat event tertentu (datanya global, bukan per-event).
 // Menu ini ditampilkan terpisah di atas, antara info login dan dropdown
 // Kegiatan Aktif, supaya jelas tidak berubah walau event aktif diganti.
-const GLOBAL_MENU_KEYS = ['kas', 'dana-sosial', 'agenda', 'dokumen', 'database-anggota', 'database-lomba', 'gudang', 'bookmark', 'jadwal-sinoman', 'panduan', 'users', 'pengaturan'];
+const GLOBAL_MENU_KEYS = ['kas', 'dana-sosial', 'agenda', 'dokumen', 'database-anggota', 'database-lomba', 'gudang', 'bookmark', 'second-brain', 'jadwal-sinoman', 'panduan', 'users', 'pengaturan'];
 
 /* ============================================================
    FITUR OPSIONAL PER EVENT
@@ -113,6 +114,7 @@ const ICONS = {
   coins:'<path d="M13.744 17.736a6 6 0 1 1-7.48-7.48" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M15 6h1v4" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="m6.134 14.768.866-.5 2 3.464" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/><circle cx="16" cy="8" r="6" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>',
   book:'<path d="M12 7v14" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>',
   link:'<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>',
+  brain:'<path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>',
 };
 function icon(name){ return `<svg viewBox="0 0 24 24">${ICONS[name]||''}</svg>`; }
 
@@ -235,7 +237,7 @@ function goSection(key, opts){
 // saldo proyeksi kegiatan/event tidak ikut nongol di menu yang memang tidak
 // terikat event tersebut — chip itu punya arti khusus untuk event aktif,
 // jadi kalau ditampilkan di menu eventless malah bikin salah paham).
-const EVENTLESS_SECTIONS = ['gudang', 'dokumen', 'agenda', 'kas', 'dana-sosial', 'bookmark', 'dashboard', 'pengaturan', 'users', 'panduan', 'jadwal-sinoman', 'database-lomba'];
+const EVENTLESS_SECTIONS = ['gudang', 'dokumen', 'agenda', 'kas', 'dana-sosial', 'bookmark', 'second-brain', 'dashboard', 'pengaturan', 'users', 'panduan', 'jadwal-sinoman', 'database-lomba'];
 
 function renderTopbarSaldo(){
   const chip = document.getElementById('saldo-chip');
@@ -298,6 +300,7 @@ function renderContent(){
   
   switch(currentSection){
     case 'panduan': el.innerHTML = renderPanduan(); break;
+    case 'second-brain': el.innerHTML = renderSecondBrain(); break;
     case 'dashboard': el.innerHTML = renderDashboard(); break;
     case 'anggota': el.innerHTML = renderAnggota(); break;
     case 'database-anggota': el.innerHTML = renderDatabaseAnggota(); break;

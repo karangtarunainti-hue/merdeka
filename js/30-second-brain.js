@@ -181,6 +181,10 @@ function renderSecondBrain(){
     </div>`;
   }).join('');
 
+  const infoBaris = modePencarianMakna
+    ? `<div class="second-brain-info-bar">🎯 Hasil pencarian makna untuk "${esc(secondBrainSearchQuery)}" — diurutkan dari yang paling relevan (${daftarUntukDitampilkan.length}).</div>`
+    : (totalSemua > 0 ? `<div class="second-brain-info-bar">Menampilkan ${daftarUntukDitampilkan.length} dari ${totalSemua} catatan.</div>` : '');
+
   let kosongHtml;
   if (modePencarianMakna) {
     kosongHtml = `

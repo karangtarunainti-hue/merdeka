@@ -220,6 +220,15 @@ function retryBukuKegiatanInsight(){
   generateBukuKegiatanInsight(eventId, b, hash);
 }
 
+// Bold-kan nominal rupiah (mis. "Rp 2.610.000") di dalam teks ringkasan AI
+// yang sudah di-escape, supaya angka penting lebih menonjol tanpa perlu AI
+// mengirim markdown (yang memang dilarang lewat system prompt). Regex jalan
+// SETELAH esc() jadi aman dari HTML injection — cuma menambah tag <strong>
+// di sekitar pola "Rp ...." yang ditemukan.
+function boldNominalRp(escapedText){
+  return escapedText.replace(/Rp\s?[\d.,]+/g, (match) => `<strong>${match}</strong>`);
+}
+
 // HTML panel — dipanggil dari renderDashboard(), ditaruh sebelum
 // stat-grid-ringkasan (Total Pemasukan/Pengeluaran).
 function renderBukuKegiatanInsightPanel(){
@@ -233,7 +242,7 @@ function renderBukuKegiatanInsightPanel(){
 
   let isi;
   if(cache && cache.ringkasan){
-    isi = `<div class="ai-insight-text">${esc(cache.ringkasan)}</div>
+    isi = `<div class="ai-insight-text">${boldNominalRp(esc(cache.ringkasan))}</div>
       <div class="ai-insight-meta">
         <span>${sedangProses ? 'Memperbarui…' : `Diperbarui otomatis · ${fmtWaktuTerakhir(cache.generatedAt)}`}</span>
         ${gagal ? '<span class="ai-insight-warn">⚠️ Gagal memperbarui, menampilkan versi terakhir</span>' : ''}

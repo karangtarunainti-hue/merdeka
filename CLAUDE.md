@@ -69,6 +69,20 @@ dideploy ke **Cloudflare Workers (assets)** dengan backend **Supabase**.
 - **Service worker**: `sw.js` — hati-hati dengan cache-busting saat ubah
   file yang di-cache (riwayat bug: deadlock `ERR_FAILED` di Cloudflare
   Workers).
+- **Mesin AI (`/api/ai`, `src/worker.js` + `js/26-ai.js`)**: infrastruktur
+  umum untuk fitur AI, mengikuti pola persis `/api/telegram` (verifikasi
+  sesi via `verifySession()`, rate limit per-sesi, same-origin only).
+  `GEMINI_API_KEY` hidup sebagai secret Worker, tidak pernah ke browser.
+  Klien panggil `AI.tanya(prompt, { system })` (global object `AI`,
+  `js/26-ai.js`) — mengembalikan Promise<string>, melempar Error kalau
+  gagal (pemanggil wajib try/catch dan tampilkan pesan sesuai konteks
+  fiturnya sendiri, jangan generik). Endpoint ini SENGAJA generik
+  (kirim prompt teks, terima teks) — belum terikat fitur konkret apa pun;
+  fitur nyata (draf dokumen, ringkasan kas, dst.) tinggal panggil
+  `AI.tanya()` dari modul manapun tanpa perlu ubah Worker lagi, selama
+  masih pola teks-masuk/teks-keluar. Kalau nanti butuh multi-turn
+  (riwayat percakapan) atau output terstruktur (JSON), itu perlu
+  perubahan di `handleAi()`, bukan cuma di klien.
 
 ## Perintah
 

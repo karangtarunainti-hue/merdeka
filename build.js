@@ -48,6 +48,7 @@ const MODULE_ORDER = [
   '17b-gudang-pinjam.js',
   '17c-gudang-histori-kelola.js',
   '18-getters-refresh.js',
+  '26-ai.js',
   '24-bookmark.js',
   '22-dana-sosial.js',
   '20-panduan.js',

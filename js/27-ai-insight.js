@@ -43,7 +43,7 @@ const _aiInsightFailedHash = new Map();
 // dan AI generate ulang dengan gaya baru, walau angka kas belum berubah.
 // Tanpa ini, ganti prompt saja tidak akan terlihat efeknya sampai ada
 // transaksi baru yang mengubah data_hash.
-const AI_INSIGHT_PROMPT_VERSION = 5;
+const AI_INSIGHT_PROMPT_VERSION = 6;
 
 // Hash sederhana (bukan kriptografis, cuma penanda "data sumbernya sama atau
 // tidak") dari angka-angka yang menyusun 3 card ringkasan + rincian di
@@ -68,7 +68,7 @@ function hitungAiInsightDataHash(b){
     b.hadiahJalan, b.jumlahHadiahJalan,
     b.saldo,
     anggotaBelum.jumlah, anggotaBelum.totalNominal,
-    agenda.map(a => `${a.id}:${a.tanggal}:${a.status}`).join(','),
+    agenda.map(a => `${a.id}:${a.tanggal}:${a.status}:${a.diffDays}`).join(','),
     belum.kebutuhanItemBelum, belum.kebutuhanEstimasiBelum,
     belum.hadiahEstimasiBelum,
     belum.jalanItemBelum, belum.jalanEstimasiBelum,
@@ -92,14 +92,30 @@ function dataAnggotaBelumBayar(){
 // hari ke depan, status belum selesai. Polanya sama seperti upcomingAgenda
 // di generateReminders() (js/07-dashboard.js), sengaja dihitung ulang di sini
 // (bukan pakai ulang variabel dari generateReminders) supaya modul ini tidak
-// bergantung urutan pemanggilan renderDashboard().
+// bergantung urutan pemanggilan renderDashboard(). Tiap item dikasih
+// diffDays eksplisit (0=hari ini, 1=besok, dst.) supaya AI tidak perlu
+// (dan tidak boleh) menebak jaraknya sendiri dari label kategori "7 hari ke
+// depan" — sebelumnya ini bikin AI asal ikut bilang "dalam tujuh hari ke
+// depan" walau agendanya sebenarnya besok, karena cuma dikasih tanggal
+// mentah tanpa jarak relatif yang eksplisit.
 function dataAgendaMendatang(){
   const today = new Date();
-  return gAgenda().filter(a => a.status !== 'selesai').filter(a => {
+  return gAgenda().filter(a => a.status !== 'selesai').map(a => {
     const aDate = new Date(a.tanggal + 'T00:00:00');
     const diffDays = Math.ceil((aDate - today) / (1000 * 60 * 60 * 24));
-    return diffDays >= 0 && diffDays <= 7;
-  }).sort((a,b) => new Date(a.tanggal) - new Date(b.tanggal));
+    return { ...a, diffDays };
+  }).filter(a => a.diffDays >= 0 && a.diffDays <= 7)
+    .sort((a,b) => new Date(a.tanggal) - new Date(b.tanggal));
+}
+
+// Label jarak relatif yang eksplisit & tidak ambigu untuk 1 item agenda —
+// dipakai di prompt supaya AI tinggal SALIN, bukan menghitung/menebak
+// sendiri dari tanggal.
+function labelJarakHari(diffDays){
+  if(diffDays === 0) return 'HARI INI';
+  if(diffDays === 1) return 'BESOK';
+  if(diffDays === 2) return 'LUSA';
+  return `${diffDays} hari lagi`;
 }
 
 // Estimasi belanja yang SUDAH DIRENCANAKAN (ada di daftar kebutuhan/hadiah)
@@ -222,7 +238,7 @@ async function generateBukuKegiatanInsight(eventId, b, hash){
 
   try{
     const teks = await aiTanya(buatPromptInsightBukuKegiatan(b), {
-      system: 'Kamu asisten keuangan untuk aplikasi kas Karang Taruna. Tulis ringkasan kondisi kas dalam Bahasa Indonesia formal bergaya laporan pertanggungjawaban (LPJ) resmi — bahasa baku, lugas, dan objektif, sudut pandang orang ketiga/institusional (mis. "Kas organisasi per tanggal ini tercatat...", "Iuran anggota telah terealisasi sebesar..."). Hindari sapaan akrab ("teman-teman", "kita", "yuk") maupun bahasa sehari-hari/santai. 3-5 kalimat, boleh diakhiri 1 kalimat rekomendasi/catatan tindak lanjut jika relevan (tidak wajib dipaksakan tiap kali). Kalau datanya ada anggota belum bayar iuran atau agenda kegiatan dalam 7 hari ke depan, boleh disinggung singkat kalau relevan dengan kondisi kas (jangan sebut nama anggota, cukup jumlah). Kalau ada RENCANA BELANJA YANG BELUM DIREALISASIKAN dengan nominal cukup besar dibanding saldo akhir, WAJIB disinggung — ini penting supaya pembaca tidak salah kira saldo sekarang itu "aman" padahal sebagian akan terpakai untuk belanja yang sudah direncanakan tapi belum jalan; kalau nominalnya kecil/tidak ada, tidak perlu dipaksakan disebut. Kalau ada data KUPON JALAN SANTAI dan stoknya HAMPIR HABIS, boleh disinggung singkat sebagai catatan potensi pemasukan tambahan yang mulai terbatas; kalau stok masih banyak/tidak relevan dengan kas, tidak perlu disebut. Jangan mengulang semua angka yang sudah tampil di layar — pilih yang paling penting untuk diberi konteks/makna. Jangan pakai heading, bullet, atau markdown, cukup paragraf biasa.',
+      system: 'Kamu asisten keuangan untuk aplikasi kas Karang Taruna. Tulis ringkasan kondisi kas dalam Bahasa Indonesia formal bergaya laporan pertanggungjawaban (LPJ) resmi — bahasa baku, lugas, dan objektif, sudut pandang orang ketiga/institusional (mis. "Kas organisasi per tanggal ini tercatat...", "Iuran anggota telah terealisasi sebesar..."). Hindari sapaan akrab ("teman-teman", "kita", "yuk") maupun bahasa sehari-hari/santai. 3-5 kalimat, boleh diakhiri 1 kalimat rekomendasi/catatan tindak lanjut jika relevan (tidak wajib dipaksakan tiap kali). Kalau datanya ada anggota belum bayar iuran atau agenda kegiatan dalam 7 hari ke depan, boleh disinggung singkat kalau relevan dengan kondisi kas (jangan sebut nama anggota, cukup jumlah). Kalau menyebut agenda, WAJIB pakai label jarak (HARI INI/BESOK/LUSA/"N hari lagi") yang sudah disediakan persis apa adanya — JANGAN pernah menulis frasa generik seperti "dalam tujuh hari ke depan" untuk agenda yang sebenarnya lebih dekat dari itu (mis. besok atau lusa); "7 hari ke depan" di data cuma batas atas rentang pencarian, bukan jarak agenda sesungguhnya. Kalau ada RENCANA BELANJA YANG BELUM DIREALISASIKAN dengan nominal cukup besar dibanding saldo akhir, WAJIB disinggung — ini penting supaya pembaca tidak salah kira saldo sekarang itu "aman" padahal sebagian akan terpakai untuk belanja yang sudah direncanakan tapi belum jalan; kalau nominalnya kecil/tidak ada, tidak perlu dipaksakan disebut. Kalau ada data KUPON JALAN SANTAI dan stoknya HAMPIR HABIS, boleh disinggung singkat sebagai catatan potensi pemasukan tambahan yang mulai terbatas; kalau stok masih banyak/tidak relevan dengan kas, tidak perlu disebut. Jangan mengulang semua angka yang sudah tampil di layar — pilih yang paling penting untuk diberi konteks/makna. Jangan pakai heading, bullet, atau markdown, cukup paragraf biasa.',
     });
 
     const ringkasan = String(teks || '').trim();
@@ -296,8 +312,13 @@ function buatPromptInsightBukuKegiatan(b){
 
   const agenda = dataAgendaMendatang();
   if(agenda.length > 0){
-    const daftarAgenda = agenda.map(a => `${a.judul} (${labelKategoriJadwal(a.kategori)}, ${fmtDateHari(a.tanggal)})`).join('; ');
-    baris.push(`AGENDA KEGIATAN 7 HARI KE DEPAN: ${daftarAgenda}`);
+    // Label jarak (HARI INI/BESOK/LUSA/"N hari lagi") dihitung eksplisit di
+    // labelJarakHari() dan disisipkan per-item di sini — supaya kalau ditulis
+    // di ringkasan, AI SALIN label yang sudah pasti benar ini, bukan
+    // menyimpulkan sendiri dari kategori "7 hari ke depan" (yang cuma
+    // menandai batas atas rentang, bukan jarak agenda yang sebenarnya).
+    const daftarAgenda = agenda.map(a => `${a.judul} (${labelKategoriJadwal(a.kategori)}, ${fmtDateHari(a.tanggal)} — ${labelJarakHari(a.diffDays)})`).join('; ');
+    baris.push(`AGENDA KEGIATAN DALAM 7 HARI KE DEPAN (label jarak tiap item SUDAH dihitung pasti, JANGAN dihitung ulang/ditebak): ${daftarAgenda}`);
     baris.push('');
   }
 

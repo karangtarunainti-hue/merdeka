@@ -43,7 +43,7 @@ const _aiInsightFailedHash = new Map();
 // dan AI generate ulang dengan gaya baru, walau angka kas belum berubah.
 // Tanpa ini, ganti prompt saja tidak akan terlihat efeknya sampai ada
 // transaksi baru yang mengubah data_hash.
-const AI_INSIGHT_PROMPT_VERSION = 3;
+const AI_INSIGHT_PROMPT_VERSION = 5;
 
 // Hash sederhana (bukan kriptografis, cuma penanda "data sumbernya sama atau
 // tidak") dari angka-angka yang menyusun 3 card ringkasan + rincian di
@@ -55,6 +55,8 @@ const AI_INSIGHT_PROMPT_VERSION = 3;
 function hitungAiInsightDataHash(b){
   const anggotaBelum = dataAnggotaBelumBayar();
   const agenda = dataAgendaMendatang();
+  const belum = dataEstimasiBelumDibeli();
+  const kupon = dataKuponJalanSantai();
   const bagian = [
     AI_INSIGHT_PROMPT_VERSION,
     b.iuran, b.jumlahIuranLunas,
@@ -67,6 +69,10 @@ function hitungAiInsightDataHash(b){
     b.saldo,
     anggotaBelum.jumlah, anggotaBelum.totalNominal,
     agenda.map(a => `${a.id}:${a.tanggal}:${a.status}`).join(','),
+    belum.kebutuhanItemBelum, belum.kebutuhanEstimasiBelum,
+    belum.hadiahEstimasiBelum,
+    belum.jalanItemBelum, belum.jalanEstimasiBelum,
+    kupon ? `${kupon.harga}:${kupon.stok}:${kupon.terjual}` : '',
   ];
   return bagian.join('|');
 }
@@ -94,6 +100,76 @@ function dataAgendaMendatang(){
     const diffDays = Math.ceil((aDate - today) / (1000 * 60 * 60 * 24));
     return diffDays >= 0 && diffDays <= 7;
   }).sort((a,b) => new Date(a.tanggal) - new Date(b.tanggal));
+}
+
+// Estimasi belanja yang SUDAH DIRENCANAKAN (ada di daftar kebutuhan/hadiah)
+// tapi BELUM direalisasikan (belum ditandai "dibeli") — ini "exposure" kas
+// ke depan yang tidak kelihatan di b.kebutuhanLomba/b.hadiahLomba/b.hadiahJalan
+// (yang cuma menghitung nominal yang SUDAH dibeli). Dulu AI cuma dikasih
+// angka realisasi + jumlah SEMUA item (campur baur sudah/belum dibeli — lihat
+// jumlahKebutuhanLomba dkk di hitungBukuUtama()), jadi insight-nya bisa
+// terkesan "kas masih aman" padahal sebagian besar rencana belanja belum
+// jalan dan berpotensi masih akan memotong saldo. Dihitung terpisah dari
+// hitungBukuUtama() (bukan inject ke sana) supaya tidak mengubah rumus total
+// pengeluaran yang sudah dipakai di banyak halaman (Dashboard/LPJ/dll).
+function dataEstimasiBelumDibeli(){
+  // Kebutuhan Lomba (perlengkapan) — bandingkan SEMUA item kebutuhan vs yang
+  // statusnya "dibeli" di Daftar Belanja Perlengkapan.
+  const lombaIds = gLomba().map(l => l.id);
+  const semuaKebutuhan = db.lombaKebutuhan.filter(k => lombaIds.includes(k.lomba_id));
+  const belanjaDibeli = new Map(gDaftarBelanjaPerlengkapan().filter(b => b.status === 'dibeli').map(b => [b.kebutuhan_id, b]));
+  let kebutuhanItemBelum = 0, kebutuhanEstimasiBelum = 0;
+  semuaKebutuhan.forEach(k => {
+    if(belanjaDibeli.has(k.id)) return;
+    kebutuhanItemBelum++;
+    kebutuhanEstimasiBelum += Number(k.harga_realisasi ?? k.harga_estimasi ?? 0) * Number(k.qty||0);
+  });
+
+  // Hadiah Lomba — hitungHargaAktualHadiahLomba() sumber kebenaran tunggal
+  // (lihat js/11-belanja.js): onlyPurchased:false = seluruh rencana (termasuk
+  // yang belum dibeli), onlyPurchased:true = persis b.hadiahLomba di atas.
+  const hadiahSemua = hitungHargaAktualHadiahLomba({onlyPurchased:false}).total;
+  const hadiahEstimasiBelum = Math.max(0, hadiahSemua - hitungHargaAktualHadiahLomba({onlyPurchased:true}).total);
+
+  // Hadiah Jalan Santai — sama polanya seperti Kebutuhan Lomba di atas.
+  const belanjaJalanDibeli = new Map(gDaftarBelanjaJalanSantai().filter(b => b.status === 'dibeli').map(b => [b.hadiah_jalan_id, b]));
+  let jalanItemBelum = 0, jalanEstimasiBelum = 0;
+  gHadiahJalanSantai().forEach(h => {
+    if(belanjaJalanDibeli.has(h.id)) return;
+    jalanItemBelum++;
+    jalanEstimasiBelum += Number(h.harga_satuan||0) * Number(h.qty||0);
+  });
+
+  return {
+    kebutuhanItemBelum, kebutuhanEstimasiBelum,
+    hadiahEstimasiBelum,
+    jalanItemBelum, jalanEstimasiBelum,
+    totalEstimasiBelum: kebutuhanEstimasiBelum + hadiahEstimasiBelum + jalanEstimasiBelum,
+  };
+}
+
+// Kupon Jalan Santai — pendapatannya SUDAH ikut kehitung di b.transaksiLain
+// (penjualan kupon dicatat sebagai baris di gTransaksiLain(), lihat
+// totalKuponTerjual() di js/09-donatur-transaksi-operasional.js), tapi sisa
+// STOK-nya (dari kt_settings.kuponJalanSantai.stok, sama seperti dipakai
+// kuponJalanPanelHtml() di js/07-dashboard.js) belum pernah dikasih tahu ke
+// AI sama sekali — padahal itu konteks penting: kalau stok hampir habis,
+// potensi pendapatan tambahan dari kupon sudah mepet; kalau masih banyak,
+// masih ada potensi pemasukan yang belum terealisasi. Cuma dikembalikan
+// kalau fiturnya memang dipakai (sama seperti syarat tampil panelnya).
+function dataKuponJalanSantai(){
+  if(!isMenuAktif('transaksi')) return null;
+  const s = getSettings();
+  const kj = s.kuponJalanSantai || {harga:0, stok:0};
+  const harga = Number(kj.harga||0);
+  const stok = Number(kj.stok||0);
+  if(harga<=0 && stok<=0) return null; // belum diatur admin, sama seperti panelnya
+
+  const terjual = totalKuponTerjual();
+  const sisa = stok>0 ? Math.max(0, stok - terjual) : null;
+  const pendapatan = terjual * harga;
+  const isLowStock = stok>0 && sisa!==null && sisa <= Math.ceil(stok*0.1);
+  return { harga, stok, terjual, sisa, pendapatan, isLowStock };
 }
 
 function getAiInsightCache(){
@@ -146,7 +222,7 @@ async function generateBukuKegiatanInsight(eventId, b, hash){
 
   try{
     const teks = await aiTanya(buatPromptInsightBukuKegiatan(b), {
-      system: 'Kamu asisten keuangan untuk aplikasi kas Karang Taruna. Tulis ringkasan kondisi kas dalam Bahasa Indonesia formal bergaya laporan pertanggungjawaban (LPJ) resmi — bahasa baku, lugas, dan objektif, sudut pandang orang ketiga/institusional (mis. "Kas organisasi per tanggal ini tercatat...", "Iuran anggota telah terealisasi sebesar..."). Hindari sapaan akrab ("teman-teman", "kita", "yuk") maupun bahasa sehari-hari/santai. 3-5 kalimat, boleh diakhiri 1 kalimat rekomendasi/catatan tindak lanjut jika relevan (tidak wajib dipaksakan tiap kali). Kalau datanya ada anggota belum bayar iuran atau agenda kegiatan dalam 7 hari ke depan, boleh disinggung singkat kalau relevan dengan kondisi kas (jangan sebut nama anggota, cukup jumlah). Jangan mengulang semua angka yang sudah tampil di layar — pilih yang paling penting untuk diberi konteks/makna. Jangan pakai heading, bullet, atau markdown, cukup paragraf biasa.',
+      system: 'Kamu asisten keuangan untuk aplikasi kas Karang Taruna. Tulis ringkasan kondisi kas dalam Bahasa Indonesia formal bergaya laporan pertanggungjawaban (LPJ) resmi — bahasa baku, lugas, dan objektif, sudut pandang orang ketiga/institusional (mis. "Kas organisasi per tanggal ini tercatat...", "Iuran anggota telah terealisasi sebesar..."). Hindari sapaan akrab ("teman-teman", "kita", "yuk") maupun bahasa sehari-hari/santai. 3-5 kalimat, boleh diakhiri 1 kalimat rekomendasi/catatan tindak lanjut jika relevan (tidak wajib dipaksakan tiap kali). Kalau datanya ada anggota belum bayar iuran atau agenda kegiatan dalam 7 hari ke depan, boleh disinggung singkat kalau relevan dengan kondisi kas (jangan sebut nama anggota, cukup jumlah). Kalau ada RENCANA BELANJA YANG BELUM DIREALISASIKAN dengan nominal cukup besar dibanding saldo akhir, WAJIB disinggung — ini penting supaya pembaca tidak salah kira saldo sekarang itu "aman" padahal sebagian akan terpakai untuk belanja yang sudah direncanakan tapi belum jalan; kalau nominalnya kecil/tidak ada, tidak perlu dipaksakan disebut. Kalau ada data KUPON JALAN SANTAI dan stoknya HAMPIR HABIS, boleh disinggung singkat sebagai catatan potensi pemasukan tambahan yang mulai terbatas; kalau stok masih banyak/tidak relevan dengan kas, tidak perlu disebut. Jangan mengulang semua angka yang sudah tampil di layar — pilih yang paling penting untuk diberi konteks/makna. Jangan pakai heading, bullet, atau markdown, cukup paragraf biasa.',
     });
 
     const ringkasan = String(teks || '').trim();
@@ -194,6 +270,23 @@ function buatPromptInsightBukuKegiatan(b){
   baris.push('');
   baris.push(`SALDO AKHIR: ${fmtRp(b.saldo)} (proyeksi anggaran, sudah termasuk kebutuhan & hadiah yang direncanakan meski belum tentu semuanya sudah dibelanjakan)`);
   baris.push('');
+
+  const belum = dataEstimasiBelumDibeli();
+  if(belum.totalEstimasiBelum > 0){
+    baris.push('RENCANA BELANJA YANG BELUM DIREALISASIKAN (masih akan mengurangi saldo di atas kalau nanti dibeli):');
+    if(belum.kebutuhanEstimasiBelum > 0) baris.push(`- Kebutuhan lomba: ${belum.kebutuhanItemBelum} item belum dibeli, estimasi ${fmtRp(belum.kebutuhanEstimasiBelum)}`);
+    if(belum.hadiahEstimasiBelum > 0) baris.push(`- Hadiah lomba: estimasi ${fmtRp(belum.hadiahEstimasiBelum)} belum dibeli`);
+    if(belum.jalanEstimasiBelum > 0) baris.push(`- Hadiah jalan santai: ${belum.jalanItemBelum} item belum dibeli, estimasi ${fmtRp(belum.jalanEstimasiBelum)}`);
+    baris.push(`Total estimasi belum direalisasikan: ${fmtRp(belum.totalEstimasiBelum)}. Kalau ini besar dibanding SALDO AKHIR, itu sinyal penting untuk disinggung (saldo yang terlihat sekarang bisa menyusut banyak begitu belanja ini jalan).`);
+    baris.push('');
+  }
+
+  const kupon = dataKuponJalanSantai();
+  if(kupon){
+    baris.push(`KUPON JALAN SANTAI: ${kupon.terjual} lembar terjual (${fmtRp(kupon.pendapatan)}, sudah masuk hitungan Pemasukan Lain di atas)${kupon.stok>0 ? `, sisa stok ${kupon.sisa} dari ${kupon.stok} lembar dicetak${kupon.isLowStock ? ' — stok HAMPIR HABIS' : ''}` : ' (stok tidak dibatasi)'}.`);
+    if(kupon.isLowStock) baris.push('Stok kupon yang hampir habis ini relevan untuk kondisi kas kalau penjualan kupon jadi sumber pemasukan yang cukup besar — boleh disinggung singkat.');
+    baris.push('');
+  }
 
   const anggotaBelum = dataAnggotaBelumBayar();
   if(anggotaBelum.jumlah > 0){

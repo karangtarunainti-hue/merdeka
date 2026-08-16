@@ -1,4 +1,4 @@
-  :root{
+:root{
     --merah:#2F7D5A;
     --merah-dark:#1D4B36;
     --merah-tint:#E1EFE7;
@@ -1750,10 +1750,10 @@
 
     /* Daftar Donatur di HP: No/Tanggal/Nama diringkas seketat mungkin supaya
        kolom Donasi (termasuk rincian donasi barang) kebagian lebar maksimal. */
-    table.donatur-table th:nth-child(1), table.donatur-table td:nth-child(1){ width:36px; min-width:0; white-space:nowrap; padding:8px 4px 8px 8px; text-align:left; }
-    table.donatur-table th:nth-child(2), table.donatur-table td:nth-child(2){ width:64px; min-width:0; white-space:nowrap; padding:8px 4px; text-align:left; font-size:11.5px; }
-    table.donatur-table th:nth-child(3), table.donatur-table td:nth-child(3){ width:64px; min-width:0; padding:8px 4px; text-align:left; }
-    table.donatur-table th:nth-child(4), table.donatur-table td:nth-child(4){ width:auto; }
+    table.donatur-table th:nth-child(1), table.donatur-table td:nth-child(1){ width:28px; min-width:0; white-space:nowrap; padding:8px 4px 8px 8px; text-align:left; }
+    table.donatur-table th:nth-child(2), table.donatur-table td:nth-child(2){ width:56px; min-width:0; white-space:nowrap; padding:8px 4px; text-align:left; font-size:11.5px; }
+    table.donatur-table th:nth-child(3), table.donatur-table td:nth-child(3){ width:88px; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding:8px 4px; text-align:left; }
+    table.donatur-table th:nth-child(4), table.donatur-table td:nth-child(4){ width:auto; text-align:left; }
 
     /* --- Agenda Kegiatan: sembunyikan tabel geser, tampilkan kartu --- */
     .agenda-table-wrap{display:none;}

@@ -151,8 +151,8 @@ initOfflineGuard();
   const _loggedInUser = getCurrentUser();
   if (_loggedInUser) touchLastSeen(_loggedInUser.id);
 
-  // Kalau app dibuka lewat link yang di-share (tombol "Bagikan Link" di menu
-  // LPJ, lihat shareLpjLink()), utamakan event dari URL ketimbang event aktif
+  // Kalau app dibuka lewat link yang di-share (tombol "Kirim Grup WA" di menu
+  // LPJ, lihat kirimLpjKeGrupWa()), utamakan event dari URL ketimbang event aktif
   // tersimpan — supaya penerima link (mis. dari grup WhatsApp) langsung
   // melihat laporan event yang dimaksud, termasuk tema warna & sidebar-nya.
   // Set activeEventId langsung (bukan lewat setActiveEvent(), yang

@@ -242,10 +242,10 @@ const EVENTLESS_SECTIONS = ['gudang', 'dokumen', 'agenda', 'kas', 'dana-sosial',
 function renderTopbarSaldo(){
   const chip = document.getElementById('saldo-chip');
   const shareBtn = document.getElementById('lpj-share-btn');
-  // Di menu LPJ, chip "Proyeksi Saldo" diganti tombol "Bagikan Link" — laporan
-  // LPJ sering perlu dibagikan apa adanya ke grup, jadi link langsung lebih
-  // berguna di situ ketimbang angka saldo yang sudah tampil di halaman LPJ itu
-  // sendiri (lihat renderLPJ).
+  // Di menu LPJ, chip "Proyeksi Saldo" diganti tombol "Kirim Grup WA" — laporan
+  // LPJ sering perlu dibagikan apa adanya ke grup, jadi kirim langsung ke WA
+  // lebih berguna di situ ketimbang angka saldo yang sudah tampil di halaman
+  // LPJ itu sendiri (lihat renderLPJ & kirimLpjKeGrupWa()).
   if(currentSection === 'lpj'){
     chip.style.visibility = 'hidden';
     shareBtn.style.display = 'inline-flex';
@@ -263,29 +263,90 @@ function renderTopbarSaldo(){
   document.getElementById('saldo-val').textContent = fmtRp(saldo);
 }
 
-// Bagikan link halaman LPJ saat ini (mis. ke grup WhatsApp pengurus). App ini
-// tidak pakai routing URL (SPA murni, state di memori/localStorage), jadi
-// location.href polos cuma URL dasar — penerima yang klik link akan mendarat
-// di Dashboard, bukan LPJ event ini. Makanya section & event aktif disisipkan
-// sebagai query string (?section=lpj&event=...), lalu dibaca lagi di initApp()
-// saat link tersebut dibuka supaya langsung terarah ke laporan yang dimaksud.
-async function shareLpjLink(){
+// Bikin URL halaman LPJ saat ini. App ini tidak pakai routing URL (SPA murni,
+// state di memori/localStorage), jadi location.href polos cuma URL dasar —
+// penerima yang klik link akan mendarat di Dashboard, bukan LPJ event ini.
+// Makanya section & event aktif disisipkan sebagai query string
+// (?section=lpj&event=...), lalu dibaca lagi di initApp() saat link tersebut
+// dibuka supaya langsung terarah ke laporan yang dimaksud.
+function buatUrlLpj(){
   const params = new URLSearchParams();
   params.set('section', 'lpj');
   if(db.activeEventId) params.set('event', db.activeEventId);
-  const url = `${location.origin}${location.pathname}?${params.toString()}`;
-  const title = `Laporan (LPJ) — ${getOrgProfil().nama || 'Karang Taruna'}`;
-  if(navigator.share){
-    try { await navigator.share({ title, url }); }
-    catch(e){ if(e.name !== 'AbortError') toast('⚠️ Gagal membagikan link'); }
-    return;
-  }
+  return `${location.origin}${location.pathname}?${params.toString()}`;
+}
+
+// Guard sederhana — cegah klik dobel selagi AI masih menyusun kalimat
+// pembuka (network call ai-generate bisa beberapa detik).
+let _kirimLpjWaSedangProses = false;
+
+// Kirim link LPJ event aktif ke grup WhatsApp pengurus, lengkap dengan
+// kalimat pembuka yang disusun AI (lewat aiTanya(), lihat js/26-ai.js) supaya
+// pesannya tidak polos link doang. Kalimat pembuka dibuat baru tiap klik
+// (bukan di-cache) karena ini aksi sekali-kirim, bukan panel yang dibaca
+// berulang seperti Insight AI — dan singkat/murah dari sisi biaya API.
+//
+// Dibuka via wa.me TANPA nomor tujuan (mis. gudangOpenReceipt(),
+// js/17b-gudang-pinjam.js) — sengaja, supaya WhatsApp menampilkan layar
+// pilih kontak/grup dan pengurus tinggal pilih grup mana yang dituju,
+// bukan terkunci ke satu nomor.
+async function kirimLpjKeGrupWa(){
+  if(_kirimLpjWaSedangProses) return;
+  const ev = activeEvent();
+  if(!ev){ toast('⚠️ Tidak ada event aktif'); return; }
+
+  const btn = document.getElementById('lpj-share-btn');
+  const labelEl = btn ? btn.querySelector('.lpj-share-btn-label') : null;
+  const labelAsli = labelEl ? labelEl.textContent : '';
+
+  _kirimLpjWaSedangProses = true;
+  if(btn) btn.disabled = true;
+  if(labelEl) labelEl.textContent = 'Menyusun pesan…';
+
+  const b = hitungBukuUtama();
+  let pembuka = '';
   try {
-    await navigator.clipboard.writeText(url);
-    toast('🔗 Link laporan disalin — tinggal tempel ke grup');
+    const teks = await aiTanya(buatPromptPembukaLpjWa(ev, b), {
+      system: 'Kamu asisten kepanitiaan Karang Taruna. Tulis kalimat pembuka pesan WhatsApp yang mengantarkan link Laporan Pertanggungjawaban (LPJ) ke grup pengurus. Bahasa Indonesia yang hangat dan sopan seperti gaya chat grup panitia RT/RW, BUKAN gaya surat resmi/kaku. Maksimal 2 kalimat pendek. Boleh singgung ucapan terima kasih, TAPI tekankan ke ANGGOTA KARANG TARUNA (panitia/pengurus yang terlibat langsung), bukan ke "warga" secara umum. JANGAN pakai salam pembuka (Assalamualaikum/Selamat pagi dsb, biar pengurus tambahkan sendiri sesuai kondisi), JANGAN pakai tanda kutip, JANGAN pakai markdown/bullet/emoji berlebihan — cukup teks polos, langsung kalimatnya saja tanpa embel-embel lain.',
+      timeoutMs: 15000,
+    });
+    pembuka = String(teks || '').trim().replace(/^["']|["']$/g, '');
   } catch(e){
-    toast('⚠️ Gagal menyalin link, salin manual dari address bar');
+    console.error('Gagal membuat kalimat pembuka LPJ via AI (pakai fallback):', e);
   }
+  if(!pembuka) pembuka = `Terima kasih atas kerja keras teman-teman anggota Karang Taruna di kegiatan ${ev.nama}, berikut Laporan Pertanggungjawaban (LPJ)-nya, mohon dicek ya.`;
+
+  const url = buatUrlLpj();
+  const pesan = [
+    pembuka,
+    '',
+    `📋 *LAPORAN PERTANGGUNGJAWABAN (LPJ)*`,
+    `Kegiatan: ${ev.nama} — Tahun ${ev.tahun}`,
+    `Saldo Akhir: ${fmtRp(b.saldo)}`,
+    '',
+    `Rincian lengkap:`,
+    url,
+  ].join('\n');
+
+  window.open(`https://wa.me/?text=${encodeURIComponent(pesan)}`, '_blank');
+
+  _kirimLpjWaSedangProses = false;
+  if(btn) btn.disabled = false;
+  if(labelEl) labelEl.textContent = labelAsli || 'Kirim Grup WA';
+}
+
+function buatPromptPembukaLpjWa(ev, b){
+  const org = getOrgProfil();
+  const baris = [
+    `Organisasi: ${org.nama || 'Karang Taruna'}`,
+    `Kegiatan: ${ev.nama} — Tahun ${ev.tahun}`,
+    `Total Pemasukan: ${fmtRp(b.pemasukan)}`,
+    `Total Pengeluaran: ${fmtRp(b.pengeluaran)}`,
+    `Saldo Akhir: ${fmtRp(b.saldo)}`,
+    '',
+    'Buatkan kalimat pembukanya sesuai instruksi.',
+  ];
+  return baris.join('\n');
 }
 
 function renderContent(){

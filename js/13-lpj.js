@@ -50,6 +50,11 @@ function renderLPJ(){
   const totalKuponQty = kuponRows.reduce((s,t)=>s+Number(t.kuponqty||0),0);
   const totalKuponNominal = kuponRows.reduce((s,t)=>s+Number(t.jumlah||0),0);
   const totalNonKuponNominal = nonKuponTransaksiList.reduce((s,t)=>s+Number(t.jumlah||0),0);
+  // Harga per kupon diambil dari getSettings().kuponJalanSantai.harga (harga
+  // acuan yang diatur admin di Pengaturan) — bukan dihitung rata-rata dari
+  // nominal/qty transaksi, supaya angka yang tampil di LPJ selalu bulat &
+  // sama dengan harga resmi yang berlaku, bukan hasil pembulatan.
+  const hargaKuponEfektif = Number((getSettings().kuponJalanSantai||{}).harga||0);
   const operasionalList = gOperasional().slice().sort((x,y)=>(x.tanggal||'').localeCompare(y.tanggal||''));
 
   const kebutuhanRows = [];
@@ -173,7 +178,7 @@ function renderLPJ(){
         ${showDonatur ? `<tr><td class="indent">Donatur (${b.jumlahDonatur} donasi)</td><td class="num">${fmtRp(b.donasi)}</td></tr>` : ''}
         ${showDonatur && b.jumlahDonaturBarang>0 ? `<tr><td class="indent" style="font-style:italic;color:var(--ink-soft);font-size:12px;">+ ${b.jumlahDonaturBarang} sumbangan barang (bukan uang, lihat rincian Donatur di bawah)</td><td class="num"></td></tr>` : ''}
         ${showTransaksi ? `<tr><td class="indent">Pemasukan Lain (${nonKuponTransaksiList.length})</td><td class="num">${fmtRp(totalNonKuponNominal)}</td></tr>` : ''}
-        ${showTransaksi ? `<tr><td class="indent">Penjualan Kupon (${totalKuponQty} kupon)</td><td class="num">${fmtRp(totalKuponNominal)}</td></tr>` : ''}
+        ${showTransaksi ? `<tr><td class="indent">Penjualan Kupon (${totalKuponQty} kupon &times; ${fmtRp(hargaKuponEfektif)})</td><td class="num">${fmtRp(totalKuponNominal)}</td></tr>` : ''}
         <tr class="lpj-subtotal"><td>Total Pengeluaran</td><td class="num">${fmtRp(b.pengeluaran)}</td></tr>
         ${showOperasional ? `<tr><td class="indent">Operasional Kegiatan (${b.jumlahOperasional})</td><td class="num">${fmtRp(b.opsional)}</td></tr>` : ''}
         ${showLomba ? `<tr><td class="indent">Kebutuhan Lomba (${b.jumlahKebutuhanLomba})</td><td class="num">${fmtRp(b.kebutuhanLomba)}</td></tr>` : ''}

@@ -231,6 +231,7 @@
   .saldo-chip.negatif{background:var(--bahaya-tint); border-color:#e3c3c1;}
   .saldo-chip .lbl{font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-soft);}
   .saldo-chip .val{font-size:16px; font-weight:700; font-family:'JetBrains Mono',monospace;}
+  .lpj-share-btn{flex:0 0 auto; align-items:center; gap:7px;}
 
   #content {
     padding: 26px 32px 60px;
@@ -1671,6 +1672,9 @@
     .saldo-chip{flex:0 0 auto; padding:5px 10px; gap:5px;}
     .saldo-chip .lbl{display:none;}
     .saldo-chip .val{font-size:12.5px;}
+    .lpj-share-btn{padding:8px 10px;}
+    .lpj-share-btn .lpj-share-btn-label{display:none;}
+    .lpj-share-btn .inline-icon{margin-right:0;}
     .field-row{grid-template-columns:1fr;}
     .item-fields-row{grid-template-columns:1fr; gap:8px;}
     .menu-toggle{display:inline-flex !important;}

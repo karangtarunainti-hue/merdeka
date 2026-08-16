@@ -151,6 +151,27 @@ initOfflineGuard();
   const _loggedInUser = getCurrentUser();
   if (_loggedInUser) touchLastSeen(_loggedInUser.id);
 
+  // Kalau app dibuka lewat link yang di-share (tombol "Bagikan Link" di menu
+  // LPJ, lihat shareLpjLink()), utamakan event dari URL ketimbang event aktif
+  // tersimpan — supaya penerima link (mis. dari grup WhatsApp) langsung
+  // melihat laporan event yang dimaksud, termasuk tema warna & sidebar-nya.
+  // Set activeEventId langsung (bukan lewat setActiveEvent(), yang
+  // mensyaratkan login) — melihat laporan tidak butuh hak edit.
+  let sharedSection = null;
+  try {
+    const params = new URLSearchParams(location.search);
+    const sharedEvent = params.get('event');
+    sharedSection = params.get('section');
+    if (sharedEvent && db.events.some(e => e.id === sharedEvent)) db.activeEventId = sharedEvent;
+    if (sharedSection && !SECTIONS.some(s => s.key === sharedSection)) sharedSection = null;
+    if (params.get('section') || sharedEvent) {
+      // Bersihkan query string dari address bar supaya refresh berikutnya
+      // balik ke perilaku normal (localStorage), bukan terus-menerus
+      // terkunci ke event/menu hasil share orang lain.
+      history.replaceState(null, '', location.pathname + location.hash);
+    }
+  } catch(e){}
+
   applyTemaWarna(eventTema(activeEvent()).key);
   applyOrgBranding();
   renderSidebar();
@@ -159,11 +180,13 @@ initOfflineGuard();
   // Buka kembali halaman terakhir yang dikunjungi (tersimpan di localStorage)
   // supaya refresh (F5) tidak selalu melempar user balik ke Buku Kegiatan.
   // Kalau belum pernah ada / key sudah tidak dikenal, baru fallback ke dashboard.
-  let lastSection = 'dashboard';
-  try {
-    const saved = localStorage.getItem(LAST_SECTION_KEY);
-    if (saved && SECTIONS.some(s => s.key === saved)) lastSection = saved;
-  } catch(e){}
+  let lastSection = sharedSection || 'dashboard';
+  if (!sharedSection) {
+    try {
+      const saved = localStorage.getItem(LAST_SECTION_KEY);
+      if (saved && SECTIONS.some(s => s.key === saved)) lastSection = saved;
+    } catch(e){}
+  }
   goSection(lastSection);
   // Muat data Gudang di belakang layar (tidak memblokir tampilan awal) supaya
   // saat pertama kali buka menu Gudang, datanya sudah siap tanpa jeda loading.

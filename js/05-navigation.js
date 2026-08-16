@@ -241,6 +241,17 @@ const EVENTLESS_SECTIONS = ['gudang', 'dokumen', 'agenda', 'kas', 'dana-sosial',
 
 function renderTopbarSaldo(){
   const chip = document.getElementById('saldo-chip');
+  const shareBtn = document.getElementById('lpj-share-btn');
+  // Di menu LPJ, chip "Proyeksi Saldo" diganti tombol "Bagikan Link" — laporan
+  // LPJ sering perlu dibagikan apa adanya ke grup, jadi link langsung lebih
+  // berguna di situ ketimbang angka saldo yang sudah tampil di halaman LPJ itu
+  // sendiri (lihat renderLPJ).
+  if(currentSection === 'lpj'){
+    chip.style.visibility = 'hidden';
+    shareBtn.style.display = 'inline-flex';
+    return;
+  }
+  shareBtn.style.display = 'none';
   // Chip ini menampilkan proyeksi anggaran EVENT/kegiatan khusus yang aktif
   // (dari hitungBukuUtama). Di menu yang tidak terikat event (lihat
   // EVENTLESS_SECTIONS) angka ini tidak relevan dan gampang disalahpahami
@@ -250,6 +261,31 @@ function renderTopbarSaldo(){
   const {saldo} = hitungBukuUtama();
   chip.classList.toggle('negatif', saldo < 0);
   document.getElementById('saldo-val').textContent = fmtRp(saldo);
+}
+
+// Bagikan link halaman LPJ saat ini (mis. ke grup WhatsApp pengurus). App ini
+// tidak pakai routing URL (SPA murni, state di memori/localStorage), jadi
+// location.href polos cuma URL dasar — penerima yang klik link akan mendarat
+// di Dashboard, bukan LPJ event ini. Makanya section & event aktif disisipkan
+// sebagai query string (?section=lpj&event=...), lalu dibaca lagi di initApp()
+// saat link tersebut dibuka supaya langsung terarah ke laporan yang dimaksud.
+async function shareLpjLink(){
+  const params = new URLSearchParams();
+  params.set('section', 'lpj');
+  if(db.activeEventId) params.set('event', db.activeEventId);
+  const url = `${location.origin}${location.pathname}?${params.toString()}`;
+  const title = `Laporan (LPJ) — ${getOrgProfil().nama || 'Karang Taruna'}`;
+  if(navigator.share){
+    try { await navigator.share({ title, url }); }
+    catch(e){ if(e.name !== 'AbortError') toast('⚠️ Gagal membagikan link'); }
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(url);
+    toast('🔗 Link laporan disalin — tinggal tempel ke grup');
+  } catch(e){
+    toast('⚠️ Gagal menyalin link, salin manual dari address bar');
+  }
 }
 
 function renderContent(){

@@ -96,7 +96,7 @@ function renderLPJ(){
     </table></div>` },
   ];
   if (showDonatur) pemasukanSubs.push({ title:'Donatur', html:`
-    <div class="lpj-table-scroll"><table class="lpj-table lpj-detail">
+    <div class="lpj-table-scroll"><table class="lpj-table lpj-detail lpj-donatur-table">
       <thead><tr><th>Tanggal</th><th>Nama</th><th class="num">Donasi</th></tr></thead>
       <tbody>${donaturList.map(d=>`<tr><td>${fmtDate(d.tanggal)}</td><td>${esc(d.nama_donatur)}</td><td class="num">${donasiValueText(d)}</td></tr>`).join('') || emptyRow(3,'Belum ada donasi.')}</tbody>
     </table></div>` });
@@ -109,7 +109,7 @@ function renderLPJ(){
   // 3. Rincian Pengeluaran — semua sub-bagian opsional, tergantung fitur event
   const pengeluaranSubs = [];
   if (showOperasional) pengeluaranSubs.push({ title:'Operasional Kegiatan', html:`
-    <div class="lpj-table-scroll"><table class="lpj-table lpj-detail">
+    <div class="lpj-table-scroll"><table class="lpj-table lpj-detail lpj-operasional-table">
       <thead><tr><th>Tanggal</th><th>Nama</th><th class="num">Qty</th><th class="num">Harga Satuan</th><th class="num">Jumlah</th></tr></thead>
       <tbody>${operasionalList.map(o=>`<tr><td>${fmtDate(o.tanggal)}</td><td>${esc(o.keterangan)}</td><td class="num">${o.qty||1}</td><td class="num">${fmtRp(o.satuan||0)}</td><td class="num">${fmtRp(o.jumlah)}</td></tr>`).join('') || emptyRow(5,'Belum ada biaya operasional.')}</tbody>
     </table></div>` });

@@ -1750,10 +1750,10 @@
 
     /* Daftar Donatur di HP: No/Tanggal/Nama diringkas seketat mungkin supaya
        kolom Donasi (termasuk rincian donasi barang) kebagian lebar maksimal. */
-    table.donatur-table th:nth-child(1), table.donatur-table td:nth-child(1){ width:28px; min-width:0; white-space:nowrap; padding:8px 4px 8px 8px; text-align:left; }
-    table.donatur-table th:nth-child(2), table.donatur-table td:nth-child(2){ width:56px; min-width:0; white-space:nowrap; padding:8px 4px; text-align:left; font-size:11.5px; }
-    table.donatur-table th:nth-child(3), table.donatur-table td:nth-child(3){ width:88px; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding:8px 4px; text-align:left; }
-    table.donatur-table th:nth-child(4), table.donatur-table td:nth-child(4){ width:auto; text-align:left; }
+    table.donatur-table th:nth-child(1), table.donatur-table td:nth-child(1){ width:34px; min-width:0; white-space:nowrap; padding:8px 4px 8px 8px; text-align:left; }
+    table.donatur-table th:nth-child(2), table.donatur-table td:nth-child(2){ width:60px; min-width:0; white-space:nowrap; padding:8px 4px; text-align:left; font-size:11.5px; }
+    table.donatur-table th:nth-child(3), table.donatur-table td:nth-child(3){ width:auto; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding:8px 4px; text-align:left; }
+    table.donatur-table th:nth-child(4), table.donatur-table td:nth-child(4){ width:112px; white-space:nowrap; padding:8px 8px 8px 4px; text-align:left; }
 
     /* --- Agenda Kegiatan: sembunyikan tabel geser, tampilkan kartu --- */
     .agenda-table-wrap{display:none;}
@@ -2055,6 +2055,12 @@ table.lpj-table tr.lpj-total td{font-weight:700; font-size:14.5px; border-top:2p
 table.lpj-detail{margin-bottom:20px;}
 table.lpj-detail th:nth-child(1), table.lpj-detail td:nth-child(1){ width:64px; padding-right:2px; text-align:center; }
 table.lpj-detail th:nth-child(2), table.lpj-detail td:nth-child(2){ padding-left:6px; }
+
+/* Tabel 2.2 Donatur & 3.1 Operasional Kegiatan: kolom 1 berisi Tanggal (bukan
+   "No" pendek seperti tabel Pemasukan Lain), jadi dilebarkan dari 64px generik
+   supaya "16 Agu 2026" muat satu baris, tidak turun jadi dua baris. */
+table.lpj-donatur-table th:nth-child(1), table.lpj-donatur-table td:nth-child(1),
+table.lpj-operasional-table th:nth-child(1), table.lpj-operasional-table td:nth-child(1){ width:88px; white-space:nowrap; padding-right:2px; text-align:center; }
 
 /* Tabel 3.3 Hadiah Lomba: kolom 1 & 2 (Kategori, Juara) bukan kolom "No" seperti
    tabel lain, jadi jangan dipersempit 64px oleh aturan generik lpj-detail di atas —

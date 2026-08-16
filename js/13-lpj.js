@@ -40,6 +40,16 @@ function renderLPJ(){
 
   const donaturList = gDonatur().slice().sort((x,y)=>(x.tanggal||'').localeCompare(y.tanggal||''));
   const transaksiList = gTransaksiLain().slice().sort((x,y)=>(x.tanggal||'').localeCompare(y.tanggal||''));
+  // Penjualan Kupon Jalan Santai tercatat sebagai baris Pemasukan Lain biasa
+  // (db.transaksiLain, lihat js/09-donatur-transaksi-operasional.js) tapi
+  // dibedakan lewat kolom kuponqty>0 — dipisah di sini jadi kategori sendiri
+  // di LPJ (bukan gabung ke "Pemasukan Lain") supaya lebih jelas berapa
+  // lembar & berapa rupiah yang murni dari penjualan kupon.
+  const kuponRows = transaksiList.filter(t=>Number(t.kuponqty||0)>0);
+  const nonKuponTransaksiList = transaksiList.filter(t=>!(Number(t.kuponqty||0)>0));
+  const totalKuponQty = kuponRows.reduce((s,t)=>s+Number(t.kuponqty||0),0);
+  const totalKuponNominal = kuponRows.reduce((s,t)=>s+Number(t.jumlah||0),0);
+  const totalNonKuponNominal = nonKuponTransaksiList.reduce((s,t)=>s+Number(t.jumlah||0),0);
   const operasionalList = gOperasional().slice().sort((x,y)=>(x.tanggal||'').localeCompare(y.tanggal||''));
 
   const kebutuhanRows = [];
@@ -103,7 +113,12 @@ function renderLPJ(){
   if (showTransaksi) pemasukanSubs.push({ title:'Pemasukan Lain', html:`
     <div class="lpj-table-scroll"><table class="lpj-table lpj-detail">
       <thead><tr><th>No</th><th>Tanggal</th><th>Keterangan</th><th class="num">Jumlah</th></tr></thead>
-      <tbody>${transaksiList.map((t,idx)=>`<tr><td>${idx+1}</td><td>${fmtDate(t.tanggal)}</td><td>${esc(t.keterangan||'-')}</td><td class="num">${fmtRp(t.jumlah)}</td></tr>`).join('') || emptyRow(4,'Belum ada transaksi.')}</tbody>
+      <tbody>${nonKuponTransaksiList.map((t,idx)=>`<tr><td>${idx+1}</td><td>${fmtDate(t.tanggal)}</td><td>${esc(t.keterangan||'-')}</td><td class="num">${fmtRp(t.jumlah)}</td></tr>`).join('') || emptyRow(4,'Belum ada transaksi.')}</tbody>
+    </table></div>` });
+  if (showTransaksi) pemasukanSubs.push({ title:'Penjualan Kupon', html:`
+    <div class="lpj-table-scroll"><table class="lpj-table lpj-detail">
+      <thead><tr><th>No</th><th>Tanggal</th><th>Keterangan</th><th class="num">Jumlah Kupon</th><th class="num">Nominal</th></tr></thead>
+      <tbody>${kuponRows.map((t,idx)=>`<tr><td>${idx+1}</td><td>${fmtDate(t.tanggal)}</td><td>${esc(t.keterangan||'-')}</td><td class="num">${t.kuponqty}</td><td class="num">${fmtRp(t.jumlah)}</td></tr>`).join('') || emptyRow(5,'Belum ada penjualan kupon.')}</tbody>
     </table></div>` });
 
   // 3. Rincian Pengeluaran — semua sub-bagian opsional, tergantung fitur event
@@ -157,7 +172,8 @@ function renderLPJ(){
         <tr><td class="indent">Iuran Anggota (${b.jumlahIuranLunas} lunas)</td><td class="num">${fmtRp(b.iuran)}</td></tr>
         ${showDonatur ? `<tr><td class="indent">Donatur (${b.jumlahDonatur} donasi)</td><td class="num">${fmtRp(b.donasi)}</td></tr>` : ''}
         ${showDonatur && b.jumlahDonaturBarang>0 ? `<tr><td class="indent" style="font-style:italic;color:var(--ink-soft);font-size:12px;">+ ${b.jumlahDonaturBarang} sumbangan barang (bukan uang, lihat rincian Donatur di bawah)</td><td class="num"></td></tr>` : ''}
-        ${showTransaksi ? `<tr><td class="indent">Pemasukan Lain (${b.jumlahTransaksiLain})</td><td class="num">${fmtRp(b.transaksiLain)}</td></tr>` : ''}
+        ${showTransaksi ? `<tr><td class="indent">Pemasukan Lain (${nonKuponTransaksiList.length})</td><td class="num">${fmtRp(totalNonKuponNominal)}</td></tr>` : ''}
+        ${showTransaksi ? `<tr><td class="indent">Penjualan Kupon (${totalKuponQty} kupon)</td><td class="num">${fmtRp(totalKuponNominal)}</td></tr>` : ''}
         <tr class="lpj-subtotal"><td>Total Pengeluaran</td><td class="num">${fmtRp(b.pengeluaran)}</td></tr>
         ${showOperasional ? `<tr><td class="indent">Operasional Kegiatan (${b.jumlahOperasional})</td><td class="num">${fmtRp(b.opsional)}</td></tr>` : ''}
         ${showLomba ? `<tr><td class="indent">Kebutuhan Lomba (${b.jumlahKebutuhanLomba})</td><td class="num">${fmtRp(b.kebutuhanLomba)}</td></tr>` : ''}

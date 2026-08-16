@@ -2061,6 +2061,8 @@ table.lpj-detail th:nth-child(2), table.lpj-detail td:nth-child(2){ padding-left
    supaya "16 Agu 2026" muat satu baris, tidak turun jadi dua baris. */
 table.lpj-donatur-table th:nth-child(1), table.lpj-donatur-table td:nth-child(1),
 table.lpj-operasional-table th:nth-child(1), table.lpj-operasional-table td:nth-child(1){ width:88px; white-space:nowrap; padding-right:2px; text-align:center; }
+table.lpj-donatur-table th:nth-child(2), table.lpj-donatur-table td:nth-child(2),
+table.lpj-operasional-table th:nth-child(2), table.lpj-operasional-table td:nth-child(2){ padding-left:14px; }
 
 /* Tabel 3.3 Hadiah Lomba: kolom 1 & 2 (Kategori, Juara) bukan kolom "No" seperti
    tabel lain, jadi jangan dipersempit 64px oleh aturan generik lpj-detail di atas —

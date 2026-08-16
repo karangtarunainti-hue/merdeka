@@ -246,11 +246,16 @@ function renderTopbarSaldo(){
   // LPJ sering perlu dibagikan apa adanya ke grup, jadi kirim langsung ke WA
   // lebih berguna di situ ketimbang angka saldo yang sudah tampil di halaman
   // LPJ itu sendiri (lihat renderLPJ & kirimLpjKeGrupWa()).
+  // Chip di-display:none (bukan cuma visibility:hidden) di sini supaya TIDAK
+  // ikut makan lebar topbar — di layar sempit (HP) itu bikin judul halaman
+  // ("Laporan (LPJ)") kepotong ellipsis walau ruang sebenarnya masih cukup
+  // kalau slot chip yang kosong dilepas.
   if(currentSection === 'lpj'){
-    chip.style.visibility = 'hidden';
+    chip.style.display = 'none';
     shareBtn.style.display = 'inline-flex';
     return;
   }
+  chip.style.display = '';
   shareBtn.style.display = 'none';
   // Chip ini menampilkan proyeksi anggaran EVENT/kegiatan khusus yang aktif
   // (dari hitungBukuUtama). Di menu yang tidak terikat event (lihat

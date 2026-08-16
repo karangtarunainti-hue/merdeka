@@ -2062,7 +2062,8 @@ table.lpj-detail th:nth-child(2), table.lpj-detail td:nth-child(2){ padding-left
 table.lpj-donatur-table th:nth-child(1), table.lpj-donatur-table td:nth-child(1),
 table.lpj-operasional-table th:nth-child(1), table.lpj-operasional-table td:nth-child(1){ width:88px; white-space:nowrap; padding-right:2px; text-align:center; }
 table.lpj-donatur-table th:nth-child(2), table.lpj-donatur-table td:nth-child(2),
-table.lpj-operasional-table th:nth-child(2), table.lpj-operasional-table td:nth-child(2){ padding-left:14px; }
+table.lpj-operasional-table th:nth-child(2), table.lpj-operasional-table td:nth-child(2){ padding-left:14px; width:320px; }
+table.lpj-operasional-table th:nth-child(3), table.lpj-operasional-table td:nth-child(3){ width:56px; padding-left:4px; padding-right:22px; }
 
 /* Tabel 3.3 Hadiah Lomba: kolom 1 & 2 (Kategori, Juara) bukan kolom "No" seperti
    tabel lain, jadi jangan dipersempit 64px oleh aturan generik lpj-detail di atas —

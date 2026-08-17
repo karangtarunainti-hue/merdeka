@@ -207,7 +207,7 @@ function renderSecondBrain(){
     <div class="second-brain-empty">
       <div class="second-brain-empty-icon">🧠</div>
       <div class="second-brain-empty-title">Belum ada catatan</div>
-      <div class="second-brain-empty-desc">Simpan catatan, ide, ringkasan dokumen, atau konteks apa pun di sini — Asisten AI (🤖) ikut memakainya saat menjawab pertanyaan yang relevan.</div>
+      <div class="second-brain-empty-desc">Simpan catatan, ide, ringkasan dokumen, atau konteks apa pun di sini — Sekarta (🤖) ikut memakainya saat menjawab pertanyaan yang relevan.</div>
       <button class="btn" ${da('openSecondBrainModal')}>+ Tambah Catatan Pertama</button>
     </div>`;
   }
@@ -215,7 +215,7 @@ function renderSecondBrain(){
   return `
   <div class="panel second-brain-panel">
     <div class="panel-head">
-      <div><h3>🧠 Second Brain</h3><div class="desc">Catatan/ide/dokumen/konteks — bisa dicari berdasarkan makna, ikut dipakai Asisten AI</div></div>
+      <div><h3>🧠 Second Brain</h3><div class="desc">Catatan/ide/dokumen/konteks — bisa dicari berdasarkan makna, ikut dipakai Sekarta</div></div>
       <button class="btn" ${da('openSecondBrainModal')}>+ Tambah Catatan</button>
     </div>
     <div class="panel-body">
@@ -328,7 +328,7 @@ function openSecondBrainModal(id){
       <textarea id="f-sb-konten" rows="6" data-autoresize="true" placeholder="Tulis catatan, ide, ringkasan dokumen, atau konteks apa pun di sini...">${editing?esc(editing.konten||''):''}</textarea>
     </div>
     <div class="field"><label>Tags (pisah koma, opsional)</label><input id="f-sb-tags" value="${editing?esc((editing.tags||[]).join(', ')):''}" placeholder="mis. lomba, anggaran, 2027"></div>
-    <div class="desc" style="margin-top:2px;">Catatan ini juga ikut dipakai Asisten AI (🤖) saat menjawab pertanyaan yang relevan.</div>
+    <div class="desc" style="margin-top:2px;">Catatan ini juga ikut dipakai Sekarta (🤖) saat menjawab pertanyaan yang relevan.</div>
   `, [
     {label:'Batal', cls:'secondary', onclick:closeModal},
     {label: editing ? 'Simpan' : 'Tambah', cls:'', onclick: () => simpanSecondBrainNote(editing)},
@@ -384,7 +384,7 @@ async function simpanSecondBrainNote(editing){
 
 async function hapusSecondBrainNote(id){
   if (!secondBrainBolehKelola()) { toast('🔒 Login untuk mengelola Second Brain'); return; }
-  if (!(await confirmModal('Hapus catatan ini? Asisten AI tidak akan bisa memakainya lagi setelah dihapus.'))) return;
+  if (!(await confirmModal('Hapus catatan ini? Sekarta tidak akan bisa memakainya lagi setelah dihapus.'))) return;
   try{
     const { error } = await sb.from('kt_second_brain').delete().eq('id', id);
     if (error) throw new Error(error.message);

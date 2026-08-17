@@ -141,7 +141,7 @@ function susunAsistenKonteks(){
   return bagian.join('\n');
 }
 
-const ASISTEN_SYSTEM_PROMPT = `Kamu adalah "Asisten AI" di aplikasi Merdeka — asisten internal buat pengurus Karang Taruna yang bisa ditanya soal data organisasi yang sedang aktif (keuangan kegiatan, iuran anggota, agenda, lomba, aset gudang, kas). Jawab dalam Bahasa Indonesia, singkat dan langsung ke inti, gaya santai-tapi-sopan (sama seperti gaya UI aplikasi ini). Kalau data yang ditanya tidak ada di ringkasan konteks yang diberikan, katakan terus terang kamu tidak punya datanya di sini (jangan mengarang angka). Kamu HANYA asisten baca/tanya-jawab — tidak bisa mengubah data langsung, jadi kalau user minta diubahkan sesuatu, arahkan ke menu terkait di aplikasi.
+const ASISTEN_SYSTEM_PROMPT = `Kamu adalah "Sekarta" di aplikasi Merdeka — asisten internal buat pengurus Karang Taruna yang bisa ditanya soal data organisasi yang sedang aktif (keuangan kegiatan, iuran anggota, agenda, lomba, aset gudang, kas). Jawab dalam Bahasa Indonesia, singkat dan langsung ke inti, gaya santai-tapi-sopan (sama seperti gaya UI aplikasi ini). Kalau data yang ditanya tidak ada di ringkasan konteks yang diberikan, katakan terus terang kamu tidak punya datanya di sini (jangan mengarang angka). Kamu HANYA asisten baca/tanya-jawab — tidak bisa mengubah data langsung, jadi kalau user minta diubahkan sesuatu, arahkan ke menu terkait di aplikasi.
 
 Selain menjawab, kamu boleh MENAWARKAN untuk menyimpan sesuatu sebagai catatan Second Brain — TAPI HANYA kalau pesan user mengandung info yang layak diingat jangka panjang (keputusan, evaluasi, ide, kesepakatan, info kontak/vendor, pelajaran dari kejadian tertentu, dsb), BUKAN untuk pertanyaan angka/data rutin yang sudah otomatis tercatat sendiri di aplikasi (saldo, jumlah anggota, dst — itu jangan ditawarkan, sudah ada tempatnya). Jangan menawarkan di HAMPIR SETIAP pesan — ini pengecualian, bukan kebiasaan; kalau ragu, JANGAN tawarkan.
 
@@ -178,7 +178,7 @@ function parseCatatanUsul(teksMentah){
 
 function toggleAsistenPanel(){
   if (!asistenBolehDipakai()) {
-    toast('🔒 Login dulu untuk pakai Asisten AI');
+    toast('🔒 Login dulu untuk pakai Sekarta');
     return;
   }
   _asistenPanelOpen = !_asistenPanelOpen;
@@ -234,10 +234,10 @@ function renderAsistenWidget(){
   const thinkingHtml = _asistenSedangMikir ? `<div class="asisten-bubble asisten-bubble-ai asisten-bubble-thinking">Mikir dulu…</div>` : '';
 
   el.innerHTML = `
-    <button type="button" id="asisten-fab" class="asisten-fab" title="Asisten AI" aria-label="Buka Asisten AI">🤖</button>
+    <button type="button" id="asisten-fab" class="asisten-fab" title="Sekarta" aria-label="Buka Sekarta">🤖</button>
     <div class="asisten-panel ${_asistenPanelOpen ? 'show' : ''}">
       <div class="asisten-panel-head">
-        <div><b>🤖 Asisten AI</b><div class="desc">Tanya-jawab soal data kegiatan ini</div></div>
+        <div><b>🤖 Sekarta</b><div class="desc">Tanya-jawab soal data kegiatan ini</div></div>
         <button type="button" class="icon-btn" id="asisten-close" title="Tutup" aria-label="Tutup">✕</button>
       </div>
       <div class="asisten-panel-body" id="asisten-log">${logHtml}${thinkingHtml}</div>

@@ -286,7 +286,7 @@ function renderPengaturan(){
         <label class="btn secondary">⬆ Impor<input type="file" accept=".json" style="display:none;" onchange="bookmarkImportJSON(this)"></label>
       </div>
     </div>
-    <div class="backup-row">
+    <div class="backup-row" id="log-error-panel">
       <div class="backup-info">
         <div class="backup-title">🚨 Log Error (Toast Merah)</div>
         <div class="backup-desc">Riwayat semua toast merah/peringatan (⛔❌⚠) dari SEMUA perangkat/pengurus, disimpan di server — ${errorLogCloudLoaded ? errorLogCloud.length : '...'} tercatat${getErrorLogPendingCount() > 0 ? `, ${getErrorLogPendingCount()} lagi menunggu sinkron dari perangkat ini` : ''}. Bukan bagian dari data organisasi, murni bantuan diagnosis kalau ada masalah teknis; tidak ikut Backup Semua Data.</div>

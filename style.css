@@ -358,6 +358,20 @@
   .backup-row .backup-actions{display:flex; gap:8px; flex-wrap:wrap; flex-shrink:0;}
   .backup-row .backup-actions .btn{margin:0;}
 
+  /* ===== Scroll-to-target dari kartu reminder (mis. "Kelola Log →") =====
+     Highlight sebentar biar jelas ini yang dimaksud, bukan cuma diam-diam
+     mendarat di tengah halaman panjang. Dipasang generik di sini (bukan
+     scoped ke .backup-row) supaya bisa dipakai scrollAndHighlightElement()
+     untuk target lain di masa depan juga. */
+  .scroll-highlight{
+    animation: scrollHighlightPulse 2.2s ease-out;
+    border-radius:10px;
+  }
+  @keyframes scrollHighlightPulse{
+    0%{box-shadow:0 0 0 3px var(--hijau); background:var(--hijau-tint);}
+    100%{box-shadow:0 0 0 0 rgba(0,0,0,0); background:transparent;}
+  }
+
   /* ===== Manajemen Event — kartu ringkas versi HP (lihat .events-mobile-wrap,
      pola sama dengan .users-mobile-wrap) ===== */
   .events-mobile-wrap{display:none;}
@@ -2969,6 +2983,22 @@ table.ds-rekap-table td.num, table.ds-rekap-table th:not(:first-child){ text-ali
   color:var(--ink); border-bottom-left-radius:3px;
 }
 .asisten-bubble-thinking{ color:var(--ink-soft); font-style:italic; }
+
+/* Kartu tawaran "Simpan sebagai catatan Second Brain?" — muncul di bawah
+   bubble AI kalau jawabannya nyisipin blok [[CATAT]] (lihat
+   parseCatatanUsul() di js/29-asisten-ai.js). Selebar bubble AI (align kiri,
+   ga full-width) supaya tetap kerasa nempel ke jawaban yang menawarkannya. */
+.asisten-usul-card{
+  align-self:flex-start; max-width:85%; padding:9px 12px; border-radius:12px;
+  background:var(--gold-tint); border:1px dashed var(--gold);
+  font-size:12.5px; line-height:1.5; color:var(--ink);
+}
+.asisten-usul-head{ font-weight:700; margin-bottom:4px; }
+.asisten-usul-judul{ font-weight:600; margin-bottom:2px; }
+.asisten-usul-isi{ color:var(--ink-soft); margin-bottom:8px; }
+.asisten-usul-actions{ display:flex; gap:6px; }
+.asisten-usul-actions .btn{ margin:0; }
+.asisten-usul-status{ font-size:12px; color:var(--ink-soft); font-style:italic; }
 
 .asisten-panel-input{
   display:flex; align-items:center; gap:6px; padding:10px 12px;

@@ -335,6 +335,22 @@ function openSecondBrainModal(id){
   ]);
 }
 
+// Inti simpan-ke-server (embed + upsert) — dipakai baik dari modal Tambah/Edit
+// Catatan (simpanSecondBrainNote(), baca dari form) maupun dari tawaran
+// Asisten AI (asistenSimpanCatatanUsul() di js/29-asisten-ai.js, baca dari
+// blok [[CATAT]] yang di-parse dari jawaban AI) — supaya logic embed+upsert
+// cuma ada SATU tempat, tidak dobel-duplikat & gampang beda perilaku kalau
+// nanti salah satu jalur diubah tapi yang lain lupa diikutkan.
+async function simpanCatatanKeServer({ id, judul, kategori, konten, tags = [], created_by }){
+  const embedding = await AI.embed(`${judul}\n\n${konten}`, { taskType: 'RETRIEVAL_DOCUMENT' });
+  const eventId = typeof eid === 'function' ? eid() : null;
+  const row = { id, judul, konten, kategori, tags, event_id: eventId || null, embedding, created_by };
+  const { error } = await sb.from('kt_second_brain').upsert(row, { onConflict: 'id' });
+  if (error) throw new Error(error.message);
+  await loadSecondBrainData();
+  secondBrainSearchResults = null;
+}
+
 async function simpanSecondBrainNote(editing){
   const judul = document.getElementById('f-sb-judul').value.trim();
   const kategori = document.getElementById('f-sb-kategori').value;
@@ -350,23 +366,14 @@ async function simpanSecondBrainNote(editing){
     // habis), catatan tidak jadi setengah tersimpan tanpa embedding
     // (yang bikin catatan itu tidak akan pernah muncul di hasil
     // pencarian semantik sampai diedit ulang).
-    const embedding = await AI.embed(`${judul}\n\n${konten}`, { taskType: 'RETRIEVAL_DOCUMENT' });
     const user = getCurrentUser();
-    const eventId = typeof eid === 'function' ? eid() : null;
-    const row = {
+    await simpanCatatanKeServer({
       id: editing ? editing.id : uid(),
-      judul, konten, kategori, tags,
-      event_id: eventId || null,
-      embedding,
+      judul, kategori, konten, tags,
       created_by: editing ? editing.created_by : (user ? user.name : ''),
-    };
-    const { error } = await sb.from('kt_second_brain').upsert(row, { onConflict: 'id' });
-    if (error) throw new Error(error.message);
-
+    });
     closeModal();
     toast('✅ Catatan disimpan');
-    await loadSecondBrainData();
-    secondBrainSearchResults = null;
     renderContent();
   }catch(e){
     console.error('Gagal menyimpan catatan Second Brain:', e);

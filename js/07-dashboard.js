@@ -372,7 +372,7 @@ function generateReminders(){
         title: 'Log Error Aplikasi (Admin)',
         count: totalCount,
         items: items,
-        action: {label: 'Kelola Log →', link: 'pengaturan'}
+        action: {label: 'Kelola Log →', link: 'pengaturan', scrollTo: 'log-error-panel'}
       });
     }
   }
@@ -417,7 +417,7 @@ function generateReminders(){
         <div class="card-footer">
           ${(!getCurrentUser() && !isGuestVisible(r.action.link))
             ? `<button class="btn secondary small" disabled title="Hanya bisa dilihat setelah login">🔒 ${r.action.label.replace(/\s*→\s*$/, '')}</button>`
-            : `<button class="btn ${r.type === 'danger' ? 'danger' : r.type === 'warning' ? 'orange' : r.type === 'success' ? 'success' : 'secondary'} small" ${da('goSection', r.action.link)}>${r.action.label}</button>`}
+            : `<button class="btn ${r.type === 'danger' ? 'danger' : r.type === 'warning' ? 'orange' : r.type === 'success' ? 'success' : 'secondary'} small" ${da('goSection', r.action.link, r.action.scrollTo ? {scrollTo: r.action.scrollTo} : undefined)}>${r.action.label}</button>`}
         </div>` : ''}
       </div>
     `).join('')}

@@ -228,7 +228,32 @@ function goSection(key, opts){
   renderContent();
   document.getElementById('sidebar').classList.remove('open');
   document.getElementById('sidebar-backdrop').classList.remove('show');
-  window.scrollTo({top:0, behavior:'instant'});
+  // Kartu reminder (mis. "Kelola Log →" dari Log Error Aplikasi di Buku
+  // Kegiatan) bisa minta discroll+disorot ke panel spesifik lewat
+  // opts.scrollTo, bukan cuma dilempar ke atas halaman tujuan begitu saja —
+  // penting khususnya buat halaman panjang kayak Pengaturan, panelnya bisa
+  // jauh di bawah dan gampang keluput kalau cuma landing di atas.
+  if (opts && opts.scrollTo) {
+    scrollAndHighlightElement(opts.scrollTo);
+  } else {
+    window.scrollTo({top:0, behavior:'instant'});
+  }
+}
+
+// Scroll ke elemen tujuan (dipanggil setelah renderContent() di goSection())
+// + kasih efek highlight sebentar biar kelihatan jelas itu yang dimaksud,
+// bukan cuma mendarat diam-diam di tengah halaman panjang. requestAnimationFrame
+// dipakai supaya nunggu DOM hasil renderContent() barusan sudah ke-paint dulu
+// sebelum ngukur posisi scroll (kalau langsung, kadang elemennya belum
+// "ada" secara layout dan scrollIntoView jadi meleset/tidak jalan).
+function scrollAndHighlightElement(id) {
+  requestAnimationFrame(() => {
+    const el = document.getElementById(id);
+    if (!el) { window.scrollTo({top:0, behavior:'instant'}); return; }
+    el.scrollIntoView({behavior:'smooth', block:'start'});
+    el.classList.add('scroll-highlight');
+    setTimeout(() => el.classList.remove('scroll-highlight'), 2200);
+  });
 }
 
 // Menu yang tidak terikat event (bisa diakses walau belum ada event 17-an

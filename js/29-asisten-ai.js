@@ -141,7 +141,40 @@ function susunAsistenKonteks(){
   return bagian.join('\n');
 }
 
-const ASISTEN_SYSTEM_PROMPT = `Kamu adalah "Asisten AI" di aplikasi Merdeka — asisten internal buat pengurus Karang Taruna yang bisa ditanya soal data organisasi yang sedang aktif (keuangan kegiatan, iuran anggota, agenda, lomba, aset gudang, kas). Jawab dalam Bahasa Indonesia, singkat dan langsung ke inti, gaya santai-tapi-sopan (sama seperti gaya UI aplikasi ini). Kalau data yang ditanya tidak ada di ringkasan konteks yang diberikan, katakan terus terang kamu tidak punya datanya di sini (jangan mengarang angka). Kamu HANYA asisten baca/tanya-jawab — tidak bisa mengubah data langsung, jadi kalau user minta diubahkan sesuatu, arahkan ke menu terkait di aplikasi.`;
+const ASISTEN_SYSTEM_PROMPT = `Kamu adalah "Asisten AI" di aplikasi Merdeka — asisten internal buat pengurus Karang Taruna yang bisa ditanya soal data organisasi yang sedang aktif (keuangan kegiatan, iuran anggota, agenda, lomba, aset gudang, kas). Jawab dalam Bahasa Indonesia, singkat dan langsung ke inti, gaya santai-tapi-sopan (sama seperti gaya UI aplikasi ini). Kalau data yang ditanya tidak ada di ringkasan konteks yang diberikan, katakan terus terang kamu tidak punya datanya di sini (jangan mengarang angka). Kamu HANYA asisten baca/tanya-jawab — tidak bisa mengubah data langsung, jadi kalau user minta diubahkan sesuatu, arahkan ke menu terkait di aplikasi.
+
+Selain menjawab, kamu boleh MENAWARKAN untuk menyimpan sesuatu sebagai catatan Second Brain — TAPI HANYA kalau pesan user mengandung info yang layak diingat jangka panjang (keputusan, evaluasi, ide, kesepakatan, info kontak/vendor, pelajaran dari kejadian tertentu, dsb), BUKAN untuk pertanyaan angka/data rutin yang sudah otomatis tercatat sendiri di aplikasi (saldo, jumlah anggota, dst — itu jangan ditawarkan, sudah ada tempatnya). Jangan menawarkan di HAMPIR SETIAP pesan — ini pengecualian, bukan kebiasaan; kalau ragu, JANGAN tawarkan.
+
+Kalau memang layak ditawarkan, tambahkan blok berikut PERSIS sebagai baris PALING AKHIR jawabanmu (setelah jawaban normal, akan dipotong otomatis sebelum ditampilkan ke user jadi tidak akan terlihat aneh):
+[[CATAT]]
+Judul: <judul singkat, maksimal 8 kata>
+Kategori: <salah satu persis: catatan / ide / dokumen / konteks>
+Isi: <ringkasan isi catatan, 1-3 kalimat>
+[[/CATAT]]
+Kalau tidak ada yang layak dicatat, JANGAN tambahkan blok ini sama sekali — cukup jawaban biasa saja.`;
+
+// Parse blok [[CATAT]]...[[/CATAT]] yang (mungkin) disisipkan AI di akhir
+// jawaban (lihat instruksi di ASISTEN_SYSTEM_PROMPT). Dipisah dari teks
+// yang ditampilkan ke user supaya blok mentahnya tidak ikut kelihatan —
+// hasil parse dipakai buat nampilin kartu tawaran "Simpan sebagai catatan?"
+// di bawah bubble jawaban (lihat asistenChatBubbleHtml()).
+// Parsing berbasis regex sederhana (BUKAN JSON/function-calling asli dari
+// Gemini — infrastruktur AI.tanya() cuma teks polos, lihat js/26-ai.js) —
+// kalau AI tidak ikut format persis atau field kategori di luar 4 pilihan,
+// gagal-diam (anggap tidak ada tawaran) daripada nampilin data rusak.
+function parseCatatanUsul(teksMentah){
+  const m = /\[\[CATAT\]\]([\s\S]*?)\[\[\/CATAT\]\]/.exec(teksMentah);
+  if (!m) return { text: teksMentah.trim(), usul: null };
+  const text = teksMentah.slice(0, m.index).trim();
+  const blok = m[1];
+  const judul = (/Judul:\s*(.+)/.exec(blok) || [])[1];
+  const kategoriRaw = (/Kategori:\s*(.+)/.exec(blok) || [])[1];
+  const isi = (/Isi:\s*([\s\S]+)/.exec(blok) || [])[1];
+  const kategori = SECOND_BRAIN_KATEGORI.map(k=>k.v).includes((kategoriRaw||'').trim())
+    ? kategoriRaw.trim() : 'catatan';
+  if (!judul || !isi) return { text, usul: null };
+  return { text, usul: { judul: judul.trim(), kategori, konten: isi.trim() } };
+}
 
 function toggleAsistenPanel(){
   if (!asistenBolehDipakai()) {
@@ -155,9 +188,35 @@ function toggleAsistenPanel(){
   }
 }
 
-function asistenChatBubbleHtml(m){
+function asistenChatBubbleHtml(m, idx){
   const cls = m.role === 'user' ? 'asisten-bubble-user' : 'asisten-bubble-ai';
-  return `<div class="asisten-bubble ${cls}">${esc(m.text)}</div>`;
+  const bubble = `<div class="asisten-bubble ${cls}">${esc(m.text)}</div>`;
+  if (!m.usul) return bubble;
+  // Kartu tawaran "Simpan sebagai catatan?" — muncul di bawah bubble kalau
+  // AI nyisipin blok [[CATAT]] (lihat parseCatatanUsul()). m.usulStatus:
+  // undefined = belum diputuskan, 'saved' = sudah disimpan, 'dismissed' =
+  // diabaikan user — dipakai supaya kartunya berubah jadi status statis
+  // setelah diputuskan, bukan tetap nawarin tiap kali panel dirender ulang.
+  const kat = secondBrainKategoriInfo(m.usul.kategori);
+  let footer;
+  if (m.usulStatus === 'saved') {
+    footer = `<div class="asisten-usul-status">✅ Tersimpan ke Second Brain</div>`;
+  } else if (m.usulStatus === 'dismissed') {
+    footer = `<div class="asisten-usul-status">Diabaikan</div>`;
+  } else {
+    footer = `
+      <div class="asisten-usul-actions">
+        <button type="button" class="btn small" ${da('asistenSimpanCatatanUsul', idx)}>💾 Simpan</button>
+        <button type="button" class="btn secondary small" ${da('asistenAbaikanCatatanUsul', idx)}>Abaikan</button>
+      </div>`;
+  }
+  return `${bubble}
+    <div class="asisten-usul-card">
+      <div class="asisten-usul-head">💡 Simpan sebagai catatan Second Brain?</div>
+      <div class="asisten-usul-judul">${esc(kat.l)} — ${esc(m.usul.judul)}</div>
+      <div class="asisten-usul-isi">${esc(m.usul.konten)}</div>
+      ${footer}
+    </div>`;
 }
 
 function renderAsistenWidget(){
@@ -171,7 +230,7 @@ function renderAsistenWidget(){
 
   const logHtml = _asistenChatLog.length === 0
     ? `<div class="asisten-empty">💬 Tanya apa saja soal data kegiatan ini — misalnya "siapa yang belum bayar iuran?" atau "berapa sisa saldo?".</div>`
-    : _asistenChatLog.map(asistenChatBubbleHtml).join('');
+    : _asistenChatLog.map((m,idx) => asistenChatBubbleHtml(m,idx)).join('');
   const thinkingHtml = _asistenSedangMikir ? `<div class="asisten-bubble asisten-bubble-ai asisten-bubble-thinking">Mikir dulu…</div>` : '';
 
   el.innerHTML = `
@@ -223,13 +282,47 @@ async function asistenKirimPesan(evt){
       : '';
     const prompt = `Konteks data aplikasi saat ini:\n${konteks}${bagianCatatan}\n\nPertanyaan pengguna: ${teks}`;
     const jawaban = await AI.tanya(prompt, { system: ASISTEN_SYSTEM_PROMPT });
-    _asistenChatLog.push({ role: 'ai', text: jawaban });
+    const { text, usul } = parseCatatanUsul(jawaban);
+    _asistenChatLog.push({ role: 'ai', text, usul });
   } catch (e) {
     _asistenChatLog.push({ role: 'ai', text: '⚠️ ' + (e.message || 'Gagal mendapat jawaban, coba lagi.') });
   } finally {
     _asistenSedangMikir = false;
     renderAsistenWidget();
   }
+}
+
+function asistenAbaikanCatatanUsul(idx){
+  const m = _asistenChatLog[idx];
+  if (!m || !m.usul) return;
+  m.usulStatus = 'dismissed';
+  renderAsistenWidget();
+}
+
+async function asistenSimpanCatatanUsul(idx){
+  const m = _asistenChatLog[idx];
+  if (!m || !m.usul || m.usulStatus === 'saved') return;
+  m.usulStatus = 'saving';
+  renderAsistenWidget();
+  try{
+    const user = getCurrentUser();
+    // simpanCatatanKeServer() — inti embed+upsert yang sama dipakai modal
+    // Tambah/Edit Catatan biasa (js/30-second-brain.js), jadi catatan dari
+    // sini kelakuannya identik (ikut kena embedding, ikut muncul di
+    // pencarian makna, ikut ke-scope event aktif), bukan jalur pintas
+    // terpisah yang beda perilaku.
+    await simpanCatatanKeServer({
+      id: uid(), judul: m.usul.judul, kategori: m.usul.kategori, konten: m.usul.konten,
+      created_by: user ? user.name : '',
+    });
+    m.usulStatus = 'saved';
+    toast('✅ Catatan disimpan ke Second Brain');
+  }catch(e){
+    console.error('Gagal menyimpan catatan dari Asisten AI:', e);
+    m.usulStatus = undefined;
+    toast('⛔ Gagal menyimpan: ' + (e.message || 'coba lagi'));
+  }
+  renderAsistenWidget();
 }
 
 // Render pertama kali begitu app siap (pola sama seperti banner install

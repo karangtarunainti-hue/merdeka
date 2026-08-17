@@ -266,9 +266,9 @@ function renderDaftarAnggota(){
     </table>
 
     <h3>2. Daftar Nama Anggota</h3>
-    <div class="lpj-table-scroll"><table class="lpj-table lpj-detail">
-      <thead><tr><th>No</th><th>Nama</th><th>Jenis Kelamin</th><th>Kategori</th><th>RT</th></tr></thead>
-      <tbody>${anggotaList.map((a,idx)=>`<tr><td>${idx+1}</td><td>${esc(a.nama)}</td><td>${esc(labelGender(getGender(a)))}</td><td>${esc(labelKategori(a.kategori))}</td><td>${esc(labelRT(getRT(a)))}</td></tr>`).join('') || emptyRow(5,'Belum ada data anggota.')}</tbody>
+    <div class="lpj-table-scroll"><table class="lpj-table lpj-detail lpj-anggota-table">
+      <thead><tr><th>No</th><th>Nama</th><th>RT</th><th>Jenis Kelamin</th><th>Kategori</th></tr></thead>
+      <tbody>${anggotaList.map((a,idx)=>`<tr><td>${idx+1}</td><td>${esc(a.nama)}</td><td>${esc(labelRT(getRT(a)))}</td><td>${esc(labelGender(getGender(a)))}</td><td>${esc(labelKategori(a.kategori))}</td></tr>`).join('') || emptyRow(5,'Belum ada data anggota.')}</tbody>
     </table></div>
   </div>
   </div>

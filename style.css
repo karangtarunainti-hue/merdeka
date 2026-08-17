@@ -2074,6 +2074,20 @@ table.lpj-detail{margin-bottom:20px;}
 table.lpj-detail th:nth-child(1), table.lpj-detail td:nth-child(1){ width:64px; padding-right:2px; text-align:center; }
 table.lpj-detail th:nth-child(2), table.lpj-detail td:nth-child(2){ padding-left:6px; }
 
+/* Tabel "2. Daftar Nama Anggota" di LPJ — dulu lebar kolom murni auto (browser
+   bagi rata berdasar konten terpanjang tiap kolom), hasilnya Nama kepepet
+   sementara RT/Jenis Kelamin/Kategori (yang isinya pendek) kebagian ruang
+   longgar tidak proporsional & jarak antar kolom jadi kelihatan nempel/timpang.
+   table-layout:fixed + persentase eksplisit di sini supaya Nama dapat porsi
+   PALING lebar (kolom paling sering panjang), sisanya seimbang, konsisten
+   di semua ukuran layar — bukan tergantung nama siapa yang kebetulan panjang. */
+table.lpj-anggota-table{table-layout:fixed;}
+table.lpj-anggota-table th:nth-child(1), table.lpj-anggota-table td:nth-child(1){ width:8%; }
+table.lpj-anggota-table th:nth-child(2), table.lpj-anggota-table td:nth-child(2){ width:38%; }
+table.lpj-anggota-table th:nth-child(3), table.lpj-anggota-table td:nth-child(3){ width:14%; }
+table.lpj-anggota-table th:nth-child(4), table.lpj-anggota-table td:nth-child(4){ width:20%; }
+table.lpj-anggota-table th:nth-child(5), table.lpj-anggota-table td:nth-child(5){ width:20%; }
+
 /* Tabel 2.2 Donatur & 3.1 Operasional Kegiatan: kolom 1 berisi Tanggal (bukan
    "No" pendek seperti tabel Pemasukan Lain), jadi dilebarkan dari 64px generik
    supaya "16 Agu 2026" muat satu baris, tidak turun jadi dua baris. */

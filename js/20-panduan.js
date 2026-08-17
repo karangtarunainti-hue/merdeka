@@ -100,7 +100,9 @@ function renderPanduan(){
     </div>
     <div class="panel-body">
       <div class="role-info-grid">
-        <div class="role-info-card"><div class="ric-title">🗒️ Agenda Kegiatan</div><div class="ric-desc">Catatan agenda organisasi yang nggak terikat ke satu event tertentu.</div></div>
+        <div class="role-info-card"><div class="ric-title">🗒️ Agenda Kegiatan</div><div class="ric-desc">Catatan agenda organisasi yang nggak terikat ke satu event tertentu. Menu ini juga otomatis "sadar kalender" — ngasih pengingat hari besar nasional/Islam yang mendekat, lengkap sama checklist tahap persiapan (mis. jelang HUT RI) kalau memang relevan.</div></div>
+        <div class="role-info-card"><div class="ric-title">🗄️ Database Lomba</div><div class="ric-desc">Riwayat lomba & perlengkapan dari event-event sebelumnya, biar tinggal contek/salin waktu bikin lomba baru tahun ini.</div></div>
+        <div class="role-info-card"><div class="ric-title">🧠 Second Brain</div><div class="ric-desc">Tempat nyimpen catatan/ide/keputusan rapat/dokumen bebas (bukan angka transaksi) yang bisa dicari berdasarkan makna, bukan cuma kata kunci persis. Catatan di sini juga ikut jadi bahan buat Insight AI & Asisten AI di bawah.</div></div>
         <div class="role-info-card"><div class="ric-title">📄 Surat & Dokumen</div><div class="ric-desc">Bikin undangan, proposal, dan lembar absensi dengan cepat.</div></div>
         <div class="role-info-card"><div class="ric-title">📚 Database Anggota</div><div class="ric-desc">Data master semua anggota — bisa dicek & difilter kapan aja.</div></div>
         <div class="role-info-card"><div class="ric-title">📦 Gudang Aset</div><div class="ric-desc">Inventaris barang/aset milik desa/organisasi, lengkap sama fitur pinjam-kembalikan.</div></div>
@@ -111,6 +113,23 @@ function renderPanduan(){
         <div class="role-info-card"><div class="ric-title">🪙 Dana Sosial</div><div class="ric-desc">Iuran bulanan Rp 5.000/anggota, terpisah dari ${esc(getOrgNamaKas())}. Ada tabel khusus untuk anggota Perantauan yang bayarnya rapel setahun sekali.</div></div>
         ${isAdminUser ? `<div class="role-info-card"><div class="ric-title">⚙️ Pengaturan</div><div class="ric-desc">Atur tarif iuran, kelola daftar event, dan pengaturan lain (khusus Admin).</div></div>` : ''}
         ${isAdminUser ? `<div class="role-info-card"><div class="ric-title">👥 Manajemen User</div><div class="ric-desc">Tambah/atur akun pengguna beserta perannya (khusus Admin).</div></div>` : ''}
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head">
+      <div><h3>🤖 Fitur AI</h3>
+        <div class="desc">Dua fitur AI yang beda cara pakainya, saling melengkapi</div>
+      </div>
+    </div>
+    <div class="panel-body">
+      <div class="role-info-grid">
+        <div class="role-info-card"><div class="ric-title">📣 Insight AI</div><div class="ric-desc">Panel ringkasan otomatis (badge "Haloo Inti!") yang muncul di atas Buku Kegiatan, Lomba, dan Belanja Hadiah. Nggak perlu ditanya — begitu ada perubahan data (transaksi baru, kebutuhan belum lengkap, dll), ringkasannya update sendiri di background. Cuma Admin/User/Petugas yang login yang memicu pembuatan ringkasan baru; Guest cuma baca versi yang sudah ada.</div></div>
+        <div class="role-info-card"><div class="ric-title">💬 Asisten AI</div><div class="ric-desc">Tombol bulat mengambang di pojok kanan bawah (muncul kalau sudah login) — beda dari Insight AI, ini chat dua arah, bisa ditanya bebas soal data event yang lagi aktif (mis. "berapa anggota yang belum lunas iuran?"). Jawabannya juga bisa mengambil konteks dari catatan Second Brain. Riwayat obrolan cuma nempel di tab yang lagi dibuka (hilang kalau reload), nggak disimpan ke server.</div></div>
+      </div>
+      <div class="panduan-tip-list" style="margin-top:10px;">
+        <div class="panduan-tip"><span class="tip-icon">⚠️</span><span>Ringkasan AI cuma proyeksi otomatis dari data yang sudah diinput — bisa saja meleset. Untuk angka yang pasti/valid, tetap cek langsung ke data aslinya atau tanya bendahara.</span></div>
       </div>
     </div>
   </div>
@@ -157,6 +176,7 @@ function renderPanduan(){
         <div class="panduan-tip"><span class="tip-icon">📚</span><span>Jangan lupa cek menu <b>Database Anggota</b> secara berkala biar data warga tetap update, soalnya dipakai di banyak menu lain (Iuran, Daftar Anggota, dll).</span></div>
         <div class="panduan-tip"><span class="tip-icon">🔑</span><span>Kalau ragu soal siapa yang boleh akses apa, cek lagi bagian "Siapa Boleh Ngapain?" di atas atau tanya Admin.</span></div>
         <div class="panduan-tip"><span class="tip-icon">🪙</span><span><b>Saldo Dana Sosial</b> sudah menghitung gabungan setoran bulanan anggota reguler DAN rapel tahunan anggota Perantauan — kalau mau lihat rinciannya per bulan, cek kolom "Perantauan" di tab Rekap Bulanan.</span></div>
+        <div class="panduan-tip"><span class="tip-icon">🧭</span><span>Bingung tombol/bagian mana yang mana di suatu menu? Klik tombol bulat <b>🎯</b> yang mengambang di pojok kanan bawah — ada tur interaktif singkat yang nunjukin bagian-bagian penting di menu yang lagi kamu buka.</span></div>
       </div>
     </div>
   </div>

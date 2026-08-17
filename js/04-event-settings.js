@@ -351,18 +351,56 @@ function stripEmoji(s){
     .trim();
 }
 
-function formatNotificationMessage(action, data, eventName){
+// Sebelumnya notifikasi Telegram pakai format kaku "Aksi: X\nDetail: Y" untuk
+// SEMUA jenis aksi (60+ titik panggilan notifyTelegram() di seluruh app,
+// lihat komentar di js/03-db-core.js dekat sini) — kebacanya kayak log
+// sistem, bukan laporan manusia. buatNarasiTelegram() gantikan blok itu
+// dengan 1-2 kalimat narasi dari AI (aiTanya(), js/26-ai.js), gaya sekretaris
+// lapor ke atasannya (sapaan "Kak"), berdasarkan action+data mentah yang
+// sama seperti sebelumnya — jadi tetap otomatis untuk semua jenis aksi tanpa
+// perlu bikin prompt custom per fitur.
+async function buatNarasiTelegram(action, data, eventName){
+  const aksiBersih = stripEmoji(action).trim();
+  const dataBersih = stripEmoji(data).trim();
+  const prompt = [
+    `Event: ${eventName}`,
+    `Aksi: ${aksiBersih}`,
+    dataBersih ? `Detail:\n${dataBersih}` : '',
+    '',
+    'Tulis laporannya sesuai instruksi.',
+  ].filter(Boolean).join('\n');
+  return await aiTanya(prompt, {
+    system: 'Kamu sekretaris organisasi Karang Taruna yang melaporkan aktivitas pembukuan ke pengurus lewat pesan Telegram singkat. Ubah "Aksi" & "Detail" jadi 1-2 kalimat laporan naratif, JANGAN format list/label kaku seperti "Aksi: ... Detail: ...". Gaya bahasa santai tapi tetap serius & profesional, mirip sekretaris lapor ke direkturnya — sapa pembaca dengan "Kak" (mis. "Kak, baru saja ..." / "Sudah dicatat ya, Kak."). JANGAN pakai salam pembuka (Assalamualaikum/Selamat pagi dsb). JANGAN pakai tanda kutip di jawaban. JANGAN pakai markdown/bullet, boleh maksimal 1 emoji kalau pas, jangan berlebihan. Sebutkan angka/nominal/nama persis apa adanya dari data, jangan diubah, dibulatkan, atau dikarang.',
+    timeoutMs: 12000,
+  });
+}
+
+async function formatNotificationMessage(action, data, eventName){
   const timestamp = new Date().toLocaleString('id-ID');
   const user = getCurrentUser();
   const userName = user ? user.name : 'Guest (View Only)';
   const userRole = user ? user.role : 'guest';
+
+  let narasi = '';
+  try {
+    narasi = String(await buatNarasiTelegram(action, data, eventName) || '').trim().replace(/^["']|["']$/g, '');
+  } catch(e){
+    console.error('Gagal membuat narasi notifikasi Telegram via AI (pakai fallback template):', e);
+  }
+
   let msg = `<b>${escTelegram(getOrgNama())} - Buku Keuangan</b>\n\n`;
-  msg += `<b>Event:</b> ${escTelegram(eventName)}\n`;
+  if(narasi){
+    msg += `${escTelegram(narasi)}\n`;
+  } else {
+    // AI gagal/timeout — fallback ke format lama biar notifikasi tetap
+    // terkirim & tetap informatif walau kaku.
+    msg += `<b>Aksi:</b> ${escTelegram(stripEmoji(action))}\n`;
+    if(data) msg += `<b>Detail:</b>\n${escTelegram(stripEmoji(data))}\n`;
+  }
+  msg += `\n<b>Event:</b> ${escTelegram(eventName)}\n`;
   msg += `<b>Waktu:</b> ${escTelegram(timestamp)}\n`;
-  msg += `<b>User:</b> ${escTelegram(userName)} (${escTelegram(userRole)})\n\n`;
-  msg += `<b>Aksi:</b> ${escTelegram(stripEmoji(action))}\n`;
-  if(data) msg += `<b>Detail:</b>\n${escTelegram(stripEmoji(data))}\n`;
-  
+  msg += `<b>User:</b> ${escTelegram(userName)} (${escTelegram(userRole)})\n`;
+
   if(activeEvent()){
     const {saldo, pemasukan, pengeluaran} = hitungBukuUtama();
     msg += `\n<b>Saldo Akhir:</b> ${fmtRp(saldo)}`;
@@ -403,7 +441,7 @@ async function notifyTelegram(action, data = '', category = 'umum'){
   // Only notify if user is logged in (not guest)
   if(!getCurrentUser()) return;
   const eventName = activeEvent()?.nama || 'Tidak ada event aktif';
-  const message = formatNotificationMessage(action, data, eventName);
+  const message = await formatNotificationMessage(action, data, eventName);
   if(isWithinQuietHours(settings)){
     // Jam tenang aktif — tahan pesan di antrian yang sama dengan antrian
     // retry gagal-kirim; otomatis terkirim begitu jam tenang berakhir

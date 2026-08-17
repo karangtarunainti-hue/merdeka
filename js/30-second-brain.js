@@ -398,17 +398,75 @@ async function hapusSecondBrainNote(id){
   }
 }
 
+// Kata umum Bahasa Indonesia yang diabaikan saat keyword match di bawah —
+// supaya tidak "ke-match" ke hampir semua catatan cuma gara-gara ada kata
+// generik kayak "yang"/"apa"/"berapa" dsb, bukan kata yang benar-benar
+// spesifik ke isi catatannya.
+const SECOND_BRAIN_STOPWORDS = new Set([
+  'yang','dan','atau','ini','itu','ke','di','dari','untuk','dengan','apa',
+  'apa','apakah','siapa','berapa','bagaimana','kapan','dimana','kenapa',
+  'mengapa','ada','saja','juga','sudah','belum','akan','bisa','tidak',
+  'tolong','coba','minta','mau','saya','kita','kami','nya','pada','oleh',
+  'soal','tentang','kalau','jika','adalah','lagi','masih','gimana','gmn',
+]);
+
+// Langkah CEPAT (murni lokal, 0ms network) di alur hybrid RAG di bawah:
+// cari catatan Second Brain yang judul/isi/tags-nya mengandung kata kunci
+// signifikan dari pertanyaan user. Cuma kata >=4 huruf & bukan stopword
+// yang dihitung, biar tidak asal cocok ke kata umum.
+function secondBrainCariKeyword(pertanyaan){
+  const kataKunci = String(pertanyaan || '').toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .split(/\s+/)
+    .filter(k => k.length >= 4 && !SECOND_BRAIN_STOPWORDS.has(k));
+  if (!kataKunci.length) return [];
+  return secondBrainNotes.filter(n => {
+    const teks = `${n.judul||''} ${n.konten||''} ${(n.tags||[]).join(' ')}`.toLowerCase();
+    return kataKunci.some(k => teks.includes(k));
+  }).slice(0, 5);
+}
+
 /* ------------------------------------------------------------
-   Dipakai js/29-asisten-ai.js untuk RAG: embed pertanyaan user
-   (RETRIEVAL_QUERY), cari catatan relevan, kembalikan sebagai teks
-   ringkas siap-tempel ke prompt. Return string kosong kalau tidak
-   ada yang cukup relevan atau user belum login (Asisten AI sendiri
-   sudah menggate ini, tapi dijaga dobel di sini juga).
+   Dipakai js/29-asisten-ai.js untuk RAG: cari catatan Second Brain yang
+   relevan dengan pertanyaan user, kembalikan sebagai teks ringkas
+   siap-tempel ke prompt. Return string kosong kalau tidak ada yang
+   relevan atau user belum login (Asisten AI sendiri sudah menggate
+   ini, tapi dijaga dobel di sini juga).
+
+   HYBRID (2 lapis), demi kecepatan:
+   1) Keyword match dulu — instan, murni lokal, TANPA panggil Gemini
+      sama sekali. Cukup buat pertanyaan yang kata-katanya memang mirip
+      persis dengan judul/isi catatan (kasus paling umum).
+   2) Kalau keyword match nihil (kata user beda tapi maknanya sama,
+      mis. "kontak vendor katering" vs judul "Info WA Bu Siti -
+      catering"), baru fallback ke semantic search lewat Gemini
+      (lebih lambat, tapi lebih pintar soal makna).
    ------------------------------------------------------------ */
 async function secondBrainCariUntukAsisten(pertanyaan){
   if (!secondBrainBolehKelola()) return '';
+  // Optimisasi aman: kalau memang belum ada catatan Second Brain sama
+  // sekali (sudah dimuat lebih dulu oleh loadSecondBrainData() saat app
+  // init), tidak ada gunanya lanjut ke keyword match apalagi embed+RPC —
+  // hasilnya pasti kosong juga.
+  if (typeof secondBrainNotes === 'undefined' || !Array.isArray(secondBrainNotes) || secondBrainNotes.length === 0) {
+    return '';
+  }
+
+  // Lapis 1: keyword match instan.
+  const hasilKeyword = secondBrainCariKeyword(pertanyaan);
+  if (hasilKeyword.length > 0) {
+    return hasilKeyword.map(r => `[${secondBrainKategoriInfo(r.kategori).l}] ${r.judul}: ${r.konten}`).join('\n');
+  }
+
+  // Lapis 2: fallback semantic search (lewat Gemini) kalau keyword nihil.
   try{
-    const vec = await AI.embed(pertanyaan, { taskType: 'RETRIEVAL_QUERY' });
+    // Timeout lebih pendek (8 detik) khusus utk step RAG ini — ini cuma
+    // konteks TAMBAHAN (opsional), bukan inti jawaban, jadi kalau lambat
+    // lebih baik cepat menyerah & lanjut ke jawaban utama (lihat catch di
+    // bawah, sudah gagal-diam sejak awal) daripada ikut menunggu sampai
+    // batas AI_TIMEOUT_MS default (30 detik) sebelum chat sempat mulai
+    // menjawab.
+    const vec = await AI.embed(pertanyaan, { taskType: 'RETRIEVAL_QUERY', timeoutMs: 8000 });
     const eventId = typeof eid === 'function' ? eid() : null;
     const { data, error } = await sb.rpc('kt_second_brain_search', {
       p_query_embedding: vec, p_match_count: 5, p_event_id: eventId || null,

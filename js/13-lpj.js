@@ -57,14 +57,28 @@ function renderLPJ(){
   const hargaKuponEfektif = Number((getSettings().kuponJalanSantai||{}).harga||0);
   const operasionalList = gOperasional().slice().sort((x,y)=>(x.tanggal||'').localeCompare(y.tanggal||''));
 
+  // Sama seperti Hadiah Lomba (lihat hadiahRows di bawah): semua item
+  // kebutuhan tetap ditampilkan di LPJ (bukan hanya yang sudah dibeli) agar
+  // panitia bisa melihat rencana lengkap kebutuhan lomba, tapi barang yang
+  // belum dibeli ditampilkan pudar & subtotal-nya "Belum dibeli" (bukan
+  // dihitung sebagai pengeluaran riil). Harga yang ditampilkan untuk item
+  // belum dibeli memakai harga estimasi; setelah dibeli, memakai harga
+  // realisasi (subtotal/qty) supaya konsisten dengan Ringkasan Keuangan.
   const kebutuhanRows = [];
-  const belanjaPerlengkapan = new Map(gDaftarBelanjaPerlengkapan().filter(b=>b.status==='dibeli').map(b=>[b.kebutuhan_id,b]));
+  const belanjaPerlengkapan = new Map(gDaftarBelanjaPerlengkapan().map(b=>[b.kebutuhan_id,b]));
   gLomba().forEach(l=>{
     gKebutuhan(l.id).forEach(k=>{
-      const belanja=belanjaPerlengkapan.get(k.id); if(!belanja) return;
-      const subtotal=Number(belanja.nominal_realisasi ?? (Number(k.harga_realisasi ?? k.harga_estimasi ?? 0)*Number(k.qty||0)));
-      const harga=Number(k.qty||0)>0 ? subtotal/Number(k.qty) : 0;
-      kebutuhanRows.push({ lomba:l.nama, nama:k.nama_item, qty:k.qty, harga, subtotal });
+      const belanja=belanjaPerlengkapan.get(k.id);
+      const sudahDibeli = belanja?.status==='dibeli';
+      let harga, subtotal;
+      if (sudahDibeli){
+        subtotal=Number(belanja.nominal_realisasi ?? (Number(k.harga_realisasi ?? k.harga_estimasi ?? 0)*Number(k.qty||0)));
+        harga=Number(k.qty||0)>0 ? subtotal/Number(k.qty) : 0;
+      } else {
+        harga=Number(k.harga_realisasi ?? k.harga_estimasi ?? 0);
+        subtotal=0;
+      }
+      kebutuhanRows.push({ lomba:l.nama, nama:k.nama_item, qty:k.qty, harga, subtotal, sudahDibeli });
     });
   });
 
@@ -172,7 +186,7 @@ function renderLPJ(){
   if (showLomba) pengeluaranSubs.push({ title:'Kebutuhan Lomba', html:`
     <div class="lpj-table-scroll"><table class="lpj-table lpj-detail lpj-kebutuhan-table">
       <thead><tr><th>Nama Barang</th><th>Lomba</th><th class="num">Qty</th><th class="num">Harga</th><th class="num">Subtotal</th></tr></thead>
-      <tbody>${kebutuhanRows.map(r=>`<tr><td>${esc(r.nama)}</td><td>${esc(r.lomba)}</td><td class="num">${r.qty}</td><td class="num">${fmtRp(r.harga)}</td><td class="num">${fmtRp(r.subtotal)}</td></tr>`).join('') || emptyRow(5,'Belum ada data kebutuhan lomba.')}</tbody>
+      <tbody>${kebutuhanRows.map(r=>`<tr${!r.sudahDibeli?' style="opacity:.6;"':''}><td>${esc(r.nama)}</td><td>${esc(r.lomba)}</td><td class="num">${r.qty}</td><td class="num">${fmtRp(r.harga)}</td><td class="num">${!r.sudahDibeli?'<span style="font-style:italic;font-size:11.5px;">Belum dibeli</span>':fmtRp(r.subtotal)}</td></tr>`).join('') || emptyRow(5,'Belum ada data kebutuhan lomba.')}</tbody>
     </table></div>` });
   if (showHadiah) pengeluaranSubs.push({ title:'Hadiah Lomba', html:`
     <div class="lpj-table-scroll"><table class="lpj-table lpj-detail lpj-hadiah-table">

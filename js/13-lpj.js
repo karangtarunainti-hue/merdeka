@@ -88,9 +88,8 @@ function renderLPJ(){
       if(!hadiahNameMap[key]) hadiahNameMap[key] = { nama:item.nama, keterangan:[] };
       // Tiap kombinasi kategori peserta+juara jadi baris sendiri (bukan
       // digabung koma sebaris) supaya tidak menyatu susah dibaca kalau
-      // barang yang sama dipakai di banyak kategori/juara. Qty per baris
-      // tidak diulang di sini karena total Qty sudah ada di kolom Qty.
-      hadiahNameMap[key].keterangan.push(`${labelPeserta(h.kategori_peserta)}, ${labelJuara(h.juara_ke)}`);
+      // barang yang sama dipakai di banyak kategori/juara.
+      hadiahNameMap[key].keterangan.push(`${labelPeserta(h.kategori_peserta)}, ${labelJuara(h.juara_ke)}, ${item.qty_dibeli} pcs`);
     });
   });
   const hadiahRows = Object.values(hadiahNameMap).map(g=>{

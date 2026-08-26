@@ -693,6 +693,33 @@ function hitungStokLebihHadiah(){
   rows.sort((a,b) => b.nilai - a.nilai);
   return rows;
 }
+// Agregat kelebihan stok yang MEMANG TAK TERHINDARKAN karena barang cuma dijual
+// per pack (wajib_pack, diatur lewat "✎ Update harga & kemasan" di Belanja
+// Hadiah) — beda dari hitungStokLebihHadiah() di atas yang membandingkan
+// qty_dibeli vs target (bisa karena salah beli/lomba dihapus). Di sini surplus-nya
+// murni dari pembulatan ke pack penuh (lihat kelebihanPaksaPack di
+// hitungHargaAktualHadiahLomba, 11-belanja.js) — bukan sesuatu yang perlu
+// "diperbaiki", cuma perlu diketahui panitia supaya kelebihan fisiknya
+// tidak dianggap hilang/salah hitung.
+function hitungKelebihanPaksaPack(){
+  const hadiahAktual = hitungHargaAktualHadiahLomba();
+  // perGroup dikunci per normNamaBarang(nama) (lowercase/trim), bukan nama asli
+  // (lihat hitungHargaAktualHadiahLomba di 11-belanja.js) — ambil nama tampilan
+  // asli dari item pertama yang cocok, sama seperti pola di renderLPJ (13-lpj.js).
+  const namaAsli = {};
+  gHadiahKategori().forEach(h => h.items.forEach(item => {
+    const key = normNamaBarang(item.nama);
+    if(!namaAsli[key]) namaAsli[key] = item.nama;
+  }));
+  return Object.entries(hadiahAktual.perGroup)
+    .filter(([,g]) => g.wajibPack && g.kelebihanPaksaPack > 0)
+    .map(([namaKey,g]) => ({
+      nama: namaAsli[namaKey] || namaKey, isiPerPack: g.isiPerPack, jumlahPackUtuh: g.jumlahPackUtuh,
+      totalQty: g.totalQty, kelebihan: g.kelebihanPaksaPack,
+      nilai: g.kelebihanPaksaPack * g.hargaPerPcsPack
+    }))
+    .sort((a,b) => b.nilai - a.nilai);
+}
 // Cek apakah item hadiah ini sudah dicentang "dibeli" di Daftar Belanja Hadiah —
 // dipakai untuk memperingatkan panitia sebelum qty_dibeli-nya diubah lewat jalur lain
 // (panel Stok Lebih / edit item), supaya tidak nyelip beda dengan barang fisik yang
@@ -883,12 +910,33 @@ function renderHadiah(){
     </div>
   </div>` : '';
 
+  // Wadah kelebihan yang MEMANG tak terhindarkan karena kemasan toko (barang wajib
+  // dibeli per pack, tidak bisa eceran) — beda dari Stok Lebih di atas, jadi tidak
+  // ada tombol "Sesuaikan" (tidak ada yang perlu dikoreksi, kelebihannya memang
+  // harus dibeli). Diatur lewat "✎ Update harga & kemasan" di Belanja Hadiah.
+  const kelebihanPackRows = hitungKelebihanPaksaPack();
+  const totalNilaiKelebihanPack = kelebihanPackRows.reduce((s,r)=>s+r.nilai,0);
+  const kelebihanPackPanel = kelebihanPackRows.length ? `<div class="panel">
+    <div class="panel-head"><div><h3>📦 Kelebihan Beli Per Pack</h3><div class="desc">Barang ini cuma dijual per pack (tidak bisa eceran) — kebutuhan dibulatkan ke pack penuh, sisanya jadi stok cadangan. Bukan salah beli, cuma perlu dicatat.</div></div></div>
+    <div class="panel-body flush">
+      ${kelebihanPackRows.map(r => `<div class="belanja-item">
+        <div class="info">
+          <div class="nama"><span class="nama-text">${esc(r.nama)}</span><span class="qty-total">lebih ${r.kelebihan} pcs</span></div>
+          <div class="detail"><span class="tag">Beli ${r.jumlahPackUtuh} pack (isi ${r.isiPerPack})</span><span>Kebutuhan ${r.totalQty} pcs</span></div>
+        </div>
+        <div class="harga"><span>${fmtRp(r.nilai)}</span></div>
+      </div>`).join('')}
+    </div>
+  </div>` : '';
+
   return `<div class="stat-grid">
     <div class="stat-card pengeluaran"><div class="lbl">Total Belanja Hadiah</div><div class="val">${fmtRp(total)}</div></div>
     ${totalBudget>0 ? `<div class="stat-card ${total>totalBudget?'defisit':'saldo'}"><div class="lbl">Total Budget Hadiah</div><div class="val">${fmtRp(totalBudget)}</div><div style="font-size:11px; color:var(--abu); margin-top:4px;">${total>totalBudget?`⚠️ Sudah lebih ${fmtRp(total-totalBudget)}`:`Sisa ${fmtRp(totalBudget-total)}`}</div></div>` : ''}
     ${stokLebihRows.length ? `<div class="stat-card stok-lebih"><div class="lbl">📦 Nilai Stok Lebih</div><div class="val">${fmtRp(totalNilaiLebih)}</div><div style="font-size:11px; color:var(--abu); margin-top:4px;">${stokLebihRows.length} item kelebihan dari kebutuhan</div></div>` : ''}
+    ${kelebihanPackRows.length ? `<div class="stat-card stok-lebih"><div class="lbl">📦 Nilai Kelebihan Per Pack</div><div class="val">${fmtRp(totalNilaiKelebihanPack)}</div><div style="font-size:11px; color:var(--abu); margin-top:4px;">${kelebihanPackRows.length} barang wajib dibulatkan ke pack penuh</div></div>` : ''}
   </div>
   ${stokLebihPanel}
+  ${kelebihanPackPanel}
   ${budgetKategoriCards ? `<div class="panel"><div class="panel-head"><div><h3>Anggaran Hadiah per Kategori</h3><div class="desc">Harga 1 paket dibandingkan budget per paket (bukan akumulasi total belanja), dirinci per juara</div></div></div>
   <div class="panel-body"><div class="kategori-grid">${budgetKategoriCards}</div></div></div>` : ''}
   <div class="panel"><div class="panel-head"><div><h3>Kebutuhan Hadiah</h3><div class="desc">Setiap paket bisa berisi multiple item · Kebutuhan Juara 1-3 mengikuti jumlah lomba per kategori · Partisipasi otomatis kalau "Estimasi Jumlah Peserta" diisi di lomba (kalau belum diisi, tetap manual)</div></div>

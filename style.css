@@ -2097,17 +2097,16 @@ table.lpj-donatur-table th:nth-child(2), table.lpj-donatur-table td:nth-child(2)
 table.lpj-operasional-table th:nth-child(2), table.lpj-operasional-table td:nth-child(2){ padding-left:14px; width:320px; }
 table.lpj-operasional-table th:nth-child(3), table.lpj-operasional-table td:nth-child(3){ width:56px; padding-left:4px; padding-right:22px; }
 
-/* Tabel 3.3 Hadiah Lomba: kolom 1 & 2 (Kategori, Juara) bukan kolom "No" seperti
-   tabel lain, jadi jangan dipersempit 64px oleh aturan generik lpj-detail di atas —
-   dikasih lebar sendiri supaya labelnya (mis. "Bapak-Bapak", "Partisipasi") tidak
-   turun baris. Nama Barang tetap dikasih ruang lega, Qty didekatkan ke Harga
-   (bukan ke Nama Barang) supaya ketiganya (Qty-Harga-Subtotal) terbaca sebagai
-   satu kelompok angka. */
-table.lpj-hadiah-table th:nth-child(1), table.lpj-hadiah-table td:nth-child(1){ width:15%; text-align:left; padding-left:8px; padding-right:10px; }
-table.lpj-hadiah-table th:nth-child(2), table.lpj-hadiah-table td:nth-child(2){ width:12%; padding-left:6px; }
-table.lpj-hadiah-table th:nth-child(3), table.lpj-hadiah-table td:nth-child(3){ width:31%; padding-right:20px; }
-table.lpj-hadiah-table th:nth-child(4), table.lpj-hadiah-table td:nth-child(4){ width:7%; padding-left:6px; padding-right:6px; }
-table.lpj-hadiah-table th:nth-child(5), table.lpj-hadiah-table td:nth-child(5){ padding-left:6px; }
+/* Tabel 3.3 Hadiah Lomba: dikelompokkan per NAMA barang (bukan per kategori/juara
+   lagi, lihat renderLPJ di 13-lpj.js), jadi kolom 1 bukan "No" — dikasih lebar
+   lega karena memuat juga baris keterangan kategori/juara asal (.lpj-keterangan)
+   di bawah nama. Rincian Harga (breakdown pack+eceran) butuh ruang paling lega
+   karena teksnya bisa panjang. */
+table.lpj-hadiah-table th:nth-child(1), table.lpj-hadiah-table td:nth-child(1){ width:26%; text-align:left; padding-left:8px; padding-right:10px; }
+table.lpj-hadiah-table th:nth-child(2), table.lpj-hadiah-table td:nth-child(2){ width:8%; padding-left:6px; padding-right:6px; }
+table.lpj-hadiah-table th:nth-child(3), table.lpj-hadiah-table td:nth-child(3){ width:42%; padding-left:6px; padding-right:20px; }
+table.lpj-hadiah-table th:nth-child(4), table.lpj-hadiah-table td:nth-child(4){ padding-left:6px; }
+.lpj-keterangan{font-size:11px; color:var(--ink-soft); margin-top:2px; font-weight:400;}
 
 /* Tabel 3.4 Hadiah Jalan Santai: sama seperti 3.3, Nama Barang lebih lega,
    Qty didekatkan ke Harga. */

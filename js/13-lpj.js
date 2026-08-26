@@ -148,8 +148,8 @@ function renderLPJ(){
     </table></div>` });
   if (showHadiah) pengeluaranSubs.push({ title:'Hadiah Lomba', html:`
     <div class="lpj-table-scroll"><table class="lpj-table lpj-detail lpj-hadiah-table">
-      <thead><tr><th>Nama Barang</th><th>Kategori</th><th class="num">Qty</th><th>Rincian Harga</th><th class="num">Subtotal</th></tr></thead>
-      <tbody>${hadiahRows.map(r=>`<tr><td>${esc(r.nama)}</td><td>${esc(r.keterangan)}</td><td class="num">${r.qty} pcs</td><td>${r.rincianHarga}</td><td class="num">${fmtRp(r.subtotal)}</td></tr>`).join('') || emptyRow(5,'Belum ada data hadiah lomba.')}</tbody>
+      <thead><tr><th>Nama Barang</th><th>Kategori</th><th>Qty</th><th>Rincian Harga</th><th>Subtotal</th></tr></thead>
+      <tbody>${hadiahRows.map(r=>`<tr><td>${esc(r.nama)}</td><td>${esc(r.keterangan)}</td><td>${r.qty} pcs</td><td>${r.rincianHarga}</td><td>${fmtRp(r.subtotal)}</td></tr>`).join('') || emptyRow(5,'Belum ada data hadiah lomba.')}</tbody>
     </table></div>` });
   if (showJalan) pengeluaranSubs.push({ title:'Hadiah Jalan Santai', html:`
     <div class="lpj-table-scroll"><table class="lpj-table lpj-detail lpj-jalan-santai-table">

@@ -2170,8 +2170,8 @@ table.lpj-operasional-table th:nth-child(3), table.lpj-operasional-table td:nth-
 table.lpj-hadiah-table th, table.lpj-hadiah-table td{ text-align:left; }
 table.lpj-hadiah-table th:nth-child(1), table.lpj-hadiah-table td:nth-child(1){ width:20%; text-align:left; padding-left:8px; padding-right:10px; }
 table.lpj-hadiah-table th:nth-child(2), table.lpj-hadiah-table td:nth-child(2){ width:26%; padding-right:10px; font-size:12px; color:var(--ink-soft); line-height:1.6; }
-table.lpj-hadiah-table th:nth-child(3), table.lpj-hadiah-table td:nth-child(3){ width:10%; text-align:right; padding-left:6px; padding-right:10px; font-family:var(--mono, 'JetBrains Mono', monospace); white-space:nowrap; }
-table.lpj-hadiah-table th:nth-child(4), table.lpj-hadiah-table td:nth-child(4){ width:24%; text-align:right; padding-left:6px; padding-right:4px; font-family:var(--mono, 'JetBrains Mono', monospace); }
+table.lpj-hadiah-table th:nth-child(3), table.lpj-hadiah-table td:nth-child(3){ width:7%; text-align:right; padding-left:6px; padding-right:8px; font-family:var(--mono, 'JetBrains Mono', monospace); white-space:nowrap; }
+table.lpj-hadiah-table th:nth-child(4), table.lpj-hadiah-table td:nth-child(4){ width:27%; text-align:right; padding-left:6px; padding-right:4px; font-family:var(--mono, 'JetBrains Mono', monospace); white-space:nowrap; }
 table.lpj-hadiah-table th:nth-child(5), table.lpj-hadiah-table td:nth-child(5){ width:20%; text-align:right; padding-left:6px; font-family:var(--mono, 'JetBrains Mono', monospace); }
 
 /* Tabel 3.4 Hadiah Jalan Santai: sama seperti 3.3, Nama Barang lebih lega,

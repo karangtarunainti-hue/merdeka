@@ -86,7 +86,11 @@ function renderLPJ(){
       if(!alokasi) return; // belum dibeli — tidak dihitung sebagai pengeluaran
       const key = normNamaBarang(item.nama);
       if(!hadiahNameMap[key]) hadiahNameMap[key] = { nama:item.nama, keterangan:[] };
-      hadiahNameMap[key].keterangan.push(`${labelPeserta(h.kategori_peserta)} · ${labelJuara(h.juara_ke)} · ${item.qty_dibeli} pcs`);
+      // Tiap kombinasi kategori peserta+juara jadi baris sendiri (bukan
+      // digabung koma sebaris) supaya tidak menyatu susah dibaca kalau
+      // barang yang sama dipakai di banyak kategori/juara. Qty per baris
+      // tidak diulang di sini karena total Qty sudah ada di kolom Qty.
+      hadiahNameMap[key].keterangan.push(`${labelPeserta(h.kategori_peserta)}, ${labelJuara(h.juara_ke)}`);
     });
   });
   const hadiahRows = Object.values(hadiahNameMap).map(g=>{
@@ -95,7 +99,7 @@ function renderLPJ(){
     const rincianHarga = isiPerPack > 1
       ? `${jumlahPackUtuh>0 ? `${jumlahPackUtuh} pack (isi ${isiPerPack}) &times; ${fmtRp(hargaPerPcsPack)}${hargaEceranBeda?'/pcs':''}` : ''}${jumlahPackUtuh>0 && sisaSatuan>0 ? ' + ' : ''}${sisaSatuan>0 ? `${sisaSatuan} pcs satuan &times; ${fmtRp(hargaEceran)}` : ''}`
       : `${totalQty} pcs &times; ${fmtRp(hargaPerPcsPack)}`;
-    return { nama:g.nama, keterangan:g.keterangan.join(', '), qty:totalQty, rincianHarga, subtotal:totalHarga };
+    return { nama:g.nama, keterangan:g.keterangan.map(k=>esc(k)).join('<br>'), qty:totalQty, rincianHarga, subtotal:totalHarga };
   }).sort((a,b)=>a.nama.localeCompare(b.nama, 'id', {sensitivity:'base'}));
 
   const hadiahJalanList = gHadiahJalanSantai().filter(h=>{ const b=gDaftarBelanjaJalanSantai().find(x=>x.hadiah_jalan_id===h.id); return b?.status==='dibeli'; });
@@ -149,7 +153,7 @@ function renderLPJ(){
   if (showHadiah) pengeluaranSubs.push({ title:'Hadiah Lomba', html:`
     <div class="lpj-table-scroll"><table class="lpj-table lpj-detail lpj-hadiah-table">
       <thead><tr><th>Nama Barang</th><th>Kategori</th><th>Qty</th><th>Rincian Harga</th><th>Subtotal</th></tr></thead>
-      <tbody>${hadiahRows.map(r=>`<tr><td>${esc(r.nama)}</td><td>${esc(r.keterangan)}</td><td>${r.qty} pcs</td><td>${r.rincianHarga}</td><td>${fmtRp(r.subtotal)}</td></tr>`).join('') || emptyRow(5,'Belum ada data hadiah lomba.')}</tbody>
+      <tbody>${hadiahRows.map(r=>`<tr><td>${esc(r.nama)}</td><td>${r.keterangan}</td><td>${r.qty} pcs</td><td>${r.rincianHarga}</td><td>${fmtRp(r.subtotal)}</td></tr>`).join('') || emptyRow(5,'Belum ada data hadiah lomba.')}</tbody>
     </table></div>` });
   if (showJalan) pengeluaranSubs.push({ title:'Hadiah Jalan Santai', html:`
     <div class="lpj-table-scroll"><table class="lpj-table lpj-detail lpj-jalan-santai-table">

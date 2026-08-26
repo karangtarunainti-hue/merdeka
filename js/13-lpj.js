@@ -78,12 +78,24 @@ function renderLPJ(){
   // hadiahAktual.perGroup (satu-satunya sumber rumus, lihat komentar
   // hitungHargaAktualHadiahLomba di 11-belanja.js) supaya subtotal SELALU
   // sama dengan Belanja Hadiah & ringkasan b.hadiahLomba di atas.
-  const hadiahAktual = hitungHargaAktualHadiahLomba({onlyPurchased:true});
+  // Tabel 3.3 dulu HANYA menampilkan barang yang statusnya sudah "dibeli" di
+  // checklist Belanja Hadiah (barang belum dibeli = bukan pengeluaran riil,
+  // jadi tidak layak dihitung di LPJ). Sekarang semua barang hadiah yang
+  // terdaftar (qty_dibeli>0) tetap ditampilkan di tabel — supaya panitia bisa
+  // lihat rencana lengkap kebutuhan hadiah dari LPJ juga — TAPI subtotal-nya
+  // 0 selama belum dicentang dibeli, baru muncul angka rupiahnya begitu
+  // statusnya "dibeli" (snapshot harga saat itu, lihat snapshotBelanjaHadiah
+  // di 11-belanja.js). hadiahSemua (tanpa onlyPurchased) dipakai untuk Qty &
+  // Rincian Harga (rencana/target, termasuk yang belum dibeli), sedangkan
+  // hadiahAktualBeli (onlyPurchased:true) dipakai KHUSUS untuk subtotal uang
+  // riil yang sudah keluar — dua sumber berbeda supaya kolom rencana tidak
+  // ikut goyang setiap ada checklist baru, tapi subtotal tetap akurat.
+  const hadiahSemua = hitungHargaAktualHadiahLomba();
+  const hadiahAktualBeli = hitungHargaAktualHadiahLomba({onlyPurchased:true});
   const hadiahNameMap = {};
   gHadiahKategori().forEach(h=>{
     (h.items||[]).forEach(item=>{
-      const alokasi = hadiahAktual.perItem[`${h.id}_${item.id}`];
-      if(!alokasi) return; // belum dibeli — tidak dihitung sebagai pengeluaran
+      if(Number(item.qty_dibeli||0)<=0) return; // belum ada rencana qty sama sekali
       const key = normNamaBarang(item.nama);
       if(!hadiahNameMap[key]) hadiahNameMap[key] = { nama:item.nama, keterangan:[] };
       // Cukup nama kategori peserta saja (mis. "Lomba Anak") — juara & qty per
@@ -94,12 +106,24 @@ function renderLPJ(){
     });
   });
   const hadiahRows = Object.values(hadiahNameMap).map(g=>{
-    const grp = hadiahAktual.perGroup[normNamaBarang(g.nama)] || {totalQty:0, totalHarga:0, isiPerPack:1, jumlahPackUtuh:0, sisaSatuan:0, hargaPerPcsPack:0, hargaEceran:0, hargaEceranBeda:false};
-    const { totalQty, totalHarga, isiPerPack, jumlahPackUtuh, sisaSatuan, hargaPerPcsPack, hargaEceran, hargaEceranBeda } = grp;
+    const key = normNamaBarang(g.nama);
+    const grp = hadiahSemua.perGroup[key] || {totalQty:0, isiPerPack:1, jumlahPackUtuh:0, sisaSatuan:0, hargaPerPcsPack:0, hargaEceran:0, hargaEceranBeda:false};
+    const { totalQty, isiPerPack, jumlahPackUtuh, sisaSatuan, hargaPerPcsPack, hargaEceran, hargaEceranBeda } = grp;
     const rincianHarga = isiPerPack > 1
       ? `${jumlahPackUtuh>0 ? `${jumlahPackUtuh} pack (isi ${isiPerPack}) &times; ${fmtRp(hargaPerPcsPack)}${hargaEceranBeda?'/pcs':''}` : ''}${jumlahPackUtuh>0 && sisaSatuan>0 ? ' + ' : ''}${sisaSatuan>0 ? `${sisaSatuan} pcs satuan &times; ${fmtRp(hargaEceran)}` : ''}`
       : `${totalQty} pcs &times; ${fmtRp(hargaPerPcsPack)}`;
-    return { nama:g.nama, keterangan:g.keterangan.map(k=>esc(k)).join('<br>'), qty:totalQty, rincianHarga, subtotal:totalHarga };
+    // Subtotal dijumlah PER ITEM dari hadiahAktualBeli.perItem (bukan
+    // grp.totalHarga hadiahSemua) — supaya tetap akurat kalau baru sebagian
+    // kategori/juara barang senama ini yang sudah dicentang dibeli.
+    let subtotal = 0;
+    gHadiahKategori().forEach(h=>{
+      (h.items||[]).forEach(item=>{
+        if(normNamaBarang(item.nama)!==key) return;
+        const alokasi = hadiahAktualBeli.perItem[`${h.id}_${item.id}`];
+        if(alokasi) subtotal += alokasi.subtotal;
+      });
+    });
+    return { nama:g.nama, keterangan:g.keterangan.map(k=>esc(k)).join('<br>'), qty:totalQty, rincianHarga, subtotal };
   }).sort((a,b)=>a.nama.localeCompare(b.nama, 'id', {sensitivity:'base'}));
 
   const hadiahJalanList = gHadiahJalanSantai().filter(h=>{ const b=gDaftarBelanjaJalanSantai().find(x=>x.hadiah_jalan_id===h.id); return b?.status==='dibeli'; });
@@ -153,7 +177,7 @@ function renderLPJ(){
   if (showHadiah) pengeluaranSubs.push({ title:'Hadiah Lomba', html:`
     <div class="lpj-table-scroll"><table class="lpj-table lpj-detail lpj-hadiah-table">
       <thead><tr><th>Nama Barang</th><th>Kategori</th><th class="num">Qty</th><th>Rincian Harga</th><th class="num">Subtotal</th></tr></thead>
-      <tbody>${hadiahRows.map(r=>`<tr><td>${esc(r.nama)}</td><td>${r.keterangan}</td><td class="num">${r.qty} pcs</td><td>${r.rincianHarga}</td><td class="num">${fmtRp(r.subtotal)}</td></tr>`).join('') || emptyRow(5,'Belum ada data hadiah lomba.')}</tbody>
+      <tbody>${hadiahRows.map(r=>`<tr${r.subtotal===0?' style="opacity:.6;"':''}><td>${esc(r.nama)}</td><td>${r.keterangan}</td><td class="num">${r.qty} pcs</td><td>${r.rincianHarga}</td><td class="num">${r.subtotal===0?'<span style="font-style:italic;font-size:11.5px;">Belum dibeli</span>':fmtRp(r.subtotal)}</td></tr>`).join('') || emptyRow(5,'Belum ada data hadiah lomba.')}</tbody>
     </table></div>` });
   if (showJalan) pengeluaranSubs.push({ title:'Hadiah Jalan Santai', html:`
     <div class="lpj-table-scroll"><table class="lpj-table lpj-detail lpj-jalan-santai-table">

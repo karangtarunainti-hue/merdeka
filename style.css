@@ -2100,20 +2100,20 @@ table.lpj-operasional-table th:nth-child(3), table.lpj-operasional-table td:nth-
 /* Tabel 3.3 Hadiah Lomba: dikelompokkan per NAMA barang (bukan per kategori/juara
    lagi, lihat renderLPJ di 13-lpj.js). Kolom Kategori memuat asal kategori/juara
    & qty per baris asalnya (bisa lebih dari satu kalau barang sama dipakai di
-   beberapa paket) — dikasih ruang paling lega. Qty & Rincian Harga digeser
-   mendekat ke Subtotal (padding kanan dikecilkan) supaya terlihat sebagai
-   satu kelompok angka di sisi kanan. Semua kolom rata kiri (bukan class="num"
-   seperti tabel lain) — kolom 1 (Nama Barang) perlu override text-align
-   eksplisit karena rule generik table.lpj-detail td:nth-child(1) (dipakai
-   utk kolom "No" di tabel lain) lebih spesifik (pakai :nth-child) daripada
-   rule text-align:left umum di bawah, jadi menang duluan kalau tidak
-   di-override langsung di sini. */
+   beberapa paket) — dikasih ruang paling lega. Qty & Rincian Harga rata kanan
+   (sama seperti kolom Qty/Harga Satuan di 3.1 dan Qty/Harga di 3.4) supaya
+   angka-angkanya lurus vertikal dengan tabel lain, bukan rata kiri seperti
+   sebelumnya. Kolom 1 (Nama Barang) & 2 (Kategori) tetap rata kiri — perlu
+   override text-align eksplisit karena rule generik table.lpj-detail
+   td:nth-child(1) (dipakai utk kolom "No" di tabel lain) lebih spesifik
+   (pakai :nth-child) daripada rule text-align:left umum, jadi menang duluan
+   kalau tidak di-override langsung di sini. */
 table.lpj-hadiah-table th, table.lpj-hadiah-table td{ text-align:left; }
 table.lpj-hadiah-table th:nth-child(1), table.lpj-hadiah-table td:nth-child(1){ width:20%; text-align:left; padding-left:8px; padding-right:10px; }
-table.lpj-hadiah-table th:nth-child(2), table.lpj-hadiah-table td:nth-child(2){ width:28%; padding-right:10px; font-size:12px; color:var(--ink-soft); line-height:1.6; }
-table.lpj-hadiah-table th:nth-child(3), table.lpj-hadiah-table td:nth-child(3){ width:8%; padding-left:6px; padding-right:10px; }
-table.lpj-hadiah-table th:nth-child(4), table.lpj-hadiah-table td:nth-child(4){ width:24%; padding-left:6px; padding-right:4px; }
-table.lpj-hadiah-table th:nth-child(5), table.lpj-hadiah-table td:nth-child(5){ width:20%; padding-left:6px; font-family:var(--mono, 'JetBrains Mono', monospace); }
+table.lpj-hadiah-table th:nth-child(2), table.lpj-hadiah-table td:nth-child(2){ width:26%; padding-right:10px; font-size:12px; color:var(--ink-soft); line-height:1.6; }
+table.lpj-hadiah-table th:nth-child(3), table.lpj-hadiah-table td:nth-child(3){ width:10%; text-align:right; padding-left:6px; padding-right:10px; font-family:var(--mono, 'JetBrains Mono', monospace); white-space:nowrap; }
+table.lpj-hadiah-table th:nth-child(4), table.lpj-hadiah-table td:nth-child(4){ width:24%; text-align:right; padding-left:6px; padding-right:4px; font-family:var(--mono, 'JetBrains Mono', monospace); }
+table.lpj-hadiah-table th:nth-child(5), table.lpj-hadiah-table td:nth-child(5){ width:20%; text-align:right; padding-left:6px; font-family:var(--mono, 'JetBrains Mono', monospace); }
 
 /* Tabel 3.4 Hadiah Jalan Santai: sama seperti 3.3, Nama Barang lebih lega,
    Qty didekatkan ke Harga. */

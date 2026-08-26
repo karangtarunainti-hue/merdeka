@@ -86,10 +86,11 @@ function renderLPJ(){
       if(!alokasi) return; // belum dibeli — tidak dihitung sebagai pengeluaran
       const key = normNamaBarang(item.nama);
       if(!hadiahNameMap[key]) hadiahNameMap[key] = { nama:item.nama, keterangan:[] };
-      // Tiap kombinasi kategori peserta+juara jadi baris sendiri (bukan
-      // digabung koma sebaris) supaya tidak menyatu susah dibaca kalau
-      // barang yang sama dipakai di banyak kategori/juara.
-      hadiahNameMap[key].keterangan.push(`${labelPeserta(h.kategori_peserta)}, ${labelJuara(h.juara_ke)}, ${item.qty_dibeli} pcs`);
+      // Cukup nama kategori peserta saja (mis. "Lomba Anak") — juara & qty per
+      // baris dihilangkan supaya ringkas, dan kategori yang sama (dipakai di
+      // beberapa juara) tidak diulang.
+      const label = `Lomba ${labelPeserta(h.kategori_peserta)}`;
+      if(!hadiahNameMap[key].keterangan.includes(label)) hadiahNameMap[key].keterangan.push(label);
     });
   });
   const hadiahRows = Object.values(hadiahNameMap).map(g=>{

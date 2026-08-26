@@ -36,7 +36,7 @@ Pemilik project (**Inti**) mengelola repo ini **lewat GitHub Web UI, bukan Git C
 │  index.html                                                          │
 │    ├─ vendor/supabase.js          (Supabase JS client, vendored)     │
 │    ├─ icons/lucide-icons.local.min.js                                │
-│    ├─ js/app.bundle.min.js  ◄── hasil build dari 33 file js/*.js     │
+│    ├─ js/app.bundle.min.js  ◄── hasil build dari 34 file js/*.js     │
 │    │     (script classic, TANPA ES modules — semua saling terhubung  │
 │    │      lewat variabel/fungsi GLOBAL, urutan load = MODULE_ORDER)  │
 │    └─ js/sw-register.js           (daftarkan sw.js)                  │
@@ -183,12 +183,14 @@ Endpoint eksternal lain:
 
 > Catatan: urutan di atas adalah urutan **load/eksekusi** (sesuai `MODULE_ORDER`), bukan urutan numerik nama file — mis. `26`, `27`, `24`, `22`, `20` dst. dimuat sebelum `19-init.js` yang justru harus paling akhir.
 
+> ⚠️ **`js/25-tour.js` dan `js/28-kalender-peringatan.js` TIDAK ada di `MODULE_ORDER`** (tidak dimuat lewat `app.bundle.min.js`, tidak di-load terpisah di `index.html`, dan fungsi pemicunya — `initTourButton()` dari `19-init.js`, `generatePeringatanReminderCard()` dari `renderAgenda()` di `12-jadwal-agenda-kas.js` — juga tidak dipanggil di mana pun). Kedua file berisi fitur lengkap (tur onboarding interaktif & pengingat kalender hari besar) tapi saat ini **tidak aktif/tidak ke-bundle** di aplikasi. Sebelum mengubah/memakai salah satu fitur ini, cek dulu apakah ini memang disengaja (fitur belum dirilis) atau kelupaan ditambahkan ke `MODULE_ORDER`.
+
 ## Struktur Folder
 
 | Path | Isi |
 |---|---|
 | `index.html` | Entry point, urutan load modul JS kritis (harus sinkron dengan `build.js`) |
-| `js/00-config.js` … `js/30-second-brain.js` | Source 30+ modul JS, bahasa Indonesia untuk domain bisnis |
+| `js/00-config.js` … `js/30-second-brain.js` | Source 36 modul JS (00–30, termasuk sufiks a/b/c), bahasa Indonesia untuk domain bisnis. 34 di antaranya masuk `MODULE_ORDER`/ke-bundle; `25-tour.js` & `28-kalender-peringatan.js` belum (lihat catatan di bagian "Peta Modul JS") |
 | `js/app.bundle.min.js` | Hasil build (JANGAN edit manual) |
 | `style.css` / `style.min.css` | Styling — tema "Corporate Formal" hijau, font Sora + JetBrains Mono |
 | `icons/` | Lucide icon system lokal |
@@ -201,9 +203,10 @@ Endpoint eksternal lain:
 | `sql/` | Migrasi/patch tambahan lain |
 | `sw.js`, `sw-register.js` | Service worker (hati-hati cache-busting) |
 | `wrangler.jsonc` | Konfigurasi deploy Cloudflare Workers |
+| `pnpm-workspace.yaml` | Config pnpm (`allowBuilds` untuk `esbuild`) |
 | `manifest.json`, `icons/`, `favicon.ico` | Konfigurasi PWA |
 | `_headers` | Header custom (CSP dkk) untuk Cloudflare |
-| `tests/` | Test harness (Node.js built-ins) |
+| `tests/` | `test_migration.py` — test Python (pakai `pgserver`) khusus untuk memverifikasi `supabase-hardening-migration.sql` di Postgres sungguhan (skenario database lama vs bersih, login, upgrade hash, rate limit, RPC admin) |
 | `.github/workflows/` | GitHub Actions — saat ini cuma `keep-supabase-alive.yml` (cron ping supaya project Supabase tidak auto-pause) |
 | `CLAUDE.md` | **Dokumen aturan kerja paling detail** — pola data, gotcha, konvensi kode |
 | `ONBOARDING-MERDEKA.md` | Ringkasan onboarding versi singkat |

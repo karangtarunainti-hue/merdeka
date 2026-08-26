@@ -744,14 +744,39 @@ function bukaRiwayatHargaBarang(gi){
     }
   });
   entries.sort((a,b) => (b.waktu||'').localeCompare(a.waktu||''));
-  const rowsHtml = entries.length ? entries.map(e => `
-    <div class="belanja-subitem">
-      <div class="sub-info">
-        <span>${fmtDate((e.waktu||'').slice(0,10))} · ${esc(e.oleh||'-')} · ${esc(e.paket)}${e.sudahDibeliSaatDiubah?' · <span style="color:var(--orange);">sudah dibeli saat diubah</span>':''}</span>
-        <span class="sub-qty">${fmtRp(e.harga_satuan_lama)} → ${fmtRp(e.harga_satuan_baru)}/pcs${e.harga_eceran_lama!==e.harga_eceran_baru?` · eceran ${fmtRp(e.harga_eceran_lama)} → ${fmtRp(e.harga_eceran_baru)}`:''}${e.isi_per_pack_lama!==e.isi_per_pack_baru?` · isi/pack ${e.isi_per_pack_lama} → ${e.isi_per_pack_baru}`:''}${e.wajib_pack_lama!==e.wajib_pack_baru?` · ${e.wajib_pack_baru?'wajib pack (tidak bisa eceran)':'bisa eceran lagi'}`:''}</span>
+
+  const rowsHtml = entries.length ? entries.map(e => {
+    const d = e.waktu ? new Date(e.waktu) : null;
+    const tanggalJam = d && !isNaN(d) ? `${fmtDate((e.waktu||'').slice(0,10))} · ${d.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'})}` : '-';
+
+    const diffRows = [];
+    diffRows.push(`<div class="riwayat-harga-row"><span class="riwayat-harga-label">Harga</span><span class="riwayat-harga-lama">${fmtRp(e.harga_satuan_lama)}</span><span class="riwayat-harga-arrow">&rarr;</span><span class="riwayat-harga-baru">${fmtRp(e.harga_satuan_baru)}/pcs</span></div>`);
+    if(e.harga_eceran_lama !== e.harga_eceran_baru){
+      diffRows.push(`<div class="riwayat-harga-row"><span class="riwayat-harga-label">Harga eceran</span><span class="riwayat-harga-lama">${fmtRp(e.harga_eceran_lama)}</span><span class="riwayat-harga-arrow">&rarr;</span><span class="riwayat-harga-baru">${fmtRp(e.harga_eceran_baru)}/pcs</span></div>`);
+    }
+    if(e.isi_per_pack_lama !== e.isi_per_pack_baru){
+      diffRows.push(`<div class="riwayat-harga-row"><span class="riwayat-harga-label">Isi per pack</span><span class="riwayat-harga-lama">${esc(e.isi_per_pack_lama)}</span><span class="riwayat-harga-arrow">&rarr;</span><span class="riwayat-harga-baru">${esc(e.isi_per_pack_baru)}</span></div>`);
+    }
+    if(e.wajib_pack_lama !== e.wajib_pack_baru){
+      diffRows.push(`<div class="riwayat-harga-row"><span class="riwayat-harga-label">Ketentuan beli</span><span class="riwayat-harga-baru">${e.wajib_pack_baru ? 'Wajib pack (tidak bisa eceran)' : 'Bisa eceran'}</span></div>`);
+    }
+
+    return `
+    <div class="riwayat-harga-item${e.sudahDibeliSaatDiubah?' warn':''}">
+      <div class="riwayat-harga-dot"></div>
+      <div class="riwayat-harga-card">
+        <div class="riwayat-harga-head">
+          <span class="riwayat-harga-waktu">${esc(tanggalJam)}</span>
+          <span class="riwayat-harga-oleh">oleh ${esc(e.oleh||'-')}</span>
+          <span class="kategori-pill">${esc(e.paket)}</span>
+          ${e.sudahDibeliSaatDiubah ? `<span class="status-dibeli-pill warn">Sudah dibeli saat diubah</span>` : ''}
+        </div>
+        <div class="riwayat-harga-diff">${diffRows.join('')}</div>
       </div>
-    </div>`).join('') : `<div class="hint" style="padding:6px 0;">Belum ada riwayat perubahan harga.</div>`;
-  setModal(`🕘 Riwayat Harga: "${group.nama}"`, `<div class="belanja-subitem-list">${rowsHtml}</div>`, [
+    </div>`;
+  }).join('') : `<div class="hint" style="padding:6px 0;">Belum ada riwayat perubahan harga.</div>`;
+
+  setModal(`🕘 Riwayat Harga: "${group.nama}"`, `<div class="riwayat-harga-list">${rowsHtml}</div>`, [
     {label:'Tutup', cls:'', onclick: closeModal}
   ]);
 }

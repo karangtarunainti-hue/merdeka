@@ -1171,6 +1171,65 @@
     background:var(--hijau-tint); color:var(--hijau);
     margin-left:4px; vertical-align:middle;
   }
+  .status-dibeli-pill.warn{background:var(--orange-tint); color:var(--orange); margin-left:0;}
+
+  /* ===== Riwayat Harga (modal) — timeline kartu, dipakai
+     bukaRiwayatHargaBarang() di 11-belanja.js. Tiap entry = satu titik di
+     garis waktu vertikal, kartunya berisi header (kapan/siapa/paket) +
+     daftar perubahan sebagai baris "lama → baru", supaya bisa dipindai
+     cepat tanpa harus mengurai satu baris teks panjang. ===== */
+  .riwayat-harga-list{
+    display:flex; flex-direction:column;
+  }
+  .riwayat-harga-item{
+    position:relative;
+    display:flex; align-items:flex-start; gap:12px;
+    padding-bottom:16px;
+  }
+  .riwayat-harga-item:last-child{padding-bottom:0;}
+  .riwayat-harga-item:not(:last-child)::before{
+    content:''; position:absolute; left:5px; top:16px; bottom:-2px;
+    width:1px; background:var(--garis);
+  }
+  .riwayat-harga-dot{
+    flex-shrink:0; width:11px; height:11px; margin-top:4px;
+    border-radius:50%; background:var(--hijau); border:2px solid var(--hijau-tint);
+    position:relative; z-index:1;
+  }
+  .riwayat-harga-item.warn .riwayat-harga-dot{background:var(--orange); border-color:var(--orange-tint);}
+  .riwayat-harga-card{
+    flex:1; min-width:0;
+    background:var(--surface-soft); border:1px solid var(--garis); border-radius:10px;
+    padding:10px 12px;
+  }
+  .riwayat-harga-head{
+    display:flex; flex-wrap:wrap; align-items:center; gap:5px 8px;
+    margin-bottom:8px;
+  }
+  .riwayat-harga-waktu{font-weight:700; font-size:12.5px; color:var(--ink);}
+  .riwayat-harga-oleh{font-size:12px; color:var(--ink-soft);}
+  .riwayat-harga-diff{
+    display:flex; flex-direction:column; gap:5px;
+    padding-top:8px; border-top:1px dashed var(--garis);
+  }
+  .riwayat-harga-row{
+    display:flex; align-items:baseline; flex-wrap:wrap; gap:6px 8px;
+    font-size:12.5px;
+  }
+  .riwayat-harga-label{
+    flex:0 0 auto; min-width:88px;
+    font-size:11px; font-weight:700; color:var(--abu);
+    text-transform:uppercase; letter-spacing:.02em;
+  }
+  .riwayat-harga-lama{
+    font-family:'JetBrains Mono',monospace; font-size:12px;
+    color:var(--abu); text-decoration:line-through;
+  }
+  .riwayat-harga-arrow{color:var(--abu); font-size:11px;}
+  .riwayat-harga-baru{
+    font-family:'JetBrains Mono',monospace; font-size:12.5px; font-weight:700;
+    color:var(--ink);
+  }
 
   /* Expand rincian per-lomba di Daftar Belanja Perlengkapan — dipakai saat satu
      nama barang dibutuhkan oleh lebih dari satu lomba, supaya status "sebagian

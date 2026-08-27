@@ -2147,12 +2147,15 @@ table.lpj-anggota-table th:nth-child(3), table.lpj-anggota-table td:nth-child(3)
 table.lpj-anggota-table th:nth-child(4), table.lpj-anggota-table td:nth-child(4){ width:20%; }
 table.lpj-anggota-table th:nth-child(5), table.lpj-anggota-table td:nth-child(5){ width:20%; }
 
-/* Tabel 2.2 Donatur & 3.1 Operasional Kegiatan: kolom 1 berisi Tanggal (bukan
-   "No" pendek seperti tabel Pemasukan Lain), jadi dilebarkan dari 64px generik
-   supaya "16 Agu 2026" muat satu baris, tidak turun jadi dua baris. */
+/* Tabel 2.2 Donatur, 2.3 Donatur (Barang) & 3.1 Operasional Kegiatan: kolom 1
+   berisi Tanggal (bukan "No" pendek seperti tabel Pemasukan Lain), jadi
+   dilebarkan dari 64px generik supaya "16 Agu 2026" muat satu baris, tidak
+   turun jadi dua baris. */
 table.lpj-donatur-table th:nth-child(1), table.lpj-donatur-table td:nth-child(1),
+table.lpj-donatur-barang-table th:nth-child(1), table.lpj-donatur-barang-table td:nth-child(1),
 table.lpj-operasional-table th:nth-child(1), table.lpj-operasional-table td:nth-child(1){ width:88px; white-space:nowrap; padding-right:2px; text-align:center; }
 table.lpj-donatur-table th:nth-child(2), table.lpj-donatur-table td:nth-child(2),
+table.lpj-donatur-barang-table th:nth-child(2), table.lpj-donatur-barang-table td:nth-child(2),
 table.lpj-operasional-table th:nth-child(2), table.lpj-operasional-table td:nth-child(2){ padding-left:14px; width:320px; }
 table.lpj-operasional-table th:nth-child(3), table.lpj-operasional-table td:nth-child(3){ width:56px; padding-left:4px; padding-right:22px; }
 

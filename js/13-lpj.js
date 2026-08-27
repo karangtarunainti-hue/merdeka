@@ -160,10 +160,17 @@ function renderLPJ(){
       <tbody>${kategoriRekap.map(r=>`<tr><td>${esc(r.label)}</td><td>${r.total}</td><td>${r.lunas}</td><td class="num">${fmtRp(r.nominal)}</td></tr>`).join('') || emptyRow(4,'Belum ada data anggota.')}</tbody>
     </table></div>` },
   ];
+  const donaturUangList = donaturList.filter(d=>d.jenis!=='barang');
+  const donaturBarangList = donaturList.filter(d=>d.jenis==='barang');
   if (showDonatur) pemasukanSubs.push({ title:'Donatur', html:`
     <div class="lpj-table-scroll"><table class="lpj-table lpj-detail lpj-donatur-table">
       <thead><tr><th>Tanggal</th><th>Nama</th><th class="num">Donasi</th></tr></thead>
-      <tbody>${donaturList.map(d=>`<tr><td>${fmtDate(d.tanggal)}</td><td>${esc(d.nama_donatur)}</td><td class="num">${donasiValueText(d)}</td></tr>`).join('') || emptyRow(3,'Belum ada donasi.')}</tbody>
+      <tbody>${donaturUangList.map(d=>`<tr><td>${fmtDate(d.tanggal)}</td><td>${esc(d.nama_donatur)}</td><td class="num">${donasiValueText(d)}</td></tr>`).join('') || emptyRow(3,'Belum ada donasi.')}</tbody>
+    </table></div>` });
+  if (showDonatur && donaturBarangList.length) pemasukanSubs.push({ title:'Donatur (Barang)', html:`
+    <div class="lpj-table-scroll"><table class="lpj-table lpj-detail lpj-donatur-barang-table">
+      <thead><tr><th>Tanggal</th><th>Nama</th><th class="num">Barang</th></tr></thead>
+      <tbody>${donaturBarangList.map(d=>`<tr><td>${fmtDate(d.tanggal)}</td><td>${esc(d.nama_donatur)}</td><td class="num">${donasiValueText(d)}</td></tr>`).join('')}</tbody>
     </table></div>` });
   if (showTransaksi) pemasukanSubs.push({ title:'Pemasukan Lain', html:`
     <div class="lpj-table-scroll"><table class="lpj-table lpj-detail">

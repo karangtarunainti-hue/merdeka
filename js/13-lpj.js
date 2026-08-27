@@ -226,7 +226,6 @@ function renderLPJ(){
         <tr class="lpj-subtotal"><td>Total Pemasukan</td><td class="num">${fmtRp(b.pemasukan)}</td></tr>
         <tr><td class="indent">Iuran Anggota (${b.jumlahIuranLunas} lunas)</td><td class="num">${fmtRp(b.iuran)}</td></tr>
         ${showDonatur ? `<tr><td class="indent">Donatur (${b.jumlahDonatur} donasi)</td><td class="num">${fmtRp(b.donasi)}</td></tr>` : ''}
-        ${showDonatur && b.jumlahDonaturBarang>0 ? `<tr><td class="indent" style="font-style:italic;color:var(--ink-soft);font-size:12px;">+ ${b.jumlahDonaturBarang} sumbangan barang (bukan uang, lihat rincian Donatur di bawah)</td><td class="num"></td></tr>` : ''}
         ${showTransaksi ? `<tr><td class="indent">Pemasukan Lain (${nonKuponTransaksiList.length})</td><td class="num">${fmtRp(totalNonKuponNominal)}</td></tr>` : ''}
         ${showTransaksi ? `<tr><td class="indent">Penjualan Kupon (${totalKuponQty} kupon &times; ${fmtRp(hargaKuponEfektif)})</td><td class="num">${fmtRp(totalKuponNominal)}</td></tr>` : ''}
         <tr class="lpj-subtotal"><td>Total Pengeluaran</td><td class="num">${fmtRp(b.pengeluaran)}</td></tr>

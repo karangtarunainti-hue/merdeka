@@ -3,7 +3,7 @@
 Semua migrasi SQL project ini sekarang ada di satu folder ini (`sql/`), diberi
 prefix angka 2 digit sesuai **urutan deploy yang aman** — kalau kamu setup
 project Supabase baru dari nol, jalankan file-file ini **berurutan dari 00
-sampai 40** di Supabase Dashboard → SQL Editor (mulai dari `00-skema-dasar.sql`
+sampai 41** di Supabase Dashboard → SQL Editor (mulai dari `00-skema-dasar.sql`
 kalau project Supabase-mu benar-benar kosong — lihat catatan di bawah).
 
 Hampir semua file idempotent (aman dijalankan berkali-kali, pakai
@@ -54,13 +54,14 @@ satu). Urutan di bawah disusun dengan menelusuri dependensi tsb satu per satu.
 | 31 | `31-gudang-import-atomic-migration.sql` | Butuh file 29. |
 | 32 | `32-gudang-atomic-fix-migration.sql` | Butuh file 29 (dan best-effort setelah 30/31 sebagai penyempurnaan lanjutan). |
 | 33 | `33-telegram-notifikasi-maksimal-migration.sql` | Kolom di `kt_telegram_settings` — independen, ditaruh sebelum hardening karena menyentuh tabel yang sama. |
-| 34 | `34-hardening-migration.sql` | **Overhaul keamanan besar** (session RLS, bcrypt, rate limit login). Daftar tabel hardcoded di file ini mencakup `kt_dana_sosial_*`(18), `kt_bookmark`(23), `kt_organisasi_profil`(24), `kt_dokumen_global`(25), `kt_lomba_arsip`(27), `kt_snapshot`(28), `kt_gudang_inventory`/`kt_gudang_transactions`(29) — jadi **wajib** dijalankan setelah semuanya. Sebaliknya, tabel-tabel AI insight & Second Brain (35–39) TIDAK ada di daftar ini, artinya file hardening ini ditulis **sebelum** fitur-fitur itu ada. |
+| 34 | `34-hardening-migration.sql` | **Overhaul keamanan besar** (session RLS, bcrypt, rate limit login). Daftar tabel hardcoded di file ini mencakup `kt_dana_sosial_*`(18), `kt_bookmark`(23), `kt_organisasi_profil`(24), `kt_dokumen_global`(25), `kt_lomba_arsip`(27), `kt_snapshot`(28), `kt_gudang_inventory`/`kt_gudang_transactions`(29) — jadi **wajib** dijalankan setelah semuanya. Sebaliknya, tabel-tabel AI insight & Second Brain (35–39) TIDAK ada di daftar ini, artinya file hardening ini ditulis **sebelum** fitur-fitur itu ada — 4 dari tabel-tabel itu (AI insight & kalender) baru ditutup celahnya belakangan di file 41. |
 | 35 | `35-ai-insight-migration.sql` | **Membuat tabel `kt_ai_insight`** (Dashboard) — versi rujukan pertama, disebut sebagai pola dasar oleh file 36 & 37. |
 | 36 | `36-ai-insight-lomba-migration.sql` | Struktur sama seperti file 35 (disebut eksplisit di komentarnya). |
 | 37 | `37-ai-insight-belanja-hadiah-migration.sql` | Struktur sama seperti file 35 (disebut eksplisit di komentarnya). |
 | 38 | `38-kalender-peringatan-migration.sql` | Komentarnya membandingkan diri secara eksplisit dengan file 35/36/37 sebagai pola yang sudah ada — jadi setelah ketiganya. |
 | 39 | `39-second-brain-migration.sql` | Fitur paling baru (pgvector, RAG Asisten AI) — modul JS-nya (`29-asisten-ai.js`, `30-second-brain.js`) juga bernomor paling akhir di `MODULE_ORDER` (lihat README utama). |
 | 40 | `40-gudang-restore-snapshot-migration.sql` | **RPC `kt_gudang_restore_snapshot`** — dipanggil `restoreGudangFromPayload()` (`js/15b-snapshot.js`) baik untuk "Pulihkan Snapshot" maupun Impor "Timpa Semua". File ini sebelumnya hilang dari repo meski sudah didokumentasikan di CLAUDE.md/README utama dan sudah dipanggil kode JS — tanpa file ini, restore data Gudang selalu gagal diam-diam (toast error, data lain tetap terpulihkan). Wajib setelah `kt_gudang_*` (29) ada. |
+| 41 | `41-ai-insight-hardening-migration.sql` | Menutup celah yang disebut di catatan file 34: tabel-tabel AI insight (35, 36, 37) & kalender (38) dibuat **setelah** hardening besar-besaran di file 34, jadi tidak ikut daftar tabel yang di-hardening di sana dan masih `anon_full_access` (siapa pun tanpa login bisa tulis/hapus cache insight). File ini menyamakan `kt_ai_insight`, `kt_ai_insight_lomba`, `kt_ai_insight_belanja_hadiah`, `kt_kalender_insight` ke pola baca-bebas/tulis-wajib-login yang sama seperti file 34. Wajib setelah file 34 (butuh fungsi `session_is_logged_in()`) dan setelah 35–38 (tabelnya harus sudah ada). |
 
 ## Catatan: file `fix_server_side_updated_at.sql` sudah dihapus
 

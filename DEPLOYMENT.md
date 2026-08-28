@@ -2,11 +2,7 @@
 
 Dokumen ini merangkum **semua langkah** untuk deploy ulang aplikasi ini di akun Supabase + Cloudflare yang benar-benar baru. Ikuti berurutan — jangan dibalik, karena beberapa langkah bergantung pada langkah sebelumnya.
 
-> ⚠️ **Gap penting (baca dulu):** repo ini **tidak menyertakan skema tabel dasar** (`kt_events`, `kt_anggota`, `kt_users`, `kt_settings`, `kt_lomba`, `kt_jadwal`, `kt_donatur`, `kt_panitia_sinoman`, `kt_transaksi_lain`, `kt_operasional`, `kt_daftar_belanja_hadiah`, `kt_telegram_settings`, dll). Tabel-tabel itu diasumsikan sudah ada duluan (dibuat manual lewat Table Editor jauh sebelum migrasi `sql/01`–`sql/39` ditulis) — lihat `sql/README.md`. Kalau akun baru ini **benar-benar tidak punya project Supabase lama sama sekali**, kamu perlu salah satu dari:
-> - **Export skema dari project Supabase lama** (Dashboard project lama → Database → Backups, atau `pg_dump --schema-only`) lalu import ke project baru sebelum lanjut ke Langkah 2, atau
-> - Membuat ulang tabel-tabel dasar tsb manual lewat Table Editor (lebih lama & rawan salah kolom).
->
-> Tanpa langkah ini, migrasi `sql/01` dst akan gagal karena tabel yang di-`ALTER`/direferensikan belum ada.
+> ⚠️ **Gap penting (baca dulu):** repo ini aslinya **tidak menyertakan skema tabel dasar** (`kt_events`, `kt_anggota`, `kt_users`, `kt_settings`, `kt_lomba`, `kt_jadwal`, `kt_donatur`, `kt_panitia_sinoman`, `kt_transaksi_lain`, `kt_operasional`, `kt_daftar_belanja_hadiah`, `kt_telegram_settings`, dll) — lihat `sql/README.md`. Sudah dibuatkan **rekonstruksi**-nya di `sql/00-skema-dasar.sql` (hasil telusur dari kode aplikasi, bukan dump asli — ada 1 tabel yang strukturnya cuma tebakan minimal, `kt_panitia_sinoman`, karena sudah tidak dipakai kode aktif). Kalau kamu **masih punya akses ke project Supabase lama**, lebih aman export skema asli dari sana (Dashboard lama → Database → Backups, atau `pg_dump --schema-only`) daripada memakai file rekonstruksi ini. Pakai `00-skema-dasar.sql` hanya kalau project lama sudah benar-benar tidak bisa diakses.
 
 ---
 
@@ -23,7 +19,9 @@ Dokumen ini merangkum **semua langkah** untuk deploy ulang aplikasi ini di akun 
 
 ## Langkah 1 — Siapkan skema dasar di project Supabase baru
 
-Lihat catatan gap di atas. Pastikan tabel-tabel dasar (`kt_*` inti) sudah ada di project baru sebelum lanjut.
+Pilih salah satu:
+- **Sudah ada project Supabase lama yang bisa diakses:** export skema dari sana (Database → Backups, atau `pg_dump --schema-only`), import ke project baru.
+- **Tidak ada akses ke project lama:** jalankan `sql/00-skema-dasar.sql` di SQL Editor project baru (Dashboard → SQL Editor → New query → tempel isi file → Run). File ini rekonstruksi tabel dasar, aman dijalankan berkali-kali. Baca catatan caveat di bagian atas file tsb, terutama soal `kt_panitia_sinoman`.
 
 ---
 
@@ -128,7 +126,7 @@ Ini meregenerasi `js/app.bundle.min.js`, `style.min.css`, `icons/lucide-icons.lo
 
 ## Ringkasan urutan (checklist singkat)
 
-1. ☐ Skema tabel dasar ada di project Supabase baru (export dari lama / buat manual)
+1. ☐ Skema tabel dasar ada di project Supabase baru (export dari lama, atau jalankan `sql/00-skema-dasar.sql`)
 2. ☐ Jalankan `sql/01` → `sql/39` berurutan
 3. ☐ Update `js/00-config.js` (URL + anon key baru)
 4. ☐ Update `connect-src` di `_headers` (domain Supabase baru)

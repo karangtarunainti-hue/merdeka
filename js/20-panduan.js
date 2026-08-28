@@ -51,7 +51,7 @@ function renderPanduan(){
         </div>
         <div class="role-info-card step-card"><span class="step-num">3</span>
           <div class="ric-title">Pilih Fitur yang Dipakai</div>
-          <div class="ric-desc">Waktu bikin event, centang fitur yang memang dibutuhkan (Donatur, Lomba, Hadiah, Jalan Santai, dst). Nggak semua kegiatan butuh semua fitur, jadi bisa dimatikan biar menu nggak penuh.</div>
+          <div class="ric-desc">Waktu bikin event, centang fitur yang memang dibutuhkan (Donatur, Lomba, Hadiah, Jalan Santai, dst) — atau pakai tombol cepat "Pilih Semua (Lengkap)"/"Hanya Iuran & LPJ". Iuran, Buku Kegiatan & LPJ selalu aktif dan nggak perlu dicentang. Nggak semua kegiatan butuh semua fitur, jadi bisa dimatikan biar menu nggak penuh — bisa diaktifkan lagi kapan aja lewat ✎ Edit Event.</div>
         </div>
         <div class="role-info-card step-card"><span class="step-num">4</span>
           <div class="ric-title">Input Data Harian</div>

@@ -7,7 +7,7 @@ Ikuti urutan ini — **jangan dibalik**.
 
 | File | Perubahan |
 |---|---|
-| `supabase-hardening-migration.sql` | **BARU** — RLS berbasis sesi, tabel `kt_sessions`, bcrypt, rate limit login |
+| `sql/34-hardening-migration.sql` | **BARU** — RLS berbasis sesi, tabel `kt_sessions`, bcrypt, rate limit login |
 | `src/worker.js` | **BARU** — Worker `/api/telegram` yang memegang bot token sebagai secret |
 | `wrangler.jsonc` | tambah `main` + binding `ASSETS` |
 | `_headers` | CSP lengkap + Permissions-Policy (sebelumnya tidak ada CSP sama sekali) |
@@ -27,7 +27,7 @@ Bundle sudah di-rebuild (`npm run build`) dan `CACHE_VERSION` sw.js dinaikkan ke
 ## Langkah 1 — Jalankan SQL
 
 Supabase Dashboard → SQL Editor → New query → tempel isi
-`supabase-hardening-migration.sql` → Run.
+`sql/34-hardening-migration.sql` → Run.
 
 Aman dijalankan berkali-kali. Setelah selesai, verifikasi tidak ada lagi
 policy tulis yang terbuka:

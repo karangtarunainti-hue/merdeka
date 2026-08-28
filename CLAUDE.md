@@ -64,8 +64,9 @@ dideploy ke **Cloudflare Workers (assets)** dengan backend **Supabase**.
   single-page-application`) — semua path non-file balik ke `index.html`,
   routing internal ditangani JS (`05-navigation.js`).
 - **Database**: Supabase. Setiap perubahan skema ada file migrasi SQL
-  terpisah di root (`supabase-*-migration.sql`) atau di `sql/` — HARUS
-  dijalankan manual di Supabase Dashboard, tidak otomatis.
+  terpisah di `sql/` (prefix angka 2 digit = urutan deploy, lihat
+  `sql/README.md`) — HARUS dijalankan manual di Supabase Dashboard,
+  tidak otomatis.
 - **Service worker**: `sw.js` — hati-hati dengan cache-busting saat ubah
   file yang di-cache (riwayat bug: deadlock `ERR_FAILED` di Cloudflare
   Workers).
@@ -107,7 +108,7 @@ dideploy ke **Cloudflare Workers (assets)** dengan backend **Supabase**.
   `js/26-ai.js`)**: sepupu `ai-generate` — auth/rate-limit/fallback-key
   polanya SAMA PERSIS, tapi keluarannya vector angka (proxy ke Gemini
   `gemini-embedding-001:embedContent`, 768 dimensi — lihat catatan
-  dimensi di `supabase-second-brain-migration.sql`), bukan teks. Dipakai
+  dimensi di `sql/39-second-brain-migration.sql`), bukan teks. Dipakai
   fitur **Second Brain** (`js/30-second-brain.js`, menu "Second Brain")
   — memori catatan/ide/dokumen/konteks bebas yang bisa dicari
   BERDASARKAN MAKNA (semantic search lewat kolom `embedding` di tabel
@@ -131,8 +132,8 @@ dideploy ke **Cloudflare Workers (assets)** dengan backend **Supabase**.
   Setup tambahan (sekali saja, setelah setup `ai-generate` di atas):
   `supabase functions deploy ai-embed` (pakai `GEMINI_API_KEY` yang
   sama, tidak perlu secret baru) lalu jalankan
-  `supabase-second-brain-migration.sql` di SQL Editor (butuh
-  `supabase-hardening-migration.sql` sudah pernah jalan duluan, karena
+  `sql/39-second-brain-migration.sql` di SQL Editor (butuh
+  `sql/34-hardening-migration.sql` sudah pernah jalan duluan, karena
   RLS-nya bergantung fungsi `session_is_logged_in()` dari situ).
 
 ## Perintah

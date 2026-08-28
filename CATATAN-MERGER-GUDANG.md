@@ -24,7 +24,7 @@ tertimpa diam-diam. Sudah diperbaiki jadi 1 transaksi atomik di server
 detail skenarionya). Modul Gudang juga sekarang ikut auto-refresh 20 detik
 seperti menu lain (sebelumnya cuma dimuat sekali + tombol refresh manual).
 
-**Langkah tambahan**: jalankan juga `supabase-gudang-race-fix-migration.sql`
+**Langkah tambahan**: jalankan juga `sql/30-gudang-race-fix-migration.sql`
 di SQL Editor (project Merdeka), sekali saja, setelah migrasi Gudang utama.
 Aman dijalankan berkali-kali kalau perlu.
 
@@ -32,7 +32,7 @@ Aman dijalankan berkali-kali kalau perlu.
 
 1. **Jalankan migrasi SQL** — buka Supabase Dashboard project **Merdeka**
    (bukan project Gudang lama) → SQL Editor → jalankan isi file
-   `supabase-gudang-migration.sql`. Ini membuat tabel `kt_gudang_inventory`,
+   `sql/29-gudang-migration.sql`. Ini membuat tabel `kt_gudang_inventory`,
    `kt_gudang_transactions`, `kt_gudang_transaction_items`,
    `kt_gudang_resi_seq`, beserta RLS dan fungsi RPC (`kt_gudang_borrow_stock`,
    `kt_gudang_return_stock`, `kt_gudang_reborrow_stock`,

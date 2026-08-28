@@ -59,8 +59,8 @@ Pemilik project (**Inti**) mengelola repo ini **lewat GitHub Web UI, bukan Git C
 │                                     │   │   /api/telegram → kirim pesan,│
 │  Tabel via db.xxx + ARRAY_TABLE_MAP│   │     token disimpan sbg secret │
 │  (RLS diterapkan per tabel, lihat  │   │     Cloudflare, verifikasi     │
-│  supabase-rls-setup.sql &          │   │     sesi ke Supabase dulu,     │
-│  supabase-hardening-migration.sql) │   │     rate-limited in-memory     │
+│  sql/01-rls-setup.sql &          │   │     sesi ke Supabase dulu,     │
+│  sql/34-hardening-migration.sql) │   │     rate-limited in-memory     │
 │                                     │   │   /api/health → healthcheck   │
 │  Tabel di luar pola db.xxx         │   │     public                     │
 │  (fetch/tulis langsung):           │   │   (path lain) → diteruskan ke  │
@@ -83,9 +83,6 @@ Pemilik project (**Inti**) mengelola repo ini **lewat GitHub Web UI, bukan Git C
 │      ke Gemini, auth/fallback sama │
 │      persis dgn ai-generate        │
 └───────────────────────────────────┘
-
-Endpoint eksternal lain:
-  api/emas.js → endpoint tambahan (harga emas, dsb — cek isi file untuk detail)
 ```
 
 ### Alur Data (Data Flow)
@@ -196,21 +193,19 @@ Endpoint eksternal lain:
 | `icons/` | Lucide icon system lokal |
 | `build.js` | Script esbuild, sumber kebenaran urutan modul (`MODULE_ORDER`) |
 | `src/worker.js` | Cloudflare Worker tipis — `/api/telegram`, `/api/health`, passthrough assets |
-| `api/emas.js` | Endpoint tambahan |
 | `supabase/functions/ai-generate/` | Edge Function proxy Gemini (teks) |
 | `supabase/functions/ai-embed/` | Edge Function proxy Gemini (embedding) |
-| `supabase-*-migration.sql` (root) | Migrasi skema, dijalankan manual di Supabase SQL Editor, urut sesuai nama/tanggal |
-| `sql/` | Migrasi/patch tambahan lain |
+| `sql/` | Semua migrasi skema (39 file, prefix angka 2 digit = urutan deploy), dijalankan manual di Supabase SQL Editor. Lihat `sql/README.md` untuk urutan lengkap & alasannya. |
 | `sw.js`, `sw-register.js` | Service worker (hati-hati cache-busting) |
 | `wrangler.jsonc` | Konfigurasi deploy Cloudflare Workers |
 | `pnpm-workspace.yaml` | Config pnpm (`allowBuilds` untuk `esbuild`) |
 | `manifest.json`, `icons/`, `favicon.ico` | Konfigurasi PWA |
 | `_headers` | Header custom (CSP dkk) untuk Cloudflare |
-| `tests/` | `test_migration.py` — test Python (pakai `pgserver`) khusus untuk memverifikasi `supabase-hardening-migration.sql` di Postgres sungguhan (skenario database lama vs bersih, login, upgrade hash, rate limit, RPC admin) |
+| `tests/` | `test_migration.py` — test Python (pakai `pgserver`) khusus untuk memverifikasi `sql/34-hardening-migration.sql` di Postgres sungguhan (skenario database lama vs bersih, login, upgrade hash, rate limit, RPC admin) |
 | `.github/workflows/` | GitHub Actions — saat ini cuma `keep-supabase-alive.yml` (cron ping supaya project Supabase tidak auto-pause) |
 | `CLAUDE.md` | **Dokumen aturan kerja paling detail** — pola data, gotcha, konvensi kode |
 | `ONBOARDING-MERDEKA.md` | Ringkasan onboarding versi singkat |
-| `CATATAN-MERGER-GUDANG.md`, `SECURITY_AUDIT.md`, `AUDIT-STANDAR-SAAS.md`, `REFACTOR-EVENT-DELEGATION.md`, `DEPLOY-HARDENING.md` | Catatan historis per-topik, baca sebelum menyentuh area terkait |
+| `CATATAN-MERGER-GUDANG.md`, `AUDIT-STANDAR-SAAS.md`, `REFACTOR-EVENT-DELEGATION.md`, `DEPLOY-HARDENING.md` | Catatan historis per-topik, baca sebelum menyentuh area terkait |
 
 ## Build & Deploy
 
@@ -222,10 +217,10 @@ npm run build       # regenerate app.bundle.min.js, style.min.css, lucide-icons.
 - Wajib dijalankan **setiap kali** ada perubahan di `js/*.js` atau `style.css`, **sebelum** file diupload ke GitHub.
 - Karena Inti tidak pakai CLI, **langkah build ini dilakukan oleh Claude** saat menyiapkan file yang akan dikirim — bukan tugas Inti.
 - Tidak ada dev server atau test runner otomatis; testing dilakukan manual di browser setelah deploy.
-- Migrasi SQL **tidak otomatis** — tiap file `supabase-*-migration.sql` baru harus dijalankan manual oleh Inti di Supabase Dashboard → SQL Editor.
+- Migrasi SQL **tidak otomatis** — tiap file baru di `sql/` harus dijalankan manual oleh Inti di Supabase Dashboard → SQL Editor, berurutan sesuai prefix angkanya (lihat `sql/README.md`).
 
 ## Dokumen Rujukan Lain
 
 - **`CLAUDE.md`** — bacaan wajib sebelum mengubah kode: pola sinkronisasi data, pengecualian Gudang/Second Brain, sistem backup/restore, setup AI Edge Functions, konvensi kode, dan daftar keterbatasan yang sudah diketahui (known limitations).
-- **`SECURITY_AUDIT.md`** — catatan keamanan, termasuk isu RLS yang belum sepenuhnya tertutup.
+- **`AUDIT-STANDAR-SAAS.md`** — catatan keamanan terkini (menggantikan `SECURITY_AUDIT.md` lama yang sudah dihapus karena ternyata isinya audit project lain, bukan Merdeka), termasuk isu RLS yang belum sepenuhnya tertutup.
 - **`CATATAN-MERGER-GUDANG.md`** — histori kenapa modul Gudang punya pola data terpisah.

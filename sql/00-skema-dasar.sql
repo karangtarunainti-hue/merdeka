@@ -312,6 +312,6 @@ create table if not exists kt_panitia_sinoman (
 );
 
 -- ============================================================
--- SELESAI. Lanjutkan ke sql/01-rls-setup.sql, lalu 02 s/d 39 berurutan
+-- SELESAI. Lanjutkan ke sql/01-rls-setup.sql, lalu 02 s/d 40 berurutan
 -- (lihat sql/README.md untuk urutan lengkap & alasannya).
 -- ============================================================

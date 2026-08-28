@@ -71,31 +71,8 @@ function renderPanduan(){
 
   <div class="panel">
     <div class="panel-head">
-      <div><h3>🧭 Menu Per Kegiatan</h3>
-        <div class="desc">Isinya ganti-ganti ngikutin event yang lagi aktif di dropdown sidebar</div>
-      </div>
-    </div>
-    <div class="panel-body">
-      <div class="role-info-grid">
-        <div class="role-info-card"><div class="ric-title">📅 Jadwal Kegiatan</div><div class="ric-desc">Catat jadwal & pengingat acara biar nggak ada yang kelewat.</div></div>
-        <div class="role-info-card"><div class="ric-title">📊 Buku Kegiatan</div><div class="ric-desc">Dashboard utama: rekap saldo & reminder tugas yang belum kelar.</div></div>
-        <div class="role-info-card"><div class="ric-title">💰 Iuran Anggota</div><div class="ric-desc">Catat siapa aja yang udah/belum bayar iuran warga.</div></div>
-        <div class="role-info-card"><div class="ric-title">❤️ Donatur</div><div class="ric-desc">Catat sumbangan dari donatur di luar iuran warga — uang maupun barang (barang dicatat terpisah, tidak dihitung sebagai uang masuk).</div></div>
-        <div class="role-info-card"><div class="ric-title">🔄 Pemasukan Lain</div><div class="ric-desc">Buat pemasukan yang bukan iuran maupun donasi (mis. hasil jualan, sponsor).</div></div>
-        <div class="role-info-card"><div class="ric-title">💼 Operasional Kegiatan</div><div class="ric-desc">Catat biaya operasional umum acara (konsumsi, sewa, dekorasi, dll).</div></div>
-        <div class="role-info-card"><div class="ric-title">🚩 Lomba & Perlengkapan</div><div class="ric-desc">Rencanakan lomba apa aja yang diadain, plus perlengkapan yang dibutuhkan tiap lomba.</div></div>
-        <div class="role-info-card"><div class="ric-title">🎁 Kebutuhan Hadiah / Hadiah Jalan Santai</div><div class="ric-desc">Susun target hadiah per kategori peserta & juara, biar belanjanya terarah.</div></div>
-        <div class="role-info-card"><div class="ric-title">🛍️ Belanja Perlengkapan / Hadiah / Jalan Santai</div><div class="ric-desc">Daftar belanja aktual — catat barang yang udah dibeli beserta harganya, dibandingkan sama target di atas.</div></div>
-        <div class="role-info-card"><div class="ric-title">📋 Laporan (LPJ)</div><div class="ric-desc">Cetak laporan pertanggungjawaban lengkap dari semua data event ini.</div></div>
-        <div class="role-info-card"><div class="ric-title">📝 Daftar Anggota</div><div class="ric-desc">Rekap & cetak daftar nama anggota untuk kebutuhan event ini (mis. absensi).</div></div>
-      </div>
-    </div>
-  </div>
-
-  <div class="panel">
-    <div class="panel-head">
       <div><h3>🌐 Menu Global</h3>
-        <div class="desc">Datanya tetap sama walau event aktif dipindah-pindah</div>
+        <div class="desc">Nempel di paling atas sidebar (di atas dropdown Kegiatan Aktif) — datanya tetap sama walau event aktif dipindah-pindah</div>
       </div>
     </div>
     <div class="panel-body">
@@ -113,6 +90,29 @@ function renderPanduan(){
         <div class="role-info-card"><div class="ric-title">🪙 Dana Sosial</div><div class="ric-desc">Iuran bulanan Rp 5.000/anggota, terpisah dari ${esc(getOrgNamaKas())}. Ada tabel khusus untuk anggota Perantauan yang bayarnya rapel setahun sekali.</div></div>
         ${isAdminUser ? `<div class="role-info-card"><div class="ric-title">⚙️ Pengaturan</div><div class="ric-desc">Atur tarif iuran, kelola daftar event, dan pengaturan lain (khusus Admin).</div></div>` : ''}
         ${isAdminUser ? `<div class="role-info-card"><div class="ric-title">👥 Manajemen User</div><div class="ric-desc">Tambah/atur akun pengguna beserta perannya (khusus Admin).</div></div>` : ''}
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head">
+      <div><h3>🧭 Menu Per Kegiatan</h3>
+        <div class="desc">Ada di bawah dropdown Kegiatan Aktif — isinya ganti-ganti ngikutin event yang lagi dipilih</div>
+      </div>
+    </div>
+    <div class="panel-body">
+      <div class="role-info-grid">
+        <div class="role-info-card"><div class="ric-title">📅 Jadwal Kegiatan</div><div class="ric-desc">Catat jadwal & pengingat acara biar nggak ada yang kelewat.</div></div>
+        <div class="role-info-card"><div class="ric-title">📊 Buku Kegiatan</div><div class="ric-desc">Dashboard utama: rekap saldo & reminder tugas yang belum kelar.</div></div>
+        <div class="role-info-card"><div class="ric-title">💰 Iuran Anggota</div><div class="ric-desc">Catat siapa aja yang udah/belum bayar iuran warga.</div></div>
+        <div class="role-info-card"><div class="ric-title">❤️ Donatur</div><div class="ric-desc">Catat sumbangan dari donatur di luar iuran warga — uang maupun barang (barang dicatat terpisah, tidak dihitung sebagai uang masuk).</div></div>
+        <div class="role-info-card"><div class="ric-title">🔄 Pemasukan Lain</div><div class="ric-desc">Buat pemasukan yang bukan iuran maupun donasi (mis. hasil jualan, sponsor).</div></div>
+        <div class="role-info-card"><div class="ric-title">💼 Operasional Kegiatan</div><div class="ric-desc">Catat biaya operasional umum acara (konsumsi, sewa, dekorasi, dll).</div></div>
+        <div class="role-info-card"><div class="ric-title">🚩 Lomba & Perlengkapan</div><div class="ric-desc">Rencanakan lomba apa aja yang diadain, plus perlengkapan yang dibutuhkan tiap lomba.</div></div>
+        <div class="role-info-card"><div class="ric-title">🎁 Kebutuhan Hadiah / Hadiah Jalan Santai</div><div class="ric-desc">Susun target hadiah per kategori peserta & juara, biar belanjanya terarah.</div></div>
+        <div class="role-info-card"><div class="ric-title">🛍️ Belanja Perlengkapan / Hadiah / Jalan Santai</div><div class="ric-desc">Daftar belanja aktual — catat barang yang udah dibeli beserta harganya, dibandingkan sama target di atas.</div></div>
+        <div class="role-info-card"><div class="ric-title">📋 Laporan (LPJ)</div><div class="ric-desc">Cetak laporan pertanggungjawaban lengkap dari semua data event ini.</div></div>
+        <div class="role-info-card"><div class="ric-title">📝 Daftar Anggota</div><div class="ric-desc">Rekap & cetak daftar nama anggota untuk kebutuhan event ini (mis. absensi).</div></div>
       </div>
     </div>
   </div>

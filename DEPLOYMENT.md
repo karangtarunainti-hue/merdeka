@@ -25,14 +25,14 @@ Pilih salah satu:
 
 ---
 
-## Langkah 2 — Jalankan migrasi SQL 01–39 berurutan
+## Langkah 2 — Jalankan migrasi SQL 01–40 berurutan
 
-Supabase Dashboard (project baru) → **SQL Editor** → New query → jalankan isi tiap file di `sql/` **satu per satu dari `01-rls-setup.sql` sampai `39-second-brain-migration.sql`**, sesuai urutan nomor filenya.
+Supabase Dashboard (project baru) → **SQL Editor** → New query → jalankan isi tiap file di `sql/` **satu per satu dari `01-rls-setup.sql` sampai `40-gudang-restore-snapshot-migration.sql`**, sesuai urutan nomor filenya.
 
 Catatan:
 - Hampir semua file idempotent (`if not exists`/`if exists`), tapi urutan tetap penting karena ada dependensi antar file (dijelaskan lengkap di `sql/README.md`).
 - File `02-add_last_seen_to_users.sql` boleh dilewati kalau `01` yang dijalankan sudah versi terbaru (sudah include `last_seen_at`) — aman dijalankan juga karena idempotent.
-- File `34-hardening-migration.sql` adalah overhaul keamanan besar (session RLS, bcrypt, rate limit login) — **wajib** dijalankan setelah tabel 18, 23, 24, 25, 27, 28, 29 ada (semua sudah terpenuhi kalau ikut urutan 01→39).
+- File `34-hardening-migration.sql` adalah overhaul keamanan besar (session RLS, bcrypt, rate limit login) — **wajib** dijalankan setelah tabel 18, 23, 24, 25, 27, 28, 29 ada (semua sudah terpenuhi kalau ikut urutan 01→40).
 - Setelah `34`, verifikasi tidak ada lagi policy tulis yang terbuka:
   ```sql
   select tablename, policyname, cmd
@@ -40,6 +40,8 @@ Catatan:
   where schemaname = 'public' and qual = 'true' and cmd <> 'SELECT';
   ```
 - File 39 mengaktifkan pgvector untuk fitur Second Brain/Asisten AI — pastikan extension `vector` bisa diaktifkan di project (biasanya otomatis tersedia di Supabase).
+- File `40-gudang-restore-snapshot-migration.sql` membuat RPC `kt_gudang_restore_snapshot` yang dipakai fitur "Pulihkan Snapshot" & Impor "Timpa Semua" di modul Gudang (`js/15b-snapshot.js`) — **wajib** dijalankan, kalau tidak restore data Gudang akan gagal diam-diam (toast error, bagian lain tetap terpulihkan).
+- Abaikan (jangan dijalankan) dua file lepas di folder `sql/` yang bukan bagian urutan bernomor: `add_last_seen_to_users.sql` (versi lama, sudah tercakup di `02`) dan `fix_server_side_updated_at.sql` (peninggalan project lain, menyebut tabel yang tidak ada di skema Merdeka).
 
 ---
 
@@ -115,7 +117,20 @@ Ini meregenerasi `js/app.bundle.min.js`, `style.min.css`, `icons/lucide-icons.lo
 
 ---
 
-## Langkah 7 — Verifikasi akhir
+## Langkah 7 — Set secret GitHub Actions (auto-ping Supabase)
+
+Repo ini punya workflow `.github/workflows/keep-supabase-alive.yml` yang nge-ping Supabase tiap 3 hari sekali supaya project free-tier tidak otomatis pause karena tidak ada aktivitas. Di GitHub: **Settings → Secrets and variables → Actions → New repository secret**, tambahkan:
+
+```
+SUPABASE_URL=https://xxxxxxxxxxxx.supabase.co
+SUPABASE_ANON_KEY=eyJhbGciOi...
+```
+
+(Nilai sama seperti di Langkah 3.) Tanpa ini, workflow akan gagal tiap kali jalan (bisa dicek di tab **Actions**), meski tidak memengaruhi situs live secara langsung.
+
+---
+
+## Langkah 8 — Verifikasi akhir
 
 - Buka situs, cek Network tab: tidak ada request Supabase yang gagal karena CSP atau 401.
 - Coba login (RPC sesi custom) — pastikan `kt_sessions` & `rpc_session_user` (dari `sql/34`) berjalan.
@@ -127,10 +142,11 @@ Ini meregenerasi `js/app.bundle.min.js`, `style.min.css`, `icons/lucide-icons.lo
 ## Ringkasan urutan (checklist singkat)
 
 1. ☐ Skema tabel dasar ada di project Supabase baru (export dari lama, atau jalankan `sql/00-skema-dasar.sql`)
-2. ☐ Jalankan `sql/01` → `sql/39` berurutan
+2. ☐ Jalankan `sql/01` → `sql/40` berurutan (abaikan `add_last_seen_to_users.sql` & `fix_server_side_updated_at.sql`, keduanya bukan bagian urutan)
 3. ☐ Update `js/00-config.js` (URL + anon key baru)
 4. ☐ Update `connect-src` di `_headers` (domain Supabase baru)
 5. ☐ Deploy `ai-generate` + `ai-embed`, set `GEMINI_API_KEY`
 6. ☐ Set 3 secret wrangler (`TELEGRAM_BOT_TOKEN`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`)
 7. ☐ `npm run build` lalu deploy Worker (`npx wrangler deploy`) / push ke GitHub
-8. ☐ Verifikasi login, fitur AI, dan Telegram di situs live
+8. ☐ Set 2 secret di GitHub repo (`SUPABASE_URL`, `SUPABASE_ANON_KEY`) untuk workflow `keep-supabase-alive`
+9. ☐ Verifikasi login, fitur AI, dan Telegram di situs live

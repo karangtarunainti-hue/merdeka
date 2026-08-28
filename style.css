@@ -328,6 +328,9 @@
   .toggle-grid{
     display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:8px;
   }
+  /* Grid "Fitur yang Dipakai" (modal Buat/Edit Event) dipatok 3 kolom tetap,
+     beda dari .toggle-grid lain (mis. Akses Guest) yang tetap auto-fill responsif. */
+  #fitur-opsional-list.toggle-grid{grid-template-columns:repeat(3,1fr);}
   .toggle-chip{
     display:flex; align-items:center; gap:10px;
     padding:9px 12px; border:1px solid var(--garis); border-radius:9px;

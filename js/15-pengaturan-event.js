@@ -769,6 +769,10 @@ function openEventModal(id){
       }
     }}
   ]);
+  // Modal ini dibuat 20% lebih lebar dari default (720px -> 864px) karena
+  // grid "Fitur yang Dipakai" butuh ruang lebih. setModal() sudah mereset
+  // class ini ke default di awal, jadi aman ditambahkan di sini.
+  document.getElementById('modal-box')?.classList.add('modal-wide');
 }
 function setFiturModalPreset(preset){
   const src = preset === 'lengkap' ? FITUR_PRESET_LENGKAP : FITUR_PRESET_SEDERHANA;

@@ -5,6 +5,10 @@ function setModal(title, bodyHtml, buttons){
   document.getElementById('modal-title').textContent = title;
   document.getElementById('modal-body').innerHTML = bodyHtml;
   document.getElementById('modal-foot').innerHTML = '';
+  // Reset lebar modal ke default setiap kali dipanggil — supaya class
+  // "modal-wide" yang ditambahkan modal tertentu (mis. openEventModal)
+  // tidak nempel ke modal lain yang dibuka setelahnya.
+  document.getElementById('modal-box')?.classList.remove('modal-wide');
   const foot = document.getElementById('modal-foot');
   buttons.forEach(b=>{
     const btn = document.createElement('button');

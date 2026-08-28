@@ -63,7 +63,7 @@ function renderPanduan(){
         </div>
         <div class="role-info-card step-card"><span class="step-num">6</span>
           <div class="ric-title">Cetak LPJ</div>
-          <div class="ric-desc">Kalau acara udah selesai, tinggal buka menu Laporan (LPJ) — semua rekap otomatis kesusun rapi, tinggal cetak/print buat dilaporin ke warga.</div>
+          <div class="ric-desc">Kalau acara udah selesai, tinggal buka menu Laporan Keuangan — semua rekap otomatis kesusun rapi, tinggal cetak/print buat dilaporin ke warga.</div>
         </div>
       </div>
     </div>
@@ -111,7 +111,7 @@ function renderPanduan(){
         <div class="role-info-card"><div class="ric-title">🚩 Lomba & Perlengkapan</div><div class="ric-desc">Rencanakan lomba apa aja yang diadain, plus perlengkapan yang dibutuhkan tiap lomba.</div></div>
         <div class="role-info-card"><div class="ric-title">🎁 Kebutuhan Hadiah / Hadiah Jalan Santai</div><div class="ric-desc">Susun target hadiah per kategori peserta & juara, biar belanjanya terarah.</div></div>
         <div class="role-info-card"><div class="ric-title">🛍️ Belanja Perlengkapan / Hadiah / Jalan Santai</div><div class="ric-desc">Daftar belanja aktual — catat barang yang udah dibeli beserta harganya, dibandingkan sama target di atas.</div></div>
-        <div class="role-info-card"><div class="ric-title">📋 Laporan (LPJ)</div><div class="ric-desc">Cetak laporan pertanggungjawaban lengkap dari semua data event ini.</div></div>
+        <div class="role-info-card"><div class="ric-title">📋 Laporan Keuangan</div><div class="ric-desc">Cetak laporan pertanggungjawaban lengkap dari semua data event ini.</div></div>
         <div class="role-info-card"><div class="ric-title">📝 Daftar Anggota</div><div class="ric-desc">Rekap & cetak daftar nama anggota untuk kebutuhan event ini (mis. absensi).</div></div>
       </div>
     </div>

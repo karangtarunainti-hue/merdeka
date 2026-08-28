@@ -15,7 +15,7 @@ const SECTIONS = [
   {key:'belanja-perlengkapan', label:'Belanja Perlengkapan', sub:'Daftar belanja perlengkapan lomba', icon:'package', adminOnly: false},
   {key:'belanja-jalan', label:'Belanja Jalan Santai', sub:'Daftar belanja hadiah jalan santai', icon:'shopping-bag', adminOnly: false},
   {key:'belanja-hadiah', label:'Belanja Hadiah', sub:'Daftar belanja hadiah lomba', icon:'shopping', adminOnly: false},
-  {key:'lpj', label:'Laporan (LPJ)', sub:'Cetak laporan pertanggungjawaban', icon:'report', adminOnly: false},
+  {key:'lpj', label:'Laporan Keuangan', sub:'Cetak laporan pertanggungjawaban', icon:'report', adminOnly: false},
   {key:'daftar-anggota', label:'Daftar Anggota', sub:'Rekap & daftar nama anggota', icon:'clipboard', adminOnly: false},
   {key:'pengaturan', label:'Pengaturan', sub:'Tarif iuran & event', icon:'gear', adminOnly: true},
   {key:'database-anggota', label:'Database Anggota', sub:'Cek & filter semua anggota', icon:'database', adminOnly: false},

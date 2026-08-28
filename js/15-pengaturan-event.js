@@ -675,31 +675,35 @@ function importDataEvent(evt){
 /* ============================================================
    EVENT MODAL
    ============================================================ */
+// Ikon per fitur opsional di modal Buat/Edit Event — dicocokkan dengan ikon
+// menu terkait di SECTIONS (05-navigation.js) supaya konsisten dgn sidebar.
+const FITUR_ICON_MAP = {donatur:'heart', transaksi:'swap', operasional:'briefcase', lomba:'flag', hadiah:'gift', jalan_santai:'walk', jadwal:'calendar'};
 function openEventModal(id){
   if (!canEdit()) { toast('⛔ Login untuk mengelola event'); return; }
   const editing = id ? db.events.find(e=>e.id===id) : null;
   const fiturAwal = eventFitur(editing);
   const eventLain = db.events.slice().sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||''));
   setModal(editing?'Edit Event':'Buat Event', `
-    <div class="field"><label>Nama Event</label><input id="f-nama" placeholder="HUT RI 82" value="${editing?esc(editing.nama):''}"></div>
-    <div class="field"><label>Tahun</label><input id="f-tahun" type="number" value="${editing?esc(editing.tahun):new Date().getFullYear()}"></div>
+    <div class="field-row">
+      <div class="field"><label>Nama Event</label><input id="f-nama" placeholder="HUT RI 82" value="${editing?esc(editing.nama):''}"></div>
+      <div class="field"><label>Tahun</label><input id="f-tahun" type="number" value="${editing?esc(editing.tahun):new Date().getFullYear()}"></div>
+    </div>
 
-    <div class="field">
+    <div class="field field-card">
       <label>Warna Tema</label>
       <input type="hidden" id="f-tema" value="${eventTema(editing).key}">
-      <div id="tema-swatch-list" style="display:flex; flex-wrap:wrap; gap:10px; margin-top:2px;">
+      <div id="tema-swatch-list" class="tema-swatch-list">
         ${PRESET_TEMA.map(t=>{
           const active = eventTema(editing).key===t.key;
-          return `<div class="tema-swatch" data-key="${t.key}" ${da('selectTemaModal', t.key)} title="${esc(t.label)}"
-            style="width:32px; height:32px; border-radius:50%; background:${t.main}; cursor:pointer; display:flex; align-items:center; justify-content:center; border:3px solid ${active?'var(--ink)':'transparent'}; transition:border-color .15s ease;">
-            ${active?'<span style="color:#fff; font-size:13px; font-weight:700;">✓</span>':''}
+          return `<div class="tema-swatch${active?' active':''}" data-key="${t.key}" ${da('selectTemaModal', t.key)} title="${esc(t.label)}" style="background:${t.main};">
+            ${active?'<span class="tema-check">✓</span>':''}
           </div>`;
         }).join('')}
       </div>
     </div>
 
     ${!editing && eventLain.length ? `
-    <div class="field">
+    <div class="field field-card">
       <label>Salin Data Anggota (opsional)</label>
       <select id="f-salin-anggota">
         <option value="">— Jangan salin, mulai kosong —</option>
@@ -711,17 +715,22 @@ function openEventModal(id){
       <div class="hint">Nama, kategori, RT &amp; jenis kelamin akan disalin. Status iuran diset ulang jadi "Belum Lunas" karena ini event baru.</div>
     </div>` : ''}
 
-    <div class="field" style="margin-top:6px;">
-      <label>Fitur yang Dipakai</label>
-      <div class="field-hint" style="margin:-2px 0 8px; color:var(--ink-soft); font-size:12.5px;">Nonaktifkan modul yang tidak dipakai supaya menu lebih ringkas. Iuran, Buku Kegiatan & LPJ selalu aktif.</div>
-      <div style="display:flex; gap:8px; margin-bottom:10px;">
+    <div class="field field-card">
+      <div class="field-card-head">
+        <label>Fitur yang Dipakai</label>
+      </div>
+      <div class="hint field-card-desc">Nonaktifkan modul yang tidak dipakai supaya menu lebih ringkas. Iuran, Buku Kegiatan &amp; LPJ selalu aktif.</div>
+      <div class="fitur-preset-actions">
         <button type="button" class="btn secondary small" ${da('setFiturModalPreset', 'lengkap')}>Pilih Semua (Lengkap)</button>
         <button type="button" class="btn secondary small" ${da('setFiturModalPreset', 'sederhana')}>Hanya Iuran & LPJ</button>
       </div>
-      <div id="fitur-opsional-list" style="display:flex; flex-direction:column; gap:6px;">
+      <div id="fitur-opsional-list" class="toggle-grid">
         ${FITUR_OPSIONAL.map(f=>`
-          <label style="display:flex; align-items:center; gap:8px; font-size:13.5px; font-weight:400;">
-            <input type="checkbox" id="fitur-${f.key}" ${fiturAwal[f.key]?'checked':''}> ${esc(f.label)}
+          <label class="toggle-chip">
+            <input type="checkbox" id="fitur-${f.key}" ${fiturAwal[f.key]?'checked':''} hidden>
+            <span class="toggle-box"></span>
+            <span class="toggle-icon">${icon(FITUR_ICON_MAP[f.key])}</span>
+            <span class="toggle-text">${esc(f.label)}</span>
           </label>`).join('')}
       </div>
     </div>
@@ -774,8 +783,8 @@ function selectTemaModal(key){
   if(input) input.value = key;
   document.querySelectorAll('#tema-swatch-list .tema-swatch').forEach(el=>{
     const active = el.dataset.key === key;
-    el.style.borderColor = active ? 'var(--ink)' : 'transparent';
-    el.innerHTML = active ? '<span style="color:#fff; font-size:13px; font-weight:700;">✓</span>' : '';
+    el.classList.toggle('active', active);
+    el.innerHTML = active ? '<span class="tema-check">✓</span>' : '';
   });
 }
 

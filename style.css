@@ -333,6 +333,11 @@
     padding:9px 12px; border:1px solid var(--garis); border-radius:9px;
     background:var(--surface); cursor:pointer; transition:border-color .15s ease, background .15s ease;
   }
+  /* Override ".field label{display:block}" — .toggle-chip dipakai sebagai <label>
+     checkbox di dalam .field (mis. grid Fitur Event), dan selector ".field label"
+     lebih spesifik daripada ".toggle-chip" sendiri sehingga display:flex di atas
+     kalah dan icon+teks turun ke bawah (bukan sejajar dengan kotak centang). */
+  .field label.toggle-chip{display:flex; align-items:center;}
   .toggle-chip:hover{border-color:var(--abu);}
   .toggle-chip:has(input:checked){background:var(--gold-tint); border-color:var(--gold);}
   .toggle-box{

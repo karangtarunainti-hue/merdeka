@@ -17,7 +17,7 @@
 ## Workflow Development
 
 ```bash
-cd C:/Users/TOP/projects/merdeka/merdeka-main
+cd <path-project-lokal>/merdeka-main
 npm install        # sekali
 npm run build      # tiap perubahan kode
 ```
@@ -31,9 +31,9 @@ npm run build      # tiap perubahan kode
 
 ## Keamanan (Catatan penting)
 
-- **🔴 CRITIS:** Semua tabel data terbuka untuk `anon` — policy `anon_full_access` tanpa verifikasi sesi
-- Bot token Telegram disimpan di database — redaksi di backup/export
-- CSP belum lengkap — dipasang lewat file `_headers` root
+- RLS berbasis sesi (bukan lagi `anon_full_access` terbuka) sejak `sql/34-hardening-migration.sql` — login custom (bcrypt) + rate limit + `kt_sessions`. Detail lengkap di `DEPLOY-HARDENING.md` & `AUDIT-STANDAR-SAAS.md`.
+- Bot token Telegram sudah dipindah jadi secret Cloudflare Worker (`src/worker.js`), bukan lagi disimpan di database — lihat `EDGE_FUNCTIONS.md`/`DEPLOYMENT.md` Langkah 5.
+- CSP dipasang lewat file `_headers` root — domain Supabase di `connect-src` harus disesuaikan tiap ganti project (lihat `DEPLOYMENT.md` Langkah 3).
 
 ## Backup & Restore
 
@@ -57,4 +57,4 @@ npm run build      # tiap perubahan kode
 - Tahap: `npm run build` → verifikasi bundle → push ke GitHub
 
 ---
-*Buat: Agent Hermes — {{current_date}}*
+*Buat: Agent Hermes — 2026-08-28*

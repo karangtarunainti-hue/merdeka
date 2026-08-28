@@ -3,7 +3,7 @@
    Kumpulan dokumen siap cetak: Surat Undangan Kegiatan, Proposal
    Kegiatan, dan Form Absensi (berdasar Database Anggota). Draft
    teksnya disimpan di db.dokumenGlobal (kolom jsonb `dokumen` di
-   tabel kt_dokumen_global — lihat supabase-dokumen-global-migration.sql,
+   tabel kt_dokumen_global — lihat sql/25-dokumen-global-migration.sql,
    tidak perlu migrasi baru karena kolomnya jsonb bebas struktur).
    Pola cetaknya sama seperti LPJ: render di layar, lalu tombol
    "Cetak / Simpan sebagai PDF" yang memanggil window.print().

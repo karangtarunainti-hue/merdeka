@@ -376,7 +376,7 @@ function gudangImportJSON(input){
       // di server lewat satu RPC — kalau ada baris mana pun yang gagal (format
       // rusak dll), PostgreSQL otomatis rollback SEMUANYA. Tidak ada lagi
       // kemungkinan "setengah ke-import" seperti kalau dikirim satu-satu dari JS.
-      // Lihat supabase-gudang-import-atomic-migration.sql.
+      // Lihat sql/31-gudang-import-atomic-migration.sql.
       const r = await sb.rpc('kt_gudang_import_backup', {
         p_inventory: parsed.inventory, p_transactions: parsed.transactions,
       });

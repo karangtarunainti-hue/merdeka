@@ -108,7 +108,7 @@ function defaultDB(){
     // kt_lomba_kebutuhan sudah dihapus. Baris di sini TIDAK terikat foreign key
     // ke kt_lomba/kt_events manapun (semua datanya "beku"/snapshot, termasuk
     // nama event & tahun saat itu) — supaya tetap aman disimpan walau lomba
-    // atau bahkan event-nya sudah tidak ada lagi. Lihat supabase-lomba-arsip-migration.sql.
+    // atau bahkan event-nya sudah tidak ada lagi. Lihat sql/27-lomba-arsip-migration.sql.
     lombaArsip: [],
     hadiahKategori: [],
     lombaHadiah: [],
@@ -121,23 +121,23 @@ function defaultDB(){
     // `jadwal` yang per event_id). Untuk agenda umum organisasi yang
     // tetap mau muncul sebagai reminder di Buku Kegiatan walau belum
     // ada event 17-an yang aktif/dibuat. Disimpan di tabel kt_agenda
-    // (tanpa kolom event_id) — lihat supabase-agenda-migration.sql.
+    // (tanpa kolom event_id) — lihat sql/10-agenda-migration.sql.
     agenda: [],
     // Kas Karang Taruna — buku kas umum organisasi, TIDAK terikat event
     // (sama seperti Agenda/Gudang/Dokumen). Setiap baris punya debit/kredit,
     // saldo dihitung berjalan (running balance) saat render, tidak disimpan
-    // di DB. Disimpan di tabel kt_kas (lihat supabase-kas-migration.sql).
+    // di DB. Disimpan di tabel kt_kas (lihat sql/11-kas-migration.sql).
     kas: [],
     // Dana Sosial — iuran bulanan Rp 5.000/anggota, TIDAK terikat event
     // manapun (sama seperti Kas/Agenda). Daftar anggota MASTER terpisah
     // total dari kt_anggota (iuran per-event) — lihat js/22-dana-sosial.js
-    // dan supabase-dana-sosial-migration.sql.
+    // dan sql/18-dana-sosial-migration.sql.
     danaSosialAnggota: [],
     danaSosialBayar: [],
     // Tautan Penting — kumpulan link penting organisasi (grup WA, form,
     // rekening, dsb), TIDAK terikat event sama sekali (sama seperti
     // Agenda/Kas/Gudang). Disimpan di tabel kt_bookmark, lihat
-    // supabase-bookmark-migration.sql.
+    // sql/23-bookmark-migration.sql.
     bookmark: [],
     users: [...DEFAULT_USERS_FALLBACK],
     telegram: {
@@ -158,7 +158,7 @@ function defaultDB(){
     },
     // Draft Surat & Dokumen (Undangan, Proposal, Absensi) — TIDAK terikat
     // event, sama seperti Gudang. Disimpan satu set global di tabel
-    // kt_dokumen_global (lihat supabase-dokumen-global-migration.sql),
+    // kt_dokumen_global (lihat sql/25-dokumen-global-migration.sql),
     // bukan lagi per event_id di kt_settings.dokumen.
     dokumenGlobal: { undangan:{}, proposal:{}, absensi:{} },
     // Profil Organisasi (nama, logo, nama buku kas) — satu baris global, sama
@@ -341,7 +341,7 @@ async function loadDB(){
         result.telegram = {
           // botToken SENGAJA tidak lagi dibaca dari server. Token hidup
           // sebagai secret Cloudflare Worker (src/worker.js) dan tidak pernah
-          // dikirim ke browser -- lihat supabase-hardening-migration.sql
+          // dikirim ke browser -- lihat sql/34-hardening-migration.sql
           // Bagian 4. Field ini dipertahankan (selalu string kosong) supaya
           // kode lama yang membacanya tidak error.
           botToken: '',
@@ -495,7 +495,7 @@ const _lastKnownIds = {};
 // setelah kita terakhir kali load/sync tapi SEBELUM kita menyimpan sekarang, maka
 // upsert kita bisa menimpa perubahan mereka tanpa siapa pun sadar.
 // Untuk mendeteksi ini: setiap tabel punya kolom `updated_at` yang di-refresh OTOMATIS
-// oleh trigger Postgres (lihat supabase-conflict-detection-migration.sql) setiap kali
+// oleh trigger Postgres (lihat sql/13-conflict-detection-migration.sql) setiap kali
 // baris di-UPDATE. Kita simpan `updated_at` terakhir yang KITA TAHU untuk tiap ID
 // (_lastKnownUpdatedAt, diisi saat load). Sebelum upsert, kita select ulang
 // `id, updated_at` dari server: kalau untuk suatu ID nilai itu SUDAH BEDA dari yang
@@ -570,7 +570,7 @@ async function syncArrayTable(table, rows, key){
     }
     return true;
   // `updated_at` selalu dibuang sebelum dikirim: kolom ini server-managed (diisi
-  // trigger/default now(), lihat supabase-conflict-detection-migration.sql), TIDAK
+  // trigger/default now(), lihat sql/13-conflict-detection-migration.sql), TIDAK
   // PERNAH perlu dikirim dari JS. Kalau dibiarkan, baris yang di-load dari server
   // (punya updated_at) tercampur dengan baris baru yang belum punya field itu
   // (mis. event baru dari buatEvent) dalam satu batch upsert — PostgREST menolak

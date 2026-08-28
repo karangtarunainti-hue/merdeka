@@ -4,7 +4,7 @@
 // gemini-embedding-001). Sepupu dari ai-generate/index.ts (auth sesi,
 // rate limit, fallback multi-key — SAMA PERSIS polanya, lihat komentar
 // lengkap di sana), tapi keluarannya vector angka (buat disimpan di
-// kolom `embedding vector(768)`, lihat supabase-second-brain-migration.sql),
+// kolom `embedding vector(768)`, lihat sql/39-second-brain-migration.sql),
 // BUKAN teks jawaban.
 //
 // Dipanggil dari js/26-ai.js lewat AI.embed(text, {taskType}).
@@ -25,7 +25,7 @@ const EMBED_RATE_LIMIT_MAX = 30; // embedding jauh lebih murah/cepat dari genera
 const EMBED_RATE_LIMIT_WINDOW_MS = 60_000;
 const EMBED_MAX_TEXT_CHARS = 12_000; // ~2048 token batas model, dilonggarkan di sisi karakter supaya tidak perlu tokenizer di edge
 const EMBED_MODEL = 'gemini-embedding-001';
-const EMBED_OUTPUT_DIM = 768; // lihat catatan dimensi di supabase-second-brain-migration.sql
+const EMBED_OUTPUT_DIM = 768; // lihat catatan dimensi di sql/39-second-brain-migration.sql
 const RETRYABLE_STATUS = new Set([429, 500, 503]);
 const VALID_TASK_TYPES = new Set(['RETRIEVAL_DOCUMENT', 'RETRIEVAL_QUERY']);
 

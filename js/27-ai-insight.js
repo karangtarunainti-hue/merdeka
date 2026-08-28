@@ -144,7 +144,7 @@ function hitungAiInsightDataHash(b){
 //
 // Filter: catatan milik event aktif ATAU catatan lintas-event (event_id
 // null) — semantik sama seperti p_event_id di kt_second_brain_search
-// (lihat supabase-second-brain-migration.sql). Diurutkan terbaru dahulu &
+// (lihat sql/39-second-brain-migration.sql). Diurutkan terbaru dahulu &
 // dibatasi 8 catatan + 300 karakter/catatan supaya prompt tetap ringkas
 // dan tidak didominasi 1 catatan panjang.
 function dataCatatanKontekAiInsight(){
@@ -359,7 +359,7 @@ async function generateBukuKegiatanInsight(eventId, b, hash){
     db.aiInsight[eventId] = { ringkasan, dataHash: hash, generatedAt: new Date().toISOString() };
     // Tulis langsung ke kt_ai_insight (bukan lewat siklus saveDB() biasa —
     // lihat catatan di defaultDB()). last-write-wins sengaja dipilih di sini,
-    // lihat catatan di supabase-ai-insight-migration.sql.
+    // lihat catatan di sql/35-ai-insight-migration.sql.
     const { error } = await sb.from('kt_ai_insight').upsert({
       event_id: eventId,
       ringkasan,

@@ -25,7 +25,7 @@
       secondBrainExportJSON()/ImportJSON() sendiri (pola sama seperti
       gudangExportJSON()) — belum dibuat di versi ini.
    3. Akses tabelnya DIKUNCI untuk user login saja (lihat RLS di
-      supabase-second-brain-migration.sql) — beda dari kebanyakan
+      sql/39-second-brain-migration.sql) — beda dari kebanyakan
       tabel lain yang guest boleh baca — jadi wajar diperlakukan
       sebagai jalur terpisah, bukan ikut alur umum yang guest juga
       lewati.

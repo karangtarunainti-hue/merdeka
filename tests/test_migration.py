@@ -1,4 +1,4 @@
-"""Uji supabase-hardening-migration.sql di Postgres sungguhan.
+"""Uji sql/34-hardening-migration.sql di Postgres sungguhan.
 
 Menguji dua skenario:
   A. Database "lama" persis seperti milik user: kt_sessions SUDAH ADA tapi
@@ -11,7 +11,7 @@ dan penolakan RPC admin untuk non-admin.
 import pgserver, pathlib, sys, tempfile, shutil, re
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-SQL = (ROOT / "supabase-hardening-migration.sql").read_text(encoding="utf-8")
+SQL = (ROOT / "sql/34-hardening-migration.sql").read_text(encoding="utf-8")
 # pgserver tidak punya pgcrypto; fungsinya sudah disediakan lewat PGCRYPTO_SHIM.
 SQL_TEST = SQL.replace("create extension if not exists pgcrypto;", "-- (pgcrypto di-shim untuk tes)")
 

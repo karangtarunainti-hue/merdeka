@@ -4,7 +4,7 @@
    Pelengkap fitur "Backup Semua Data" (js/15-pengaturan-event.js)
    yang sudah ada. Bedanya: snapshot di sini TIDAK perlu diunduh/
    disimpan manual oleh admin — otomatis tersimpan sebagai baris
-   di tabel kt_snapshot (lihat supabase-snapshot-migration.sql),
+   di tabel kt_snapshot (lihat sql/28-snapshot-migration.sql),
    jadi tetap aman walau device yang dipakai berganti.
 
    Payload snapshot persis sama seperti isi file "Backup Semua

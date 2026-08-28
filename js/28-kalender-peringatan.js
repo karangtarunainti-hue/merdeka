@@ -183,7 +183,7 @@ function generatePeringatanReminderCard(){
    GLOBAL (tidak per event_id) karena kalender ini milik organisasi,
    bukan milik 1 kegiatan. Cache di db.aiInsightKalender (objek langsung,
    bukan map), disimpan ke tabel kt_kalender_insight baris id='global'
-   (lihat supabase-kalender-peringatan-migration.sql).
+   (lihat sql/38-kalender-peringatan-migration.sql).
    ============================================================ */
 const _KALENDER_INSIGHT_KEY = 'global';
 const _aiInsightKalenderGenerating = new Set();

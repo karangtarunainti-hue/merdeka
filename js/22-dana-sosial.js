@@ -5,7 +5,7 @@
 
    Daftar anggota di sini disimpan terpisah secara teknis dari kt_anggota
    (Iuran Anggota per-event) — lihat kt_dana_sosial_anggota di
-   supabase-dana-sosial-migration.sql — TAPI Database Anggota (kt_anggota)
+   sql/18-dana-sosial-migration.sql — TAPI Database Anggota (kt_anggota)
    tetap jadi SATU-SATUNYA master nama anggota. Anggota Dana Sosial baru
    HANYA bisa masuk lewat "Ambil dari Database Anggota" (import nama yang
    sudah ada di kt_anggota); tidak ada lagi jalur tambah-manual bebas ketik

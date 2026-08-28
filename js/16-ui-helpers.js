@@ -35,7 +35,7 @@ let toastTimer;
 
 /* ============================================================
    LOG ERROR TOAST — disimpan di SERVER (tabel kt_error_log,
-   lihat supabase-error-log-migration.sql), bukan cuma localStorage.
+   lihat sql/26-error-log-migration.sql), bukan cuma localStorage.
    ------------------------------------------------------------
    App ini belum punya konsep "toast merah" terpisah dari toast biasa —
    semua toast() dulu tampil dgn warna sama, cuma dibedakan lewat emoji

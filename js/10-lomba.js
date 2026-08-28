@@ -192,7 +192,7 @@ function renderHadiahLombaBlock(lomba){
 // Koordinator lomba diambil dari Database Anggota (bukan input bebas), supaya
 // datanya konsisten dan bisa dilacak. Satu lomba bisa punya lebih dari satu
 // koordinator, disimpan sebagai array id di koordinator_anggota_ids (lihat
-// supabase-lomba-koordinator-multi-migration.sql). Kolom lama
+// sql/17-lomba-koordinator-multi-migration.sql). Kolom lama
 // koordinator_anggota_id (tunggal) tetap diisi = koordinator pertama, untuk
 // kompatibilitas mundur.
 function getKoordinatorIds(lomba){

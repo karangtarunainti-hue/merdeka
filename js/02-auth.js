@@ -3,7 +3,7 @@
    ============================================================ */
 const AUTH_STORAGE_KEY = 'kt_auth_user';
 
-// Fallback LOKAL kalau RPC gagal dihubungi (mis. belum jalankan supabase-rls-setup.sql).
+// Fallback LOKAL kalau RPC gagal dihubungi (mis. belum jalankan sql/01-rls-setup.sql).
 // Tidak ada field password di sini sama sekali — login SELALU diverifikasi di server
 // lewat rpc_login, browser tidak pernah menerima/menyimpan hash password.
 const DEFAULT_USERS_FALLBACK = [
@@ -100,7 +100,7 @@ function canManageSettings() {
 // Login diverifikasi 100% di server lewat RPC rpc_login. Password mentah dikirim
 // lewat HTTPS (sama seperti panggilan Supabase lain), di-hash & dibandingkan di
 // Postgres — hash TIDAK PERNAH dikembalikan ke browser, dan kt_users tidak bisa
-// dibaca langsung oleh anon key (lihat supabase-rls-setup.sql Bagian 2).
+// dibaca langsung oleh anon key (lihat sql/01-rls-setup.sql Bagian 2).
 async function login(username, password) {
   const { data, error } = await sb.rpc('rpc_login', { p_username: username, p_password: password });
   if (error) { console.error('Login error:', error); return null; }

@@ -25,14 +25,15 @@ Pilih salah satu:
 
 ---
 
-## Langkah 2 — Jalankan migrasi SQL 01–40 berurutan
+## Langkah 2 — Jalankan migrasi SQL 01–41 berurutan
 
-Supabase Dashboard (project baru) → **SQL Editor** → New query → jalankan isi tiap file di `sql/` **satu per satu dari `01-rls-setup.sql` sampai `40-gudang-restore-snapshot-migration.sql`**, sesuai urutan nomor filenya.
+Supabase Dashboard (project baru) → **SQL Editor** → New query → jalankan isi tiap file di `sql/` **satu per satu dari `01-rls-setup.sql` sampai `41-ai-insight-hardening-migration.sql`**, sesuai urutan nomor filenya.
 
 Catatan:
 - Hampir semua file idempotent (`if not exists`/`if exists`), tapi urutan tetap penting karena ada dependensi antar file (dijelaskan lengkap di `sql/README.md`).
 - File `02-add_last_seen_to_users.sql` boleh dilewati kalau `01` yang dijalankan sudah versi terbaru (sudah include `last_seen_at`) — aman dijalankan juga karena idempotent.
-- File `34-hardening-migration.sql` adalah overhaul keamanan besar (session RLS, bcrypt, rate limit login) — **wajib** dijalankan setelah tabel 18, 23, 24, 25, 27, 28, 29 ada (semua sudah terpenuhi kalau ikut urutan 01→40).
+- File `34-hardening-migration.sql` adalah overhaul keamanan besar (session RLS, bcrypt, rate limit login) — **wajib** dijalankan setelah tabel 18, 23, 24, 25, 27, 28, 29 ada (semua sudah terpenuhi kalau ikut urutan 01→41).
+- File `41-ai-insight-hardening-migration.sql` menutup celah serupa file 34, tapi untuk tabel cache AI insight (`kt_ai_insight`, `kt_ai_insight_lomba`, `kt_ai_insight_belanja_hadiah`, `kt_kalender_insight`) yang dibuat setelah file 34 sehingga tidak ikut ter-hardening di sana — **wajib** dijalankan setelah file 34 dan setelah tabel-tabel tsb (35–38) ada.
 - Setelah `34`, verifikasi tidak ada lagi policy tulis yang terbuka:
   ```sql
   select tablename, policyname, cmd
@@ -142,7 +143,7 @@ SUPABASE_ANON_KEY=eyJhbGciOi...
 ## Ringkasan urutan (checklist singkat)
 
 1. ☐ Skema tabel dasar ada di project Supabase baru (export dari lama, atau jalankan `sql/00-skema-dasar.sql`)
-2. ☐ Jalankan `sql/01` → `sql/40` berurutan (abaikan `add_last_seen_to_users.sql` & `fix_server_side_updated_at.sql`, keduanya bukan bagian urutan)
+2. ☐ Jalankan `sql/01` → `sql/41` berurutan (abaikan `add_last_seen_to_users.sql` & `fix_server_side_updated_at.sql`, keduanya bukan bagian urutan)
 3. ☐ Update `js/00-config.js` (URL + anon key baru)
 4. ☐ Update `connect-src` di `_headers` (domain Supabase baru)
 5. ☐ Deploy `ai-generate` + `ai-embed`, set `GEMINI_API_KEY`

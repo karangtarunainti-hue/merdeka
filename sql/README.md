@@ -2,8 +2,9 @@
 
 Semua migrasi SQL project ini sekarang ada di satu folder ini (`sql/`), diberi
 prefix angka 2 digit sesuai **urutan deploy yang aman** — kalau kamu setup
-project Supabase baru dari nol, jalankan file-file ini **berurutan dari 01
-sampai 39** di Supabase Dashboard → SQL Editor.
+project Supabase baru dari nol, jalankan file-file ini **berurutan dari 00
+sampai 40** di Supabase Dashboard → SQL Editor (mulai dari `00-skema-dasar.sql`
+kalau project Supabase-mu benar-benar kosong — lihat catatan di bawah).
 
 Hampir semua file idempotent (aman dijalankan berkali-kali, pakai
 `if not exists` / `if exists`), tapi urutannya tetap penting karena beberapa
@@ -59,6 +60,7 @@ satu). Urutan di bawah disusun dengan menelusuri dependensi tsb satu per satu.
 | 37 | `37-ai-insight-belanja-hadiah-migration.sql` | Struktur sama seperti file 35 (disebut eksplisit di komentarnya). |
 | 38 | `38-kalender-peringatan-migration.sql` | Komentarnya membandingkan diri secara eksplisit dengan file 35/36/37 sebagai pola yang sudah ada — jadi setelah ketiganya. |
 | 39 | `39-second-brain-migration.sql` | Fitur paling baru (pgvector, RAG Asisten AI) — modul JS-nya (`29-asisten-ai.js`, `30-second-brain.js`) juga bernomor paling akhir di `MODULE_ORDER` (lihat README utama). |
+| 40 | `40-gudang-restore-snapshot-migration.sql` | **RPC `kt_gudang_restore_snapshot`** — dipanggil `restoreGudangFromPayload()` (`js/15b-snapshot.js`) baik untuk "Pulihkan Snapshot" maupun Impor "Timpa Semua". File ini sebelumnya hilang dari repo meski sudah didokumentasikan di CLAUDE.md/README utama dan sudah dipanggil kode JS — tanpa file ini, restore data Gudang selalu gagal diam-diam (toast error, data lain tetap terpulihkan). Wajib setelah `kt_gudang_*` (29) ada. |
 
 ## Catatan: file `fix_server_side_updated_at.sql` sudah dihapus
 
@@ -73,7 +75,8 @@ konsisten memakai prefix `kt_`.
 
 ## Kalau kamu sudah pernah menjalankan sebagian file secara manual sebelumnya
 
-Semua file ini (kecuali catatan file 40 di atas) ditulis idempotent
+Semua file ini (kecuali catatan `fix_server_side_updated_at.sql` di atas, yang
+memang sudah dihapus dan tidak perlu dijalankan) ditulis idempotent
 (`if not exists` / `if exists` / `create or replace`), jadi aman dijalankan
-ulang dari 01 meski sebagian sudah pernah kamu jalankan lewat nama file
+ulang dari 00 meski sebagian sudah pernah kamu jalankan lewat nama file
 lamanya. Tidak akan menimpa data yang sudah ada.

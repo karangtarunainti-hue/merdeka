@@ -42,9 +42,17 @@ create extension if not exists pgcrypto;
 
 -- ============================================================
 -- kt_events — daftar event/tahun kegiatan
+-- id: TEXT, BUKAN uuid. ID selalu dibuat di sisi klien lewat uid() (js/03-db-core.js,
+-- pakai crypto.randomUUID() dengan fallback string non-UUID kalau API itu tidak
+-- tersedia), tidak pernah mengandalkan default DB. Migrasi belakangan (sql/35, 36,
+-- 37, 39) semuanya mendeklarasikan event_id sebagai `text` secara eksplisit dan
+-- REFERENCES kt_events(id) — kalau kolom ini uuid, migrasi tsb gagal saat membuat
+-- foreign key ("incompatible types: text and uuid"). Karena itu SEMUA kolom
+-- event_id di skema dasar ini juga dibuat `text`, bukan `uuid`, supaya tipenya
+-- konsisten di seluruh skema.
 -- ============================================================
 create table if not exists kt_events (
-  id uuid primary key default gen_random_uuid(),
+  id text primary key,
   nama text not null,
   tahun text,
   created_at timestamptz default now()
@@ -69,7 +77,7 @@ create table if not exists kt_users (
 -- yang menanganinya (beda dari tabel-tabel di sql/13 yang sudah diurus).
 -- ============================================================
 create table if not exists kt_settings (
-  event_id uuid primary key references kt_events(id) on delete cascade,
+  event_id text primary key references kt_events(id) on delete cascade,
   tarif jsonb not null default '{"sekolah":0,"bekerja":0,"perantauan":0,"khusus":0}'::jsonb,
   kategori_toko jsonb not null default '{"customCategories":[],"keywords":{}}'::jsonb,
   kupon_jalan_santai jsonb not null default '{"harga":0,"stok":0}'::jsonb,
@@ -117,7 +125,7 @@ insert into kt_telegram_settings (id) values ('main') on conflict (id) do nothin
 -- ============================================================
 create table if not exists kt_anggota (
   id uuid primary key default gen_random_uuid(),
-  event_id uuid references kt_events(id) on delete cascade,
+  event_id text references kt_events(id) on delete cascade,
   nama text not null,
   kategori text,           -- 'sekolah' | 'bekerja' | 'perantauan' | 'khusus'
   rt text,
@@ -133,7 +141,7 @@ create table if not exists kt_anggota (
 -- ============================================================
 create table if not exists kt_donatur (
   id uuid primary key default gen_random_uuid(),
-  event_id uuid references kt_events(id) on delete cascade,
+  event_id text references kt_events(id) on delete cascade,
   nama_donatur text,
   jumlah numeric default 0,
   tanggal date
@@ -145,7 +153,7 @@ create table if not exists kt_donatur (
 -- ============================================================
 create table if not exists kt_transaksi_lain (
   id uuid primary key default gen_random_uuid(),
-  event_id uuid references kt_events(id) on delete cascade,
+  event_id text references kt_events(id) on delete cascade,
   jumlah numeric default 0,
   tanggal date,
   keterangan text
@@ -157,7 +165,7 @@ create table if not exists kt_transaksi_lain (
 -- ============================================================
 create table if not exists kt_operasional (
   id uuid primary key default gen_random_uuid(),
-  event_id uuid references kt_events(id) on delete cascade,
+  event_id text references kt_events(id) on delete cascade,
   keterangan text,
   jumlah numeric default 0,
   tanggal date
@@ -169,7 +177,7 @@ create table if not exists kt_operasional (
 -- ============================================================
 create table if not exists kt_jadwal (
   id uuid primary key default gen_random_uuid(),
-  event_id uuid references kt_events(id) on delete cascade,
+  event_id text references kt_events(id) on delete cascade,
   judul text not null,
   tanggal date,
   kategori text,
@@ -181,17 +189,25 @@ create table if not exists kt_jadwal (
 -- kt_lomba — data lomba 17-an
 -- jadwal_id ditambahkan oleh sql/15, jam oleh sql/16,
 -- koordinator_anggota_ids (multi) oleh sql/17
+-- agenda_id: kolom LAMA (pra-migrasi bernomor), dipakai sql/15 sebagai sumber
+-- data saat memindahkan reminder lomba dari kt_agenda ke kt_jadwal. Tidak ada
+-- migrasi manapun yang men-ALTER-nya (menandakan sudah ada di skema dasar),
+-- dan sql/15 sendiri secara eksplisit bilang kolom ini sudah tidak dipakai
+-- kode aktif setelahnya — jadi cukup dibuat sebagai kolom uuid polos (tanpa FK,
+-- karena kt_agenda baru dibuat belakangan di sql/10) supaya sql/15 tidak
+-- gagal karena kolom tidak ada di instalasi baru.
 -- ============================================================
 create table if not exists kt_lomba (
   id uuid primary key default gen_random_uuid(),
-  event_id uuid references kt_events(id) on delete cascade,
+  event_id text references kt_events(id) on delete cascade,
   nama text not null,
   kategori_peserta text,
   tanggal date,
   jumlah_anggota_regu integer default 1,
   hadiah_per_regu boolean default false,
   estimasi_peserta integer default 0,
-  koordinator_anggota_id uuid references kt_anggota(id)
+  koordinator_anggota_id uuid references kt_anggota(id),
+  agenda_id uuid
 );
 
 -- ============================================================
@@ -211,7 +227,7 @@ create table if not exists kt_lomba_kebutuhan (
 -- ============================================================
 create table if not exists kt_daftar_belanja_perlengkapan (
   id uuid primary key default gen_random_uuid(),
-  event_id uuid references kt_events(id) on delete cascade,
+  event_id text references kt_events(id) on delete cascade,
   kebutuhan_id uuid references kt_lomba_kebutuhan(id) on delete cascade,
   status text default 'belum_dibeli',
   tanggal_beli date,
@@ -226,7 +242,7 @@ create table if not exists kt_daftar_belanja_perlengkapan (
 -- ============================================================
 create table if not exists kt_hadiah_kategori (
   id uuid primary key default gen_random_uuid(),
-  event_id uuid references kt_events(id) on delete cascade,
+  event_id text references kt_events(id) on delete cascade,
   kategori_peserta text,
   juara_ke text,
   items jsonb not null default '[]'::jsonb
@@ -250,7 +266,7 @@ create table if not exists kt_lomba_hadiah (
 -- ============================================================
 create table if not exists kt_daftar_belanja_hadiah (
   id uuid primary key default gen_random_uuid(),
-  event_id uuid references kt_events(id) on delete cascade,
+  event_id text references kt_events(id) on delete cascade,
   hadiah_kategori_id uuid references kt_hadiah_kategori(id) on delete cascade,
   item_index integer,
   status text default 'belum_dibeli',
@@ -262,7 +278,7 @@ create table if not exists kt_daftar_belanja_hadiah (
 -- ============================================================
 create table if not exists kt_hadiah_jalan_santai (
   id uuid primary key default gen_random_uuid(),
-  event_id uuid references kt_events(id) on delete cascade,
+  event_id text references kt_events(id) on delete cascade,
   nama_hadiah text not null,
   qty numeric default 1,
   harga_satuan numeric default 0
@@ -273,7 +289,7 @@ create table if not exists kt_hadiah_jalan_santai (
 -- ============================================================
 create table if not exists kt_daftar_belanja_jalan_santai (
   id uuid primary key default gen_random_uuid(),
-  event_id uuid references kt_events(id) on delete cascade,
+  event_id text references kt_events(id) on delete cascade,
   hadiah_jalan_id uuid references kt_hadiah_jalan_santai(id) on delete cascade,
   status text default 'belum_dibeli',
   tanggal_beli date,
@@ -289,7 +305,7 @@ create table if not exists kt_daftar_belanja_jalan_santai (
 -- ============================================================
 create table if not exists kt_panitia_sinoman (
   id uuid primary key default gen_random_uuid(),
-  event_id uuid references kt_events(id) on delete cascade,
+  event_id text references kt_events(id) on delete cascade,
   nama text,
   data jsonb default '{}'::jsonb,
   created_at timestamptz default now()

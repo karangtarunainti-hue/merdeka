@@ -26,6 +26,55 @@
    dapat HTML panel-nya (loading/narasi/error), taruh SEBELUM stat-grid-ringkasan.
    ============================================================ */
 
+/* ------------------------------------------------------------
+   DEBOUNCE GENERATE — dipakai bareng oleh ketiga insight (Dashboard/
+   Lomba/Belanja Hadiah) di file ini.
+
+   Tanpa ini, tiap perubahan data (mis. user input banyak transaksi/
+   centang belanja berturut-turut) langsung mengubah data_hash →
+   ensureXInsight() jalan lagi tiap renderContent() → generate AI baru
+   dipicu tiap kali, padahal user masih di tengah-tengah mengetik/
+   input berturut-turut. Dengan debounce, generate BARU dijadwalkan
+   setelah data "diam" (tidak berubah lagi) selama AI_INSIGHT_DEBOUNCE_MS
+   — kalau ada perubahan baru sebelum jadwal itu jalan, timer di-reset
+   ulang, jadi AI cuma dipanggil sekali setelah user selesai beres-beres
+   input, bukan di setiap langkah kecil.
+
+   `key` = penanda unik per (event_id, jenis insight) — mis.
+   `dashboard:<eventId>`, `lomba:<eventId>` — supaya debounce 1 jenis
+   insight tidak ikut me-reset/membatalkan jadwal insight jenis lain.
+   ------------------------------------------------------------ */
+const AI_INSIGHT_DEBOUNCE_MS = 60000; // 1 menit tanpa perubahan data baru sebelum AI dipanggil
+
+const _aiInsightDebounceTimers = new Map(); // key -> setTimeout id
+const _aiInsightDebounceHash = new Map();   // key -> data_hash yang sedang ditunggu
+
+function scheduleInsightGenerate(key, hash, fireFn){
+  // Timer untuk hash yang SAMA sudah berjalan → biarkan saja, jangan di-reset
+  // (kalau di-reset tiap ensure() dipanggil ulang untuk hash yang sama —
+  // mis. renderContent() biasa tanpa perubahan data — debounce bisa "molor
+  // selamanya" dan generate tidak pernah jalan).
+  if(_aiInsightDebounceHash.get(key) === hash && _aiInsightDebounceTimers.has(key)) return;
+
+  clearTimeout(_aiInsightDebounceTimers.get(key));
+  _aiInsightDebounceHash.set(key, hash);
+  _aiInsightDebounceTimers.set(key, setTimeout(() => {
+    _aiInsightDebounceTimers.delete(key);
+    _aiInsightDebounceHash.delete(key);
+    fireFn();
+  }, AI_INSIGHT_DEBOUNCE_MS));
+}
+
+// Batalkan jadwal debounce yang sedang jalan untuk key tertentu — dipakai
+// waktu user klik tombol "Coba lagi" (retryXInsight), supaya generate-nya
+// langsung jalan sekarang, bukan ikut nunggu jadwal debounce lama yang
+// mungkin masih tersisa dari percobaan sebelumnya.
+function cancelInsightDebounce(key){
+  clearTimeout(_aiInsightDebounceTimers.get(key));
+  _aiInsightDebounceTimers.delete(key);
+  _aiInsightDebounceHash.delete(key);
+}
+
 // Event_id yang sedang dalam proses generate — cegah AI.tanya() dobel kalau
 // renderDashboard() ke-trigger berkali-kali sebelum generate pertama selesai
 // (mis. user pindah tab lalu balik lagi, atau refreshFromServer() jalan).
@@ -262,6 +311,32 @@ function ensureBukuKegiatanInsight(b){
   // renderBukuKegiatanInsightPanel() yang urus tampilkan pesan netralnya.
   if(!getCurrentUser()) return;
 
+  // Debounce dulu (lihat catatan di kepala file) — jangan langsung generate
+  // begitu ada perubahan, tunggu data diam sejenak dulu.
+  scheduleInsightGenerate(`dashboard:${eventId}`, hash, () => {
+    // Data mungkin sudah berubah LAGI selagi menunggu debounce (mis. user
+    // lanjut input transaksi lain) — hitung ulang dari kondisi TERBARU
+    // (bukan pakai `b` snapshot lama) supaya insight yang jadi digenerate
+    // benar-benar mencerminkan data paling akhir, bukan data basi pas awal
+    // dijadwalkan.
+    ensureBukuKegiatanInsightSekarang(eventId, hitungBukuUtama());
+  });
+}
+
+// Dipanggil setelah jadwal debounce selesai (data sudah diam
+// AI_INSIGHT_DEBOUNCE_MS) — cek ulang syaratnya dulu (siapa tahu di antara
+// waktu dijadwalkan & sekarang data sempat balik sama seperti cache, atau
+// keburu ada generate lain jalan, atau user logout/pindah event) baru
+// betul-betul panggil AI.
+function ensureBukuKegiatanInsightSekarang(eventId, b){
+  const hash = hitungAiInsightDataHash(b);
+  const cache = getAiInsightCache();
+  const sudahUpToDate = cache && cache.dataHash === hash;
+  const sedangProses = _aiInsightGenerating.has(eventId);
+
+  if(sudahUpToDate || sedangProses) return;
+  if(!getCurrentUser() || db.activeEventId !== eventId) return;
+
   generateBukuKegiatanInsight(eventId, b, hash);
 }
 
@@ -373,6 +448,9 @@ function buatPromptInsightBukuKegiatan(b){
 function retryBukuKegiatanInsight(){
   const eventId = db.activeEventId;
   if(!eventId) return;
+  // User klik "Coba lagi" secara eksplisit — batalkan jadwal debounce yang
+  // mungkin masih tersisa, generate SEKARANG juga tanpa nunggu.
+  cancelInsightDebounce(`dashboard:${eventId}`);
   const b = hitungBukuUtama();
   const hash = hitungAiInsightDataHash(b);
   generateBukuKegiatanInsight(eventId, b, hash);
@@ -518,6 +596,19 @@ function ensureLombaInsight(){
   if(sudahUpToDate || sedangProses || baruSajaGagal) return;
   if(!getCurrentUser()) return;
 
+  scheduleInsightGenerate(`lomba:${eventId}`, hash, () => ensureLombaInsightSekarang(eventId));
+}
+
+// Sama pola & alasannya seperti ensureBukuKegiatanInsightSekarang() di atas.
+function ensureLombaInsightSekarang(eventId){
+  const hash = hitungAiInsightLombaHash();
+  const cache = getAiInsightLombaCache();
+  const sudahUpToDate = cache && cache.dataHash === hash;
+  const sedangProses = _aiInsightLombaGenerating.has(eventId);
+
+  if(sudahUpToDate || sedangProses) return;
+  if(!getCurrentUser() || db.activeEventId !== eventId) return;
+
   generateLombaInsight(eventId, hash);
 }
 
@@ -590,6 +681,7 @@ function buatPromptInsightLomba(){
 function retryLombaInsight(){
   const eventId = db.activeEventId;
   if(!eventId) return;
+  cancelInsightDebounce(`lomba:${eventId}`);
   const hash = hitungAiInsightLombaHash();
   generateLombaInsight(eventId, hash);
 }
@@ -703,6 +795,19 @@ function ensureBelanjaHadiahInsight(){
   if(sudahUpToDate || sedangProses || baruSajaGagal) return;
   if(!getCurrentUser()) return;
 
+  scheduleInsightGenerate(`belanja-hadiah:${eventId}`, hash, () => ensureBelanjaHadiahInsightSekarang(eventId));
+}
+
+// Sama pola & alasannya seperti ensureBukuKegiatanInsightSekarang() di atas.
+function ensureBelanjaHadiahInsightSekarang(eventId){
+  const hash = hitungAiInsightBelanjaHadiahHash();
+  const cache = getAiInsightBelanjaHadiahCache();
+  const sudahUpToDate = cache && cache.dataHash === hash;
+  const sedangProses = _aiInsightBelanjaHadiahGenerating.has(eventId);
+
+  if(sudahUpToDate || sedangProses) return;
+  if(!getCurrentUser() || db.activeEventId !== eventId) return;
+
   generateBelanjaHadiahInsight(eventId, hash);
 }
 
@@ -761,6 +866,7 @@ function buatPromptInsightBelanjaHadiah(){
 function retryBelanjaHadiahInsight(){
   const eventId = db.activeEventId;
   if(!eventId) return;
+  cancelInsightDebounce(`belanja-hadiah:${eventId}`);
   const hash = hitungAiInsightBelanjaHadiahHash();
   generateBelanjaHadiahInsight(eventId, hash);
 }

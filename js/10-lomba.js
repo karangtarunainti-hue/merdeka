@@ -837,19 +837,18 @@ function renderHadiah(){
 
   // Total budget SEHARUSNYA untuk seluruh event = budget per paket × jumlah paket yang
   // dibutuhkan di kategori itu (mengikuti jumlah lomba, sama seperti kebutuhan stok).
-  // Untuk juara "partisipasi" yang BELUM diisi estimasi peserta (keb=null, tidak ada target
-  // otomatis), budget dihitung apa adanya (×1) supaya tidak dibandingkan dengan kesalahan
-  // skala. Begitu estimasi peserta diisi, keb terisi angka riil dan budget partisipasi ikut
-  // dikalikan jumlah peserta seperti kategori juara lain — jauh lebih akurat daripada ×1.
+  // Kategori+juara yang belum punya lomba sama sekali (keb=0) ATAU juara "partisipasi"
+  // yang estimasi pesertanya belum diisi (keb=null) DIKECUALIKAN dari Total Budget —
+  // budget yang sudah diatur ("Atur Budget") tapi belum ada data lomba/estimasi
+  // dianggap belum relevan, bukan dihitung ×1 seolah-olah sudah butuh 1 paket.
+  // Begitu lomba/estimasi diisi, keb terisi angka riil dan kategori itu otomatis
+  // ikut dihitung sesuai jumlah paket sebenarnya.
   const totalBudget = KATEGORI_PESERTA.reduce((s,kp)=>s+JUARA_LIST.reduce((s2,j)=>{
     const budgetPerPaket = getHadiahBudget(kp.v, j.v);
     if(budgetPerPaket<=0) return s2;
     const keb = hitungKebutuhanHadiah(kp.v, j.v);
-    // keb bisa null (belum ada target otomatis) ATAU 0 (belum ada lomba/estimasi diisi
-    // untuk kategori ini). Keduanya sama-sama "belum diketahui jumlah paket yang
-    // dibutuhkan", jadi budget tetap dihitung penuh (×1) — bukan ditiadakan (×0) —
-    // supaya Total Budget tetap masuk akal sebelum data lomba diinput.
-    return s2 + budgetPerPaket * (keb || 1);
+    if(!keb) return s2; // belum ada lomba (0) atau belum ada estimasi partisipasi (null) → skip
+    return s2 + budgetPerPaket * keb;
   },0),0);
 
   // Card anggaran per kategori peserta — bandingkan harga PAKET (bukan akumulasi total

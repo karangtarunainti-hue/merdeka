@@ -792,6 +792,22 @@ function saveDB(){
   _saveDBTimer = setTimeout(_flushSaveDB, 400);
 }
 
+// Membungkus SATU panggilan sync singleton-settings (Telegram/Guest Menu/Dokumen
+// Global/Profil Organisasi/WhatsApp) supaya kegagalannya tidak ikut menggagalkan
+// Promise.all di _flushSaveDB(). Sebelumnya semua sync ini (plus semua tabel array)
+// digabung dalam satu Promise.all — begitu SATU throw (mis. kt_guest_menu_settings
+// ditolak RLS karena sesi admin sudah tidak valid di server, walau cache lokal masih
+// mengira admin), Promise.all langsung reject dan bookkeeping hasil sync LAIN yang
+// justru sukses (termasuk data yang benar-benar ingin disimpan user) ikut tidak
+// diproses. Sekarang kegagalan tiap sync ini ditangkap sendiri-sendiri dan dilaporkan
+// sebagai item {syncFailed:true} di array hasil, biar sync lain tetap jalan normal.
+function _isolateSync(promise, label){
+  return promise.catch(e => {
+    console.error(`Gagal menyimpan ${label}:`, e);
+    return [{ syncFailed: true, label, message: e.message || 'Gagal menyimpan' }];
+  });
+}
+
 async function _flushSaveDB(){
   if(_saveDBRunning){ _saveDBQueued = true; return; }
   _saveDBRunning = true;
@@ -844,12 +860,12 @@ async function _flushSaveDB(){
     const level1Results = await Promise.all([
       ...level1Entries.map(([key, table]) => syncArrayTable(table, db[key], key)),
       ...uncategorizedEntries.map(([key, table]) => syncArrayTable(table, db[key], key)),
-      syncSettings(),
-      syncTelegram(),
-      syncGuestMenu(),
-      syncDokumenGlobal(),
-      syncOrgProfile(),
-      syncWhatsappSettings(),
+      _isolateSync(syncSettings(), 'Pengaturan Tarif'),
+      _isolateSync(syncTelegram(), 'Pengaturan Telegram'),
+      _isolateSync(syncGuestMenu(), 'Akses Guest'),
+      _isolateSync(syncDokumenGlobal(), 'Surat & Dokumen'),
+      _isolateSync(syncOrgProfile(), 'Profil Organisasi'),
+      _isolateSync(syncWhatsappSettings(), 'Pengaturan WhatsApp'),
     ]);
     const level2Results = await Promise.all(level2Entries.map(([key, table]) => syncArrayTable(table, db[key], key)));
     const level3Results = await Promise.all(level3Entries.map(([key, table]) => syncArrayTable(table, db[key], key)));
@@ -866,9 +882,24 @@ async function _flushSaveDB(){
       ...level3Results,
     ];
     const allResults = [eventsConflicts, ...arrayConflictResults].flat().filter(Boolean);
-    const ghosts = allResults.filter(c => c.ghost);
-    const duplicates = allResults.filter(c => !c.ghost && c.duplicate);
-    const conflicts = allResults.filter(c => !c.ghost && !c.duplicate);
+    const syncFailures = allResults.filter(c => c.syncFailed);
+    const ghosts = allResults.filter(c => !c.syncFailed && c.ghost);
+    const duplicates = allResults.filter(c => !c.syncFailed && !c.ghost && c.duplicate);
+    const conflicts = allResults.filter(c => !c.syncFailed && !c.ghost && !c.duplicate);
+    if(syncFailures.length){
+      // Kalau pesannya mengandung tanda-tanda RLS/permission ditolak, kemungkinan besar
+      // sesi login sudah tidak valid lagi di server (walau cache lokal masih mengira
+      // admin) — "coba simpan ulang" menyesatkan di sini karena submit ulang saja TIDAK
+      // akan memperbaikinya; user perlu logout lalu login ulang dulu.
+      const isSessionIssue = syncFailures.some(f => /row-level security|permission denied|jwt|unauthorized/i.test(f.message || ''));
+      const contoh = syncFailures.slice(0, 2).map(f => `"${f.label}"`).join(', ');
+      const sisa = syncFailures.length > 2 ? ', ...' : '';
+      if(isSessionIssue){
+        toast(`⛔ ${contoh}${sisa} gagal disimpan — sesi login Anda sepertinya sudah tidak berlaku lagi di server. Logout, login ulang, baru coba simpan lagi (submit ulang tanpa login ulang tidak akan membantu).`, 9000);
+      }else{
+        toast(`⚠️ Gagal menyimpan ${contoh}${sisa}: ${syncFailures[0].message} — coba simpan ulang`, 7000);
+      }
+    }
     if(conflicts.length){
       const contoh = conflicts.slice(0, 2).map(c => `"${c.label}"`).join(', ');
       toast(`⚠️ ${conflicts.length} perubahan (${contoh}${conflicts.length>2?', ...':''}) TIDAK disimpan karena sudah diubah pengguna lain. Muat ulang halaman untuk lihat versi terbaru.`, 7000);

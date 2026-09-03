@@ -145,7 +145,7 @@ function renderDatabaseLomba(){
 // satu-satunya versi di grup ini, groupKey ikut dibersihkan dari state
 // (biar tidak ada kartu kosong nyangkut di UI).
 async function hapusArsipLomba(groupKey, arsipId){
-  if (!canEditSection('lomba')) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('lomba')) { toast(editDeniedMsg()); return; }
   const a = (db.lombaArsip||[]).find(x=>x.id===arsipId);
   if(!a){ toast('Data arsip tidak ditemukan'); return; }
   if(!(await confirmModal(`Hapus permanen riwayat "${a.nama}" (${a.event_nama||'Event terhapus'}${a.event_tahun?' · '+a.event_tahun:''})?\n\nBeda dari hapus lomba biasa: ini menghapus SNAPSHOT ARSIPNYA, jadi riwayatnya hilang selamanya dan tidak bisa dikembalikan.`))) return;
@@ -222,7 +222,7 @@ function renderDbLombaCard(g){
    baris kt_lomba/kt_lomba_kebutuhan lagi) — lihat dbLombaGroups().
    ============================================================ */
 function openPakaiLombaModal(groupKey, versionIdx){
-  if (!canEditSection('lomba')) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('lomba')) { toast(editDeniedMsg()); return; }
   if(!eid()){ toast('Pilih atau buat event aktif dulu di sidebar'); return; }
   const g = dbLombaGroups().find(x=>x.key===groupKey);
   if(!g){ toast('Data lomba tidak ditemukan'); return; }
@@ -275,7 +275,7 @@ function updatePakaiLombaCountLabel(){
   label.textContent = total ? `${checked} dari ${total} dipilih` : '';
 }
 function konfirmasiPakaiLomba(groupKey, versionIdx, existingTargetId){
-  if (!canEditSection('lomba')) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('lomba')) { toast(editDeniedMsg()); return; }
   if(!eid()){ toast('Pilih atau buat event aktif dulu di sidebar'); return; }
   const g = dbLombaGroups().find(x=>x.key===groupKey);
   if(!g) return;

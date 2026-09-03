@@ -135,7 +135,7 @@ function getGender(a){
 }
 
 function openAnggotaModal(id){
-  if (!canEditSection('anggota')) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('anggota')) { toast(editDeniedMsg()); return; }
   const editing = id ? db.anggota.find(a=>a.id===id) : null;
   const s = getSettings();
   setModal(editing?'Edit Anggota':'Tambah Anggota', `
@@ -229,7 +229,7 @@ function updateNominalPreview(){
   }
 }
 function toggleLunas(id){
-  if (!canEditSection('anggota')) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('anggota')) { toast(editDeniedMsg()); return; }
   const a = db.anggota.find(x=>x.id===id); if(!a) return;
   const statusBaru = a.status==='lunas' ? 'belum_lunas' : 'lunas';
   a.status = statusBaru;
@@ -242,7 +242,7 @@ function toggleLunas(id){
   }
 }
 function updateAnggotaField(id, field, value){
-  if (!canEditSection('anggota')) { toast('⛔ Login untuk mengedit data'); renderContent(); return; }
+  if (!canEditSection('anggota')) { toast(editDeniedMsg()); renderContent(); return; }
   const a = db.anggota.find(x=>x.id===id); if(!a) return;
   if(field==='rt'){
     a.rt = value;
@@ -255,7 +255,7 @@ function updateAnggotaField(id, field, value){
   }
 }
 async function hapusAnggota(id){
-  if (!canEditSection('anggota')) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('anggota')) { toast(editDeniedMsg()); return; }
   if(!(await confirmModal('Hapus anggota ini?'))) return;
   const a = db.anggota.find(x=>x.id===id);
   db.anggota = db.anggota.filter(a=>a.id!==id); 
@@ -410,7 +410,7 @@ function clearSearch(){ searchQuery=''; document.getElementById('search-input').
 function resetFilter(){ filterKategori='semua'; filterStatus='semua'; filterGender='semua'; filterRT='semua'; searchQuery=''; sortBy='nama'; sortOrder='asc'; renderContent(); }
 function sortTable(field){ if(sortBy===field){ sortOrder=sortOrder==='asc'?'desc':'asc'; }else{ sortBy=field; sortOrder='asc'; } renderContent(); }
 async function tandaiSemuaLunas(){ 
-  if (!canEditSection('database-anggota')) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('database-anggota')) { toast(editDeniedMsg()); return; }
   const list=gAnggota().filter(a=>a.status==='belum_lunas'); 
   if(list.length===0){ toast('Semua anggota sudah lunas'); return; } 
   if(!(await confirmModal(`Tandai ${list.length} anggota menjadi LUNAS?`))) return; 
@@ -434,7 +434,7 @@ function exportAnggotaCSV(){ const list=gAnggota(); if(list.length===0){ toast('
    - status iuran direset ke Belum Lunas (event baru = tagihan baru)
    ============================================================ */
 function openSalinAnggotaModal(){
-  if (!canEditSection('database-anggota')) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('database-anggota')) { toast(editDeniedMsg()); return; }
   if(!eid()){ toast('Pilih event aktif dulu di sidebar'); return; }
   const otherEvents = db.events.filter(e=>e.id!==eid() && db.anggota.some(a=>a.event_id===e.id)).sort((a,b)=>(b.tahun||0)-(a.tahun||0));
   if(otherEvents.length===0){ toast('Belum ada anggota di event lain yang bisa disalin'); return; }

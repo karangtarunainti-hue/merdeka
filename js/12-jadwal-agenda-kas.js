@@ -166,7 +166,7 @@ function renderJadwal(){
 }
 
 function openJadwalModal(id){
-  if (!canEditSection('jadwal')) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('jadwal')) { toast(editDeniedMsg()); return; }
   const editing = id ? db.jadwal.find(j=>j.id===id) : null;
   setModal(editing?'Edit Jadwal':'Tambah Jadwal', `
     <div class="field"><label>Judul</label><input id="f-judul" value="${editing?esc(editing.judul):''}" placeholder="mis. Belanja Hadiah Lomba"></div>
@@ -206,7 +206,7 @@ function openJadwalModal(id){
 }
 
 function toggleJadwalStatus(id){
-  if (!canEditSection('jadwal')) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('jadwal')) { toast(editDeniedMsg()); return; }
   const j = db.jadwal.find(x=>x.id===id);
   if(!j) return;
   j.status = j.status === 'selesai' ? 'aktif' : 'selesai';
@@ -217,7 +217,7 @@ function toggleJadwalStatus(id){
 }
 
 async function hapusJadwal(id){
-  if (!canEditSection('jadwal')) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('jadwal')) { toast(editDeniedMsg()); return; }
   // Guard lapis kedua: kalau ada yang memanggil hapusJadwal langsung (bukan lewat
   // tombol di kartu, yang sudah dialihkan ke hapusJadwalLombaLocked), tetap cegah
   // penghapusan entri auto-lomba supaya tidak jadi referensi rusak di lomba.jadwal_id.
@@ -364,7 +364,7 @@ function renderAgenda(){
 }
 
 function openAgendaModal(id){
-  if (!canEditSection('agenda')) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('agenda')) { toast(editDeniedMsg()); return; }
   const editing = id ? db.agenda.find(a=>a.id===id) : null;
   setModal(editing?'Edit Agenda':'Tambah Agenda', `
     <div class="field"><label>Judul</label><input id="f-agenda-judul" value="${editing?esc(editing.judul):''}" placeholder="mis. Rapat Rutin Bulanan"></div>
@@ -402,7 +402,7 @@ function openAgendaModal(id){
 }
 
 function toggleAgendaStatus(id){
-  if (!canEditSection('agenda')) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('agenda')) { toast(editDeniedMsg()); return; }
   const a = db.agenda.find(x=>x.id===id);
   if(!a) return;
   a.status = a.status === 'selesai' ? 'aktif' : 'selesai';
@@ -413,7 +413,7 @@ function toggleAgendaStatus(id){
 }
 
 async function hapusAgenda(id){
-  if (!canEditSection('agenda')) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('agenda')) { toast(editDeniedMsg()); return; }
   if(!(await confirmModal('Hapus agenda ini?'))) return;
   const a = db.agenda.find(x=>x.id===id);
   db.agenda = db.agenda.filter(x=>x.id!==id);

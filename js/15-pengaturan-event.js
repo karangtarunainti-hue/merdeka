@@ -206,7 +206,7 @@ function renderPengaturan(){
     </div>
     <div class="panel-body flush events-table-wrap">
       <table class="general-table"><thead><tr><th>Nama</th><th>Tahun</th><th></th></tr></thead>
-      <tbody>${db.events.map(e=>`<tr><td>${esc(e.nama)}${e.id===db.activeEventId?' <span class="badge lunas">Aktif</span>':''}</td><td>${esc(e.tahun)}</td><td style="text-align:right;white-space:nowrap;">${e.id===db.activeEventId?'':`<button class="btn secondary small" ${da('setActiveEvent', e.id)}>Aktifkan</button>`}<button class="icon-btn" ${da('openEventModal', e.id)} title="Ubah nama/tahun">✎</button><button class="icon-btn" ${da('hapusEvent', e.id)} title="Hapus event">🗑</button></td></tr>`).join('')||`<tr class="empty-row"><td colspan="3">Belum ada event.</td></tr>`}</tbody></table>
+      <tbody>${db.events.map(e=>`<tr><td>${esc(e.nama)}${e.id===db.activeEventId?' <span class="badge lunas">Aktif</span>':''}${e.locked?' <span class="badge" title="Data event ini tidak bisa diedit">🔒 Terkunci</span>':''}</td><td>${esc(e.tahun)}</td><td style="text-align:right;white-space:nowrap;">${e.id===db.activeEventId?'':`<button class="btn secondary small" ${da('setActiveEvent', e.id)}>Aktifkan</button>`}<button class="icon-btn" ${da('toggleEventLock', e.id)} title="${e.locked?'Buka kunci event':'Kunci event (sudah dilaporkan)'}">${e.locked?'🔓':'🔒'}</button><button class="icon-btn" ${da('openEventModal', e.id)} title="Ubah nama/tahun">✎</button><button class="icon-btn" ${da('hapusEvent', e.id)} title="Hapus event">🗑</button></td></tr>`).join('')||`<tr class="empty-row"><td colspan="3">Belum ada event.</td></tr>`}</tbody></table>
     </div>
     <div class="panel-body events-mobile-wrap">
       <div class="jadwal-item-list">${db.events.map(e=>`
@@ -214,10 +214,12 @@ function renderPengaturan(){
           <div class="jadwal-item-top">
             <div class="jadwal-item-title" style="margin-bottom:0;">${esc(e.nama)}</div>
             ${e.id===db.activeEventId?'<span class="badge lunas">Aktif</span>':''}
+            ${e.locked?'<span class="badge" title="Data event ini tidak bisa diedit">🔒 Terkunci</span>':''}
           </div>
           <div class="lomba-detail-row"><span class="lbl">📅 Tahun</span><span class="val">${esc(e.tahun)}</span></div>
           <div class="jadwal-item-actions event-card-actions">
             ${e.id===db.activeEventId?'':`<button class="btn secondary small" ${da('setActiveEvent', e.id)}>Aktifkan</button>`}
+            <button class="icon-btn" ${da('toggleEventLock', e.id)} title="${e.locked?'Buka kunci event':'Kunci event (sudah dilaporkan)'}">${e.locked?'🔓':'🔒'}</button>
             <button class="icon-btn" ${da('openEventModal', e.id)} title="Ubah nama/tahun">✎</button>
             <button class="icon-btn" ${da('hapusEvent', e.id)} title="Hapus event">🗑</button>
           </div>
@@ -302,6 +304,7 @@ function renderPengaturan(){
 
 function simpanTarif(){
   if (!isAdmin()) { toast('⛔ Hanya Admin'); return; }
+  if (isActiveEventLocked()) { toast(editDeniedMsg()); return; }
   const s = getSettings();
   s.tarif.sekolah = getCurrencyValue(document.getElementById('tarif-sekolah'));
   s.tarif.bekerja = getCurrencyValue(document.getElementById('tarif-bekerja'));
@@ -312,6 +315,7 @@ function simpanTarif(){
 
 function simpanHargaKupon(){
   if (!isAdmin()) { toast('⛔ Hanya Admin'); return; }
+  if (isActiveEventLocked()) { toast(editDeniedMsg()); return; }
   const s = getSettings();
   s.kuponJalanSantai.harga = getCurrencyValue(document.getElementById('kupon-harga'));
   s.kuponJalanSantai.stok = Math.max(0, Math.floor(Number(document.getElementById('kupon-stok').value||0)));
@@ -473,6 +477,7 @@ function setActiveEvent(id){
 async function hapusEvent(id){
   if (!isAdmin()) { toast('⛔ Hanya Admin'); return; }
   const e = db.events.find(x=>x.id===id); if(!e) return;
+  if(e.locked){ toast('🔒 Event ini terkunci — buka kuncinya dulu sebelum menghapus'); return; }
   if(!(await confirmModal(`Hapus event "${e.nama}" beserta semua data?`))) return;
   db.events = db.events.filter(x=>x.id!==id);
   delete db.settings[id];
@@ -493,6 +498,27 @@ async function hapusEvent(id){
   if(db.activeEventId===id) db.activeEventId = db.events[0]?.id || null;
   saveDB(); renderSidebar(); goSection(db.activeEventId ? currentSection : 'dashboard');
   notifyTelegram(`🗑️ Hapus event: ${e.nama}`, '', 'sistem');
+}
+
+// Kunci/buka event supaya data yang sudah dilaporkan (iuran, transaksi,
+// operasional, lomba, hadiah, belanja, jadwal, tarif & harga kupon di
+// Pengaturan) tidak bisa diedit siapa pun — termasuk Admin sendiri — sampai
+// kuncinya dibuka lagi lewat tombol yang sama. Lihat EVENT_LOCKED_SECTIONS
+// (js/05-navigation.js) & canEditSection() (js/02-auth.js) untuk penegakannya.
+async function toggleEventLock(id){
+  if (!isAdmin()) { toast('⛔ Hanya Admin'); return; }
+  const e = db.events.find(x=>x.id===id); if(!e) return;
+  const willLock = !e.locked;
+  const pesan = willLock
+    ? `Kunci event "${e.nama}"? Semua data event ini (anggota, transaksi, lomba, hadiah, belanja, jadwal, tarif & harga kupon) tidak akan bisa diedit lagi sampai kuncinya dibuka.`
+    : `Buka kunci event "${e.nama}"? Data event ini akan bisa diedit lagi seperti biasa.`;
+  if(!(await confirmModal(pesan))) return;
+  e.locked = willLock;
+  e.locked_at = willLock ? new Date().toISOString() : null;
+  e.locked_by = willLock ? (getCurrentUser()?.name || getCurrentUser()?.username || null) : null;
+  saveDB(); renderContent();
+  toast(willLock ? `🔒 Event "${e.nama}" dikunci` : `🔓 Event "${e.nama}" dibuka`);
+  notifyTelegram(willLock ? `🔒 Event dikunci: ${e.nama}` : `🔓 Event dibuka: ${e.nama}`, willLock ? 'Data event ini tidak bisa diedit lagi sampai dibuka kembali.' : 'Data event ini bisa diedit lagi.', 'sistem');
 }
 
 async function exportData(){

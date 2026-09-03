@@ -278,7 +278,7 @@ function optionsIkonKategoriTokoHtml(selected){
 // Menyamakan kategori barang ini dengan menambahkan nama persisnya sebagai kata
 // kunci baru — sekali klik, tanpa harus bolak-balik ke halaman Pengaturan.
 function bukaQuickAssignKategoriToko(gi){
-  if (!canEditSection('belanja-hadiah')) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('belanja-hadiah')) { toast(editDeniedMsg()); return; }
   const g = window._belanjaHadiahGroups && window._belanjaHadiahGroups[gi];
   if(!g){ toast('Barang tidak ditemukan'); return; }
   setModal(`Kategori toko: "${g.nama}"`, `
@@ -333,7 +333,7 @@ function tambahKataKunciKategoriTokoDariInput(){
 // Halaman kelola lengkap: lihat & hapus kategori kustom + kata kunci kustom,
 // dan tambah kata kunci baru bebas (tidak harus dari nama barang yang sudah ada).
 function bukaModalKelolaKategoriToko(){
-  if (!canEditSection('belanja-hadiah')) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('belanja-hadiah')) { toast(editDeniedMsg()); return; }
   const s = getSettings();
   const customCats = s.kategoriToko.customCategories || [];
   const keywords = s.kategoriToko.keywords || {};
@@ -521,7 +521,7 @@ function renderBelanjaHadiah(){
 }
 
 function toggleBelanjaHadiah(hadiahId, itemId){
-  if (!canEditSection('belanja-hadiah')) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('belanja-hadiah')) { toast(editDeniedMsg()); return; }
   const h = db.hadiahKategori.find(x=>x.id===hadiahId);
   const item = h && h.items.find(it=>it.id===itemId);
   if(!item) { toast('Item tidak ditemukan'); return; }
@@ -547,7 +547,7 @@ function toggleBelanjaHadiah(hadiahId, itemId){
   if(actionMsg) notifyTelegram(actionMsg, `Paket: ${labelPeserta(h.kategori_peserta)} - ${labelJuara(h.juara_ke)}\nQty: ${item.qty_dibeli}\nHarga: ${fmtRp(item.harga_satuan)}`, 'belanja');
 }
 async function toggleBelanjaHadiahGroup(gi){
-  if (!canEditSection('belanja-hadiah')) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('belanja-hadiah')) { toast(editDeniedMsg()); return; }
   const group = (window._belanjaHadiahGroups||{})[gi];
   if(!group || !group.refs.length){ toast('Item tidak ditemukan'); return; }
   const semuaDibeli = group.refs.every(r => {
@@ -576,7 +576,7 @@ async function toggleBelanjaHadiahGroup(gi){
   }
 }
 async function editHargaBelanjaHadiahGroup(gi){
-  if (!canEditSection('belanja-hadiah')) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('belanja-hadiah')) { toast(editDeniedMsg()); return; }
   const group = (window._belanjaHadiahGroups||{})[gi];
   if(!group || !group.refs.length){ toast('Item tidak ditemukan'); return; }
   // Acuan nilai "sekarang" = item dengan isi_per_pack TERBESAR di grup ini (sama
@@ -781,13 +781,13 @@ function bukaRiwayatHargaBarang(gi){
   ]);
 }
 function tandaiSemuaBelanjaHadiah(){ 
-  if (!canEditSection('belanja-hadiah')) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('belanja-hadiah')) { toast(editDeniedMsg()); return; }
   const hadiahList=gHadiahKategori(); let count=0; let detail = [];
   hadiahList.forEach(h=>{h.items.forEach((item)=>{if(Number(item.qty_dibeli||0)<=0)return; const existing=db.daftarBelanjaHadiah.find(b=>b.hadiah_kategori_id===h.id&&b.item_id===item.id&&b.event_id===eid()); if(!existing||existing.status!=='dibeli'){if(existing){existing.status='dibeli';existing.tanggal_beli=todayISO();}else{db.daftarBelanjaHadiah.push({id:uid(),event_id:eid(),hadiah_kategori_id:h.id,item_id:item.id,status:'dibeli',tanggal_beli:todayISO()});}count++;detail.push(`${item.nama} (${labelPeserta(h.kategori_peserta)})`);}});}); 
   if(count===0){toast('Semua sudah dibeli');}else{saveDB();renderContent();renderTopbarSaldo();toast(`✓ ${count} item dibeli`);
   notifyTelegram(`✅ ${count} item hadiah lomba DIBELI`, detail.join('\n'), 'belanja');} }
 async function resetSemuaBelanjaHadiah(){ 
-  if (!canEditSection('belanja-hadiah')) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('belanja-hadiah')) { toast(editDeniedMsg()); return; }
   if(!(await confirmModal('Reset semua status?'))) return; 
   const list=gDaftarBelanjaHadiah(); 
   list.forEach(b=>{b.status='belum_dibeli';b.tanggal_beli=null;}); 
@@ -888,7 +888,7 @@ function renderBelanjaPerlengkapan(){
 }
 
 function toggleBelanjaPerlengkapan(kebutuhanId, belanjaId){
-  if (!canEditSection('belanja-perlengkapan')) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('belanja-perlengkapan')) { toast(editDeniedMsg()); return; }
   const k = db.lombaKebutuhan.find(x=>x.id===kebutuhanId);
   if(!k) { toast('Item tidak ditemukan'); return; }
   let existing = db.daftarBelanjaPerlengkapan.find(b => b.kebutuhan_id === kebutuhanId && b.event_id === eid());
@@ -914,7 +914,7 @@ function toggleBelanjaPerlengkapan(kebutuhanId, belanjaId){
   if(actionMsg) notifyTelegram(actionMsg, `Item: ${k.nama_item}\nQty: ${k.qty}\nLomba: ${db.lomba.find(x=>x.id===k.lomba_id)?.nama || k.lomba_id}`, 'belanja');
 }
 function toggleBelanjaPerlengkapanGroup(gi){
-  if (!canEditSection('belanja-perlengkapan')) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('belanja-perlengkapan')) { toast(editDeniedMsg()); return; }
   const group = (window._belanjaPerlengkapanGroups||{})[gi];
   if(!group || !group.refs.length){ toast('Item tidak ditemukan'); return; }
   const semuaDibeli = group.refs.every(kid => {
@@ -942,13 +942,13 @@ function toggleBelanjaPerlengkapanGroup(gi){
   }
 }
 function tandaiSemuaBelanjaPerlengkapan(){ 
-  if (!canEditSection('belanja-perlengkapan')) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('belanja-perlengkapan')) { toast(editDeniedMsg()); return; }
   let count=0; let detail = [];
   gLomba().forEach(l=>{gKebutuhan(l.id).forEach(k=>{const existing=db.daftarBelanjaPerlengkapan.find(b=>b.kebutuhan_id===k.id&&b.event_id===eid()); if(!existing||existing.status!=='dibeli'){if(existing){existing.status='dibeli';existing.tanggal_beli=todayISO();}else{db.daftarBelanjaPerlengkapan.push({id:uid(),event_id:eid(),kebutuhan_id:k.id,status:'dibeli',tanggal_beli:todayISO()});}count++;detail.push(`${k.nama_item} (${l.nama})`);}});}); 
   if(count===0){toast('Semua sudah dibeli');}else{saveDB();renderContent();renderTopbarSaldo();toast(`✓ ${count} item dibeli`);
   notifyTelegram(`✅ ${count} item perlengkapan DIBELI`, detail.join('\n'), 'belanja');} }
 async function resetSemuaBelanjaPerlengkapan(){ 
-  if (!canEditSection('belanja-perlengkapan')) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('belanja-perlengkapan')) { toast(editDeniedMsg()); return; }
   if(!(await confirmModal('Reset semua status?'))) return; 
   const list=gDaftarBelanjaPerlengkapan(); 
   list.forEach(b=>{b.status='belum_dibeli';b.tanggal_beli=null;}); 
@@ -956,7 +956,7 @@ async function resetSemuaBelanjaPerlengkapan(){
   notifyTelegram(`↩️ Reset semua status belanja perlengkapan`, `Semua status dikembalikan ke "belum dibeli"`, 'belanja');
 }
 async function editBelanjaPerlengkapan(kebutuhanId){ 
-  if (!canEditSection('belanja-perlengkapan')) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('belanja-perlengkapan')) { toast(editDeniedMsg()); return; }
   const k=db.lombaKebutuhan.find(x=>x.id===kebutuhanId); if(!k) return;
   const newNama = await promptModal({title:'Edit Item Perlengkapan', label:'Nama Item', defaultValue:k.nama_item});
   if(newNama===null) return;
@@ -1018,7 +1018,7 @@ function renderHadiahJalanSantai(){
 }
 
 function openHadiahJalanModal(id){
-  if (!canEditSection('hadiah-jalan')) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('hadiah-jalan')) { toast(editDeniedMsg()); return; }
   const editing = id ? db.hadiahJalanSantai.find(h=>h.id===id) : null;
   setModal(editing?'Edit Hadiah Jalan Santai':'Tambah Hadiah Jalan Santai', `
     <div class="field"><label>Nama Hadiah</label><input id="f-nama" value="${editing?esc(editing.nama_hadiah):''}" placeholder="mis. Baju, Topi, Snack Pack"></div>
@@ -1044,7 +1044,7 @@ function openHadiahJalanModal(id){
 }
 
 async function hapusHadiahJalan(id){
-  if (!canEditSection('hadiah-jalan')) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('hadiah-jalan')) { toast(editDeniedMsg()); return; }
   if(!(await confirmModal('Hapus hadiah ini?'))) return;
   const h = db.hadiahJalanSantai.find(x=>x.id===id);
   db.hadiahJalanSantai = db.hadiahJalanSantai.filter(h=>h.id!==id);
@@ -1056,7 +1056,7 @@ async function hapusHadiahJalan(id){
 }
 
 function toggleBelanjaJalan(hadiahId){
-  if (!canEditSection('hadiah-jalan') && !canEditSection('belanja-jalan')) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('hadiah-jalan') && !canEditSection('belanja-jalan')) { toast(editDeniedMsg()); return; }
   const h = db.hadiahJalanSantai.find(x=>x.id===hadiahId);
   if(!h) { toast('Hadiah tidak ditemukan'); return; }
   
@@ -1092,7 +1092,7 @@ function toggleBelanjaJalan(hadiahId){
   if(actionMsg) notifyTelegram(actionMsg, `Qty: ${h.qty}\nHarga: ${fmtRp(h.harga_satuan)}`, 'belanja');
 }
 function toggleBelanjaJalanGroup(gi){
-  if (!canEditSection('hadiah-jalan') && !canEditSection('belanja-jalan')) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('hadiah-jalan') && !canEditSection('belanja-jalan')) { toast(editDeniedMsg()); return; }
   const group = (window._belanjaJalanGroups||{})[gi];
   if(!group || !group.refs.length){ toast('Item tidak ditemukan'); return; }
   const semuaDibeli = group.refs.every(hid => {
@@ -1233,7 +1233,7 @@ function renderBelanjaJalanSantai(){
 }
 
 function tandaiSemuaBelanjaJalan(){
-  if (!canEditSection('belanja-jalan')) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('belanja-jalan')) { toast(editDeniedMsg()); return; }
   const list = gHadiahJalanSantai();
   let count = 0;
   let detail = [];
@@ -1253,7 +1253,7 @@ function tandaiSemuaBelanjaJalan(){
 }
 
 async function resetSemuaBelanjaJalan(){
-  if (!canEditSection('belanja-jalan')) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('belanja-jalan')) { toast(editDeniedMsg()); return; }
   if(!(await confirmModal('Reset semua status belanja?'))) return;
   const list = gDaftarBelanjaJalanSantai();
   list.forEach(b => { b.status = 'belum_dibeli'; b.tanggal_beli = null; });

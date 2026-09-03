@@ -66,7 +66,7 @@ function renderBookmark(){
 }
 
 function openBookmarkModal(id){
-  if (!canEditSection('bookmark')) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('bookmark')) { toast(editDeniedMsg()); return; }
   const editing = id ? db.bookmark.find(b=>b.id===id) : null;
   setModal(editing?'Edit Tautan':'Tambah Tautan', `
     <div class="field"><label>Judul</label><input id="f-bookmark-judul" value="${editing?esc(editing.judul):''}" placeholder="mis. Grup WA Panitia"></div>
@@ -91,7 +91,7 @@ function openBookmarkModal(id){
 }
 
 async function hapusBookmark(id){
-  if (!canEditSection('bookmark')) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('bookmark')) { toast(editDeniedMsg()); return; }
   if(!(await confirmModal('Hapus tautan ini?'))) return;
   const b = db.bookmark.find(x=>x.id===id);
   db.bookmark = db.bookmark.filter(x=>x.id!==id);

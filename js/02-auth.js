@@ -85,8 +85,19 @@ function canAccessSection(key) {
 
 // Bisa edit data di section ini? Sama aturannya dengan akses,
 // karena Petugas yang boleh masuk ke section-nya otomatis boleh kelola penuh di situ.
+// TAMBAHAN: kalau section ini terikat event 17-an (EVENT_LOCKED_SECTIONS,
+// lihat js/05-navigation.js) dan event aktifnya sedang dikunci Admin, edit
+// ditolak untuk SIAPA PUN (termasuk admin) — event harus dibuka kuncinya
+// dulu lewat toggleEventLock() (js/15-pengaturan-event.js) sebelum data di
+// dalamnya bisa diubah lagi. Ini satu-satunya titik gerbang karena hampir
+// semua fungsi simpan/hapus di seluruh app memanggil canEditSection() sebagai
+// pengecekan pertama, jadi cukup diubah di sini saja.
 function canEditSection(key) {
-  return canAccessSection(key);
+  if (!canAccessSection(key)) return false;
+  if (typeof EVENT_LOCKED_SECTIONS !== 'undefined' && EVENT_LOCKED_SECTIONS.includes(key)) {
+    if (typeof isActiveEventLocked === 'function' && isActiveEventLocked()) return false;
+  }
+  return true;
 }
 
 function canEdit() {
@@ -95,6 +106,19 @@ function canEdit() {
 
 function canManageSettings() {
   return isAdmin();
+}
+
+// Pesan toast dipakai di SELURUH app tiap kali canEditSection() menolak
+// (lihat pola `if (!canEditSection('x')) { toast(editDeniedMsg()); ... }`
+// yang dulunya hardcode '⛔ Login untuk mengedit data' di puluhan tempat).
+// Diganti jadi fungsi supaya kalau penolakannya ternyata gara-gara event
+// aktif sedang dikunci Admin (bukan gara-gara belum login), pesannya ikut
+// akurat — tanpa perlu sentuh satu-satu pemanggil canEditSection().
+function editDeniedMsg() {
+  if (typeof isActiveEventLocked === 'function' && isActiveEventLocked()) {
+    return '🔒 Event ini sudah dikunci Admin (sudah dilaporkan) — buka kuncinya dulu di Pengaturan untuk mengedit';
+  }
+  return '⛔ Login untuk mengedit data';
 }
 
 // Login diverifikasi 100% di server lewat RPC rpc_login. Password mentah dikirim

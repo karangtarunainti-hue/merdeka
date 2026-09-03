@@ -945,3 +945,12 @@ const KATEGORI_JADWAL = [
 ];
 
 function activeEvent(){ return db.events.find(e=>e.id===db.activeEventId) || null; }
+
+// Event aktif sedang dikunci Admin? (lihat toggleEventLock di
+// js/15-pengaturan-event.js). Dipakai canEditSection() (js/02-auth.js) untuk
+// memblokir edit di section yang terikat event — lihat EVENT_LOCKED_SECTIONS
+// di js/05-navigation.js.
+function isActiveEventLocked(){
+  const ev = activeEvent();
+  return !!(ev && ev.locked);
+}

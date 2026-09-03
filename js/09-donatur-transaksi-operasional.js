@@ -31,7 +31,7 @@ function toggleDonaturJenisFields(){
   if(barangWrap) barangWrap.style.display = jenis==='barang' ? '' : 'none';
 }
 function openDonaturModal(id){
-  if (!canEditSection('donatur')) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('donatur')) { toast(editDeniedMsg()); return; }
   const editing = id ? db.donatur.find(d=>d.id===id) : null;
   const isBarang = editing && editing.jenis==='barang';
   setModal(editing?'Edit Donasi':'Tambah Donasi', `
@@ -84,7 +84,7 @@ function openDonaturModal(id){
   setTimeout(setupAllCurrencyInputs, 50);
 }
 async function hapusDonatur(id){ 
-  if (!canEditSection('donatur')) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('donatur')) { toast(editDeniedMsg()); return; }
   if(!(await confirmModal('Hapus?'))) return; 
   const d = db.donatur.find(x=>x.id===id);
   db.donatur=db.donatur.filter(d=>d.id!==id); 
@@ -105,7 +105,7 @@ function renderTransaksi(){
   <tbody>${rows||`<tr class="empty-row"><td colspan="${isLoggedIn?5:4}">Belum ada transaksi.</td></tr>`}</tbody></table></div></div>`;
 }
 function openTransaksiModal(id){
-  if (!canEditSection('transaksi')) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('transaksi')) { toast(editDeniedMsg()); return; }
   const editing = id ? db.transaksiLain.find(t=>t.id===id) : null;
   setModal(editing?'Edit Transaksi':'Tambah Transaksi', `
     <div class="field-row"><div class="field"><label>Jumlah (Rp)</label><input id="f-jumlah" class="currency-input" type="text" value="${editing?formatCurrency(editing.jumlah):''}"></div>
@@ -141,7 +141,7 @@ function totalKuponTerjual(){
   return gTransaksiLain().reduce((sum,t)=>sum + Number(t.kuponqty||0), 0);
 }
 function openKuponJalanModal(){
-  if (!canEditSection('transaksi')) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('transaksi')) { toast(editDeniedMsg()); return; }
   const s = getSettings();
   const harga = Number((s.kuponJalanSantai && s.kuponJalanSantai.harga) || 0);
   if(harga<=0){
@@ -206,7 +206,7 @@ function simpanKuponJalan(harga, sisaStok){
   notifyTelegram('🎟️ Penjualan kupon jalan santai', `Jumlah kupon: ${qty} lembar\nHarga per kupon: ${fmtRp(harga)}\nTotal: ${fmtRp(jumlah)}\nTanggal: ${fmtDate(tanggal)}${tambahanKet ? `\nKeterangan: ${tambahanKet}` : ''}`, 'transaksi');
 }
 async function hapusTransaksi(id){ 
-  if (!canEditSection('transaksi')) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('transaksi')) { toast(editDeniedMsg()); return; }
   if(!(await confirmModal('Hapus?'))) return; 
   const t = db.transaksiLain.find(x=>x.id===id);
   db.transaksiLain=db.transaksiLain.filter(t=>t.id!==id); 
@@ -239,7 +239,7 @@ function hitungJumlahOperasionalModal(){
   preview.textContent = fmtRp(satuan * qty);
 }
 function openOperasionalModal(id){
-  if (!canEditSection('operasional')) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('operasional')) { toast(editDeniedMsg()); return; }
   const editing = id ? db.operasional.find(o=>o.id===id) : null;
   setModal(editing?'Edit Biaya':'Tambah Biaya', `
     <div class="field"><label>Tanggal</label><input id="f-tanggal" type="date" value="${editing?editing.tanggal:todayISO()}"></div>
@@ -266,7 +266,7 @@ function openOperasionalModal(id){
   setTimeout(setupAllCurrencyInputs, 50);
 }
 async function hapusOperasional(id){ 
-  if (!canEditSection('operasional')) { toast('⛔ Login untuk mengedit data'); return; }
+  if (!canEditSection('operasional')) { toast(editDeniedMsg()); return; }
   if(!(await confirmModal('Hapus?'))) return; 
   const o = db.operasional.find(x=>x.id===id);
   db.operasional=db.operasional.filter(o=>o.id!==id); 

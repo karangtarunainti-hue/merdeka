@@ -264,6 +264,15 @@ function scrollAndHighlightElement(id) {
 // jadi kalau ditampilkan di menu eventless malah bikin salah paham).
 const EVENTLESS_SECTIONS = ['gudang', 'dokumen', 'agenda', 'kas', 'dana-sosial', 'bookmark', 'second-brain', 'dashboard', 'pengaturan', 'users', 'panduan', 'jadwal-sinoman', 'database-lomba'];
 
+// Section yang datanya terikat ke event 17-an aktif (disimpan pakai event_id,
+// lihat db.settings[eid()] & tabel-tabel yang punya kolom event_id). Dipakai
+// canEditSection() (js/02-auth.js) untuk memblokir SEMUA aksi edit di section
+// ini kalau event aktif sedang dikunci Admin (activeEvent().locked === true —
+// lihat toggleEventLock() di js/15-pengaturan-event.js). Section eventless di
+// atas (kas, dana-sosial, gudang, dst) sengaja TIDAK masuk sini — data mereka
+// bukan milik satu event manapun, jadi tidak relevan dikunci per-event.
+const EVENT_LOCKED_SECTIONS = ['anggota', 'database-anggota', 'donatur', 'transaksi', 'operasional', 'lomba', 'hadiah', 'belanja-hadiah', 'belanja-perlengkapan', 'hadiah-jalan', 'belanja-jalan', 'jadwal'];
+
 function renderTopbarSaldo(){
   const chip = document.getElementById('saldo-chip');
   const shareBtn = document.getElementById('lpj-share-btn');
@@ -455,7 +464,15 @@ function renderContent(){
     case 'users': el.innerHTML = renderUsers(); break;
     default: el.innerHTML = renderDashboard();
   }
-  
+
+  // Banner peringatan di atas section yang datanya terikat event 17-an
+  // aktif, kalau event itu sedang dikunci Admin — supaya jelas kenapa
+  // tombol tambah/edit/hapus di section ini tidak berfungsi (lihat
+  // EVENT_LOCKED_SECTIONS di atas & canEditSection() di js/02-auth.js).
+  if (EVENT_LOCKED_SECTIONS.includes(currentSection) && isActiveEventLocked()) {
+    el.innerHTML = `<div class="hint" style="background:#fff3cd;border:1px solid #ffe08a;padding:10px 14px;border-radius:8px;margin-bottom:14px;">🔒 Event "${esc(activeEvent().nama)}" sudah dikunci Admin karena sudah dilaporkan. Data di halaman ini hanya bisa dilihat, tidak bisa diubah. ${isAdmin() ? `Buka kuncinya lewat <b>Pengaturan → Manajemen Event</b> kalau perlu diedit lagi.` : ''}</div>` + el.innerHTML;
+  }
+
   // Setup currency inputs after content rendered
   setTimeout(setupAllCurrencyInputs, 50);
   setTimeout(setupAutoResizeTextareas, 50);

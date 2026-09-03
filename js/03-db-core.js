@@ -783,6 +783,10 @@ let _hasPendingLocalChange = false;
 
 function saveDB(){
   if(db.activeEventId) localStorage.setItem('kt_active_event', db.activeEventId);
+  // Data keuangan baru saja berubah di memori (pemanggil selalu mengubah db
+  // dulu sebelum panggil saveDB) — buang cache saldo per-event (js/16-ui-helpers.js)
+  // supaya renderSidebar() berikutnya hitung ulang, bukan tampilkan angka basi.
+  invalidateSaldoEventCache();
   _hasPendingLocalChange = true;
   clearTimeout(_saveDBTimer);
   _saveDBTimer = setTimeout(_flushSaveDB, 400);

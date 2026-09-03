@@ -353,3 +353,39 @@ function hitungBukuUtama(){
     jumlahHadiahJalan: hadiahJalanList.length,
   };
 }
+
+// Hitung saldo kegiatan untuk SATU event tertentu — bukan cuma event yang
+// sedang aktif. Dipakai renderSidebar() (js/05-navigation.js) supaya tiap
+// pilihan di dropdown "Kegiatan Aktif" langsung menampilkan sisa saldonya,
+// tanpa pengurus harus pindah-pindah event dulu satu-satu buat ngecek.
+// hitungBukuUtama() & semua getter (gAnggota dkk, js/18-getters-refresh.js)
+// baca event lewat eid()=db.activeEventId, jadi di sini activeEventId
+// ditukar SEMENTARA ke eventId yang diminta lalu dikembalikan lagi persis
+// setelahnya (pakai try/finally supaya tetap balik walau ada error di
+// tengah hitungan). Aman karena seluruh rantai hitungBukuUtama() ini
+// sinkron — tidak ada await di antaranya yang bisa bikin activeEventId
+// "nyasar" kebaca kode lain selagi ditukar sementara ini.
+//
+// renderSidebar() dipanggil SANGAT sering (tiap pindah menu, bukan cuma
+// tiap data berubah), jadi hasilnya di-cache di _saldoEventCache supaya
+// klik-pindah menu biasa tidak menghitung ulang saldo semua event tiap
+// kali. Cache dibuang (invalidateSaldoEventCache(), lihat js/03-db-core.js
+// & js/18-getters-refresh.js) di titik-titik SATU-SATUNYA tempat data
+// keuangan benar-benar bisa berubah: saveDB() (dipanggil tiap ada
+// perubahan lokal disimpan) dan refreshFromServer() (saat `db` diganti
+// total dengan data terbaru dari server).
+let _saldoEventCache = {};
+function invalidateSaldoEventCache(){ _saldoEventCache = {}; }
+function hitungSaldoEvent(eventId){
+  if(Object.prototype.hasOwnProperty.call(_saldoEventCache, eventId)) return _saldoEventCache[eventId];
+  const before = db.activeEventId;
+  db.activeEventId = eventId;
+  let saldo;
+  try{
+    saldo = hitungBukuUtama().saldo;
+  } finally {
+    db.activeEventId = before;
+  }
+  _saldoEventCache[eventId] = saldo;
+  return saldo;
+}

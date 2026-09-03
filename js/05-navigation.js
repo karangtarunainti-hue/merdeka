@@ -122,8 +122,12 @@ let currentSection = 'dashboard';
 
 function renderSidebar(){
   const sel = document.getElementById('event-select');
+  // Saldo tiap event ikut ditampilkan di sebelah namanya (bukan cuma nama
+  // polos) supaya pengurus bisa lihat sisa saldo kegiatan lain langsung dari
+  // dropdown ini, tanpa perlu pindah event satu-satu dulu. Lihat
+  // hitungSaldoEvent() (js/16-ui-helpers.js) untuk cara hitungnya per event.
   sel.innerHTML = db.events.length
-    ? db.events.map(e=>`<option value="${e.id}" ${e.id===db.activeEventId?'selected':''}>${esc(e.nama)}</option>`).join('')
+    ? db.events.map(e=>`<option value="${e.id}" ${e.id===db.activeEventId?'selected':''}>${esc(e.nama)} — ${fmtRp(hitungSaldoEvent(e.id))}</option>`).join('')
     : `<option value="">— Belum ada event —</option>`;
 
   const user = getCurrentUser();

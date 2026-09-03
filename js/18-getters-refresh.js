@@ -58,6 +58,11 @@ async function refreshFromServer(){
     if(fresh._loadFailed) return;
     if(!_refreshGuardOk()) return;
     db = fresh;
+    // `db` baru saja diganti total dengan data terbaru dari server — cache
+    // saldo per-event (js/16-ui-helpers.js) yang dihitung dari `db` LAMA
+    // sudah tidak valid lagi, buang supaya renderSidebar() di bawah hitung
+    // ulang dari data yang baru saja dimuat ini.
+    invalidateSaldoEventCache();
     // Gudang punya penyimpanan/muat data sendiri (di luar db/loadDB, lihat
     // loadGudangData) karena awalnya modul terpisah. Sebelumnya modul ini TIDAK
     // ikut auto-refresh sama sekali — datanya cuma dimuat sekali di awal + lewat

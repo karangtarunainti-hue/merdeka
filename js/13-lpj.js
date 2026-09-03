@@ -196,8 +196,9 @@ function renderLPJ(){
       <tbody>${kebutuhanRows.map(r=>`<tr${!r.sudahDibeli?' style="opacity:.6;"':''}><td>${esc(r.nama)}</td><td>${esc(r.lomba)}</td><td class="num">${r.qty}</td><td class="num">${fmtRp(r.harga)}</td><td class="num">${!r.sudahDibeli?'<span style="font-style:italic;font-size:11.5px;">Belum dibeli</span>':fmtRp(r.subtotal)}</td></tr>`).join('') || emptyRow(5,'Belum ada data kebutuhan lomba.')}</tbody>
     </table></div>` });
   if (showHadiah) pengeluaranSubs.push({ title:'Hadiah Lomba', html:`
+    <div class="hint" style="margin-bottom:8px;">Qty di tabel ini = jumlah yang sudah tercatat/dibeli, bukan target kebutuhan. Untuk lihat target kebutuhan per kategori & juara, cek menu Kebutuhan Hadiah di halaman Lomba.</div>
     <div class="lpj-table-scroll"><table class="lpj-table lpj-detail lpj-hadiah-table">
-      <thead><tr><th>Nama Barang</th><th>Kategori</th><th class="num">Qty</th><th>Rincian Harga</th><th class="num">Subtotal</th></tr></thead>
+      <thead><tr><th>Nama Barang</th><th>Kategori</th><th class="num">Qty Dibeli</th><th>Rincian Harga</th><th class="num">Subtotal</th></tr></thead>
       <tbody>${hadiahRows.map(r=>`<tr${r.subtotal===0?' style="opacity:.6;"':''}><td>${esc(r.nama)}</td><td>${r.keterangan}</td><td class="num">${r.qty} pcs</td><td>${r.rincianHarga}</td><td class="num">${r.subtotal===0?'<span style="font-style:italic;font-size:11.5px;">Belum dibeli</span>':fmtRp(r.subtotal)}</td></tr>`).join('') || emptyRow(5,'Belum ada data hadiah lomba.')}</tbody>
     </table></div>` });
   if (showJalan) pengeluaranSubs.push({ title:'Hadiah Jalan Santai', html:`

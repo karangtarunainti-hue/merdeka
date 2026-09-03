@@ -938,7 +938,7 @@ function renderHadiah(){
   ${kelebihanPackPanel}
   ${budgetKategoriCards ? `<div class="panel"><div class="panel-head"><div><h3>Anggaran Hadiah per Kategori</h3><div class="desc">Harga 1 paket dibandingkan budget per paket (bukan akumulasi total belanja), dirinci per juara</div></div></div>
   <div class="panel-body"><div class="kategori-grid">${budgetKategoriCards}</div></div></div>` : ''}
-  <div class="panel"><div class="panel-head"><div><h3>Kebutuhan Hadiah</h3><div class="desc">Setiap paket bisa berisi multiple item · Kebutuhan Juara 1-3 mengikuti jumlah lomba per kategori · Partisipasi otomatis kalau "Estimasi Jumlah Peserta" diisi di lomba (kalau belum diisi, tetap manual)</div></div>
+  <div class="panel"><div class="panel-head"><div><h3>Kebutuhan Hadiah</h3><div class="desc">Setiap paket bisa berisi multiple item · Kebutuhan Juara 1-3 mengikuti jumlah lomba per kategori · Partisipasi otomatis kalau "Estimasi Jumlah Peserta" diisi di lomba (kalau belum diisi, tetap manual) · Angka "butuh X" di sini = target kebutuhan, beda dari qty di Laporan LPJ yang menunjukkan jumlah yang sudah tercatat/dibeli</div></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
       ${isLoggedIn ? `<button class="btn secondary" ${da('openHadiahBudgetModal')}>🎯 Atur Budget</button>` : ''}
       ${isLoggedIn ? `<button class="btn secondary" ${da('sesuaikanSemuaKebutuhanHadiah')}>⚡ Sesuaikan Semua Otomatis</button>` : ''}

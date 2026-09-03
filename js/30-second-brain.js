@@ -162,6 +162,14 @@ function renderSecondBrain(){
     const skorHtml = (typeof n.similarity === 'number')
       ? `<span class="second-brain-score" title="Skor kemiripan makna">🎯 ${Math.round(n.similarity*100)}%</span>` : '';
     const tagsHtml = (n.tags||[]).length ? `<div class="second-brain-tags">${n.tags.map(t=>`<span class="second-brain-tag">#${esc(t)}</span>`).join('')}</div>` : '';
+    // Badge event supaya kelihatan jelas catatan mana yang "Semua Event"
+    // (event_id null, selalu ikut ditampilkan di ringkasan/Sekarta event
+    // manapun — lihat dataCatatanKontekAiInsight() js/27-ai-insight.js) vs
+    // yang terikat ke satu event tertentu.
+    const eventTerkait = n.event_id ? db.events.find(e=>e.id===n.event_id) : null;
+    const eventBadgeHtml = n.event_id
+      ? `<span class="second-brain-tag" title="Cuma ikut ditampilkan untuk event ini">📌 ${eventTerkait ? esc(eventTerkait.nama) : 'Event terhapus'}</span>`
+      : `<span class="second-brain-tag" title="Selalu ikut ditampilkan di ringkasan/Sekarta event manapun">🌐 Semua Event</span>`;
     const metaBits = [`🕒 ${fmtWaktuTerakhir(n.updated_at)}`];
     if (n.created_by) metaBits.push(`✍️ ${esc(n.created_by)}`);
     return `
@@ -176,6 +184,7 @@ function renderSecondBrain(){
       </div>
       <div class="second-brain-card-title">${esc(n.judul)}</div>
       <div class="second-brain-card-body">${esc(cuplikan)}</div>
+      <div class="second-brain-tags">${eventBadgeHtml}</div>
       ${tagsHtml}
       <div class="second-brain-card-meta">${metaBits.join(' · ')}</div>
     </div>`;
@@ -321,6 +330,18 @@ function openSecondBrainModal(id){
   if (!secondBrainBolehKelola()) { toast('🔒 Login untuk mengelola Second Brain'); return; }
   const editing = id ? secondBrainNotes.find(n => n.id === id) : null;
   const kategoriOptions = SECOND_BRAIN_KATEGORI.map(k => `<option value="${k.v}" ${(editing?editing.kategori:'catatan')===k.v?'selected':''}>${k.l}</option>`).join('');
+  // Event terkait catatan ini — default: event yang sedang diedit-nya (kalau
+  // edit), atau event aktif sekarang (kalau catatan baru). "🌐 Semua Event"
+  // (event_id null) sengaja SELALU ikut dikirim ke insight/Sekarta di event
+  // manapun (lihat dataCatatanKontekAiInsight() di js/27-ai-insight.js) —
+  // jadi kalau catatan ini sebenarnya cuma relevan untuk satu event tertentu
+  // (mis. evaluasi event yang sudah lewat), pilih event itu di sini supaya
+  // TIDAK terus "nyangkut" muncul di ringkasan event-event berikutnya.
+  const currentEventId = editing ? (editing.event_id || '') : (eid() || '');
+  const eventOptions = [`<option value="">🌐 Semua Event (umum, selalu ikut ditampilkan di event manapun)</option>`]
+    .concat(db.events.slice().sort((a,b)=>(b.tahun||0)-(a.tahun||0)).map(e=>
+      `<option value="${e.id}" ${currentEventId===e.id?'selected':''}>${esc(e.nama)}${e.tahun?' ('+esc(e.tahun)+')':''} — catatan khusus event ini</option>`
+    )).join('');
   setModal(editing ? 'Edit Catatan' : 'Tambah Catatan', `
     <div class="field"><label>Judul</label><input id="f-sb-judul" value="${editing?esc(editing.judul):''}" placeholder="mis. Kesepakatan lokasi jalan santai 2027"></div>
     <div class="field"><label>Kategori</label><select id="f-sb-kategori">${kategoriOptions}</select></div>
@@ -328,6 +349,9 @@ function openSecondBrainModal(id){
       <textarea id="f-sb-konten" rows="6" data-autoresize="true" placeholder="Tulis catatan, ide, ringkasan dokumen, atau konteks apa pun di sini...">${editing?esc(editing.konten||''):''}</textarea>
     </div>
     <div class="field"><label>Tags (pisah koma, opsional)</label><input id="f-sb-tags" value="${editing?esc((editing.tags||[]).join(', ')):''}" placeholder="mis. lomba, anggaran, 2027"></div>
+    <div class="field"><label>Berlaku Untuk</label><select id="f-sb-event">${eventOptions}</select>
+      <div class="hint">Pilih event tertentu kalau catatan ini isinya spesifik untuk event itu (mis. evaluasi/catatan event yang sudah lewat) — supaya tidak terus muncul di ringkasan event lain nantinya.</div>
+    </div>
     <div class="desc" style="margin-top:2px;">Catatan ini juga ikut dipakai Sekarta (🤖) saat menjawab pertanyaan yang relevan.</div>
   `, [
     {label:'Batal', cls:'secondary', onclick:closeModal},
@@ -341,10 +365,15 @@ function openSecondBrainModal(id){
 // blok [[CATAT]] yang di-parse dari jawaban AI) — supaya logic embed+upsert
 // cuma ada SATU tempat, tidak dobel-duplikat & gampang beda perilaku kalau
 // nanti salah satu jalur diubah tapi yang lain lupa diikutkan.
-async function simpanCatatanKeServer({ id, judul, kategori, konten, tags = [], created_by }){
+async function simpanCatatanKeServer({ id, judul, kategori, konten, tags = [], created_by, eventId }){
   const embedding = await AI.embed(`${judul}\n\n${konten}`, { taskType: 'RETRIEVAL_DOCUMENT' });
-  const eventId = typeof eid === 'function' ? eid() : null;
-  const row = { id, judul, konten, kategori, tags, event_id: eventId || null, embedding, created_by };
+  // eventId eksplisit (dari dropdown "Berlaku Untuk" di modal, termasuk ''
+  // sengaja untuk "Semua Event") menang atas event aktif — dipakai pemanggil
+  // manual (simpanSecondBrainNote). Pemanggil lain (mis. tawaran simpan dari
+  // Asisten AI) tidak mengirim eventId sama sekali → tetap fallback ke event
+  // aktif seperti perilaku lama.
+  const resolvedEventId = eventId !== undefined ? (eventId || null) : ((typeof eid === 'function' ? eid() : null) || null);
+  const row = { id, judul, konten, kategori, tags, event_id: resolvedEventId, embedding, created_by };
   const { error } = await sb.from('kt_second_brain').upsert(row, { onConflict: 'id' });
   if (error) throw new Error(error.message);
   await loadSecondBrainData();
@@ -356,6 +385,7 @@ async function simpanSecondBrainNote(editing){
   const kategori = document.getElementById('f-sb-kategori').value;
   const konten = document.getElementById('f-sb-konten').value.trim();
   const tags = document.getElementById('f-sb-tags').value.split(',').map(t=>t.trim()).filter(Boolean);
+  const eventId = document.getElementById('f-sb-event').value; // '' = Semua Event (umum)
   if (!judul || !konten) { toast('⛔ Judul & isi wajib diisi'); return; }
 
   const btnSimpan = document.querySelector('#modal-foot .btn:not(.secondary)');
@@ -369,7 +399,7 @@ async function simpanSecondBrainNote(editing){
     const user = getCurrentUser();
     await simpanCatatanKeServer({
       id: editing ? editing.id : uid(),
-      judul, kategori, konten, tags,
+      judul, kategori, konten, tags, eventId,
       created_by: editing ? editing.created_by : (user ? user.name : ''),
     });
     closeModal();

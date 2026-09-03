@@ -5,6 +5,50 @@ document.getElementById('event-select').addEventListener('change', (e)=>{
   if (canEdit()) setActiveEvent(e.target.value); 
   else toast('⛔ Login untuk mengubah event');
 });
+
+/* ============================================================
+   DROPDOWN CUSTOM "Kegiatan Aktif" — buka/tutup panel & pilih event.
+   Isi trigger/panel-nya sendiri dirender oleh renderEventDropdown()
+   (js/05-navigation.js); di sini cuma interaksinya. Milih opsi mengubah
+   <select id="event-select"> tersembunyi lalu memicu event 'change'-nya
+   secara manual, supaya semua logika izin (canEdit(), lihat listener di
+   atas) tetap lewat SATU jalur yang sama, tidak diduplikasi di sini.
+   ============================================================ */
+(() => {
+  const eventDropdown = document.getElementById('event-dropdown');
+  const trigger = document.getElementById('event-dropdown-trigger');
+  const panel = document.getElementById('event-dropdown-panel');
+  const hiddenSelect = document.getElementById('event-select');
+
+  function closeEventDropdown(){
+    eventDropdown.classList.remove('open');
+    trigger.setAttribute('aria-expanded', 'false');
+  }
+
+  trigger.addEventListener('click', () => {
+    const willOpen = !eventDropdown.classList.contains('open');
+    eventDropdown.classList.toggle('open', willOpen);
+    trigger.setAttribute('aria-expanded', String(willOpen));
+  });
+
+  panel.addEventListener('click', (e) => {
+    const opt = e.target.closest('[data-event-id]');
+    if(!opt) return;
+    closeEventDropdown();
+    const id = opt.dataset.eventId;
+    if(id === hiddenSelect.value) return; // sudah event aktif, tidak perlu apa-apa
+    hiddenSelect.value = id;
+    hiddenSelect.dispatchEvent(new Event('change'));
+  });
+
+  // Tutup panel kalau klik di luar dropdown, atau tekan Escape.
+  document.addEventListener('click', (e) => {
+    if(!eventDropdown.contains(e.target)) closeEventDropdown();
+  });
+  document.addEventListener('keydown', (e) => {
+    if(e.key === 'Escape') closeEventDropdown();
+  });
+})();
 document.getElementById('btn-new-event').addEventListener('click', openEventModal);
 document.getElementById('nav').addEventListener('click', (e)=>{
   const item = e.target.closest('[data-nav]');

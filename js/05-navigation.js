@@ -120,15 +120,50 @@ function icon(name){ return `<svg viewBox="0 0 24 24">${ICONS[name]||''}</svg>`;
 
 let currentSection = 'dashboard';
 
-function renderSidebar(){
+// Sinkronkan dropdown "Kegiatan Aktif" (trigger + panel custom di
+// index.html) dari data event yang ada, sekaligus <select id="event-select">
+// tersembunyi yang jadi sumber kebenaran state-nya (lihat komentar di
+// index.html). Saldo tiap event ditampilkan lewat hitungSaldoEvent()
+// (js/16-ui-helpers.js, sudah di-cache) supaya pengurus bisa lihat sisa
+// saldo kegiatan lain langsung dari sini tanpa perlu pindah-pindah event.
+function renderEventDropdown(){
   const sel = document.getElementById('event-select');
-  // Saldo tiap event ikut ditampilkan di sebelah namanya (bukan cuma nama
-  // polos) supaya pengurus bisa lihat sisa saldo kegiatan lain langsung dari
-  // dropdown ini, tanpa perlu pindah event satu-satu dulu. Lihat
-  // hitungSaldoEvent() (js/16-ui-helpers.js) untuk cara hitungnya per event.
+  const nameEl = document.getElementById('event-dropdown-trigger-name');
+  const saldoEl = document.getElementById('event-dropdown-trigger-saldo');
+  const panel = document.getElementById('event-dropdown-panel');
+
   sel.innerHTML = db.events.length
-    ? db.events.map(e=>`<option value="${e.id}" ${e.id===db.activeEventId?'selected':''}>${esc(e.nama)} — ${fmtRp(hitungSaldoEvent(e.id))}</option>`).join('')
+    ? db.events.map(e=>`<option value="${e.id}" ${e.id===db.activeEventId?'selected':''}>${esc(e.nama)}</option>`).join('')
     : `<option value="">— Belum ada event —</option>`;
+
+  if(!db.events.length){
+    nameEl.textContent = '— Belum ada event —';
+    saldoEl.textContent = '';
+    panel.innerHTML = `<div class="event-dropdown-empty">Belum ada kegiatan</div>`;
+    return;
+  }
+
+  const active = db.events.find(e=>e.id===db.activeEventId) || db.events[0];
+  const saldoAktif = hitungSaldoEvent(active.id);
+  nameEl.textContent = active.nama;
+  saldoEl.textContent = fmtRp(saldoAktif);
+  saldoEl.classList.toggle('negatif', saldoAktif < 0);
+
+  panel.innerHTML = db.events.map(e=>{
+    const saldo = hitungSaldoEvent(e.id);
+    const isSelected = e.id === db.activeEventId;
+    return `<div class="event-dropdown-option${isSelected?' selected':''}" data-event-id="${e.id}" role="option" aria-selected="${isSelected}">
+      <span class="event-dropdown-option-main">
+        <svg class="event-dropdown-option-check" viewBox="0 0 24 24" width="13" height="13"><path d="M20 6 9 17l-5-5" stroke="currentColor" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span class="event-dropdown-option-name">${esc(e.nama)}</span>
+      </span>
+      <span class="event-dropdown-option-saldo${saldo<0?' negatif':''}">${fmtRp(saldo)}</span>
+    </div>`;
+  }).join('');
+}
+
+function renderSidebar(){
+  renderEventDropdown();
 
   const user = getCurrentUser();
   const isLoggedIn = !!user;

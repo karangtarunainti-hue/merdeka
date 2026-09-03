@@ -50,7 +50,26 @@
     <nav class="nav nav-global" id="nav-global"></nav>
     <div class="event-block">
       <label>Kegiatan Aktif</label>
-      <select class="event-select" id="event-select"></select>
+      <!-- Dropdown custom (bukan <select> native) supaya bisa nampilin nama
+           event + saldo dalam layout dua kolom yang rapi, dan panel pilihannya
+           bisa di-styling penuh (native <select> punya dropdown pihak OS/browser
+           yang nggak bisa diubah tampilannya). <select id="event-select"> di
+           bawah TETAP ADA (disembunyikan) sebagai "sumber kebenaran" satu-
+           satunya buat activeEventId — listener change-nya di js/19-init.js
+           yang beneran manggil setActiveEvent(), termasuk cek izin (canEdit()).
+           Trigger & panel ini cuma lapisan visual, disinkron dari situ lewat
+           renderEventDropdown() (js/05-navigation.js). -->
+      <div class="event-dropdown" id="event-dropdown">
+        <button type="button" class="event-dropdown-trigger" id="event-dropdown-trigger" aria-haspopup="listbox" aria-expanded="false">
+          <span class="event-dropdown-trigger-info">
+            <span class="event-dropdown-trigger-name" id="event-dropdown-trigger-name">— Belum ada event —</span>
+            <span class="event-dropdown-trigger-saldo" id="event-dropdown-trigger-saldo"></span>
+          </span>
+          <svg class="event-dropdown-chevron" viewBox="0 0 24 24" width="16" height="16"><path d="m6 9 6 6 6-6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <div class="event-dropdown-panel" id="event-dropdown-panel" role="listbox"></div>
+      </div>
+      <select class="event-select" id="event-select" tabindex="-1" aria-hidden="true"></select>
       <button class="btn-ghost-light" id="btn-new-event" type="button" style="display:none;">+ Event Baru</button>
     </div>
     <nav class="nav" id="nav"></nav>

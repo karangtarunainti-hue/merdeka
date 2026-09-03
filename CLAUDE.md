@@ -157,7 +157,7 @@ runner — situs 100% statis, testing manual di browser.
 | 02 | auth.js | autentikasi |
 | 03 | db-core.js | wrapper akses Supabase |
 | 04 | event-settings.js | pengaturan event |
-| 05 | navigation.js | routing SPA |
+| 05 | navigation.js | routing SPA + dropdown custom "Kegiatan Aktif" (saldo per event) |
 | 06 | login-users.js | manajemen user login |
 | 07 | dashboard.js | dashboard |
 | 08 | anggota.js | data anggota |
@@ -212,6 +212,37 @@ runner — situs 100% statis, testing manual di browser.
   backup, kalau tidak akan diam-diam tidak ter-backup — riwayat bug:
   modul Gudang sempat tidak ikut snapshot maupun Backup Semua Data
   selama beberapa waktu tanpa ada indikasi error apa pun ke admin).
+- **Cache saldo per event (`_saldoEventCache`, `js/16-ui-helpers.js`)** —
+  `hitungSaldoEvent(eventId)` (dipakai dropdown "Kegiatan Aktif" di
+  sidebar, lihat `renderEventDropdown()` di `05-navigation.js`) meng-
+  hitung saldo tiap event dengan cara menukar `db.activeEventId`
+  SEMENTARA lalu memanggil `hitungBukuUtama()` (sinkron, tanpa `await`
+  di tengahnya — aman ditukar-tukar begitu). Hasilnya di-cache per
+  `eventId` supaya render sidebar yang sering dipanggil (tiap pindah
+  menu) tidak menghitung ulang saldo SEMUA event tiap kali. Cache ini
+  HARUS dibuang (`invalidateSaldoEventCache()`) di setiap titik data
+  keuangan benar-benar berubah — saat ini sudah dipasang di `saveDB()`
+  (`03-db-core.js`) dan `refreshFromServer()` (`18-getters-refresh.js`).
+  **Kalau nanti ada jalur baru yang mengubah data keuangan TANPA lewat
+  `saveDB()` atau tanpa lewat `db = fresh` di `refreshFromServer()`**
+  (mis. mutasi langsung ke `db.xxx` yang di-skip sengaja), saldo di
+  dropdown bisa basi sampai salah satu dari dua titik itu jalan lagi —
+  invalidasi manual perlu ditambahkan di jalur baru itu.
+- Dropdown "Kegiatan Aktif" di sidebar (`.event-dropdown` di
+  `index.html`) BUKAN `<select>` native — tampilannya (trigger + panel
+  custom) di-render oleh `renderEventDropdown()` (`05-navigation.js`),
+  interaksi buka/tutup/pilihnya di `js/19-init.js`. `<select
+  id="event-select">` ASLI masih ada di DOM tapi `display:none`
+  (`style.css`) — dia tetap satu-satunya sumber kebenaran untuk
+  `activeEventId` (listener `change`-nya di `19-init.js` yang
+  benar-benar memanggil `setActiveEvent()` + cek `canEdit()`). Kalau
+  mau ubah logika ganti-event, ubah di listener `change` itu, JANGAN
+  duplikasi logikanya di handler klik panel custom.
+- Tombol "Kirim Grup WA" di menu Laporan Keuangan (LPJ) cuma dirender
+  untuk role `admin`/`petugas` — lihat `renderTopbarSaldo()`
+  (`05-navigation.js`, dipanggil ulang otomatis tiap login/logout).
+  Anggota (role `user`), Guest, dan yang belum login tidak melihat
+  tombolnya sama sekali (bukan cuma disabled).
 - **KETERBATASAN DIKETAHUI — "Pulihkan Snapshot"/"Impor Timpa Semua"
   tidak 100% full-overwrite untuk data `db.xxx`.** `syncArrayTable()`
   (`03-db-core.js`) hanya menghapus baris yang ID-nya PERNAH dikenal tab

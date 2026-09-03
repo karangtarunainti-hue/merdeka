@@ -103,6 +103,7 @@ Pemilik project (**Inti**) mengelola repo ini **lewat GitHub Web UI, bukan Git C
 - **State management**: satu object global `db` (`js/03-db-core.js`, `defaultDB()`). Tiap array di `db` dipetakan ke satu tabel Supabase lewat `ARRAY_TABLE_MAP` (lihat tabel lengkap di bawah). `saveDB()` men-diff tiap tabel terhadap server (upsert + delete + deteksi konflik multi-device).
 - **Pengecualian pola `db`**: modul **Gudang** (`17a`–`17c`) dan **Second Brain** (`30`) fetch/tulis **langsung** ke tabel Supabase masing-masing, di luar `db`/`saveDB()`. Konsekuensi: apa pun yang mengasumsikan "seluruh data app" = `JSON.stringify(db)` akan melewatkan keduanya kecuali ditangani eksplisit (lihat `fetchGudangBackupData()`/`restoreGudangFromPayload()` di `15b-snapshot.js`; Second Brain belum punya export/import sendiri di versi ini).
 - **Data terikat event vs tidak**: sebagian besar tabel (anggota, donatur, lomba, belanja, dst.) terikat ke `event_id` aktif. Beberapa modul sengaja **lintas-event/tidak terikat event**: `agenda`, `kas`, `danaSosialAnggota`/`danaSosialBayar`, `bookmark`, Gudang, Second Brain — ini tetap tampil walau belum ada event 17-an yang aktif.
+- **Saldo per event di-cache**: dropdown "Kegiatan Aktif" di sidebar menampilkan saldo tiap event (dihitung lewat `hitungSaldoEvent()`, `js/16-ui-helpers.js`), hasilnya di-cache (`_saldoEventCache`) supaya render sidebar yang sering dipanggil tidak menghitung ulang semua event tiap kali. Cache dibuang di `saveDB()` dan `refreshFromServer()` — lihat `CLAUDE.md` untuk detail kontrak invalidasinya kalau menambah jalur mutasi data keuangan baru.
 - **Build**: file source (`js/*.js`, `style.css`) di-bundle+minify lokal via `npm run build` (esbuild) menjadi `js/app.bundle.min.js`, `style.min.css`, `icons/lucide-icons.local.min.js`. **Kedua versi (source & hasil build) di-commit ke repo** — tidak ada build step di CI/CD atau saat deploy; situs 100% file statis di runtime.
 - **Deploy**: Cloudflare Workers, mode "assets" + Worker tipis (`src/worker.js` sbg `main`), routing SPA (`not_found_handling: single-page-application`), semua path non-file balik ke `index.html`, routing internal ditangani `js/05-navigation.js`.
 - **AI**: dua Supabase Edge Function generik (`ai-generate` untuk teks, `ai-embed` untuk embedding), proxy ke Gemini dengan fallback multi-key. Sengaja generik (teks-masuk/teks-keluar atau vector-keluar) — fitur baru tinggal panggil `AI.tanya()`/`AI.embed()` tanpa ubah Edge Function, selama masih pola itu.
@@ -153,7 +154,7 @@ Pemilik project (**Inti**) mengelola repo ini **lewat GitHub Web UI, bukan Git C
 | 02 | `02-auth.js` | Autentikasi custom (bukan Supabase Auth), session token |
 | 03 | `03-db-core.js` | `db` global, `ARRAY_TABLE_MAP`, `saveDB()`/`syncArrayTable()`, profil organisasi |
 | 04 | `04-event-settings.js` | Pengaturan event, kategori & jam tenang notifikasi Telegram |
-| 05 | `05-navigation.js` | Routing SPA |
+| 05 | `05-navigation.js` | Routing SPA + dropdown custom "Kegiatan Aktif" (nama & saldo tiap event, lihat `renderEventDropdown()`) |
 | 06 | `06-login-users.js` | Manajemen user login |
 | 07 | `07-dashboard.js` | Dashboard |
 | 08 | `08-anggota.js` | Data anggota |
@@ -176,7 +177,7 @@ Pemilik project (**Inti**) mengelola repo ini **lewat GitHub Web UI, bukan Git C
 | 23 | `23-install-prompt.js` | Prompt install PWA |
 | 30 | `30-second-brain.js` | Second Brain — catatan bebas + semantic search |
 | 29 | `29-asisten-ai.js` | Asisten AI (chat mengambang) — RAG pakai Second Brain |
-| 19 | `19-init.js` | Inisialisasi aplikasi (**load terakhir**) |
+| 19 | `19-init.js` | Inisialisasi aplikasi (**load terakhir**) + interaksi dropdown "Kegiatan Aktif" (buka/tutup/pilih) |
 
 > Catatan: urutan di atas adalah urutan **load/eksekusi** (sesuai `MODULE_ORDER`), bukan urutan numerik nama file — mis. `26`, `27`, `24`, `22`, `20` dst. dimuat sebelum `19-init.js` yang justru harus paling akhir.
 

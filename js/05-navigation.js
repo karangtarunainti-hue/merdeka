@@ -325,7 +325,14 @@ function renderTopbarSaldo(){
   // kalau slot chip yang kosong dilepas.
   if(currentSection === 'lpj'){
     chip.style.display = 'none';
-    shareBtn.style.display = 'inline-flex';
+    // Kirim ke grup WA cuma ditampilkan untuk Admin & Petugas — Anggota (role
+    // 'user'), Guest, dan yang belum login TIDAK ditampilkan tombolnya (cuma
+    // lihat-lihat laporan), supaya laporan tidak sengaja/salah terkirim ke
+    // grup pengurus oleh anggota biasa. Aksi kirimnya sendiri (kirimLpjKeGrupWa,
+    // di bawah) tidak divalidasi ulang di sini karena tombolnya memang tidak
+    // pernah dirender kalau tidak berhak.
+    const role = getCurrentUser()?.role;
+    shareBtn.style.display = (role === 'admin' || role === 'petugas') ? 'inline-flex' : 'none';
     return;
   }
   chip.style.display = '';

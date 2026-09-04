@@ -260,7 +260,7 @@ function dataEstimasiBelumDibeli(){
 // masih ada potensi pemasukan yang belum terealisasi. Cuma dikembalikan
 // kalau fiturnya memang dipakai (sama seperti syarat tampil panelnya).
 function dataKuponJalanSantai(){
-  if(!isMenuAktif('transaksi')) return null;
+  if(!isMenuAktif('transaksi') || !isFiturAktif('kupon')) return null;
   const s = getSettings();
   const kj = s.kuponJalanSantai || {harga:0, stok:0};
   const harga = Number(kj.harga||0);

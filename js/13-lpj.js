@@ -45,8 +45,16 @@ function renderLPJ(){
   // dibedakan lewat kolom kuponqty>0 — dipisah di sini jadi kategori sendiri
   // di LPJ (bukan gabung ke "Pemasukan Lain") supaya lebih jelas berapa
   // lembar & berapa rupiah yang murni dari penjualan kupon.
+  // Breakout ini cuma ditampilkan kalau fitur "Kupon Jalan Santai" aktif utk
+  // event ini (lihat FITUR_OPSIONAL di js/05-navigation.js) — ATAU kalaupun
+  // fiturnya sudah dimatikan, tetap ditampilkan kalau ternyata ada histori
+  // penjualan kupon (kuponRows.length>0) supaya uang yang sudah masuk tidak
+  // hilang diam-diam dari laporan cuma karena fitur dimatikan belakangan.
+  // Kalau breakout ini disembunyikan, baris-baris kuponnya tetap ikut masuk
+  // ke "Pemasukan Lain" biasa (bukan hilang), lihat nonKuponTransaksiList.
   const kuponRows = transaksiList.filter(t=>Number(t.kuponqty||0)>0);
-  const nonKuponTransaksiList = transaksiList.filter(t=>!(Number(t.kuponqty||0)>0));
+  const showKupon = isMenuAktif('transaksi') && (isFiturAktif('kupon') || kuponRows.length>0);
+  const nonKuponTransaksiList = showKupon ? transaksiList.filter(t=>!(Number(t.kuponqty||0)>0)) : transaksiList;
   const totalKuponQty = kuponRows.reduce((s,t)=>s+Number(t.kuponqty||0),0);
   const totalKuponNominal = kuponRows.reduce((s,t)=>s+Number(t.jumlah||0),0);
   const totalNonKuponNominal = nonKuponTransaksiList.reduce((s,t)=>s+Number(t.jumlah||0),0);
@@ -177,7 +185,7 @@ function renderLPJ(){
       <thead><tr><th>No</th><th>Tanggal</th><th>Keterangan</th><th class="num">Jumlah</th></tr></thead>
       <tbody>${nonKuponTransaksiList.map((t,idx)=>`<tr><td>${idx+1}</td><td>${fmtDate(t.tanggal)}</td><td>${esc(t.keterangan||'-')}</td><td class="num">${fmtRp(t.jumlah)}</td></tr>`).join('') || emptyRow(4,'Belum ada transaksi.')}</tbody>
     </table></div>` });
-  if (showTransaksi) pemasukanSubs.push({ title:'Penjualan Kupon', html:`
+  if (showKupon) pemasukanSubs.push({ title:'Penjualan Kupon', html:`
     <div class="lpj-table-scroll"><table class="lpj-table lpj-detail">
       <thead><tr><th>No</th><th>Tanggal</th><th>Keterangan</th><th class="num">Jumlah Kupon</th><th class="num">Nominal</th></tr></thead>
       <tbody>${kuponRows.map((t,idx)=>`<tr><td>${idx+1}</td><td>${fmtDate(t.tanggal)}</td><td>${esc(t.keterangan||'-')}</td><td class="num">${t.kuponqty}</td><td class="num">${fmtRp(t.jumlah)}</td></tr>`).join('') || emptyRow(5,'Belum ada penjualan kupon.')}</tbody>
@@ -235,7 +243,7 @@ function renderLPJ(){
         <tr><td class="indent">Iuran Anggota (${b.jumlahIuranLunas} lunas)</td><td class="num">${fmtRp(b.iuran)}</td></tr>
         ${showDonatur ? `<tr><td class="indent">Donatur (${b.jumlahDonatur} donasi)</td><td class="num">${fmtRp(b.donasi)}</td></tr>` : ''}
         ${showTransaksi ? `<tr><td class="indent">Pemasukan Lain (${nonKuponTransaksiList.length})</td><td class="num">${fmtRp(totalNonKuponNominal)}</td></tr>` : ''}
-        ${showTransaksi ? `<tr><td class="indent">Penjualan Kupon (${totalKuponQty} kupon &times; ${fmtRp(hargaKuponEfektif)})</td><td class="num">${fmtRp(totalKuponNominal)}</td></tr>` : ''}
+        ${showKupon ? `<tr><td class="indent">Penjualan Kupon (${totalKuponQty} kupon &times; ${fmtRp(hargaKuponEfektif)})</td><td class="num">${fmtRp(totalKuponNominal)}</td></tr>` : ''}
         <tr class="lpj-subtotal"><td>Total Pengeluaran</td><td class="num">${fmtRp(b.pengeluaran)}</td></tr>
         ${showOperasional ? `<tr><td class="indent">Operasional Kegiatan (${b.jumlahOperasional})</td><td class="num">${fmtRp(b.opsional)}</td></tr>` : ''}
         ${showLomba ? `<tr><td class="indent">Kebutuhan Lomba (${b.jumlahKebutuhanLomba})</td><td class="num">${fmtRp(b.kebutuhanLomba)}</td></tr>` : ''}

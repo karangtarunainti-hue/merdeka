@@ -491,13 +491,27 @@ async function testTelegram(){
   await sendTelegramNotification(`<b>Test Notifikasi</b>\n\nHalo! Ini adalah pesan test dari Buku Keuangan ${escTelegram(getOrgNama())}.\n\nNotifikasi berhasil terkonfigurasi!\n\nWaktu: ${new Date().toLocaleString('id-ID')}`, true);
 }
 
-function setActiveEvent(id){ 
-  if (!canEdit()) { toast('⛔ Login untuk mengelola event'); return; }
-  db.activeEventId = id; 
+// Ganti event aktif. SENGAJA tidak memakai canEdit() sebagai gerbang —
+// ini murni state tampilan (event mana yang sedang dilihat), bukan
+// mengubah data, jadi guest/anggota tanpa login juga boleh pindah-pindah
+// event untuk sekadar melihat. Alasan yang sama membuat perubahan ini
+// TIDAK lewat saveDB() (yang memicu sinkronisasi penuh seluruh tabel ke
+// Supabase dan bisa gagal dengan pesan "permission denied" untuk guest
+// yang aksesnya read-only) — activeEventId memang cuma disimpan di
+// localStorage per-device (lihat loadDB() di 03-db-core.js), tidak pernah
+// jadi kolom di tabel manapun, jadi cukup ditulis langsung ke sini.
+function setActiveEvent(id){
+  db.activeEventId = id;
   applyTemaWarna(eventTema(db.events.find(e=>e.id===id)).key);
-  saveDB(); renderSidebar();
+  if (db.activeEventId) localStorage.setItem('kt_active_event', db.activeEventId);
+  invalidateSaldoEventCache();
+  renderSidebar();
   goSection(isMenuAktif(currentSection) ? currentSection : 'dashboard');
-  notifyTelegram(`📂 Buka event: ${db.events.find(e=>e.id===id)?.nama || id}`, '', 'sistem');
+  // Notifikasi Telegram cuma relevan untuk aksi pengurus yang login — kalau
+  // dikirim tiap guest pindah tab event, jadi spam tanpa nilai audit.
+  if (canEdit()) {
+    notifyTelegram(`📂 Buka event: ${db.events.find(e=>e.id===id)?.nama || id}`, '', 'sistem');
+  }
 }
 
 async function hapusEvent(id){

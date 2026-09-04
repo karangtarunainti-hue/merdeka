@@ -1,9 +1,8 @@
 /* ============================================================
    INIT
    ============================================================ */
-document.getElementById('event-select').addEventListener('change', (e)=>{ 
-  if (canEdit()) setActiveEvent(e.target.value); 
-  else toast('⛔ Login untuk mengubah event');
+document.getElementById('event-select').addEventListener('change', (e)=>{
+  setActiveEvent(e.target.value);
 });
 
 /* ============================================================
@@ -11,8 +10,11 @@ document.getElementById('event-select').addEventListener('change', (e)=>{
    Isi trigger/panel-nya sendiri dirender oleh renderEventDropdown()
    (js/05-navigation.js); di sini cuma interaksinya. Milih opsi mengubah
    <select id="event-select"> tersembunyi lalu memicu event 'change'-nya
-   secara manual, supaya semua logika izin (canEdit(), lihat listener di
-   atas) tetap lewat SATU jalur yang sama, tidak diduplikasi di sini.
+   secara manual, supaya SATU jalur yang sama (setActiveEvent()) dipakai
+   baik oleh user login maupun guest, tidak diduplikasi di sini. Pindah
+   event sengaja terbuka untuk siapa saja (termasuk tanpa login) — lihat
+   komentar di setActiveEvent() (js/15-pengaturan-event.js) kenapa ini
+   aman: cuma ganti state tampilan lokal, bukan mengubah data.
    ============================================================ */
 (() => {
   const eventDropdown = document.getElementById('event-dropdown');

@@ -56,8 +56,11 @@
            yang nggak bisa diubah tampilannya). <select id="event-select"> di
            bawah TETAP ADA (disembunyikan) sebagai "sumber kebenaran" satu-
            satunya buat activeEventId — listener change-nya di js/19-init.js
-           yang beneran manggil setActiveEvent(), termasuk cek izin (canEdit()).
-           Trigger & panel ini cuma lapisan visual, disinkron dari situ lewat
+           yang beneran manggil setActiveEvent(). Pindah event terbuka untuk
+           siapa saja termasuk guest tanpa login (cuma state tampilan lokal,
+           bukan ubah data — lihat komentar di setActiveEvent(),
+           js/15-pengaturan-event.js). Trigger & panel ini cuma lapisan
+           visual, disinkron dari situ lewat
            renderEventDropdown() (js/05-navigation.js). -->
       <div class="event-dropdown" id="event-dropdown">
         <button type="button" class="event-dropdown-trigger" id="event-dropdown-trigger" aria-haspopup="listbox" aria-expanded="false">

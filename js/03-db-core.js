@@ -808,6 +808,26 @@ function _isolateSync(promise, label){
   });
 }
 
+// Label ramah-baca per key ARRAY_TABLE_MAP, dipakai _isolateSync() saat membungkus
+// syncArrayTable() (lihat _flushSaveDB di bawah) supaya toast kegagalan sync
+// menyebut nama data yang dikenal user ("Anggota Dana Sosial"), bukan nama
+// variabel/tabel mentah ("danaSosialAnggota"/"kt_dana_sosial_anggota").
+const ARRAY_TABLE_LABELS = {
+  events: 'Event', anggota: 'Data Anggota', donatur: 'Donatur',
+  transaksiLain: 'Transaksi Lain', operasional: 'Biaya Operasional', lomba: 'Lomba',
+  hadiahKategori: 'Kategori Hadiah', hadiahJalanSantai: 'Hadiah Jalan Santai',
+  jadwal: 'Jadwal', agenda: 'Agenda', kas: 'Kas',
+  danaSosialAnggota: 'Anggota Dana Sosial', lombaKebutuhan: 'Kebutuhan Lomba',
+  lombaHadiah: 'Hadiah Lomba', daftarBelanjaHadiah: 'Belanja Hadiah',
+  daftarBelanjaJalanSantai: 'Belanja Jalan Santai', danaSosialBayar: 'Rekap Bayar Dana Sosial',
+  daftarBelanjaPerlengkapan: 'Belanja Perlengkapan', bookmark: 'Bookmark',
+};
+// Bungkus syncArrayTable() dengan _isolateSync + label ramah-baca dari
+// ARRAY_TABLE_LABELS (fallback ke key mentah kalau belum terdaftar).
+function _syncArrayTableIsolated(table, rows, key){
+  return _isolateSync(syncArrayTable(table, rows, key), ARRAY_TABLE_LABELS[key] || key);
+}
+
 async function _flushSaveDB(){
   if(_saveDBRunning){ _saveDBQueued = true; return; }
   _saveDBRunning = true;
@@ -827,7 +847,7 @@ async function _flushSaveDB(){
     // request kt_events selesai committed, sehingga foreign key constraint gagal
     // (error 409 "violates foreign key constraint kt_settings_event_id_fkey" dkk).
     const eventsTable = ARRAY_TABLE_MAP.events;
-    const eventsConflicts = await syncArrayTable(eventsTable, db.events, 'events');
+    const eventsConflicts = await _syncArrayTableIsolated(eventsTable, db.events, 'events');
 
     // Sama seperti alasan 'events' di atas: beberapa tabel lain SALING punya foreign
     // key satu sama lain (bukan cuma ke kt_events), jadi tidak semuanya aman disinkron
@@ -857,9 +877,19 @@ async function _flushSaveDB(){
     const categorizedKeys = new Set([...LEVEL_1_KEYS, ...LEVEL_2_KEYS, ...LEVEL_3_KEYS]);
     const uncategorizedEntries = otherEntries.filter(([key]) => !categorizedKeys.has(key));
 
+    // Tiap syncArrayTable() di sini dibungkus _syncArrayTableIsolated() (bukan
+    // dipanggil langsung) — dulu kalau SATU tabel gagal (mis. RLS menolak karena
+    // sesi login sudah kedaluwarsa di server), Promise.all langsung reject total,
+    // melompat ke catch paling luar di bawah yang TIDAK punya deteksi "ini gara-gara
+    // sesi habis" (lihat isSessionIssue di bawah) — jadi user dapat toast generik
+    // "coba simpan ulang" yang menyesatkan (submit ulang saja tidak akan pernah
+    // berhasil kalau memang sesi sudah habis), PADAHAL tabel-tabel lain di level yang
+    // sama sebenarnya berhasil tersimpan. Dengan isolasi ini, kegagalan satu tabel
+    // tidak lagi menutupi hasil tabel lain, dan pesannya jadi akurat lewat
+    // klasifikasi syncFailures/isSessionIssue di bawah.
     const level1Results = await Promise.all([
-      ...level1Entries.map(([key, table]) => syncArrayTable(table, db[key], key)),
-      ...uncategorizedEntries.map(([key, table]) => syncArrayTable(table, db[key], key)),
+      ...level1Entries.map(([key, table]) => _syncArrayTableIsolated(table, db[key], key)),
+      ...uncategorizedEntries.map(([key, table]) => _syncArrayTableIsolated(table, db[key], key)),
       _isolateSync(syncSettings(), 'Pengaturan Tarif'),
       _isolateSync(syncTelegram(), 'Pengaturan Telegram'),
       _isolateSync(syncGuestMenu(), 'Akses Guest'),
@@ -867,8 +897,8 @@ async function _flushSaveDB(){
       _isolateSync(syncOrgProfile(), 'Profil Organisasi'),
       _isolateSync(syncWhatsappSettings(), 'Pengaturan WhatsApp'),
     ]);
-    const level2Results = await Promise.all(level2Entries.map(([key, table]) => syncArrayTable(table, db[key], key)));
-    const level3Results = await Promise.all(level3Entries.map(([key, table]) => syncArrayTable(table, db[key], key)));
+    const level2Results = await Promise.all(level2Entries.map(([key, table]) => _syncArrayTableIsolated(table, db[key], key)));
+    const level3Results = await Promise.all(level3Entries.map(([key, table]) => _syncArrayTableIsolated(table, db[key], key)));
 
     // Hasil konflik dari 'events' (disimpan terpisah di atas) digabung dengan hasil
     // dari semua level lainnya. syncSettings/syncTelegram/syncGuestMenu/syncDokumenGlobal/

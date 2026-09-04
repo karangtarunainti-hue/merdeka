@@ -293,6 +293,49 @@ function confirmModal(message, {title='Konfirmasi', okLabel='OK', cancelLabel='B
 }
 
 /* ============================================================
+   KONFIRMASI "KETIK ULANG" — lapisan kedua untuk aksi destruktif &
+   TIDAK BISA DIBATALKAN (mis. hapus event beserta semua data turunannya).
+   Beda dari confirmModal() biasa (cuma klik tombol, gampang ke-klik reflex
+   tanpa baca — apalagi di layar HP): di sini tombol konfirmasi baru aktif
+   kalau admin sudah MENGETIK ULANG teks tertentu (biasanya nama data yang
+   mau dihapus) PERSIS SAMA. Dipakai SETELAH confirmModal() biasa, bukan
+   pengganti — jadi ada 2 lapis: klik "Ya" dulu, baru ketik ulang nama.
+   ============================================================ */
+function typedConfirmModal({title='Konfirmasi Terakhir', message, confirmText, label, okLabel='Hapus Permanen', cancelLabel='Batal'}){
+  return new Promise((resolve) => {
+    const inputId = 'tc-input-' + uid();
+    const paragraf = String(message??'').split('\n\n')
+      .map(p => `<p style="margin:0 0 10px;white-space:pre-line;line-height:1.5;">${esc(p)}</p>`)
+      .join('');
+    let resolved = false;
+    const finish = (val) => { if(resolved) return; resolved = true; closeModal(); resolve(val); };
+    setModal(title, `
+      <div class="confirm-body">${paragraf}</div>
+      <div class="field" style="margin-top:10px;">
+        <label>${esc(label || `Ketik "${confirmText}" untuk konfirmasi`)}</label>
+        <input id="${inputId}" type="text" autocomplete="off" placeholder="${esc(confirmText)}">
+      </div>
+    `, [
+      {label:cancelLabel, cls:'secondary', onclick:()=>finish(false)},
+      {label:okLabel, cls:'danger', id:'tc-ok-btn', onclick:()=>finish(true)}
+    ]);
+    setTimeout(()=>{
+      const okBtn = document.getElementById('tc-ok-btn');
+      const input = document.getElementById(inputId);
+      if(!okBtn || !input) return;
+      okBtn.disabled = true;
+      okBtn.style.opacity = '.5';
+      input.addEventListener('input', ()=>{
+        const cocok = input.value.trim() === confirmText;
+        okBtn.disabled = !cocok;
+        okBtn.style.opacity = cocok ? '1' : '.5';
+      });
+      input.focus();
+    }, 60);
+  });
+}
+
+/* ============================================================
    FUNGSI HITUNG BUKU UTAMA
    ============================================================ */
 function hitungBukuUtama(){

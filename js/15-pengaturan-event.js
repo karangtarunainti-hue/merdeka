@@ -504,7 +504,44 @@ async function hapusEvent(id){
   if (!isAdmin()) { toast('⛔ Hanya Admin'); return; }
   const e = db.events.find(x=>x.id===id); if(!e) return;
   if(e.locked){ toast('🔒 Event ini terkunci — buka kuncinya dulu sebelum menghapus'); return; }
-  if(!(await confirmModal(`Hapus event "${e.nama}" beserta semua data?`))) return;
+
+  // Ringkasan jumlah data yang ikut terhapus — supaya Admin sadar skalanya
+  // sebelum lanjut ke konfirmasi kedua, bukan cuma lihat "Hapus event X?" polos.
+  const jmlAnggota = db.anggota.filter(x=>x.event_id===id).length;
+  const jmlDonatur = db.donatur.filter(x=>x.event_id===id).length;
+  const jmlTransaksi = db.transaksiLain.filter(x=>x.event_id===id).length;
+  const jmlOperasional = db.operasional.filter(x=>x.event_id===id).length;
+  const jmlLomba = db.lomba.filter(x=>x.event_id===id).length;
+  const jmlJadwal = db.jadwal.filter(x=>x.event_id===id).length;
+  const ringkasan = [
+    jmlAnggota && `${jmlAnggota} anggota`,
+    jmlDonatur && `${jmlDonatur} donatur`,
+    jmlTransaksi && `${jmlTransaksi} transaksi lain`,
+    jmlOperasional && `${jmlOperasional} biaya operasional`,
+    jmlLomba && `${jmlLomba} lomba`,
+    jmlJadwal && `${jmlJadwal} jadwal/agenda`,
+  ].filter(Boolean).join(', ');
+
+  // LAPISAN 1 — konfirmasi biasa (lihat 16-ui-helpers.js), jelaskan dulu
+  // konsekuensinya sebelum masuk ke konfirmasi kedua yang lebih ketat.
+  const langkah1 = await confirmModal(
+    `Hapus event "${e.nama}" beserta SEMUA data di dalamnya?` +
+    (ringkasan ? `\n\nData yang ikut terhapus: ${ringkasan}.` : '') +
+    `\n\nTindakan ini TIDAK BISA DIBATALKAN.`
+  );
+  if(!langkah1) return;
+
+  // LAPISAN 2 — harus ketik ulang nama event PERSIS SAMA (lihat
+  // typedConfirmModal di 16-ui-helpers.js). Ini pengaman ganda supaya klik
+  // "Ya" yang reflex/tidak sengaja (apalagi di layar HP) tidak langsung
+  // menghapus data event beserta seluruh data turunannya secara permanen.
+  const langkah2 = await typedConfirmModal({
+    message: `Untuk memastikan, ketik ulang nama event ini persis sama lalu tekan "Hapus Permanen":\n\n"${e.nama}"`,
+    confirmText: e.nama,
+    okLabel: '🗑️ Hapus Permanen',
+  });
+  if(!langkah2) return;
+
   db.events = db.events.filter(x=>x.id!==id);
   delete db.settings[id];
   db.anggota = db.anggota.filter(x=>x.event_id!==id);

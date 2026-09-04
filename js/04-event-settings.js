@@ -239,6 +239,34 @@ const TELEGRAM_QUEUE_KEY = 'kt_telegram_pending_queue';
 const TELEGRAM_QUEUE_MAX = 50; // batasi ukuran antrian supaya tidak numpuk tak terbatas kalau offline lama
 const TELEGRAM_QUEUE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // buang pesan lebih basi dari 7 hari
 
+// Deteksi sekali per sesi halaman apakah situs ini benar-benar dilayani
+// Cloudflare Worker (src/worker.js) — bukan host lain (mis. preview
+// GitHub Pages) yang cuma menyajikan file statis tanpa route /api/*.
+// Tanpa ini, tiap notifyTelegram()/flushTelegramQueue() di host yang
+// salah akan selalu mencoba POST /api/telegram, gagal 405 dengan body
+// HTML (bukan JSON), lalu pesannya numpuk terus di antrian offline dan
+// dicoba ulang tiap 5 menit tanpa pernah bisa berhasil — noise di
+// console tanpa henti. Dicek lewat GET /api/health (endpoint ringan,
+// lihat src/worker.js) dan hasilnya di-cache di variabel modul (BUKAN
+// localStorage) supaya kalau situs di-reload dari domain Worker yang
+// benar, pengecekan otomatis ulang — bukan "macet" nonaktif selamanya.
+let _workerApiAvailable = null; // null = belum dicek sama sekali
+async function _isWorkerApiAvailable(){
+  if(_workerApiAvailable !== null) return _workerApiAvailable;
+  try{
+    const res = await fetch('/api/health', { method: 'GET' });
+    const contentType = res.headers.get('content-type') || '';
+    _workerApiAvailable = res.ok && contentType.includes('application/json');
+  }catch(e){
+    _workerApiAvailable = false;
+  }
+  if(!_workerApiAvailable){
+    console.warn('⚠️ Endpoint /api/* (Cloudflare Worker) tidak terdeteksi di host ini — notifikasi Telegram dinonaktifkan sementara untuk sesi ini. Pastikan situs diakses dari domain yang menjalankan src/worker.js (lihat wrangler.jsonc), lalu muat ulang halaman.');
+  }
+  return _workerApiAvailable;
+}
+
+
 function _sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
 
 // Pengiriman notifikasi TIDAK LAGI memanggil api.telegram.org langsung dari
@@ -298,6 +326,11 @@ async function flushTelegramQueue(){
   // Jangan kirim antrian selagi masih jam tenang — coba lagi otomatis lewat
   // interval berkala setelah jam tenang berakhir (lihat js/19-init.js).
   if(isWithinQuietHours(settings)) return;
+  // Host ini tidak menjalankan Worker (lihat _isWorkerApiAvailable()) —
+  // jangan buang percobaan ke /api/telegram yang pasti gagal, biarkan
+  // antrian tetap tersimpan apa adanya untuk dicoba lagi nanti (mis.
+  // setelah di-reload dari domain yang benar).
+  if(!await _isWorkerApiAvailable()) return;
   let queue = _loadTelegramQueue();
   if(!queue.length) return;
   const now = Date.now();
@@ -326,6 +359,15 @@ async function sendTelegramNotification(message, isTest = false){
   const settings = getTelegramSettings();
   if(!settings.enabled || !settings.chatId){
     if(isTest) toast('⚠️ Telegram belum dikonfigurasi. Atur di Pengaturan.');
+    return false;
+  }
+  if(!await _isWorkerApiAvailable()){
+    if(isTest) toast('⚠️ Endpoint notifikasi tidak tersedia di host ini — pastikan diakses dari domain Cloudflare Worker yang benar (lihat wrangler.jsonc), bukan preview/host statis lain.', 6000);
+    // Sengaja TIDAK masuk antrian offline di sini — masalahnya bukan
+    // koneksi sesaat yang akan pulih sendiri, tapi host yang memang tidak
+    // menjalankan Worker sama sekali. Menumpuk ke antrian cuma bikin
+    // percobaan retry berikutnya sia-sia juga (lihat guard yang sama di
+    // flushTelegramQueue()).
     return false;
   }
   for(let attempt = 0; attempt < TELEGRAM_RETRY_DELAYS_MS.length; attempt++){

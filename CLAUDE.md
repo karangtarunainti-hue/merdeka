@@ -193,11 +193,40 @@ runner — situs 100% statis, testing manual di browser.
 - Saat edit form yang merekonstruksi objek dari field parsial (mis. form
   edit paket hadiah), pastikan field lama yang tidak ditampilkan di form
   tetap disalin, jangan sampai hilang diam-diam.
+- **Aksi destruktif & tidak bisa dibatalkan** (mis. hapus event) pakai pola
+  konfirmasi GANDA: `confirmModal()` biasa (klik) dulu, lalu
+  `typedConfirmModal()` (`16-ui-helpers.js`) yang mewajibkan admin mengetik
+  ulang teks tertentu (biasanya nama data yang dihapus) persis sama sebelum
+  tombol aksi aktif. Contoh penerapan: `hapusEvent()` di
+  `15-pengaturan-event.js`. Pakai pola yang sama untuk aksi destruktif baru
+  yang setara bahayanya (hapus massal, timpa data, dll), jangan cuma
+  `confirmModal()` tunggal.
 
 ## Hal yang Perlu Diperhatikan
 
 - Migrasi SQL bertambah terus (28+ file) — cek file migrasi terbaru
   sebelum asumsi skema tabel tertentu.
+- **Sinkronisasi tabel array (`_flushSaveDB()`, `03-db-core.js`) diisolasi
+  per-tabel** lewat `_syncArrayTableIsolated()`/`_isolateSync()` — SETIAP
+  `syncArrayTable()` (termasuk yang di Level 1/2/3 dependency-order) WAJIB
+  dibungkus, jangan dipanggil langsung di dalam `Promise.all([...])`. Kalau
+  tidak, satu tabel gagal (mis. RLS menolak karena sesi login sudah
+  kedaluwarsa di server) membuat SELURUH `Promise.all` reject, melompat ke
+  catch paling luar yang tidak punya deteksi `isSessionIssue` — akibatnya
+  tabel lain yang sebenarnya sukses tidak dilaporkan, dan pesan errornya
+  jadi generik "coba simpan ulang" yang menyesatkan (riwayat bug: error
+  `kt_dana_sosial_anggota` gagal RLS muncul berulang di section yang tidak
+  ada hubungannya, sampai baris local yang gagal itu berhasil tersinkron).
+  Kalau menambah tabel array baru ke `ARRAY_TABLE_MAP`, tambahkan juga
+  label ramah-bacanya ke `ARRAY_TABLE_LABELS`.
+- **Default kategori saat "Salin Data Anggota" ke event baru**
+  (`renderSalinKategoriCheckboxes()`, `15-pengaturan-event.js`) bisa diatur
+  admin lewat panel "Default Kategori Saat Salin Anggota" di halaman
+  Pengaturan — disimpan di `localStorage` (`kt_default_salin_kategori`,
+  helper `getDefaultSalinKategori()`/`saveDefaultSalinKategoriSetting()` di
+  `04-event-settings.js`), BUKAN di Supabase. Konsekuensi: preferensi ini
+  per perangkat/browser, tidak sinkron lintas device/akun. Kalau nanti mau
+  disinkronkan, perlu tabel/kolom Supabase baru + migrasi SQL.
 - `CATATAN-MERGER-GUDANG.md` dan `SECURITY_AUDIT.md` di root berisi
   catatan historis penting, baca kalau menyentuh modul gudang atau
   keamanan.

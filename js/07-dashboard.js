@@ -75,11 +75,12 @@ function renderDashboard(){
 // (dari kt_settings.kuponJalanSantai.stok) & laporan ringkas kupon yang sudah
 // terjual (dihitung dari kolom kuponqty di db.transaksiLain, lihat
 // totalKuponTerjual() di js/09-donatur-transaksi-operasional.js). Hanya
-// tampil kalau menu Pemasukan Lain aktif & fitur kupon sudah diatur admin
+// tampil kalau menu Pemasukan Lain & fitur "Kupon Jalan Santai" aktif (lihat
+// FITUR_OPSIONAL di js/05-navigation.js) & fitur kupon sudah diatur admin
 // (harga atau stok > 0), supaya tidak numpuk buat event yang tidak pakai
 // kupon jalan santai.
 function kuponJalanPanelHtml(){
-  if (!isMenuAktif('transaksi')) return '';
+  if (!isMenuAktif('transaksi') || !isFiturAktif('kupon')) return '';
   const s = getSettings();
   const kj = s.kuponJalanSantai || {harga:0, stok:0};
   const harga = Number(kj.harga||0);
@@ -285,9 +286,10 @@ function generateReminders(){
   }
 
   // Kupon Jalan Santai hampir/sudah habis — cuma dicek kalau fiturnya
-  // memang dipakai (stok diatur admin di Pengaturan, lihat kuponJalanPanelHtml
-  // di bawah untuk panel lengkapnya di Buku Kegiatan).
-  if (isMenuAktif('transaksi')) {
+  // memang aktif utk event ini & memang dipakai (stok diatur admin di
+  // Pengaturan, lihat kuponJalanPanelHtml di bawah untuk panel lengkapnya
+  // di Buku Kegiatan).
+  if (isMenuAktif('transaksi') && isFiturAktif('kupon')) {
     const sKupon = getSettings().kuponJalanSantai || {harga:0, stok:0};
     const stokKupon = Number(sKupon.stok||0);
     if (stokKupon > 0) {

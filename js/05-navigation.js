@@ -64,12 +64,19 @@ const FITUR_OPSIONAL = [
   {key:'hadiah', label:'Hadiah Lomba', menus:['hadiah','belanja-hadiah']},
   {key:'jalan_santai', label:'Hadiah Jalan Santai', menus:['hadiah-jalan','belanja-jalan']},
   {key:'jadwal', label:'Jadwal Kegiatan', menus:['jadwal']},
+  // "kupon" TIDAK punya section/menu sendiri (bukan seperti fitur lain di atas) —
+  // dia cuma sub-panel di dalam menu Pengaturan, Buku Kegiatan & Pemasukan Lain
+  // (lihat kuponJalanPanelHtml() di js/07-dashboard.js, panel harga/stok di
+  // js/15-pengaturan-event.js, dan openKuponJalanModal() di
+  // js/09-donatur-transaksi-operasional.js), makanya `menus:[]`. Dicek langsung
+  // lewat isFiturAktif('kupon') di ketiga tempat itu, bukan lewat isMenuAktif().
+  {key:'kupon', label:'Kupon Jalan Santai', menus:[]},
 ];
 // Preset dipakai di modal event supaya tidak perlu centang satu-satu tiap bikin event baru.
 // Catatan: "dokumen" (Surat & Dokumen) sengaja TIDAK ada di sini lagi — sejak
 // menu ini berdiri sendiri seperti Gudang, tidak bisa dimatikan per event.
-const FITUR_PRESET_SEDERHANA = {donatur:false, transaksi:false, operasional:false, lomba:false, hadiah:false, jalan_santai:false, jadwal:false};
-const FITUR_PRESET_LENGKAP = {donatur:true, transaksi:true, operasional:true, lomba:true, hadiah:true, jalan_santai:true, jadwal:true};
+const FITUR_PRESET_SEDERHANA = {donatur:false, transaksi:false, operasional:false, lomba:false, hadiah:false, jalan_santai:false, jadwal:false, kupon:false};
+const FITUR_PRESET_LENGKAP = {donatur:true, transaksi:true, operasional:true, lomba:true, hadiah:true, jalan_santai:true, jadwal:true, kupon:true};
 
 // Default: fitur dianggap aktif kalau belum pernah diset (backward-compat utk event lama).
 function eventFitur(ev){
@@ -88,7 +95,16 @@ function isMenuAktif(menuKey){
   if (!item) return true;
   return !!fitur[item.key];
 }
+// Sama seperti isMenuAktif(), tapi utk fitur FITUR_OPSIONAL yang tidak punya
+// section/menu sendiri (menus:[]) sehingga tidak bisa dicek lewat isMenuAktif() —
+// mis. 'kupon', yang cuma berupa sub-panel di dalam beberapa menu lain.
+function isFiturAktif(fiturKey){
+  const ev = activeEvent();
+  if (!ev) return true;
+  return !!eventFitur(ev)[fiturKey];
+}
 const ICONS = {
+  ticket:'<path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M13 5v2" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M13 17v2" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M13 11v2" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>',
   grid:'<rect width="7" height="7" x="3" y="3" rx="1" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/><rect width="7" height="7" x="14" y="3" rx="1" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/><rect width="7" height="7" x="14" y="14" rx="1" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/><rect width="7" height="7" x="3" y="14" rx="1" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>',
   users:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 3.128a4 4 0 0 1 0 7.744" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M22 21v-2a4 4 0 0 0-3-3.87" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9" cy="7" r="4" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>',
   database:'<ellipse cx="12" cy="5" rx="9" ry="3" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 5V19A9 3 0 0 0 21 19V5" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 12A9 3 0 0 0 21 12" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>',

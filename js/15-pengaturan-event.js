@@ -64,7 +64,12 @@ function renderPengaturan(){
 
   <!-- HARGA & STOK KUPON JALAN SANTAI: dipakai menu "Jual Kupon Jalan Santai" di
        Pemasukan Lain supaya nominal terhitung otomatis dari jumlah kupon terjual
-       x harga ini, dan penjualan dibatasi sesuai stok yang tersedia. -->
+       x harga ini, dan penjualan dibatasi sesuai stok yang tersedia. Fitur ini
+       bisa dimatikan per-event lewat toggle "Kupon Jalan Santai" di modal Buat/
+       Edit Event (lihat FITUR_OPSIONAL di js/05-navigation.js) — kalau mati,
+       panel ini disembunyikan supaya tidak numpuk buat event yang tidak jual
+       kupon. -->
+  ${isFiturAktif('kupon') ? `
   <div class="panel">
     <div class="panel-head"><div><h3>🎟️ Kupon Jalan Santai</h3><div class="desc">Dipakai di menu Pemasukan Lain → Jual Kupon Jalan Santai, supaya nominal terhitung otomatis dari jumlah kupon terjual dan penjualan tidak melebihi stok.</div></div></div>
     <div class="panel-body">
@@ -75,7 +80,7 @@ function renderPengaturan(){
       <div class="hint">Terjual sejauh ini: <b>${totalKuponTerjual()}</b> lembar &middot; Sisa stok: <b>${Math.max(0, (s.kuponJalanSantai.stok||0) - totalKuponTerjual())}</b> lembar</div>
       <button class="btn" ${da('simpanHargaKupon')}>Simpan Harga &amp; Stok Kupon</button>
     </div>
-  </div>
+  </div>` : ''}
 
   <!-- TELEGRAM NOTIFICATION SETTINGS -->
   <div class="panel">
@@ -703,7 +708,7 @@ function importDataEvent(evt){
    ============================================================ */
 // Ikon per fitur opsional di modal Buat/Edit Event — dicocokkan dengan ikon
 // menu terkait di SECTIONS (05-navigation.js) supaya konsisten dgn sidebar.
-const FITUR_ICON_MAP = {donatur:'heart', transaksi:'swap', operasional:'briefcase', lomba:'flag', hadiah:'gift', jalan_santai:'walk', jadwal:'calendar'};
+const FITUR_ICON_MAP = {donatur:'heart', transaksi:'swap', operasional:'briefcase', lomba:'flag', hadiah:'gift', jalan_santai:'walk', jadwal:'calendar', kupon:'ticket'};
 function openEventModal(id){
   if (!canEdit()) { toast('⛔ Login untuk mengelola event'); return; }
   const editing = id ? db.events.find(e=>e.id===id) : null;

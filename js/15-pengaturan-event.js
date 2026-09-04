@@ -62,6 +62,27 @@ function renderPengaturan(){
     </div>
   </div>
 
+  <!-- DEFAULT KATEGORI SAAT SALIN ANGGOTA (Buat Event Baru) -->
+  <div class="panel">
+    <div class="panel-head">
+      <div><h3>📥 Default Kategori Saat Salin Anggota</h3><div class="desc">Saat membuat event baru dan memilih "Salin Data Anggota" dari event lama, kategori di bawah ini akan otomatis tercentang duluan (tetap bisa diubah manual saat itu). Contoh: kalau event barunya cuma untuk iuran Perantauan, centang Perantauan saja di sini.</div></div>
+    </div>
+    <div class="panel-body">
+      <div class="toggle-grid">
+        ${(() => { const def = getDefaultSalinKategori(); return KATEGORI_ANGGOTA.map(k=>{
+          const dicentang = def ? def.includes(k.v) : true;
+          return `<label class="toggle-chip">
+            <input type="checkbox" id="default-salin-kat-${k.v}" ${dicentang?'checked':''} hidden>
+            <span class="toggle-box"></span>
+            <span class="toggle-text">${esc(k.l)}</span>
+          </label>`;
+        }).join(''); })()}
+      </div>
+      <div class="hint">Pengaturan ini disimpan di perangkat/browser ini saja, bukan disinkron ke akun lain.</div>
+      <button class="btn" ${da('saveDefaultSalinKategoriSetting')}>💾 Simpan Default Kategori</button>
+    </div>
+  </div>
+
   <!-- HARGA & STOK KUPON JALAN SANTAI: dipakai menu "Jual Kupon Jalan Santai" di
        Pemasukan Lain supaya nominal terhitung otomatis dari jumlah kupon terjual
        x harga ini, dan penjualan dibatasi sesuai stok yang tersedia. Fitur ini
@@ -719,14 +740,20 @@ function renderSalinKategoriCheckboxes(){
   const sourceId = sel ? sel.value : '';
   if(!sourceId){ wrap.innerHTML = ''; return; }
   const list = db.anggota.filter(a=>a.event_id===sourceId);
+  // Default kecentang: kalau admin sudah atur preferensi default (lihat
+  // getDefaultSalinKategori di js/04-event-settings.js), pakai itu. Kalau
+  // belum pernah diatur (null), fallback ke perilaku lama: semua kategori
+  // yang ada di event sumber tercentang otomatis.
+  const defaultKategori = getDefaultSalinKategori();
   wrap.innerHTML = `
     <div class="hint" style="margin:8px 0 4px;">Pilih kategori yang mau disalin:</div>
     <div class="toggle-grid">
       ${KATEGORI_ANGGOTA.map(k=>{
         const jumlah = list.filter(a=>a.kategori===k.v).length;
         const disabled = jumlah===0;
+        const dicentang = defaultKategori ? defaultKategori.includes(k.v) : true;
         return `<label class="toggle-chip"${disabled?' style="opacity:.5;"':''}>
-          <input type="checkbox" id="salin-kat-${k.v}" ${disabled?'':'checked'} ${disabled?'disabled':''} hidden>
+          <input type="checkbox" id="salin-kat-${k.v}" ${(!disabled && dicentang)?'checked':''} ${disabled?'disabled':''} hidden>
           <span class="toggle-box"></span>
           <span class="toggle-text">${esc(k.l)} (${jumlah})</span>
         </label>`;

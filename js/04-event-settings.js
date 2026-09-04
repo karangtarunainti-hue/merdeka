@@ -34,6 +34,35 @@ function applyTemaWarna(key){
   if(metaTheme) metaTheme.setAttribute('content', tema.dark);
 }
 
+/* ============================================================
+   DEFAULT KATEGORI SAAT "SALIN DATA ANGGOTA" (Buat Event Baru)
+   ============================================================
+   Preferensi ini menentukan kategori anggota mana yang otomatis
+   tercentang saat admin membuka form "Buat Event" dan memilih event
+   sumber untuk disalin (lihat renderSalinKategoriCheckboxes di
+   js/15-pengaturan-event.js). Tetap bisa diubah manual saat itu juga —
+   ini cuma default awal, bukan pembatasan/kunci.
+   Disimpan di localStorage (per perangkat), BUKAN disinkron ke
+   Supabase, supaya tidak perlu tabel/kolom baru di database. Kalau
+   belum pernah diatur (null), perilakunya sama seperti sebelumnya:
+   semua kategori yang ada di event sumber tercentang otomatis.
+   ============================================================ */
+const DEFAULT_SALIN_KATEGORI_KEY = 'kt_default_salin_kategori';
+function getDefaultSalinKategori(){
+  try{
+    const raw = localStorage.getItem(DEFAULT_SALIN_KATEGORI_KEY);
+    if(!raw) return null;
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : null;
+  }catch(e){ return null; }
+}
+function saveDefaultSalinKategoriSetting(){
+  if(!isAdmin()){ toast('⛔ Hanya Admin'); return; }
+  const terpilih = KATEGORI_ANGGOTA.map(k=>k.v).filter(v=>document.getElementById(`default-salin-kat-${v}`)?.checked);
+  try{ localStorage.setItem(DEFAULT_SALIN_KATEGORI_KEY, JSON.stringify(terpilih)); }catch(e){}
+  toast('✅ Default kategori salin anggota disimpan di perangkat ini');
+}
+
 function eid(){ return db.activeEventId; }
 function getSettings(){
   if(!eid()) return {tarif:{sekolah:0,bekerja:0,perantauan:0,khusus:0}, hadiahBudget:{}, dokumen:{}, kategoriToko:{customCategories:[],keywords:{}}, kuponJalanSantai:{harga:0,stok:0}};

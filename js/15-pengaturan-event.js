@@ -709,6 +709,31 @@ function importDataEvent(evt){
 // Ikon per fitur opsional di modal Buat/Edit Event — dicocokkan dengan ikon
 // menu terkait di SECTIONS (05-navigation.js) supaya konsisten dgn sidebar.
 const FITUR_ICON_MAP = {donatur:'heart', transaksi:'swap', operasional:'briefcase', lomba:'flag', hadiah:'gift', jalan_santai:'walk', jadwal:'calendar', kupon:'ticket'};
+// Render checkbox kategori (Sekolah/Bekerja/Perantauan/Khusus) sesuai anggota
+// yang ada di event sumber yang dipilih pada dropdown "Salin Data Anggota".
+// Dipanggil ulang tiap dropdown event sumber berubah.
+function renderSalinKategoriCheckboxes(){
+  const wrap = document.getElementById('f-salin-kategori-wrap');
+  if(!wrap) return;
+  const sel = document.getElementById('f-salin-anggota');
+  const sourceId = sel ? sel.value : '';
+  if(!sourceId){ wrap.innerHTML = ''; return; }
+  const list = db.anggota.filter(a=>a.event_id===sourceId);
+  wrap.innerHTML = `
+    <div class="hint" style="margin:8px 0 4px;">Pilih kategori yang mau disalin:</div>
+    <div class="toggle-grid">
+      ${KATEGORI_ANGGOTA.map(k=>{
+        const jumlah = list.filter(a=>a.kategori===k.v).length;
+        const disabled = jumlah===0;
+        return `<label class="toggle-chip"${disabled?' style="opacity:.5;"':''}>
+          <input type="checkbox" id="salin-kat-${k.v}" ${disabled?'':'checked'} ${disabled?'disabled':''} hidden>
+          <span class="toggle-box"></span>
+          <span class="toggle-text">${esc(k.l)} (${jumlah})</span>
+        </label>`;
+      }).join('')}
+    </div>
+  `;
+}
 function openEventModal(id){
   if (!canEdit()) { toast('⛔ Login untuk mengelola event'); return; }
   const editing = id ? db.events.find(e=>e.id===id) : null;
@@ -736,14 +761,15 @@ function openEventModal(id){
     ${!editing && eventLain.length ? `
     <div class="field field-card">
       <label>Salin Data Anggota (opsional)</label>
-      <select id="f-salin-anggota">
+      <select id="f-salin-anggota" onchange="renderSalinKategoriCheckboxes()">
         <option value="">— Jangan salin, mulai kosong —</option>
         ${eventLain.map(e=>{
           const jumlah = db.anggota.filter(a=>a.event_id===e.id).length;
           return `<option value="${e.id}">${esc(e.nama)} (${esc(e.tahun)}) · ${jumlah} anggota</option>`;
         }).join('')}
       </select>
-      <div class="hint">Nama, kategori, RT &amp; jenis kelamin akan disalin. Status iuran diset ulang jadi "Belum Lunas" karena ini event baru.</div>
+      <div id="f-salin-kategori-wrap"></div>
+      <div class="hint">Nama, RT &amp; jenis kelamin akan disalin. Status iuran diset ulang jadi "Belum Lunas" karena ini event baru.</div>
     </div>` : ''}
 
     <div class="field field-card">
@@ -787,7 +813,8 @@ function openEventModal(id){
         const sourceEventId = document.getElementById('f-salin-anggota')?.value || '';
         let jumlahDisalin = 0;
         if(sourceEventId){
-          db.anggota.filter(a=>a.event_id===sourceEventId).forEach(a=>{
+          const kategoriTerpilih = KATEGORI_ANGGOTA.map(k=>k.v).filter(v=>document.getElementById(`salin-kat-${v}`)?.checked);
+          db.anggota.filter(a=>a.event_id===sourceEventId && kategoriTerpilih.includes(a.kategori)).forEach(a=>{
             db.anggota.push({id:uid(), event_id:newId, nama:a.nama, kategori:a.kategori, rt:a.rt, gender:a.gender, nominal_wajib:a.nominal_wajib, status:'belum_lunas', tanggal_bayar:null});
             jumlahDisalin++;
           });

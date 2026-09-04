@@ -274,8 +274,24 @@ let searchQuery = '';
 let sortBy = 'nama';
 let sortOrder = 'asc';
 
+/* Kategori anggota di event terakhir sebelum event aktif (per nama), dipakai
+   buat nandain anggota yang kategorinya berubah dibanding event sebelumnya
+   (mis. lulus sekolah -> merantau) supaya nggak kelewat pas admin ngoreksi
+   kategori satu-satu setelah "Salin Data Anggota". */
+function getKategoriEventSebelumnya(){
+  const eventLain = db.events.filter(e=>e.id!==eid() && db.anggota.some(a=>a.event_id===e.id))
+    .sort((a,b)=>(b.tahun||0)-(a.tahun||0) || (b.created_at||'').localeCompare(a.created_at||''));
+  if(eventLain.length===0) return {map:new Map(), event:null};
+  const sourceEvent = eventLain[0];
+  const map = new Map();
+  db.anggota.filter(a=>a.event_id===sourceEvent.id).forEach(a=>{
+    map.set(a.nama.trim().toLowerCase(), a.kategori);
+  });
+  return {map, event:sourceEvent};
+}
 function renderDatabaseAnggota(){
   const list = gAnggota();
+  const { map: kategoriSebelumnya, event: eventSebelumnya } = getKategoriEventSebelumnya();
   let filtered = [...list];
   if (filterKategori !== 'semua') filtered = filtered.filter(a => a.kategori === filterKategori);
   if (filterStatus !== 'semua') filtered = filtered.filter(a => a.status === filterStatus);
@@ -322,9 +338,12 @@ function renderDatabaseAnggota(){
     statGender[g.v] = {label: g.l, total: items.length, lunas: items.filter(a=>a.status==='lunas').length, nominal: items.reduce((s,a)=>s+Number(a.nominal_wajib||0),0), terkumpul: items.filter(a=>a.status==='lunas').reduce((s,a)=>s+Number(a.nominal_wajib||0),0)};
   });
 
-  const rows = filtered.map(a=>`<tr class="${a.status==='belum_lunas'?'belum-bayar':''}">
+  const rows = filtered.map(a=>{
+    const katLama = kategoriSebelumnya.get(a.nama.trim().toLowerCase());
+    const kategoriBerubah = katLama && katLama !== a.kategori;
+    return `<tr class="${a.status==='belum_lunas'?'belum-bayar':''}">
     <td title="${esc(a.nama)}">${esc(a.nama)}</td>
-    <td><span class="kategori-pill ${a.kategori==='khusus'?'khusus':''}">${labelKategori(a.kategori)}</span></td>
+    <td><span class="kategori-pill ${a.kategori==='khusus'?'khusus':''}">${labelKategori(a.kategori)}</span>${kategoriBerubah?` <span class="badge stok-menipis" title="Kategori di ${esc(eventSebelumnya.nama)}: ${esc(labelKategori(katLama))}">⚠ berubah</span>`:''}</td>
     <td><select class="inline-edit-select" onchange="updateAnggotaField('${a.id}','rt',this.value)" ${!isLoggedIn?'disabled':''}>
       ${RT_LIST.map(r=>`<option value="${r.v}" ${getRT(a)===r.v?'selected':''}>${r.l}</option>`).join('')}
     </select></td>
@@ -339,7 +358,8 @@ function renderDatabaseAnggota(){
       <button class="icon-btn" ${da('openAnggotaModal', a.id)} ${!isLoggedIn ? 'disabled' : ''}>✎</button>
       <button class="icon-btn" ${da('hapusAnggota', a.id)} ${!isLoggedIn ? 'disabled' : ''}>🗑</button>
     </td>
-  </tr>`).join('');
+  </tr>`;
+  }).join('');
 
   const statCards = `<div class="stat-grid"><div class="stat-card info"><div class="lbl">Total Anggota</div><div class="val">${total}</div></div>
     <div class="stat-card pemasukan"><div class="lbl">Lunas</div><div class="val">${totalLunas}</div></div>

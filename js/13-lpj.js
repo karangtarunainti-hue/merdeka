@@ -158,7 +158,7 @@ function renderLPJ(){
   const showOperasional = isMenuAktif('operasional');
   const showLomba = isMenuAktif('lomba');
   const showHadiah = isMenuAktif('hadiah');
-  const showJalan = isMenuAktif('jalan_santai');
+  const showJalan = isFiturAktif('jalan_santai');
 
   // 2. Rincian Pemasukan — Iuran Anggota selalu ada, sisanya menyesuaikan fitur event
   const pemasukanSubs = [

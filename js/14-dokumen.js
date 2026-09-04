@@ -237,7 +237,7 @@ function proposalContentHtml(ev, d){
   const showOperasional = isMenuAktif('operasional');
   const showLomba = isMenuAktif('lomba');
   const showHadiah = isMenuAktif('hadiah');
-  const showJalan = isMenuAktif('jalan_santai');
+  const showJalan = isFiturAktif('jalan_santai');
   const tujuanItems = (d.tujuan||'').split('\n').map(s=>s.trim()).filter(Boolean);
   const susunanItems = (d.susunan_acara||'').split('\n').map(s=>s.trim()).filter(Boolean);
 

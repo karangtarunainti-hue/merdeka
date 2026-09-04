@@ -218,7 +218,13 @@ function generateReminders(){
     });
   });
 
-  const jalanItems = isMenuAktif('jalan_santai') ? gHadiahJalanSantai().filter(h => {
+  // BUG LAMA (sampai sekarang): isMenuAktif('jalan_santai') SELALU true —
+  // dia mencari fitur yang `.menus`-nya mengandung string 'jalan_santai',
+  // padahal menus fitur ini isinya ['hadiah-jalan','belanja-jalan'], bukan
+  // 'jalan_santai' itu sendiri. Dipakai isFiturAktif() (cek flag fitur
+  // langsung) supaya toggle "Hadiah Jalan Santai" di modal event benar-benar
+  // ditaati di sini.
+  const jalanItems = isFiturAktif('jalan_santai') ? gHadiahJalanSantai().filter(h => {
     const belanja = db.daftarBelanjaJalanSantai.find(b => b.hadiah_jalan_id === h.id && b.event_id === eid());
     return !belanja || belanja.status !== 'dibeli';
   }) : [];

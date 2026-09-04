@@ -635,7 +635,7 @@ function importDataEvent(evt){
       }
 
       const newEventId = uid();
-      db.events.push({ id:newEventId, nama: parsed.event.nama || 'Event Impor', tahun: parsed.event.tahun || new Date().getFullYear(), fitur: parsed.event.fitur || undefined, created_at: new Date().toISOString() });
+      db.events.push({ id:newEventId, nama: parsed.event.nama || 'Event Impor', tahun: parsed.event.tahun || new Date().getFullYear(), fitur: parsed.event.fitur || undefined, locked: parsed.event.locked || false, created_at: new Date().toISOString() });
       db.settings[newEventId] = {
         tarif: (parsed.settings && parsed.settings.tarif) ? {...parsed.settings.tarif} : {sekolah:0,bekerja:0,perantauan:0,khusus:0},
         hadiahBudget: (parsed.settings && parsed.settings.hadiahBudget) ? JSON.parse(JSON.stringify(parsed.settings.hadiahBudget)) : {},
@@ -777,7 +777,7 @@ function openEventModal(id){
         notifyTelegram(`✏️ Edit event: ${namaLama} → ${nama}`, `Tahun: ${tahun}`, 'sistem');
       } else {
         const newId = uid();
-        db.events.push({id:newId, nama, tahun, fitur, warna_tema, created_at:new Date().toISOString()});
+        db.events.push({id:newId, nama, tahun, fitur, warna_tema, locked:false, created_at:new Date().toISOString()});
         db.settings[newId] = {tarif:{sekolah:0,bekerja:0,perantauan:0,khusus:0}, hadiahBudget:{}};
         const sourceEventId = document.getElementById('f-salin-anggota')?.value || '';
         let jumlahDisalin = 0;

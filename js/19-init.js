@@ -116,7 +116,14 @@ function _setOfflineOverlay(show){
   el.setAttribute('aria-hidden', show ? 'false' : 'true');
 }
 
+let _onlineDebounceTimer = null;
+
 function _handleOffline(){
+  // Sinyal jelek (lapangan/lokasi acara) bisa bikin browser menembakkan event
+  // 'online'/'offline' bergantian berkali-kali per detik (flapping) — kalau
+  // sempat ada _handleOnline yang masih menunggu di timer, batalkan supaya
+  // tidak jalan belakangan setelah device sudah offline lagi.
+  clearTimeout(_onlineDebounceTimer);
   _setOfflineOverlay(true);
   if(!_offlineToastShown){
     _offlineToastShown = true;
@@ -126,13 +133,22 @@ function _handleOffline(){
 
 function _handleOnline(){
   _setOfflineOverlay(false);
-  if(_offlineToastShown){
-    _offlineToastShown = false;
-    toast('✅ Koneksi internet kembali. Menyinkronkan data terbaru...', 3000);
-  }
-  // Tarik ulang data terbaru dari server begitu online lagi, supaya user
-  // tidak melanjutkan input di atas data yang mungkin sudah usang.
-  if(typeof refreshFromServer === 'function') refreshFromServer();
+  // Debounce: pada sinyal yang flapping (online/offline gantian cepat),
+  // event 'online' bisa tertembak berkali-kali per detik. Tanpa debounce ini
+  // tiap tembakan langsung memicu refreshFromServer() (loadDB + loadGudangData)
+  // yang instan gagal lagi kalau ternyata masih belum benar-benar tersambung —
+  // hasilnya badai toast error & request berulang setiap ~300ms. Tunggu sinyal
+  // "online" diam dulu selama 1.5 detik sebelum benar-benar menyinkronkan.
+  clearTimeout(_onlineDebounceTimer);
+  _onlineDebounceTimer = setTimeout(() => {
+    if(_offlineToastShown){
+      _offlineToastShown = false;
+      toast('✅ Koneksi internet kembali. Menyinkronkan data terbaru...', 3000);
+    }
+    // Tarik ulang data terbaru dari server begitu online lagi, supaya user
+    // tidak melanjutkan input di atas data yang mungkin sudah usang.
+    if(typeof refreshFromServer === 'function') refreshFromServer();
+  }, 1500);
 }
 
 function initOfflineGuard(){

@@ -750,12 +750,20 @@ async function turunkanStokHadiahKeKebutuhan(hadiahId, itemId){
 }
 function renderHadiah(){
   const list = gHadiahKategori();
-  // Pakai hitungHargaAktualHadiahLomba() (di 11-belanja.js) supaya "Total
-  // Belanja Hadiah" di sini konsisten dengan Belanja Hadiah — rumus flat
-  // harga_satuan*qty_dibeli mengabaikan harga_eceran untuk sisa pcs yang
-  // dibeli satuan (lihat Bug #2).
-  const hadiahAktual = hitungHargaAktualHadiahLomba();
-  const total = hadiahAktual.total;
+  // Pakai hitungHargaAktualHadiahLomba() (di 11-belanja.js) untuk rumus
+  // pack+eceran (Bug #2) & harga per pcs yang ditampilkan di tiap item.
+  // TAPI untuk nominal UANG (subtotal per item, total per paket, "Total
+  // Belanja Hadiah") pakai varian {onlyPurchased:true} (hadiahAktualBeli)
+  // — itemnya cuma yang statusnya BENERAN "dibeli" di checklist Belanja
+  // Hadiah, dengan harga SNAPSHOT saat dibeli (bukan harga_satuan
+  // sekarang, yang bisa saja sudah diedit belakangan). Supaya nominal di
+  // sini SELALU sama dengan yang tercatat sudah dibelanjakan di Belanja
+  // Hadiah/LPJ, bukan ikut menghitung item yang masih rencana/belum
+  // dibeli (dulu ikut terhitung, jadi "Total Belanja Hadiah" di sini bisa
+  // lebih besar dari yang sebenarnya sudah dibelanjakan).
+  const hadiahSemua = hitungHargaAktualHadiahLomba();
+  const hadiahAktualBeli = hitungHargaAktualHadiahLomba({onlyPurchased:true});
+  const total = hadiahAktualBeli.total;
   const isLoggedIn = !!getCurrentUser();
   const semuaLomba = gLomba();
 
@@ -775,7 +783,7 @@ function renderHadiah(){
       // dihapus atau qty_per_paket diturunkan, qty_dibeli bisa nyangkut lebih tinggi dari
       // kebutuhan riil tanpa disadari panitia. Deteksi ini supaya ada sinyal juga, bukan cuma "kurang".
       const lebihItems = kebutuhan!=null ? h.items.filter(item => Number(item.qty_dibeli||0) > hitungTargetQtyItem(item, kebutuhan)) : [];
-      const totalItem = h.items.reduce((s, item) => s + (hadiahAktual.perItem[`${h.id}_${item.id}`]?.subtotal ?? 0), 0);
+      const totalItem = h.items.reduce((s, item) => s + (hadiahAktualBeli.perItem[`${h.id}_${item.id}`]?.subtotal ?? 0), 0);
       // Harga SATU paket saja (isi paket × qty/paket) — dipakai untuk dibandingkan
       // dengan budget, karena budget diatur per paket/per pemenang, bukan akumulasi
       // seluruh lomba di kategori ini (yang jumlahnya beda-beda tiap kategori).
@@ -819,10 +827,20 @@ function renderHadiah(){
             // satuan), sama seperti yang dipakai di totalItem header & LPJ (lihat Bug #2 di
             // 11-belanja.js) — supaya baris ini konsisten dengan total paket di atasnya,
             // bukan flat harga_satuan yang bisa beda kalau harga_eceran sudah diatur.
-            const alokasiItem = hadiahAktual.perItem[`${h.id}_${item.id}`];
-            const hargaTampil = alokasiItem ? alokasiItem.hargaEfektif : Number(item.harga_satuan||0);
-            const subtotalTampil = alokasiItem ? alokasiItem.subtotal : hargaTampil * Number(item.qty_dibeli||0);
-            return `<div class="hadiah-item-row"><span class="item-name">${esc(item.nama)}${perPaket>1?` <span style="color:var(--ink-soft);font-size:11px;">${perPaket} buah per paket</span>`:''}${kurang?` <span style="color:var(--orange);font-size:11px;">(butuh ${target})</span>`:''}${lebih?` <span style="color:var(--biru);font-size:11px;">(kebutuhan ${target}, lebih ${Number(item.qty_dibeli)-target})</span>`:''}</span><span class="item-qty">Dibeli: ${item.qty_dibeli} <span class="item-harga-satuan" title="Harga efektif per pcs, termasuk harga eceran sisa satuan bila diatur">· ${fmtRp(hargaTampil)}/pcs</span></span><span class="item-price">${fmtRp(subtotalTampil)}</span>
+            // Nominal (subtotal) HARUS dari alokasi yang sudah "dibeli" (hadiahAktualBeli)
+            // supaya sama dengan Belanja Hadiah/LPJ — item yang belum dicentang dibeli di
+            // sana subtotalnya 0 di sini juga, walau qty_dibeli-nya sudah terisi (baru rencana).
+            // Harga per pcs tetap boleh pakai estimasi (hadiahSemua) sebagai referensi kalau
+            // belum ada transaksi "dibeli" — itemnya di-fallback ke item.harga_satuan.
+            const alokasiBeli = hadiahAktualBeli.perItem[`${h.id}_${item.id}`];
+            const alokasiEstimasi = hadiahSemua.perItem[`${h.id}_${item.id}`];
+            const hargaTampil = alokasiBeli ? alokasiBeli.hargaEfektif : (alokasiEstimasi ? alokasiEstimasi.hargaEfektif : Number(item.harga_satuan||0));
+            const subtotalTampil = alokasiBeli ? alokasiBeli.subtotal : 0;
+            // qty_dibeli > 0 tapi belum ada alokasiBeli = qty-nya sudah dicatat/direncanakan
+            // di sini tapi belum dicentang "dibeli" di checklist Belanja Hadiah — kasih tau
+            // biar Rp0 di sini tidak disalahartikan seolah harganya memang gratis.
+            const belumDicentangBeli = !alokasiBeli && Number(item.qty_dibeli||0) > 0;
+            return `<div class="hadiah-item-row"><span class="item-name">${esc(item.nama)}${perPaket>1?` <span style="color:var(--ink-soft);font-size:11px;">${perPaket} buah per paket</span>`:''}${kurang?` <span style="color:var(--orange);font-size:11px;">(butuh ${target})</span>`:''}${lebih?` <span style="color:var(--biru);font-size:11px;">(kebutuhan ${target}, lebih ${Number(item.qty_dibeli)-target})</span>`:''}</span><span class="item-qty">Dibeli: ${item.qty_dibeli} <span class="item-harga-satuan" title="Harga efektif per pcs, termasuk harga eceran sisa satuan bila diatur">· ${fmtRp(hargaTampil)}/pcs</span></span><span class="item-price">${belumDicentangBeli?`<span style="font-style:italic;font-size:11.5px;color:var(--ink-soft);" title="Qty sudah dicatat tapi belum dicentang dibeli di Belanja Hadiah">Belum dibeli</span>`:fmtRp(subtotalTampil)}</span>
             <button class="icon-btn" ${!isLoggedIn ? 'disabled' : da('editHadiahItem', h.id, item.id)}>✎</button>
             <button class="icon-btn" ${!isLoggedIn ? 'disabled' : da('hapusHadiahItem', h.id, item.id)}>🗑</button>
           </div>`;}).join('')}

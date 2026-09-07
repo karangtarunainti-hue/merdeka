@@ -280,6 +280,34 @@ function getAiInsightCache(){
   return db.aiInsight[eventId] || null;
 }
 
+// Event belum punya field "tanggal event" sendiri — tanggal acaranya
+// disimpulkan dari jadwal (js/12-jadwal-agenda-kas.js) & lomba
+// (js/10-lomba.js) milik event tsb, keduanya punya event_id + tanggal.
+// Diambil yang PALING AKHIR (event bisa punya beberapa hari kegiatan/lomba)
+// supaya event dianggap "lewat" hanya kalau semua rangkaian acaranya
+// sudah lewat, bukan baru salah satu.
+function tanggalTerakhirEvent(eventId){
+  const tanggalJadwal = db.jadwal.filter(j => j.event_id === eventId && j.tanggal).map(j => j.tanggal);
+  const tanggalLomba = db.lomba.filter(l => l.event_id === eventId && l.tanggal).map(l => l.tanggal);
+  const semua = [...tanggalJadwal, ...tanggalLomba];
+  if(!semua.length) return null;
+  return semua.reduce((terakhir, t) => t > terakhir ? t : terakhir);
+}
+
+// Dipakai ketiga Insight AI di file ini (Dashboard/Lomba/Belanja Hadiah) —
+// begitu event sudah lewat (semua jadwal & lombanya di masa lalu), insight
+// yang isinya proyeksi/persiapan kegiatan jadi tidak relevan lagi, jadi
+// TIDAK digenerate ulang (ensureX...) MAUPUN ditampilkan (renderX...Panel),
+// walau masih ada cache ringkasan lama. Event tanpa jadwal/lomba sama
+// sekali (tanggalTerakhirEvent() null) dianggap belum lewat — tidak cukup
+// data untuk menyimpulkan sudah lewat atau belum.
+function isEventSudahLewat(eventId){
+  const tgl = tanggalTerakhirEvent(eventId);
+  if(!tgl) return false;
+  const today = new Date(); today.setHours(0,0,0,0);
+  return new Date(tgl + 'T00:00:00') < today;
+}
+
 // Dipanggil dari renderDashboard(). TIDAK mengembalikan apa-apa yang perlu
 // di-await — kalau perlu generate baru, jalan di background lalu memicu
 // renderContent() sendiri saat selesai. Render pertama tetap pakai cache
@@ -287,7 +315,7 @@ function getAiInsightCache(){
 // tidak "kedip" kosong tiap kali ada transaksi baru.
 function ensureBukuKegiatanInsight(b){
   const eventId = db.activeEventId;
-  if(!eventId) return;
+  if(!eventId || isEventSudahLewat(eventId)) return;
 
   const hash = hitungAiInsightDataHash(b);
   const cache = getAiInsightCache();
@@ -506,7 +534,7 @@ function renderInsightPanelHtml({ cache, sedangProses, gagal, loggedIn, retryFnN
 // stat-grid-ringkasan (Total Pemasukan/Pengeluaran).
 function renderBukuKegiatanInsightPanel(){
   const eventId = db.activeEventId;
-  if(!eventId) return '';
+  if(!eventId || isEventSudahLewat(eventId)) return '';
 
   return renderInsightPanelHtml({
     cache: getAiInsightCache(),
@@ -585,7 +613,7 @@ function hitungAiInsightLombaHash(){
 // Dipanggil dari renderLomba(). Pola sama seperti ensureBukuKegiatanInsight().
 function ensureLombaInsight(){
   const eventId = db.activeEventId;
-  if(!eventId) return;
+  if(!eventId || isEventSudahLewat(eventId)) return;
 
   const hash = hitungAiInsightLombaHash();
   const cache = getAiInsightLombaCache();
@@ -689,7 +717,7 @@ function retryLombaInsight(){
 // HTML panel — dipanggil dari renderLomba(), ditaruh sebelum stat-grid.
 function renderLombaInsightPanel(){
   const eventId = db.activeEventId;
-  if(!eventId) return '';
+  if(!eventId || isEventSudahLewat(eventId)) return '';
 
   return renderInsightPanelHtml({
     cache: getAiInsightLombaCache(),
@@ -784,7 +812,7 @@ function hitungAiInsightBelanjaHadiahHash(){
 
 function ensureBelanjaHadiahInsight(){
   const eventId = db.activeEventId;
-  if(!eventId) return;
+  if(!eventId || isEventSudahLewat(eventId)) return;
 
   const hash = hitungAiInsightBelanjaHadiahHash();
   const cache = getAiInsightBelanjaHadiahCache();
@@ -874,7 +902,7 @@ function retryBelanjaHadiahInsight(){
 // HTML panel — dipanggil dari renderBelanjaHadiah(), ditaruh sebelum stat-grid.
 function renderBelanjaHadiahInsightPanel(){
   const eventId = db.activeEventId;
-  if(!eventId) return '';
+  if(!eventId || isEventSudahLewat(eventId)) return '';
 
   return renderInsightPanelHtml({
     cache: getAiInsightBelanjaHadiahCache(),

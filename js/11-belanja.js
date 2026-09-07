@@ -430,9 +430,19 @@ function renderBelanjaHadiah(){
   let totalItem = 0, totalBelum = 0;
   // Satu-satunya sumber rumus pack+eceran (lihat Bug #2 & #3 di komentar
   // hitungHargaAktualHadiahLomba, 11-belanja.js) — perGroup dikunci per
-  // normNamaBarang(nama), sama seperti nameMap di atas.
+  // normNamaBarang(nama), sama seperti nameMap di atas. Dipakai untuk
+  // breakdown per-baris (harga per pcs/pack) yang relevan ditampilkan
+  // walau itemnya belum dicentang dibeli (referensi harga rencana).
   const hadiahAktual = hitungHargaAktualHadiahLomba();
-  const totalEstimasi = hadiahAktual.total;
+  // Nominal "sudah dibeli" HARUS dari varian {onlyPurchased:true} — cuma item
+  // yang statusnya beneran dicentang "dibeli" di checklist, dengan harga
+  // SNAPSHOT saat itu (bukan harga_satuan sekarang yang bisa sudah diedit).
+  // Ini yang dipakai buat stat card utama, supaya sama persis dengan
+  // Kebutuhan Hadiah & LPJ — dulu di sini pakai hadiahAktual.total (estimasi
+  // SEMUA item termasuk yang belum dibeli), jadi angkanya bisa lebih besar
+  // dari yang benar-benar sudah dibelanjakan.
+  const hadiahAktualBeli = hitungHargaAktualHadiahLomba({onlyPurchased:true});
+  const totalSudahDibeli = hadiahAktualBeli.total;
   let totalBelumEstimasi = 0;
   const groups = nameGroups.map((g, gi) => {
     const list = g.list.slice().sort((a,b) => {
@@ -467,7 +477,7 @@ function renderBelanjaHadiah(){
     // sudah dijamin sum(subtotal per item) === Math.round(totalHarga grup)
     // (lihat komentar largest remainder di hitungHargaAktualHadiahLomba).
     // Sekarang dijumlah langsung dari alokasi.subtotal item yang belum
-    // dibeli, supaya SELALU konsisten dengan totalEstimasi & rincian lain.
+    // dibeli, supaya SELALU konsisten dengan "Belum dibeli" & rincian lain.
     totalBelumEstimasi += belum.reduce((s,i) => {
       const alokasi = hadiahAktual.perItem[`${i.hadiahId}_${i.itemId}`];
       return s + (alokasi ? alokasi.subtotal : 0);
@@ -510,7 +520,7 @@ function renderBelanjaHadiah(){
     </div>`;
   }).join('');
 
-  return `<div class="belanja-toko-page">${renderBelanjaHadiahInsightPanel()}<div class="stat-grid"><div class="stat-card belanja-hadiah"><div class="lbl">Total Item</div><div class="val">${totalItem}</div></div><div class="stat-card pemasukan"><div class="lbl">Belum Dibeli</div><div class="val">${totalBelum}</div></div><div class="stat-card saldo"><div class="lbl">Estimasi Total</div><div class="val">${fmtRp(totalEstimasi)}</div></div>${progressBelanjaCardHtml(totalItem, totalItem-totalBelum)}</div>
+  return `<div class="belanja-toko-page">${renderBelanjaHadiahInsightPanel()}<div class="stat-grid"><div class="stat-card belanja-hadiah"><div class="lbl">Total Item</div><div class="val">${totalItem}</div></div><div class="stat-card pemasukan"><div class="lbl">Belum Dibeli</div><div class="val">${totalBelum}</div></div><div class="stat-card saldo"><div class="lbl">Sudah Dibeli</div><div class="val">${fmtRp(totalSudahDibeli)}</div></div>${progressBelanjaCardHtml(totalItem, totalItem-totalBelum)}</div>
   <div class="panel"><div class="panel-head"><div><h3>🎁 Daftar Belanja Hadiah</h3><div class="desc">Belum dibeli: <strong>${fmtRp(totalBelumEstimasi)}</strong></div></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
       <button class="btn success small" ${da('tandaiSemuaBelanjaHadiah')} ${!isLoggedIn ? 'disabled' : ''}>✓ Semua Dibeli</button>

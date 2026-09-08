@@ -258,7 +258,80 @@ async function hapusJadwalLombaLocked(lombaId){
    ============================================================ */
 function gAgenda(){ return db.agenda; }
 
+// View aktif halaman Agenda: 'list' (default, tabel/kartu kronologis) atau
+// 'tahunan' (roadmap dikelompokkan per tahun, hasil rapat perencanaan
+// kegiatan tahunan). State di memori saja, reset tiap reload — sengaja
+// tidak disimpan ke db/localStorage supaya tetap simpel.
+let _agendaView = 'list';
+function switchAgendaView(view){
+  _agendaView = view === 'tahunan' ? 'tahunan' : 'list';
+  renderContent();
+}
+
+function renderAgendaTahunan(){
+  const list = gAgenda().slice().sort((a,b) => new Date(a.tanggal) - new Date(b.tanggal));
+  const isLoggedIn = !!getCurrentUser();
+
+  if(!list.length){
+    return `<div class="panel"><div class="panel-body" style="padding:30px;text-align:center;">Belum ada agenda untuk ditampilkan sebagai roadmap tahunan.</div></div>`;
+  }
+
+  const byYear = new Map();
+  list.forEach(a => {
+    const year = (a.tanggal || '').slice(0,4) || 'Tanpa Tanggal';
+    if(!byYear.has(year)) byYear.set(year, []);
+    byYear.get(year).push(a);
+  });
+
+  const currentYear = String(new Date().getFullYear());
+  const years = [...byYear.keys()].sort();
+
+  const panels = years.map(year => {
+    const items = byYear.get(year);
+    const totalSelesai = items.filter(a => a.status === 'selesai').length;
+    return `
+    <details class="panel" ${year === currentYear ? 'open' : ''} style="margin-bottom:14px;">
+      <summary class="panel-head" style="cursor:pointer;">
+        <div><h3>📆 ${esc(year)}</h3></div>
+        <span class="badge ${totalSelesai === items.length ? 'lunas' : 'perlengkapan'}">${totalSelesai}/${items.length} selesai</span>
+      </summary>
+      <div class="panel-body flush agenda-table-wrap">
+        <table class="general-table jadwal-table">
+          <thead><tr><th>Tanggal</th><th>Status</th><th>Kategori</th><th>Judul</th><th>PJ</th></tr></thead>
+          <tbody>${items.map(a => `
+          <tr>
+            <td data-label="Tanggal">${fmtDate(a.tanggal)}</td>
+            <td data-label="Status"><span class="badge ${a.status==='selesai'?'lunas':'perlengkapan'}">${a.status==='selesai'?'Selesai':'Aktif'}</span></td>
+            <td data-label="Kategori"><span class="kategori-pill">${labelKategoriJadwal(a.kategori)}</span></td>
+            <td data-label="Judul">${esc(a.judul)}</td>
+            <td data-label="PJ">${esc(a.pj||'-')}</td>
+          </tr>`).join('')}</tbody>
+        </table>
+      </div>
+    </details>`;
+  }).join('');
+
+  return `
+  <div class="panel-head" style="margin-bottom:14px;">
+    <div><h3>🗺️ Roadmap Kegiatan per Tahun</h3></div>
+  </div>
+  ${panels}`;
+}
+
 function renderAgenda(){
+  if(_agendaView === 'tahunan'){
+    const isLoggedIn = !!getCurrentUser();
+    return `
+    <div class="panel-head">
+      <div><h3>📌 Agenda Kegiatan</h3></div>
+      <div style="display:flex; gap:8px;">
+        <button class="btn secondary small" ${da('switchAgendaView','list')}>📋 List</button>
+        <button class="btn small" ${da('switchAgendaView','tahunan')}>🗺️ Tahunan</button>
+        ${isLoggedIn ? `<button class="btn" ${da('openAgendaModal')}>+ Tambah Agenda</button>` : ''}
+      </div>
+    </div>
+    ${renderAgendaTahunan()}`;
+  }
   const list = gAgenda().slice().sort((a,b) => new Date(a.tanggal) - new Date(b.tanggal));
   const isLoggedIn = !!getCurrentUser();
 
@@ -351,7 +424,11 @@ function renderAgenda(){
     <div class="panel-head">
       <div><h3>📌 Agenda Kegiatan</h3>
       </div>
-      ${isLoggedIn ? `<button class="btn" ${da('openAgendaModal')}>+ Tambah Agenda</button>` : ''}
+      <div style="display:flex; gap:8px;">
+        <button class="btn small" ${da('switchAgendaView','list')}>📋 List</button>
+        <button class="btn secondary small" ${da('switchAgendaView','tahunan')}>🗺️ Tahunan</button>
+        ${isLoggedIn ? `<button class="btn" ${da('openAgendaModal')}>+ Tambah Agenda</button>` : ''}
+      </div>
     </div>
     <div class="panel-body flush agenda-table-wrap">
       <table class="general-table jadwal-table">

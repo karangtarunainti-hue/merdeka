@@ -295,6 +295,7 @@ function renderAgenda(){
       <td data-label="Status"><span class="badge ${statusClass}">${statusLabel}</span></td>
       <td data-label="Kategori"><span class="kategori-pill">${labelKategoriJadwal(a.kategori)}</span></td>
       <td data-label="Judul">${esc(a.judul)}</td>
+      <td data-label="PJ">${esc(a.pj||'-')}</td>
       <td data-label="Deskripsi">${esc(a.deskripsi||'-')}</td>
       <td data-label="Aksi" class="jadwal-actions" style="text-align:right; white-space:nowrap;">
         <button class="btn secondary small" ${da('toggleAgendaStatus', a.id)} ${!isLoggedIn ? 'disabled' : ''}>${a.status === 'selesai' ? 'Buka' : 'Selesai'}</button>
@@ -321,6 +322,7 @@ function renderAgenda(){
         <span class="badge ${statusClass}">${statusLabel}</span>
       </div>
       <div class="jadwal-item-title">${esc(a.judul)}</div>
+      ${a.pj?`<div class="jadwal-item-desc">👤 PJ: ${esc(a.pj)}</div>`:''}
       ${a.deskripsi?`<div class="jadwal-item-desc">${esc(a.deskripsi)}</div>`:''}
       <div class="jadwal-item-actions">
         <button class="btn secondary small" ${da('toggleAgendaStatus', a.id)} ${!isLoggedIn ? 'disabled' : ''}>${a.status === 'selesai' ? 'Buka' : 'Selesai'}</button>
@@ -353,8 +355,8 @@ function renderAgenda(){
     </div>
     <div class="panel-body flush agenda-table-wrap">
       <table class="general-table jadwal-table">
-        <thead><tr><th>Tanggal</th><th>Status</th><th>Kategori</th><th>Judul</th><th>Deskripsi</th><th></th></tr></thead>
-        <tbody>${rows || `<tr class="empty-row"><td colspan="6">Belum ada agenda. ${isLoggedIn ? 'Tambahkan agenda untuk mendapatkan pengingat.' : 'Login untuk menambah agenda.'}</td></tr>`}</tbody>
+        <thead><tr><th>Tanggal</th><th>Status</th><th>Kategori</th><th>Judul</th><th>PJ</th><th>Deskripsi</th><th></th></tr></thead>
+        <tbody>${rows || `<tr class="empty-row"><td colspan="7">Belum ada agenda. ${isLoggedIn ? 'Tambahkan agenda untuk mendapatkan pengingat.' : 'Login untuk menambah agenda.'}</td></tr>`}</tbody>
       </table>
     </div>
     <div class="panel-body agenda-mobile-wrap">
@@ -374,6 +376,9 @@ function openAgendaModal(id){
         <select id="f-agenda-kategori">${KATEGORI_JADWAL.map(k=>`<option value="${k.v}" ${editing&&editing.kategori===k.v?'selected':''}>${k.l}</option>`).join('')}</select>
       </div>
     </div>
+    <div class="field"><label>PJ / Koordinator (opsional)</label>
+      <input id="f-agenda-pj" value="${editing?esc(editing.pj||''):''}" placeholder="mis. Budi Santoso">
+    </div>
     <div class="field"><label>Deskripsi (opsional)</label>
       <textarea id="f-agenda-deskripsi" rows="3" data-autoresize="true" placeholder="Detail agenda...">${editing?esc(editing.deskripsi||''):''}</textarea>
     </div>
@@ -389,14 +394,15 @@ function openAgendaModal(id){
       const judul = document.getElementById('f-agenda-judul').value.trim();
       const tanggal = document.getElementById('f-agenda-tanggal').value;
       const kategori = document.getElementById('f-agenda-kategori').value;
+      const pj = document.getElementById('f-agenda-pj').value.trim();
       const deskripsi = document.getElementById('f-agenda-deskripsi').value.trim();
       const status = document.getElementById('f-agenda-status').value;
       if(!judul || !tanggal){ toast('Judul & tanggal wajib diisi'); return; }
       let actionMsg = editing ? `✏️ Edit agenda: ${editing.judul} → ${judul}` : `➕ Agenda baru: ${judul}`;
-      if(editing){ Object.assign(editing, {judul, tanggal, kategori, deskripsi, status}); }
-      else{ db.agenda.push({id:uid(), judul, tanggal, kategori, deskripsi, status}); }
+      if(editing){ Object.assign(editing, {judul, tanggal, kategori, pj, deskripsi, status}); }
+      else{ db.agenda.push({id:uid(), judul, tanggal, kategori, pj, deskripsi, status}); }
       saveDB(); closeModal(); renderContent(); toast('Agenda disimpan');
-      notifyTelegram(actionMsg, `Tanggal: ${fmtDate(tanggal)}\nKategori: ${labelKategoriJadwal(kategori)}\nDeskripsi: ${deskripsi || '-'}`, 'agenda');
+      notifyTelegram(actionMsg, `Tanggal: ${fmtDate(tanggal)}\nKategori: ${labelKategoriJadwal(kategori)}${pj?`\nPJ: ${pj}`:''}\nDeskripsi: ${deskripsi || '-'}`, 'agenda');
     }}
   ]);
 }

@@ -200,6 +200,39 @@ function toast(msg, durationMs = 2400){
   toastTimer = setTimeout(()=>t.classList.remove('show'), durationMs);
 }
 
+// Render 1 objek reminder ({type,icon,title,count,items,action}) jadi HTML
+// kartu ".reminder-card" — dipisah dari markup yang tadinya cuma inline di
+// dalam generateReminders() (js/07-dashboard.js), supaya modul lain yang
+// cuma punya SATU kartu pengingat (mis. generatePeringatanReminderCard()
+// di js/28-kalender-peringatan.js) tidak perlu menduplikasi markup
+// card-header/card-body/card-footer. Sengaja TIDAK membungkus dengan
+// `.reminder-grid` — itu tanggung jawab pemanggil (boleh taruh beberapa
+// kartu dalam 1 grid, atau 1 kartu saja).
+function reminderCardHtml(r){
+  return `
+  <div class="reminder-card ${r.type}">
+    <div class="card-header">
+      <div class="icon">${r.icon}</div>
+      <div class="title">${r.title}</div>
+      <div class="count">${r.count}</div>
+    </div>
+    <div class="card-body">
+      ${r.itemsHtml ? r.itemsHtml : r.items.map(item => `
+        <div class="item">
+          <span class="label">${item.label}</span>
+          <span class="value ${item.valueClass || ''}">${esc(item.value)}</span>
+        </div>
+      `).join('')}
+    </div>
+    ${r.action ? `
+    <div class="card-footer">
+      ${(!getCurrentUser() && !isGuestVisible(r.action.link))
+        ? `<button class="btn secondary small" disabled title="Hanya bisa dilihat setelah login">🔒 ${r.action.label.replace(/\s*→\s*$/, '')}</button>`
+        : `<button class="btn ${r.type === 'danger' ? 'danger' : r.type === 'warning' ? 'orange' : r.type === 'success' ? 'success' : 'secondary'} small" ${da('goSection', r.action.link, r.action.scrollTo ? {scrollTo: r.action.scrollTo} : undefined)}>${r.action.label}</button>`}
+    </div>` : ''}
+  </div>`;
+}
+
 /* ============================================================
    LAZY LOADER html2canvas — sebelumnya dimuat lewat <script> di
    index.html di SETIAP kali app dibuka, padahal cuma dipakai untuk

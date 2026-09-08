@@ -170,6 +170,7 @@ Pemilik project (**Inti**) mengelola repo ini **lewat GitHub Web UI, bukan Git C
 | 18 | `18-getters-refresh.js` | Getter data & refresh state |
 | 26 | `26-ai.js` | Client AI generik — `AI.tanya()`, `AI.embed()` |
 | 27 | `27-ai-insight.js` | Insight berbasis AI |
+| 28 | `28-kalender-peringatan.js` | Pengingat hari besar nasional/Islam ("Pengingat") di menu Agenda Kegiatan |
 | 24 | `24-bookmark.js` | Tautan penting |
 | 22 | `22-dana-sosial.js` | Dana sosial (iuran bulanan) |
 | 20 | `20-panduan.js` | Panduan penggunaan |
@@ -181,14 +182,16 @@ Pemilik project (**Inti**) mengelola repo ini **lewat GitHub Web UI, bukan Git C
 
 > Catatan: urutan di atas adalah urutan **load/eksekusi** (sesuai `MODULE_ORDER`), bukan urutan numerik nama file — mis. `26`, `27`, `24`, `22`, `20` dst. dimuat sebelum `19-init.js` yang justru harus paling akhir.
 
-> ⚠️ **`js/25-tour.js` dan `js/28-kalender-peringatan.js` TIDAK ada di `MODULE_ORDER`** (tidak dimuat lewat `app.bundle.min.js`, tidak di-load terpisah di `index.html`, dan fungsi pemicunya — `initTourButton()` dari `19-init.js`, `generatePeringatanReminderCard()` dari `renderAgenda()` di `12-jadwal-agenda-kas.js` — juga tidak dipanggil di mana pun). Kedua file berisi fitur lengkap (tur onboarding interaktif & pengingat kalender hari besar) tapi saat ini **tidak aktif/tidak ke-bundle** di aplikasi. Sebelum mengubah/memakai salah satu fitur ini, cek dulu apakah ini memang disengaja (fitur belum dirilis) atau kelupaan ditambahkan ke `MODULE_ORDER`.
+> ⚠️ **`js/25-tour.js` TIDAK ada di `MODULE_ORDER`** (tidak dimuat lewat `app.bundle.min.js`, tidak di-load terpisah di `index.html`, dan fungsi pemicunya — `initTourButton()` dari `19-init.js` — juga tidak dipanggil di mana pun). File ini berisi fitur lengkap (tur onboarding interaktif) tapi saat ini **tidak aktif/tidak ke-bundle** di aplikasi. Sebelum mengubah/memakainya, cek dulu apakah ini memang disengaja (fitur belum dirilis) atau kelupaan ditambahkan ke `MODULE_ORDER`.
+>
+> ✅ `js/28-kalender-peringatan.js` (pengingat kalender hari besar) sudah masuk `MODULE_ORDER` dan `generatePeringatanReminderCard()`/`renderKalenderKesadaranPanel()`/`ensureKalenderKesadaranInsight()` sudah dipanggil dari `renderAgenda()` di `12-jadwal-agenda-kas.js` — **catatan**: cache Insight-nya (`db.aiInsightKalender`, tabel `kt_kalender_insight`) belum ikut di-preload di `loadInitialData()` (`03-db-core.js`) seperti `aiInsightLomba`/`aiInsightBelanjaHadiah`, jadi ringkasan AI-nya masih akan digenerate ulang tiap kali app dibuka alih-alih pakai cache tersimpan — perbaikan lanjutan.
 
 ## Struktur Folder
 
 | Path | Isi |
 |---|---|
 | `index.html` | Entry point, urutan load modul JS kritis (harus sinkron dengan `build.js`) |
-| `js/00-config.js` … `js/30-second-brain.js` | Source 36 modul JS (00–30, termasuk sufiks a/b/c), bahasa Indonesia untuk domain bisnis. 34 di antaranya masuk `MODULE_ORDER`/ke-bundle; `25-tour.js` & `28-kalender-peringatan.js` belum (lihat catatan di bagian "Peta Modul JS") |
+| `js/00-config.js` … `js/30-second-brain.js` | Source 36 modul JS (00–30, termasuk sufiks a/b/c), bahasa Indonesia untuk domain bisnis. 35 di antaranya masuk `MODULE_ORDER`/ke-bundle; `25-tour.js` belum (lihat catatan di bagian "Peta Modul JS") |
 | `js/app.bundle.min.js` | Hasil build (JANGAN edit manual) |
 | `style.css` / `style.min.css` | Styling — tema "Corporate Formal" hijau, font Sora + JetBrains Mono |
 | `icons/` | Lucide icon system lokal |

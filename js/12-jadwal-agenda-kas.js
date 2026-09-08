@@ -319,6 +319,13 @@ function renderAgendaTahunan(){
 }
 
 function renderAgenda(){
+  // Trigger cek/generate Insight AI "Pengingat" kalender hari besar di
+  // background (js/28-kalender-peringatan.js) — sama pola dengan
+  // ensureLombaInsight() di renderLomba(), tidak blocking render. Dipanggil
+  // di sini (bukan cuma di view 'list') supaya tetap ter-refresh meski user
+  // sedang membuka view 'tahunan'.
+  ensureKalenderKesadaranInsight();
+
   if(_agendaView === 'tahunan'){
     const isLoggedIn = !!getCurrentUser();
     return `
@@ -413,7 +420,15 @@ function renderAgenda(){
     return aDate.toDateString() === today.toDateString() && a.status !== 'selesai';
   }).length;
 
+  // Kartu "Pengingat" hari besar nasional/Islam yang mendekat (lihat
+  // js/28-kalender-peringatan.js) — beserta panel narasi AI-nya. Ditaruh di
+  // atas stat-grid, posisi sama seperti generateJadwalReminderCard() di
+  // menu Jadwal Kegiatan.
+  const peringatanCard = generatePeringatanReminderCard();
+
   return `
+  ${peringatanCard ? `<div class="reminder-grid">${reminderCardHtml(peringatanCard)}</div>` : ''}
+  ${renderKalenderKesadaranPanel()}
   <div class="stat-grid">
     <div class="stat-card info"><div class="lbl">Total Agenda</div><div class="val">${total}</div></div>
     <div class="stat-card pemasukan"><div class="lbl">Aktif</div><div class="val">${totalActive}</div></div>

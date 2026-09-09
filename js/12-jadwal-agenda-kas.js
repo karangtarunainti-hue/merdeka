@@ -77,11 +77,25 @@ function generateJadwalReminderCard(){
   </div>`;
 }
 
+let searchQueryJadwal = '';
+let filterKategoriJadwal = 'semua';
+
 function renderJadwal(){
-  const list = gJadwal().slice().sort((a,b) => {
+  const fullList = gJadwal().slice().sort((a,b) => {
     return new Date(a.tanggal) - new Date(b.tanggal);
   });
   const isLoggedIn = !!getCurrentUser();
+  const isFilteringJadwal = filterKategoriJadwal !== 'semua' || !!searchQueryJadwal.trim();
+
+  // Filter/search cuma memengaruhi daftar kartu di bawah — stat-grid & kartu
+  // "Jadwal Mendatang" tetap dihitung dari fullList supaya ringkasan angkanya
+  // tidak ikut berubah/membingungkan saat user lagi menyaring pencarian.
+  let list = fullList;
+  if (filterKategoriJadwal !== 'semua') list = list.filter(j => j.kategori === filterKategoriJadwal);
+  if (searchQueryJadwal.trim()) {
+    const q = searchQueryJadwal.toLowerCase().trim();
+    list = list.filter(j => (j.judul||'').toLowerCase().includes(q) || (j.deskripsi||'').toLowerCase().includes(q));
+  }
 
   const today = new Date();
   const cards = list.map(j => {
@@ -136,13 +150,20 @@ function renderJadwal(){
     </div>`;
   }).join('');
 
-  const total = list.length;
-  const totalSelesai = list.filter(j => j.status === 'selesai').length;
+  const total = fullList.length;
+  const totalSelesai = fullList.filter(j => j.status === 'selesai').length;
   const totalActive = total - totalSelesai;
-  const totalHariIni = list.filter(j => {
+  const totalHariIni = fullList.filter(j => {
     const jDate = new Date(j.tanggal + 'T00:00:00');
     return jDate.toDateString() === today.toDateString() && j.status !== 'selesai';
   }).length;
+
+  const filterHtml = `<div class="filter-row">
+    <div class="field" style="margin-bottom:0;min-width:150px;"><label style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;">Kategori</label>
+      <select id="filter-kategori-jadwal" onchange="applyFilterJadwal()"><option value="semua" ${filterKategoriJadwal==='semua'?'selected':''}>Semua</option>${KATEGORI_JADWAL.map(k=>`<option value="${k.v}" ${filterKategoriJadwal===k.v?'selected':''}>${k.l}</option>`).join('')}</select></div>
+    <div class="search-box" style="flex:1;min-width:200px;"><div class="search-input-wrap"><i data-lucide="search" class="inline-icon search-input-icon"></i><input type="text" id="search-input-jadwal" placeholder="Cari judul atau deskripsi..." value="${esc(searchQueryJadwal)}" oninput="applySearchJadwal()"></div>${searchQueryJadwal?`<button class="btn secondary small" ${da('clearSearchJadwal')}>✕</button>`:''}</div>
+    ${isFilteringJadwal?`<button class="btn secondary small" ${da('resetFilterJadwal')}>↺ Reset</button>`:''}
+  </div>`;
 
   return `
   ${generateJadwalReminderCard()}
@@ -160,7 +181,8 @@ function renderJadwal(){
       ${isLoggedIn ? `<button class="btn" ${da('openJadwalModal')}>+ Tambah Jadwal</button>` : ''}
     </div>
     <div class="panel-body">
-      <div class="jadwal-item-list">${cards || `<div class="empty-row" style="padding:30px;text-align:center;">Belum ada jadwal. ${isLoggedIn ? 'Tambahkan jadwal untuk mendapatkan pengingat.' : 'Login untuk menambah jadwal.'}</div>`}</div>
+      ${filterHtml}
+      <div class="jadwal-item-list">${cards || `<div class="empty-row" style="padding:30px;text-align:center;">${isFilteringJadwal ? 'Tidak ditemukan.' : `Belum ada jadwal. ${isLoggedIn ? 'Tambahkan jadwal untuk mendapatkan pengingat.' : 'Login untuk menambah jadwal.'}`}</div>`}</div>
     </div>
   </div>`;
 }
@@ -204,6 +226,11 @@ function openJadwalModal(id){
     }}
   ]);
 }
+
+function applyFilterJadwal(){ filterKategoriJadwal=document.getElementById('filter-kategori-jadwal').value; renderContent(); }
+function applySearchJadwal(){ searchQueryJadwal=document.getElementById('search-input-jadwal').value; renderContent(); }
+function clearSearchJadwal(){ searchQueryJadwal=''; renderContent(); }
+function resetFilterJadwal(){ filterKategoriJadwal='semua'; searchQueryJadwal=''; renderContent(); }
 
 function toggleJadwalStatus(id){
   if (!canEditSection('jadwal')) { toast(editDeniedMsg()); return; }
@@ -258,6 +285,51 @@ async function hapusJadwalLombaLocked(lombaId){
    ============================================================ */
 function gAgenda(){ return db.agenda; }
 
+// Kartu notifikasi "Agenda Mendatang" — dulu cuma tampil di Buku Kegiatan
+// (dashboard, lihat generateReminders() di 07-dashboard.js), sekarang
+// dipindah ke sini supaya konsisten dengan pola Jadwal Kegiatan (lihat
+// generateJadwalReminderCard di atas): langsung terlihat begitu user buka
+// menu Agenda Kegiatan sendiri, tanpa harus mampir ke dashboard dulu.
+function generateAgendaReminderCard(){
+  const today = new Date();
+  const agendaList = gAgenda().filter(a => a.status !== 'selesai');
+  const upcomingAgenda = agendaList.filter(a => {
+    const aDate = new Date(a.tanggal + 'T00:00:00');
+    const diffDays = Math.ceil((aDate - today) / (1000 * 60 * 60 * 24));
+    return diffDays >= 0 && diffDays <= 7;
+  }).sort((a,b) => new Date(a.tanggal) - new Date(b.tanggal));
+
+  if (upcomingAgenda.length === 0) return '';
+
+  const itemCardsHtml = upcomingAgenda.map(a => {
+    const aDate = new Date(a.tanggal + 'T00:00:00');
+    const diffDays = Math.ceil((aDate - today) / (1000 * 60 * 60 * 24));
+    const kapanLabel = diffDays === 0 ? 'Hari ini!' : diffDays === 1 ? 'Besok' : `${diffDays} hari lagi`;
+
+    return `
+    <div class="lomba-detail-card">
+      <div class="lomba-detail-row"><span class="lbl">🗓️ Hari &amp; Tanggal</span><span class="val">${fmtDateHari(a.tanggal)} · ${kapanLabel}</span></div>
+      <div class="lomba-detail-row"><span class="lbl">📌 Judul</span><span class="val">${esc(a.judul)}</span></div>
+      <div class="lomba-detail-row"><span class="lbl">🏷️ Kategori</span><span class="val">${esc(labelKategoriJadwal(a.kategori))}</span></div>
+      ${a.pj ? `<div class="lomba-detail-row"><span class="lbl">👤 PJ</span><span class="val">${esc(a.pj)}</span></div>` : ''}
+    </div>`;
+  }).join('');
+
+  return `
+  <div class="reminder-grid">
+    <div class="reminder-card info">
+      <div class="card-header">
+        <div class="icon">📌</div>
+        <div class="title">Agenda Mendatang</div>
+        <div class="count">${upcomingAgenda.length}</div>
+      </div>
+      <div class="card-body">
+        ${itemCardsHtml}
+      </div>
+    </div>
+  </div>`;
+}
+
 // View aktif halaman Agenda: 'list' (default, tabel/kartu kronologis) atau
 // 'tahunan' (roadmap dikelompokkan per tahun, hasil rapat perencanaan
 // kegiatan tahunan). State di memori saja, reset tiap reload — sengaja
@@ -268,12 +340,49 @@ function switchAgendaView(view){
   renderContent();
 }
 
+let searchQueryAgenda = '';
+let filterKategoriAgenda = 'semua';
+function isFilteringAgenda(){ return filterKategoriAgenda !== 'semua' || !!searchQueryAgenda.trim(); }
+
+// Dipakai di kedua view (list & tahunan) supaya filter kategori & pencarian
+// (judul/PJ/deskripsi) konsisten kemana pun user pindah tampilan — lihat
+// gap "tidak ada pencarian/filter" yang sebelumnya ada di menu ini.
+function filteredAgendaList(){
+  let list = gAgenda().slice().sort((a,b) => new Date(a.tanggal) - new Date(b.tanggal));
+  if (filterKategoriAgenda !== 'semua') list = list.filter(a => a.kategori === filterKategoriAgenda);
+  if (searchQueryAgenda.trim()) {
+    const q = searchQueryAgenda.toLowerCase().trim();
+    list = list.filter(a => (a.judul||'').toLowerCase().includes(q) || (a.deskripsi||'').toLowerCase().includes(q) || (a.pj||'').toLowerCase().includes(q));
+  }
+  return list;
+}
+
+function agendaFilterHtml(){
+  return `<div class="filter-row">
+    <div class="field" style="margin-bottom:0;min-width:150px;"><label style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;">Kategori</label>
+      <select id="filter-kategori-agenda" onchange="applyFilterAgenda()"><option value="semua" ${filterKategoriAgenda==='semua'?'selected':''}>Semua</option>${KATEGORI_JADWAL.map(k=>`<option value="${k.v}" ${filterKategoriAgenda===k.v?'selected':''}>${k.l}</option>`).join('')}</select></div>
+    <div class="search-box" style="flex:1;min-width:200px;"><div class="search-input-wrap"><i data-lucide="search" class="inline-icon search-input-icon"></i><input type="text" id="search-input-agenda" placeholder="Cari judul, PJ, atau deskripsi..." value="${esc(searchQueryAgenda)}" oninput="applySearchAgenda()"></div>${searchQueryAgenda?`<button class="btn secondary small" ${da('clearSearchAgenda')}>✕</button>`:''}</div>
+    ${isFilteringAgenda()?`<button class="btn secondary small" ${da('resetFilterAgenda')}>↺ Reset</button>`:''}
+  </div>`;
+}
+function applyFilterAgenda(){ filterKategoriAgenda=document.getElementById('filter-kategori-agenda').value; renderContent(); }
+function applySearchAgenda(){ searchQueryAgenda=document.getElementById('search-input-agenda').value; renderContent(); }
+function clearSearchAgenda(){ searchQueryAgenda=''; renderContent(); }
+function resetFilterAgenda(){ filterKategoriAgenda='semua'; searchQueryAgenda=''; renderContent(); }
+
 function renderAgendaTahunan(){
-  const list = gAgenda().slice().sort((a,b) => new Date(a.tanggal) - new Date(b.tanggal));
+  const hasAnyAgenda = gAgenda().length > 0;
+  const list = filteredAgendaList();
   const isLoggedIn = !!getCurrentUser();
 
-  if(!list.length){
+  if(!hasAnyAgenda){
     return `<div class="panel"><div class="panel-body" style="padding:30px;text-align:center;">Belum ada agenda untuk ditampilkan sebagai roadmap tahunan.</div></div>`;
+  }
+
+  if(!list.length){
+    return `
+    <div class="panel"><div class="panel-body">${agendaFilterHtml()}</div></div>
+    <div class="panel"><div class="panel-body" style="padding:30px;text-align:center;">Tidak ditemukan.</div></div>`;
   }
 
   const byYear = new Map();
@@ -315,6 +424,7 @@ function renderAgendaTahunan(){
   <div class="panel-head" style="margin-bottom:14px;">
     <div><h3>🗺️ Roadmap Kegiatan per Tahun</h3></div>
   </div>
+  <div class="panel" style="margin-bottom:14px;"><div class="panel-body">${agendaFilterHtml()}</div></div>
   ${panels}`;
 }
 
@@ -339,7 +449,8 @@ function renderAgenda(){
     </div>
     ${renderAgendaTahunan()}`;
   }
-  const list = gAgenda().slice().sort((a,b) => new Date(a.tanggal) - new Date(b.tanggal));
+  const fullList = gAgenda().slice().sort((a,b) => new Date(a.tanggal) - new Date(b.tanggal));
+  const list = filteredAgendaList();
   const isLoggedIn = !!getCurrentUser();
 
   const today = new Date();
@@ -412,10 +523,10 @@ function renderAgenda(){
     </div>`;
   }).join('');
 
-  const total = list.length;
-  const totalSelesai = list.filter(a => a.status === 'selesai').length;
+  const total = fullList.length;
+  const totalSelesai = fullList.filter(a => a.status === 'selesai').length;
   const totalActive = total - totalSelesai;
-  const totalHariIni = list.filter(a => {
+  const totalHariIni = fullList.filter(a => {
     const aDate = new Date(a.tanggal + 'T00:00:00');
     return aDate.toDateString() === today.toDateString() && a.status !== 'selesai';
   }).length;
@@ -427,6 +538,7 @@ function renderAgenda(){
   const peringatanCard = generatePeringatanReminderCard();
 
   return `
+  ${generateAgendaReminderCard()}
   ${peringatanCard ? `<div class="reminder-grid">${reminderCardHtml(peringatanCard)}</div>` : ''}
   ${renderKalenderKesadaranPanel()}
   <div class="stat-grid">
@@ -445,14 +557,15 @@ function renderAgenda(){
         ${isLoggedIn ? `<button class="btn" ${da('openAgendaModal')}>+ Tambah Agenda</button>` : ''}
       </div>
     </div>
+    <div class="panel-body" style="padding-bottom:0;">${agendaFilterHtml()}</div>
     <div class="panel-body flush agenda-table-wrap">
       <table class="general-table jadwal-table">
         <thead><tr><th>Tanggal</th><th>Status</th><th>Kategori</th><th>Judul</th><th>PJ</th><th>Deskripsi</th><th></th></tr></thead>
-        <tbody>${rows || `<tr class="empty-row"><td colspan="7">Belum ada agenda. ${isLoggedIn ? 'Tambahkan agenda untuk mendapatkan pengingat.' : 'Login untuk menambah agenda.'}</td></tr>`}</tbody>
+        <tbody>${rows || `<tr class="empty-row"><td colspan="7">${isFilteringAgenda() ? 'Tidak ditemukan.' : `Belum ada agenda. ${isLoggedIn ? 'Tambahkan agenda untuk mendapatkan pengingat.' : 'Login untuk menambah agenda.'}`}</td></tr>`}</tbody>
       </table>
     </div>
     <div class="panel-body agenda-mobile-wrap">
-      <div class="jadwal-item-list">${cards || `<div class="empty-row" style="padding:30px;text-align:center;">Belum ada agenda. ${isLoggedIn ? 'Tambahkan agenda untuk mendapatkan pengingat.' : 'Login untuk menambah agenda.'}</div>`}</div>
+      <div class="jadwal-item-list">${cards || `<div class="empty-row" style="padding:30px;text-align:center;">${isFilteringAgenda() ? 'Tidak ditemukan.' : `Belum ada agenda. ${isLoggedIn ? 'Tambahkan agenda untuk mendapatkan pengingat.' : 'Login untuk menambah agenda.'}`}</div>`}</div>
     </div>
   </div>`;
 }

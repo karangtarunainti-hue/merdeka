@@ -141,51 +141,13 @@ function kuponJalanPanelHtml(){
 
 function generateReminders(){
   const reminders = [];
-  const today = new Date();
   const isLoggedIn = !!getCurrentUser();
 
-  // Agenda Kegiatan — tidak terikat event, jadi selalu dicek terlepas
-  // dari ada/tidaknya event aktif.
-  const agendaList = gAgenda().filter(a => a.status !== 'selesai');
-  const upcomingAgenda = agendaList.filter(a => {
-    const aDate = new Date(a.tanggal + 'T00:00:00');
-    const diffDays = Math.ceil((aDate - today) / (1000 * 60 * 60 * 24));
-    return diffDays >= 0 && diffDays <= 7;
-  }).sort((a,b) => new Date(a.tanggal) - new Date(b.tanggal));
-
-  if (upcomingAgenda.length > 0) {
-    const todayAgenda = upcomingAgenda.filter(a => {
-      const aDate = new Date(a.tanggal + 'T00:00:00');
-      return aDate.toDateString() === today.toDateString();
-    });
-    const soonAgenda = upcomingAgenda.filter(a => {
-      const aDate = new Date(a.tanggal + 'T00:00:00');
-      return aDate.toDateString() !== today.toDateString();
-    });
-
-    let items = [];
-    if (todayAgenda.length > 0) {
-      items.push({label: '📌 Hari ini:', value: todayAgenda.map(a => `${a.judul} (${labelKategoriJadwal(a.kategori)})`).join(', ')});
-    }
-    if (soonAgenda.length > 0) {
-      const soonText = soonAgenda.map(a => {
-        const aDate = new Date(a.tanggal + 'T00:00:00');
-        const diffDays = Math.ceil((aDate - today) / (1000 * 60 * 60 * 24));
-        const dayLabel = diffDays === 1 ? 'Besok' : `${diffDays} hari lagi`;
-        return `${a.judul} (${dayLabel})`;
-      }).join(', ');
-      items.push({label: '📅 Mendatang:', value: soonText});
-    }
-
-    reminders.push({
-      type: 'info',
-      icon: '📌',
-      title: 'Agenda Kegiatan',
-      count: upcomingAgenda.length,
-      items: items,
-      action: {label: 'Lihat Semua →', link: 'agenda'}
-    });
-  }
+  // Catatan: kartu notifikasi "Agenda Mendatang" sudah dipindah ke menu
+  // Agenda Kegiatan sendiri (lihat generateAgendaReminderCard di
+  // 12-jadwal-agenda-kas.js), tidak lagi ditampilkan di Buku Kegiatan supaya
+  // tidak dobel dan lebih relevan langsung di menunya — sama pola dengan
+  // Jadwal Kegiatan (lihat catatan di bawah).
 
   // Catatan: kartu "Lomba Hari Ini!" (detail lomba yang jadwalnya hari ini)
   // sudah dipindah ke menu Jadwal Kegiatan (lihat generateJadwalReminderCard
